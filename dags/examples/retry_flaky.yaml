@@ -1,0 +1,25 @@
+name: retry_flaky
+description: "Demonstrates retry — a flaky step fails on the first attempt and succeeds on the second"
+
+steps:
+  - id: flaky_call
+    name: "Flaky API call"
+    executor: shell
+    retry:
+      limit: 2
+      interval_sec: 1
+    command: |
+      MARKER=/tmp/hubwagen_retry_flaky_marker
+      if [ ! -f "$MARKER" ]; then
+        touch "$MARKER"
+        echo "Attempt failed — simulating a transient error"
+        exit 1
+      fi
+      rm "$MARKER"
+      echo "Attempt succeeded on retry"
+
+  - id: process
+    name: "Process result"
+    executor: shell
+    depends_on: [flaky_call]
+    command: "echo 'Processing result from flaky_call'"

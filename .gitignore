@@ -1,0 +1,44 @@
+# Local development specs (not meant to be committed)
+specs/
+
+# Build artifacts
+/hubwagen
+hubwagen-linux-amd64
+hubwagen-*
+
+# Local SQLite database
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+
+# Local config overrides
+hubwagen.local.yaml
+.env
+.env.*
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+go.work
+go.work.sum
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

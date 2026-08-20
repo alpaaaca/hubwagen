@@ -1,0 +1,26 @@
+name: parallel_fanout
+description: "Fan-out to two parallel branches, then merge — both branches run in the same wave"
+
+steps:
+  - id: seed
+    name: "Seed"
+    executor: shell
+    command: "echo 'Seeding data...'"
+
+  - id: branch_a
+    name: "Branch A"
+    executor: shell
+    depends_on: [seed]
+    command: "echo 'Branch A: processing...' && sleep 1 && echo 'Branch A: done'"
+
+  - id: branch_b
+    name: "Branch B"
+    executor: shell
+    depends_on: [seed]
+    command: "echo 'Branch B: processing...' && sleep 1 && echo 'Branch B: done'"
+
+  - id: merge
+    name: "Merge"
+    executor: shell
+    depends_on: [branch_a, branch_b]
+    command: "echo 'Merge: both branches complete, combining results'"

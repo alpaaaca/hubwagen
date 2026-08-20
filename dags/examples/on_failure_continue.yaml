@@ -1,0 +1,29 @@
+name: on_failure_continue
+description: "Demonstrates on_failure: continue — a failing step does not block the rest"
+
+steps:
+  - id: extract
+    name: "Extract"
+    executor: shell
+    command: "echo 'Extracting data...'"
+
+  - id: notify_slack
+    name: "Notify Slack"
+    executor: shell
+    depends_on: [extract]
+    on_failure: continue
+    command: |
+      echo 'Simulating a failed webhook call...'
+      exit 1
+
+  - id: transform
+    name: "Transform"
+    executor: shell
+    depends_on: [extract]
+    command: "echo 'Transforming data — runs even though notify_slack failed'"
+
+  - id: load
+    name: "Load"
+    executor: shell
+    depends_on: [transform]
+    command: "echo 'Loading complete'"

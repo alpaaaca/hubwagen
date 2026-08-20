@@ -1,0 +1,29 @@
+name: on_failure_skip_dependents
+description: "Demonstrates on_failure: skip_dependents — downstream steps are skipped, unrelated steps still run"
+
+steps:
+  - id: validate
+    name: "Validate input"
+    executor: shell
+    on_failure: skip_dependents
+    command: |
+      echo 'Validating...'
+      exit 1
+
+  - id: transform
+    name: "Transform (skipped)"
+    executor: shell
+    depends_on: [validate]
+    command: "echo 'This should not run'"
+
+  - id: load
+    name: "Load (skipped)"
+    executor: shell
+    depends_on: [transform]
+    command: "echo 'This should not run either'"
+
+  - id: audit_log
+    name: "Audit log (always runs)"
+    executor: shell
+    on_failure: continue
+    command: "echo 'Audit: pipeline attempted, validate step failed'"

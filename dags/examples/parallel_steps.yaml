@@ -1,0 +1,19 @@
+name: parallel_steps
+description: "Two independent extract steps run concurrently, followed by a join"
+
+steps:
+  - id: extract_a
+    name: "Extract A"
+    executor: shell
+    command: "sleep 2 && echo 'A done'"
+
+  - id: extract_b
+    name: "Extract B"
+    executor: shell
+    command: "sleep 2 && echo 'B done'"
+
+  - id: join
+    name: "Join"
+    executor: shell
+    depends_on: [extract_a, extract_b]
+    command: "echo 'Both extracts complete'"
