@@ -1,0 +1,15 @@
+apiVersion: hubwagen.dev/v1alpha1
+kind: Pipeline
+metadata:
+  name: orders_report
+  tenant: examples
+  description: "Runs whenever a raw.orders partition is committed (asset trigger)"
+spec:
+  triggers:
+    - asset: raw.orders
+  defaults:
+    runtime: {kind: agent, pool: local}
+  tasks:
+    - id: report
+      command: ["/bin/sh", "-c"]
+      args: ['echo "building report for {{ .Asset.Name }} partition {{ .Asset.Partition }}"']

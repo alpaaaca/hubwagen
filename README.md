@@ -63,6 +63,24 @@ any stale `running` rows as `failed` (reason: `run interrupted`) before proceedi
 | `--log-level` | all commands | `info` | `debug`, `info`, `warn`, or `error` — structured logs go to stderr |
 | `--dry-run` | `run` | `false` | Parse + validate only; print the execution plan, don't open the DB or execute |
 
+## Compiling pipelines (platform redesign, in progress)
+
+The `003-platform-redesign` work replaces "run YAML directly" with compiled,
+versioned specs (design: `specs/003-platform-redesign/`). The first piece is the
+compiler:
+
+```bash
+# Validate everything (CI lint mode); v1 DAG files compile via a compat mapping
+./hubwagen compile dags/examples --check --no-resolve
+
+# Write canonical specs to build/specs/<tenant>/<pipeline>/<sha256>.json,
+# resolving container image tags to digests
+./hubwagen compile dags/examples --out build/specs
+```
+
+New-format examples live in `dags/examples/v1alpha1/`. `hubwagen run` still
+executes v1 files with the old engine until the new control plane lands.
+
 ## Writing a DAG
 
 See [`docs/dag-schema.md`](./docs/dag-schema.md) if present. Minimal example:
