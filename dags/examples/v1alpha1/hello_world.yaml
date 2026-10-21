@@ -1,0 +1,17 @@
+apiVersion: hubwagen.dev/v1alpha1
+kind: Pipeline
+metadata:
+  name: hello_world
+  tenant: examples
+  description: "Two host-process tasks in sequence (dev mode, local pool)"
+spec:
+  defaults:
+    runtime: {kind: agent, pool: local}
+  tasks:
+    - id: greet
+      command: ["/bin/sh", "-c"]
+      args: ['echo "hello from run {{ .Run.ID }} of {{ .Pipeline }}"']
+    - id: farewell
+      depends_on: [greet]
+      command: ["/bin/sh", "-c"]
+      args: ['echo "goodbye"']
