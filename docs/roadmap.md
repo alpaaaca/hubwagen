@@ -1,0 +1,86 @@
+# Roadmap
+
+What is built, what is next, and what is still undecided. Design rationale is in
+[architecture.md](architecture.md). Keep this file current: update a
+milestone's status in the same PR that changes it.
+
+## Status
+
+| Milestone | Status |
+|---|---|
+| v1: YAML DAGs, shell steps, SQLite history, terminal dashboard | Done. Still the only way to *run* pipelines; replaced in M2 |
+| M0: Spikes | Not started |
+| M1: Spec compiler (`hubwagen compile`) | **Done** |
+| M2: New engine in dev mode (`hubwagen dev`) | Next |
+| M3: API, CLI, remote agents, dashboard as client | — |
+| M3b: Standalone profile + Docker/Podman tasks | — |
+| M4: Failover on Kubernetes (Lease, Litestream, reconciliation) | — |
+| M5: Kubernetes Jobs + tenants (namespaces, quotas, fair share, auth) | — |
+| M6: Assets, partitions, backfills | — |
+| M7: Observability (traces, metrics, log tailing) | — |
+| M8: Retention/archive, hardening | — |
+
+M3b can run in parallel with M4; M5 and M6 in parallel after M4.
+
+## M0: Spikes
+
+Throwaway experiments that de-risk later milestones. Most can run locally with
+Podman and MinIO.
+
+| | Question | Local? | Blocks |
+|---|---|---|---|
+| R1 | Can Litestream be embedded as a library and pointed at a new replica path per leader term? Restore time for 50 MB / 500 MB DBs with 1 h of WAL? Local-path replica for standalone? Warm-standby restore? | Yes (MinIO) | M3b, M4 |
+| R2 | Does create-if-absent work through `gocloud.dev/blob` on `file://`, S3 (MinIO, then real S3) and GCS? | Partly (real GCS/S3 later) | M2 commits |
+| R3 | Does one leader sustain the load target with `modernc.org/sqlite` and group commit? | Yes, after the M2 core exists | Load target sign-off |
+| R4 | Can the `hubwagen` binary be injected into distroless, Alpine, Debian and non-root images (init-container copy and bind mount)? | Yes (Podman) | M3b, M5 |
+| R5 | Does Podman's Docker-compatible socket (rootless too) cover create/wait/kill/inspect (OOM flag)/labels? | Yes | M3b |
+
+## M2: New engine in dev mode
+
+Goal: example pipelines run end-to-end with `hubwagen dev` — data intervals,
+retries, timeouts, cancellation, idempotent triggers, exactly-once output
+commits on `file://` — and the v1 engine is deleted. Planned as reviewable PRs:
+
+1. **Store** (`internal/store`, rewritten): `events` table + projections
+   (tenants, pipelines, versions, schedule cursors, runs, task runs, attempts,
+   outputs, asset partitions), `Append(term, events, applyFn)` in one
+   transaction, `LoadActive`, read queries. `:memory:` tests.
+2. **Core** (`internal/core`): single-goroutine event loop; run, task and
+   attempt state machines; per-task readiness and trigger rules; retries with
+   backoff; timeouts; cancellation; `on_overlap`; idempotent triggers with
+   generations. Fake clock, no I/O in tests.
+3. **Blob + task wrapper** (`internal/blob`, `internal/taskexec`): `file://`
+   blob with `PutIfAbsent`; the task contract for host processes (env, log
+   chunks, result file, commit markers). Reuses v1's shell executor and log
+   streaming.
+4. **Local runtime + cron** (`internal/runtime/localrt`): in-process agent for
+   the `local` pool; cron ticks and catch-up from schedule cursors using
+   `spec.Calendar`.
+5. **`hubwagen dev`** + minimal CLI to publish/trigger/list (in-process, no
+   API yet); remove `cmd/run.go`, `cmd/validate.go`, `internal/dag`,
+   `internal/engine`, `internal/executor`, `internal/scheduler`, `internal/log`.
+   The dashboard reads the new store until M3 turns it into an API client.
+
+## Later milestones (summary)
+
+- **M3**: Connect API (protobuf, `buf`), `hubwagen publish`, `hubwagen agent`
+  pulling work, dashboard on `WatchRuns`/`TailLogs` instead of polling SQLite.
+- **M3b**: `standalone` profile — config file, systemd units, `flock`, static
+  tokens, file/env secret providers, Docker/Podman launcher, S3-compatible
+  store for multi-host, Litestream to a local path.
+- **M4**: Lease election, terms and fencing, Litestream replication and
+  restore, reconciliation; failover drills on kind + MinIO.
+- **M5**: Job runtime via controller-runtime, tenant namespaces and quotas,
+  weighted fair share, OIDC + service-account auth.
+- **M6**: asset-triggered runs, lazy backfills, explicit reruns.
+- **M7**: OpenTelemetry traces, Prometheus metrics, live log tailing.
+- **M8**: history archive, disk-full and bucket-outage behaviour, docs.
+
+## Open decisions
+
+| Decision | Proposed default | Needed by |
+|---|---|---|
+| Load target for one leader | 100 task transitions/s sustained, 2,000 running tasks, 200k attempts/day | R3 / M2 |
+| Human login on Kubernetes | OIDC tokens, tenant roles from a group claim | M5 |
+| Warm-agent isolation | Several tasks of one tenant may share an agent container; agents never serve two tenants | M3 |
+| Format name | Keep `hubwagen.dev/v1alpha1` (changing it later changes every version hash) | Before first publish (M3) |

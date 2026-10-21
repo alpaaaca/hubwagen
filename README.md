@@ -1,15 +1,20 @@
 # hubwagen
 
-A lightweight, self-contained workflow orchestration engine for data engineers.
-Single Go binary. No Docker. No external database. No message broker.
-Workflows are defined in YAML and run with goroutine-per-step parallelism.
+A workflow orchestrator for data teams. Single Go binary, no database server,
+no message broker.
 
 ## Status
 
-Phase 1 (core engine) is complete: `hubwagen run` executes a YAML DAG end-to-end with
-parallel step execution, retries, timeouts, `on_failure` policies, template
-interpolation, and full SQLite-backed run/step/log history with crash recovery.
-The scheduler and terminal UI (`hubwagen tui`, Phase 2+) are not yet built.
+hubwagen is being redesigned around compiled pipeline specs, an event-driven
+control plane, container tasks and multi-tenancy, while still running as one
+binary on a laptop or a plain server. See [docs/architecture.md](docs/architecture.md)
+for the design and [docs/roadmap.md](docs/roadmap.md) for progress.
+
+- **Works today (v1)**: `hubwagen run` executes a YAML DAG of shell steps with
+  parallelism, retries, timeouts, `on_failure` policies and SQLite-backed
+  history; `hubwagen tui` is a terminal dashboard over that history.
+- **New**: `hubwagen compile` validates and compiles pipelines into versioned
+  specs (below). The engine that runs them is the next milestone.
 
 ## Install / Build
 
@@ -63,11 +68,10 @@ any stale `running` rows as `failed` (reason: `run interrupted`) before proceedi
 | `--log-level` | all commands | `info` | `debug`, `info`, `warn`, or `error` — structured logs go to stderr |
 | `--dry-run` | `run` | `false` | Parse + validate only; print the execution plan, don't open the DB or execute |
 
-## Compiling pipelines (platform redesign, in progress)
+## Compiling pipelines
 
-The `003-platform-redesign` work replaces "run YAML directly" with compiled,
-versioned specs (design: `specs/003-platform-redesign/`). The first piece is the
-compiler:
+The redesign replaces "run YAML directly" with compiled, versioned specs
+(format reference: [docs/pipeline-format.md](docs/pipeline-format.md)):
 
 ```bash
 # Validate everything (CI lint mode); v1 DAG files compile via a compat mapping
@@ -83,7 +87,7 @@ executes v1 files with the old engine until the new control plane lands.
 
 ## Writing a DAG
 
-See [`docs/dag-schema.md`](./docs/dag-schema.md) if present. Minimal example:
+This section describes the v1 format that `hubwagen run` executes. Minimal example:
 
 ```yaml
 name: my_pipeline

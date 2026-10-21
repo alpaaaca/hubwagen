@@ -42,3 +42,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Compiled specs (hubwagen compile --out build/specs)
+build/
