@@ -29,12 +29,22 @@ func (l Layout) OutputGeneration(tenant, pipeline, task, output, runKey string, 
 		tenant, pipeline, task, output, url.PathEscape(runKey), generation)
 }
 
+// TaskCommit is the create-if-absent marker that decides which attempt of a
+// task (in one run generation) won. It lists every output, so one attempt
+// wins all of them. Per-output CommitMarkers are written after it, for
+// people and tools browsing the data.
+func (l Layout) TaskCommit(tenant, pipeline, task, runKey string, generation int) string {
+	return fmt.Sprintf("%s/commits/%s/%s/%s/%s/gen-%d.json", l.base,
+		tenant, pipeline, task, url.PathEscape(runKey), generation)
+}
+
 // Staging is one attempt's private directory for an output.
 func Staging(outputGeneration string, attempt int) string {
 	return fmt.Sprintf("%sattempt-%d/", outputGeneration, attempt)
 }
 
-// CommitMarker is the create-if-absent object that names the winning attempt.
+// CommitMarker marks an output directory as committed (written after the
+// TaskCommit, best effort).
 func CommitMarker(outputGeneration string) string {
 	return outputGeneration + "_COMMITTED"
 }
