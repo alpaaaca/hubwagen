@@ -116,6 +116,65 @@ Image digests are resolved at compile time in every profile except `dev`. For
 air-gapped `standalone`, `hubwagen compile --registry-mirror` resolves against a
 local registry, or `--no-resolve` accepts digests already written in the YAML.
 
+### Execution semantics
+
+Implemented by the scheduler core (`internal/core`); its tests are the
+executable version of this section.
+
+**Readiness.** A task is evaluated as soon as *its own* dependencies change —
+there are no waves. Its `trigger_rule` decides:
+
+| `trigger_rule` | Runs when | Otherwise |
+|---|---|---|
+| `all_success` (default) | every dependency succeeded (a failure with `on_failure: continue` counts as success) | `upstream_failed` as soon as one dependency failed or was cancelled; `skipped` if one was skipped |
+| `all_done` | every dependency finished, whatever the outcome | waits |
+| `one_failed` | the first dependency fails | `skipped` once all finished without a failure |
+
+**`on_failure`** (when a task has finally failed, after retries):
+
+| Value | Rest of the run | Run status |
+|---|---|---|
+| `stop` (default) | every unfinished task is cancelled; running attempts get a cancel | `failed` |
+| `skip_dependents` | other branches continue; dependents follow their trigger rule | `failed` |
+| `continue` | other branches continue; dependents treat the task as succeeded | unaffected |
+
+A run is `succeeded` when every task finished and none failed (skipped tasks
+don't count), `failed` otherwise, and `cancelled` if it was cancelled.
+
+**Retries.** `retry.limit` is the number of retries (so `limit: 2` means up to
+3 attempts). The delay before retry *n* is `initial` for `fixed`, or
+`initial × 2^(n-1)` capped at `max` for `exponential`. Failures that would
+repeat identically are not retried: `exec_error` (command not found or not
+executable), `render_error` (a template failed, for example `.Interval` in a
+run without an interval), `no_runtime` (the deployment has no runtime for the
+task's kind). Lost attempts (agent gone, leader restart) and timeouts are
+retried.
+
+**Timeouts** run from the moment the attempt starts, not from dispatch. On
+expiry the attempt is recorded as failed (`timeout`), the runtime is told to
+kill it, and the retry policy applies; any later report from that attempt is
+ignored.
+
+**Concurrency.** At most `max_active_runs` runs of a pipeline run at once.
+When a trigger arrives with all slots taken, `on_overlap` decides: `queue`
+(wait in order), `skip` (no run is created; the trigger reports why), or
+`cancel_running` (cancel the active runs and queue the new one).
+
+**Run keys and idempotency.** Every run has a key; triggering an existing key
+returns the existing run instead of creating another:
+
+| Trigger | Run key |
+|---|---|
+| with a data interval | `<tenant>/<pipeline>/<start>_<end>` (UTC, `20060102T150405Z`) |
+| with an idempotency key | `<tenant>/<pipeline>/key:<key>` |
+| neither (ad-hoc) | `<tenant>/<pipeline>/run:<run-id>` (always new) |
+
+Re-running a key whose latest run has finished creates generation `g+1` under
+the same key; outputs of different generations never overwrite each other.
+
+**Versions.** A run keeps the pipeline version it was created with, even if a
+new version is published while it is queued or running.
+
 ### v1 compatibility (dev mode only)
 
 A file with top-level `name` and `steps` (v1 format) compiles as:

@@ -11,7 +11,7 @@ milestone's status in the same PR that changes it.
 | v1: YAML DAGs, shell steps, SQLite history, terminal dashboard | Done. Still the only way to *run* pipelines; replaced in M2 |
 | M0: Spikes | Not started |
 | M1: Spec compiler (`hubwagen compile`) | **Done** |
-| M2: New engine in dev mode (`hubwagen dev`) | In progress: step 1 (store) done |
+| M2: New engine in dev mode (`hubwagen dev`) | In progress: steps 1 (store) and 2 (core) done |
 | M3: API, CLI, remote agents, dashboard as client | — |
 | M3b: Standalone profile + Docker/Podman tasks | — |
 | M4: Failover on Kubernetes (Lease, Litestream, reconciliation) | — |
@@ -48,10 +48,15 @@ commits on `file://` — and the v1 engine is deleted. Planned as reviewable PRs
    read queries on a separate read-only pool. Lives next to v1's
    `internal/store`, which is deleted in step 5. Pools, asset partitions and
    backfills get their tables in the milestones that need them.
-2. **Core** (`internal/core`): single-goroutine event loop; run, task and
-   attempt state machines; per-task readiness and trigger rules; retries with
-   backoff; timeouts; cancellation; `on_overlap`; idempotent triggers with
-   generations. Fake clock, no I/O in tests.
+2. ✅ **Core** (`internal/core`, with `internal/clock` and `internal/layout`):
+   single-goroutine event loop with group commit; run, task and attempt state
+   machines; per-task readiness and trigger rules; `on_failure`; retries with
+   backoff; leader-side timeouts; cancellation; `on_overlap`; idempotent
+   triggers and rerun generations; params; template rendering into
+   assignments; restore on leader start (in-flight attempts lost unless a
+   `Recovery` accounts for them). Execution semantics are documented in
+   pipeline-format.md. Not yet: fair-share dispatch (ready tasks go straight
+   to the runtime, which may queue), cron (step 4).
 3. **Blob + task wrapper** (`internal/blob`, `internal/taskexec`): `file://`
    blob with `PutIfAbsent`; the task contract for host processes (env, log
    chunks, result file, commit markers). Reuses v1's shell executor and log
