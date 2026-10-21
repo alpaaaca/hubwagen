@@ -11,7 +11,7 @@ milestone's status in the same PR that changes it.
 | v1: YAML DAGs, shell steps, SQLite history, terminal dashboard | Done. Still the only way to *run* pipelines; replaced in M2 |
 | M0: Spikes | Not started |
 | M1: Spec compiler (`hubwagen compile`) | **Done** |
-| M2: New engine in dev mode (`hubwagen dev`) | In progress: steps 1 (store) and 2 (core) done |
+| M2: New engine in dev mode (`hubwagen dev`) | In progress: steps 1–3 done (store, core, blob + task wrapper) |
 | M3: API, CLI, remote agents, dashboard as client | — |
 | M3b: Standalone profile + Docker/Podman tasks | — |
 | M4: Failover on Kubernetes (Lease, Litestream, reconciliation) | — |
@@ -30,7 +30,7 @@ Podman and MinIO.
 | | Question | Local? | Blocks |
 |---|---|---|---|
 | R1 | Can Litestream be embedded as a library and pointed at a new replica path per leader term? Restore time for 50 MB / 500 MB DBs with 1 h of WAL? Local-path replica for standalone? Warm-standby restore? | Yes (MinIO) | M3b, M4 |
-| R2 | Does create-if-absent work through `gocloud.dev/blob` on `file://`, S3 (MinIO, then real S3) and GCS? | Partly (real GCS/S3 later) | M2 commits |
+| R2 | Does create-if-absent work through `gocloud.dev/blob` on S3 (MinIO, then real S3) and GCS? (`file://` is done natively in `internal/blob`) | Partly (real GCS/S3 later) | M3b multi-host, M4 |
 | R3 | Does one leader sustain the load target with `modernc.org/sqlite` and group commit? | Yes, after the M2 core exists. First signal from `BenchmarkAppend` (M1 Mac, `synchronous=FULL`): ~15k events/s one per commit, ~60k/s in batches of 128 — far above the ~100 transitions/s target, but needs re-measuring on Linux server disks and with the real core | Load target sign-off |
 | R4 | Can the `hubwagen` binary be injected into distroless, Alpine, Debian and non-root images (init-container copy and bind mount)? | Yes (Podman) | M3b, M5 |
 | R5 | Does Podman's Docker-compatible socket (rootless too) cover create/wait/kill/inspect (OOM flag)/labels? | Yes | M3b |
@@ -57,10 +57,12 @@ commits on `file://` — and the v1 engine is deleted. Planned as reviewable PRs
    `Recovery` accounts for them). Execution semantics are documented in
    pipeline-format.md. Not yet: fair-share dispatch (ready tasks go straight
    to the runtime, which may queue), cron (step 4).
-3. **Blob + task wrapper** (`internal/blob`, `internal/taskexec`): `file://`
-   blob with `PutIfAbsent`; the task contract for host processes (env, log
-   chunks, result file, commit markers). Reuses v1's shell executor and log
-   streaming.
+3. ✅ **Blob + task wrapper** (`internal/blob`, `internal/taskexec`):
+   `file://` bucket with atomic `PutIfAbsent`; the task contract for host
+   processes (environment incl. `_PATH` variables, process-group kill on
+   timeout/cancel, log chunks + index, result file, task-level commit marker,
+   superseded attempts); `taskexec.Recovery` checks markers on leader restart;
+   dev-mode secrets from the environment.
 4. **Local runtime + cron** (`internal/runtime/localrt`): in-process agent for
    the `local` pool; cron ticks and catch-up from schedule cursors using
    `spec.Calendar`.

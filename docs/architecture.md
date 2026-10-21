@@ -147,9 +147,14 @@ that materialise a bounded number of runs at a time.
   (manual). Unique per `(run_key, generation)`; re-running an interval creates
   generation `g+1`.
 - **Commits**: each attempt writes to its own staging prefix. On exit 0 the
-  wrapper creates `…/gen-<g>/_COMMITTED` with a create-if-absent write (GCS
-  `ifGenerationMatch=0`, S3 `If-None-Match: *`, `O_EXCL` locally). A second
-  attempt's commit fails and it is recorded as `superseded`.
+  wrapper creates one task-level marker
+  `commits/<tenant>/<pipeline>/<task>/<run-key>/gen-<g>.json` listing all
+  outputs, with a create-if-absent write (GCS `ifGenerationMatch=0`, S3
+  `If-None-Match: *`, write-then-`link(2)` locally). One marker per task, not
+  per output, so racing attempts can't each win a different output. A losing
+  attempt is recorded as `superseded` and the task uses the winner's outputs.
+  On leader restart the same markers tell recovery which in-flight attempts
+  actually finished.
 
 Execution is at-least-once; visible output is exactly-once, and committing
 doesn't need the leader to be up.
@@ -191,7 +196,7 @@ be tested without either. Tests use real implementations (`:memory:` SQLite,
 | `Store` (events + projections) | `internal/state` (SQLite). A concrete type for now; the core defines the interface it consumes, and a Postgres implementation would satisfy the same one |
 | `Replicator` | `litestream` (bucket or local path), `snapshot` (fallback), `noop` |
 | `Elector` | `k8slease`, `single` |
-| `Blob` (incl. `PutIfAbsent`) | `gocloud.dev/blob`: `gs://`, `s3://`, `file://`, `mem://` |
+| `Blob` (incl. `PutIfAbsent`) | `internal/blob`: `file://` today (native, `link(2)` for create-if-absent); `gs://`/`s3://` later, possibly via `gocloud.dev/blob` (spike R2) |
 | `Runtime` (leader side) | `agentrt`, `jobrt`, `localrt` |
 | `Launcher` (agent side) | `process`, `container` (Docker Engine API; Podman via its compatible socket) |
 | `SecretProvider` | `k8s`, `file`, `env` |
@@ -214,7 +219,8 @@ state/term-<N>/…                                              Litestream repli
 specs/<tenant>/<pipeline>/<hash>.json                         compiled versions
 logs/<tenant>/<pipeline>/<run>/<task>/<attempt>/<seq>.log
 data/<tenant>/<pipeline>/<task>/<output>/<run-key>/gen-<g>/attempt-<n>/…   staging
-data/…/gen-<g>/_COMMITTED                                     winning attempt
+data/…/gen-<g>/_COMMITTED                                     convenience marker
+commits/<tenant>/<pipeline>/<task>/<run-key>/gen-<g>.json     the commit: winning attempt + all outputs
 results/<tenant>/<run>/<task>/<attempt>.json
 archive/<tenant>/runs/<yyyy>/<mm>/<run>.json
 ```

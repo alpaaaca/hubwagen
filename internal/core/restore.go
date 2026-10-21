@@ -74,7 +74,12 @@ func (c *Core) restore(ctx context.Context) error {
 	// Attempts the recovery accounts for get its report; the rest are lost.
 	var reports []Report
 	if c.cfg.Recovery != nil && len(inFlight) > 0 {
-		reports = c.cfg.Recovery.Recover(ctx, inFlight)
+		in := make([]InFlight, len(inFlight))
+		for i, a := range inFlight {
+			r := c.runs[a.RunID].rec
+			in[i] = InFlight{Attempt: a, CommitURI: c.cfg.Layout.TaskCommit(r.Tenant, r.Pipeline, a.TaskID, r.RunKey, r.Generation)}
+		}
+		reports = c.cfg.Recovery.Recover(ctx, in)
 	}
 	for _, rep := range reports {
 		c.handleReport(rep)

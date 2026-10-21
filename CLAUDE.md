@@ -35,6 +35,8 @@ spec-kit; `specs/` is legacy and gitignored.
 | `internal/state` | New store: event log + projections, term fencing, leader-start loaders (M2 step 1) | **New design, keep** |
 | `internal/core` | Scheduler core: event loop, state machines, triggers, retries, timeouts, cancellation, restore (M2 step 2) | **New design, keep** |
 | `internal/clock`, `internal/layout` | Real/fake clock; bucket path layout shared by core and task wrapper | **New design, keep** |
+| `internal/blob` | Bucket access by URI; `file://` with atomic create-if-absent (M2 step 3) | **New design, keep** |
+| `internal/taskexec` | The task contract: env, process groups, log shipping, result file, commit markers, restart recovery (M2 step 3) | **New design, keep** |
 | `internal/store` | v1 SQLite store (update-in-place tables) | Deleted in M2 step 5 |
 | `internal/tui` | Terminal dashboard (bubbletea) | Kept; data source moves to the new store (M2), then the API (M3) |
 | `cmd/run.go`, `cmd/validate.go` | v1 commands | Deleted in M2 |

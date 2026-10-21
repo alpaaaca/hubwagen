@@ -33,6 +33,9 @@ type Assignment struct {
 
 	Inputs  map[string]string       // input name → committed output URI
 	Outputs map[string]OutputTarget // output name → where to write and commit
+	// CommitURI is the task-level create-if-absent marker; whichever attempt
+	// creates it wins all outputs.
+	CommitURI string
 
 	LogsURI   string
 	ResultURI string
@@ -77,7 +80,7 @@ func (c *Core) Report(r Report) {
 }
 
 // Reasons that will fail the same way on every attempt, so retrying is pointless.
-var nonRetryable = map[string]bool{"exec_error": true, "render_error": true, "no_runtime": true}
+var nonRetryable = map[string]bool{"exec_error": true, "render_error": true, "no_runtime": true, "result_error": true}
 
 // --- run lifecycle ---
 
@@ -335,6 +338,7 @@ func (c *Core) assignment(a *attemptState) (Assignment, error) {
 		Timeout: time.Duration(def.TimeoutSeconds) * time.Second,
 		Inputs:  map[string]string{}, Outputs: map[string]OutputTarget{},
 		LogsURI:        a.rec.LogsURI,
+		CommitURI:      c.cfg.Layout.TaskCommit(r.rec.Tenant, r.rec.Pipeline, def.ID, r.rec.RunKey, r.rec.Generation),
 		ResultURI:      c.cfg.Layout.Result(r.rec.Tenant, r.rec.ID, def.ID, a.rec.Number),
 		IdempotencyKey: fmt.Sprintf("%s/gen-%d/%s", r.rec.RunKey, r.rec.Generation, def.ID),
 	}

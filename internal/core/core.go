@@ -47,7 +47,13 @@ type Recovery interface {
 	// Recover returns a report for every attempt it can account for (for
 	// example finished with a commit marker in place). Attempts it doesn't
 	// report are recorded as lost and retried under their task's policy.
-	Recover(ctx context.Context, inFlight []state.Attempt) []Report
+	Recover(ctx context.Context, inFlight []InFlight) []Report
+}
+
+// InFlight is an attempt left unfinished by the previous leader.
+type InFlight struct {
+	Attempt   state.Attempt
+	CommitURI string // the task's commit marker for this run generation
 }
 
 type Config struct {

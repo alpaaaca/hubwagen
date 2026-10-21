@@ -65,10 +65,10 @@ func TestRestartRearmsRetryTimersAndKeepsQueues(t *testing.T) {
 // committed (as the commit-marker check will in step 3).
 type recoverAll struct{}
 
-func (recoverAll) Recover(_ context.Context, inFlight []state.Attempt) []Report {
+func (recoverAll) Recover(_ context.Context, inFlight []InFlight) []Report {
 	var out []Report
-	for _, a := range inFlight {
-		out = append(out, Report{AttemptID: a.ID, Status: state.AttemptSucceeded, Reason: "recovered"})
+	for _, f := range inFlight {
+		out = append(out, Report{AttemptID: f.Attempt.ID, Status: state.AttemptSucceeded, Reason: "recovered"})
 	}
 	return out
 }
