@@ -32,7 +32,8 @@ spec-kit; `specs/` is legacy and gitignored.
 | `internal/spec` | Pipeline compiler: parsing (v1alpha1 + v1 compat), validation, restricted templates, data intervals, canonical JSON + sha256, image digest resolution | **New design, keep** |
 | `cmd/compile.go` | `hubwagen compile` | Keep |
 | `internal/dag`, `engine`, `executor`, `scheduler`, `log` | v1 engine (wave-based execution, shell executor, `TriggerManual`) | Replaced and deleted in M2; logic is reused (shell exec, log streaming, retry semantics) |
-| `internal/store` | v1 SQLite store (update-in-place tables) | Rewritten in M2 as event log + projections |
+| `internal/state` | New store: event log + projections, term fencing, leader-start loaders (M2 step 1) | **New design, keep** |
+| `internal/store` | v1 SQLite store (update-in-place tables) | Deleted in M2 step 5 |
 | `internal/tui` | Terminal dashboard (bubbletea) | Kept; data source moves to the new store (M2), then the API (M3) |
 | `cmd/run.go`, `cmd/validate.go` | v1 commands | Deleted in M2 |
 | `dags/examples/*.yaml` | v1 examples (compile via compat) | Keep while compat exists |

@@ -188,7 +188,7 @@ be tested without either. Tests use real implementations (`:memory:` SQLite,
 
 | Interface | Implementations |
 |---|---|
-| `Store` (events + projections) | `sqlite` |
+| `Store` (events + projections) | `internal/state` (SQLite). A concrete type for now; the core defines the interface it consumes, and a Postgres implementation would satisfy the same one |
 | `Replicator` | `litestream` (bucket or local path), `snapshot` (fallback), `noop` |
 | `Elector` | `k8slease`, `single` |
 | `Blob` (incl. `PutIfAbsent`) | `gocloud.dev/blob`: `gs://`, `s3://`, `file://`, `mem://` |
