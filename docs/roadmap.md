@@ -11,7 +11,7 @@ milestone's status in the same PR that changes it.
 | v1: YAML DAGs, shell steps, SQLite history, terminal dashboard | Done. Still the only way to *run* pipelines; replaced in M2 |
 | M0: Spikes | Not started |
 | M1: Spec compiler (`hubwagen compile`) | **Done** |
-| M2: New engine in dev mode (`hubwagen dev`) | Next |
+| M2: New engine in dev mode (`hubwagen dev`) | In progress: step 1 (store) done |
 | M3: API, CLI, remote agents, dashboard as client | — |
 | M3b: Standalone profile + Docker/Podman tasks | — |
 | M4: Failover on Kubernetes (Lease, Litestream, reconciliation) | — |
@@ -31,7 +31,7 @@ Podman and MinIO.
 |---|---|---|---|
 | R1 | Can Litestream be embedded as a library and pointed at a new replica path per leader term? Restore time for 50 MB / 500 MB DBs with 1 h of WAL? Local-path replica for standalone? Warm-standby restore? | Yes (MinIO) | M3b, M4 |
 | R2 | Does create-if-absent work through `gocloud.dev/blob` on `file://`, S3 (MinIO, then real S3) and GCS? | Partly (real GCS/S3 later) | M2 commits |
-| R3 | Does one leader sustain the load target with `modernc.org/sqlite` and group commit? | Yes, after the M2 core exists | Load target sign-off |
+| R3 | Does one leader sustain the load target with `modernc.org/sqlite` and group commit? | Yes, after the M2 core exists. First signal from `BenchmarkAppend` (M1 Mac, `synchronous=FULL`): ~15k events/s one per commit, ~60k/s in batches of 128 — far above the ~100 transitions/s target, but needs re-measuring on Linux server disks and with the real core | Load target sign-off |
 | R4 | Can the `hubwagen` binary be injected into distroless, Alpine, Debian and non-root images (init-container copy and bind mount)? | Yes (Podman) | M3b, M5 |
 | R5 | Does Podman's Docker-compatible socket (rootless too) cover create/wait/kill/inspect (OOM flag)/labels? | Yes | M3b |
 
@@ -41,10 +41,13 @@ Goal: example pipelines run end-to-end with `hubwagen dev` — data intervals,
 retries, timeouts, cancellation, idempotent triggers, exactly-once output
 commits on `file://` — and the v1 engine is deleted. Planned as reviewable PRs:
 
-1. **Store** (`internal/store`, rewritten): `events` table + projections
-   (tenants, pipelines, versions, schedule cursors, runs, task runs, attempts,
-   outputs, asset partitions), `Append(term, events, applyFn)` in one
-   transaction, `LoadActive`, read queries. `:memory:` tests.
+1. ✅ **Store** (`internal/state`): `events` table + projections (tenants,
+   pipeline versions, pipelines, schedule cursors, runs, task runs, attempts,
+   outputs), `Append(term, events, apply)` in one transaction, term fencing
+   (`StartTerm`, `ErrStaleTerm`), `LoadCatalog`/`LoadActive` for leader start,
+   read queries on a separate read-only pool. Lives next to v1's
+   `internal/store`, which is deleted in step 5. Pools, asset partitions and
+   backfills get their tables in the milestones that need them.
 2. **Core** (`internal/core`): single-goroutine event loop; run, task and
    attempt state machines; per-task readiness and trigger rules; retries with
    backoff; timeouts; cancellation; `on_overlap`; idempotent triggers with
@@ -58,7 +61,8 @@ commits on `file://` — and the v1 engine is deleted. Planned as reviewable PRs
    `spec.Calendar`.
 5. **`hubwagen dev`** + minimal CLI to publish/trigger/list (in-process, no
    API yet); remove `cmd/run.go`, `cmd/validate.go`, `internal/dag`,
-   `internal/engine`, `internal/executor`, `internal/scheduler`, `internal/log`.
+   `internal/engine`, `internal/executor`, `internal/scheduler`, `internal/log`,
+   `internal/store`.
    The dashboard reads the new store until M3 turns it into an API client.
 
 ## Later milestones (summary)
