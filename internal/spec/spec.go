@@ -1,8 +1,11 @@
 package spec
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
+	"fmt"
 )
 
 // Spec is a compiled, normalised pipeline version: every default applied,
@@ -137,4 +140,23 @@ func (s *Spec) Task(id string) *Task {
 		}
 	}
 	return nil
+}
+
+// Decode parses a compiled spec (as written by Canonical), rejecting unknown
+// fields. It does not re-run compile-time validation: the bytes were produced
+// by Compile and are identified by their hash.
+func Decode(data []byte) (*Spec, error) {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	var s Spec
+	if err := dec.Decode(&s); err != nil {
+		return nil, fmt.Errorf("decode spec: %w", err)
+	}
+	if s.APIVersion != APIVersion {
+		return nil, fmt.Errorf("decode spec: unsupported api_version %q", s.APIVersion)
+	}
+	if len(s.Tasks) == 0 {
+		return nil, fmt.Errorf("decode spec: no tasks")
+	}
+	return &s, nil
 }

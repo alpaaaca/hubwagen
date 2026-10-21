@@ -33,6 +33,8 @@ spec-kit; `specs/` is legacy and gitignored.
 | `cmd/compile.go` | `hubwagen compile` | Keep |
 | `internal/dag`, `engine`, `executor`, `scheduler`, `log` | v1 engine (wave-based execution, shell executor, `TriggerManual`) | Replaced and deleted in M2; logic is reused (shell exec, log streaming, retry semantics) |
 | `internal/state` | New store: event log + projections, term fencing, leader-start loaders (M2 step 1) | **New design, keep** |
+| `internal/core` | Scheduler core: event loop, state machines, triggers, retries, timeouts, cancellation, restore (M2 step 2) | **New design, keep** |
+| `internal/clock`, `internal/layout` | Real/fake clock; bucket path layout shared by core and task wrapper | **New design, keep** |
 | `internal/store` | v1 SQLite store (update-in-place tables) | Deleted in M2 step 5 |
 | `internal/tui` | Terminal dashboard (bubbletea) | Kept; data source moves to the new store (M2), then the API (M3) |
 | `cmd/run.go`, `cmd/validate.go` | v1 commands | Deleted in M2 |
@@ -46,6 +48,9 @@ spec-kit; `specs/` is legacy and gitignored.
 - **Write before act.** Record a state change durably before acting on it
   (dispatching, creating a Job, cancelling).
 - **Single writer.** Only the leader's core goroutine writes scheduler state.
+  Inside `internal/core`, mutate state only from the loop (inputs, timers via
+  `c.after`, reports via `Report`); side effects go through `c.effect` so they
+  run after the batch commits.
 - **Keep the core portable.** No Postgres-only, Kubernetes-only or
   cloud-specific calls in the core; they go behind the interfaces listed in
   `docs/architecture.md`. `internal/profile` (to come) is the only place that
