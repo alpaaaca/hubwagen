@@ -86,6 +86,7 @@ type Core struct {
 	runsByKey map[string]*runState // newest in-memory run per run key
 	attempts  map[string]*attemptState
 	b         *batch
+	ctx       context.Context // Run's context, for store reads inside the loop
 }
 
 func New(cfg Config) *Core {
@@ -114,10 +115,18 @@ func New(cfg Config) *Core {
 	}
 }
 
+// SetRuntime registers the runtime for a task runtime kind. Runtimes report
+// back through Core.Report, so they are usually built after the core; call
+// SetRuntime before Run.
+func (c *Core) SetRuntime(kind string, rt Runtime) {
+	c.cfg.Runtimes[kind] = rt
+}
+
 // Run loads state, recovers in-flight attempts, and processes inputs until
 // ctx is cancelled (nil error) or a commit fails.
 func (c *Core) Run(ctx context.Context) error {
 	defer c.inbox.close()
+	c.ctx = ctx
 
 	if err := c.restore(ctx); err != nil {
 		return fmt.Errorf("restore: %w", err)

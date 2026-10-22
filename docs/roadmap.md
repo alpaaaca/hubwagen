@@ -11,7 +11,7 @@ milestone's status in the same PR that changes it.
 | v1: YAML DAGs, shell steps, SQLite history, terminal dashboard | Done. Still the only way to *run* pipelines; replaced in M2 |
 | M0: Spikes | Not started |
 | M1: Spec compiler (`hubwagen compile`) | **Done** |
-| M2: New engine in dev mode (`hubwagen dev`) | In progress: steps 1–3 done (store, core, blob + task wrapper) |
+| M2: New engine in dev mode (`hubwagen dev`) | In progress: steps 1–4 done (store, core, blob + task wrapper, local runtime + cron) |
 | M3: API, CLI, remote agents, dashboard as client | — |
 | M3b: Standalone profile + Docker/Podman tasks | — |
 | M4: Failover on Kubernetes (Lease, Litestream, reconciliation) | — |
@@ -63,9 +63,14 @@ commits on `file://` — and the v1 engine is deleted. Planned as reviewable PRs
    timeout/cancel, log chunks + index, result file, task-level commit marker,
    superseded attempts); `taskexec.Recovery` checks markers on leader restart;
    dev-mode secrets from the environment.
-4. **Local runtime + cron** (`internal/runtime/localrt`): in-process agent for
-   the `local` pool; cron ticks and catch-up from schedule cursors using
-   `spec.Calendar`.
+4. ✅ **Local runtime + cron** (`internal/runtime/localrt`, `internal/core/cron.go`):
+   in-process agent with slots for the configured pools (others fail fast with
+   `no_runtime`), cancellation of queued and running attempts; cron with
+   persisted cursors, catch-up (batched), `catchup: false`, pause/resume, and
+   contiguous calendar intervals so DST skips/repeats can't lose or double an
+   interval (the compiler's schedule check no longer rejects them either).
+   End-to-end tests in `tests/engine_test.go`, including recovery of an
+   attempt that committed just before the leader died.
 5. **`hubwagen dev`** + minimal CLI to publish/trigger/list (in-process, no
    API yet); remove `cmd/run.go`, `cmd/validate.go`, `internal/dag`,
    `internal/engine`, `internal/executor`, `internal/scheduler`, `internal/log`,

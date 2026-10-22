@@ -70,6 +70,64 @@ func (c *Calendar) Next(t time.Time) time.Time {
 	return c.sched.Next(t.In(c.loc))
 }
 
+// Prev returns the last tick strictly before t. The cron library only
+// computes forward, so this widens a window backwards until it contains a
+// tick, then walks forward to the last one before t. It returns the zero
+// time if there is no tick in the 5 years before t.
+func (c *Calendar) Prev(t time.Time) time.Time {
+	t = t.In(c.loc)
+	for w := time.Minute; w <= 5*366*24*time.Hour; w *= 2 {
+		p := c.sched.Next(t.Add(-w))
+		if !p.Before(t) {
+			continue
+		}
+		for {
+			n := c.sched.Next(p)
+			if !n.Before(t) {
+				return p
+			}
+			p = n
+		}
+	}
+	return time.Time{}
+}
+
+// Calendar reports whether intervals are calendar periods (hourly, daily,
+// weekly, monthly) rather than tick to tick. Calendar intervals are generated
+// contiguously; ticks only decide when they are due. That matters around DST
+// changes, where cron skips local times that don't exist and repeats ones
+// that occur twice.
+func (c *Calendar) Calendar() bool { return c.interval != IntervalCron }
+
+// IntervalStarting returns the calendar interval that starts at start (which
+// should be the End of the previous one). Only for calendar kinds.
+func (c *Calendar) IntervalStarting(start time.Time) Interval {
+	s := start.In(c.loc)
+	y, m, d := s.Date()
+	var end time.Time
+	switch c.interval {
+	case IntervalHourly:
+		end = s.Add(time.Hour)
+	case IntervalDaily:
+		end = time.Date(y, m, d+1, 0, 0, 0, 0, c.loc)
+	case IntervalWeekly:
+		end = time.Date(y, m, d+7, 0, 0, 0, 0, c.loc)
+	case IntervalMonthly:
+		end = time.Date(y, m+1, 1, 0, 0, 0, 0, c.loc)
+	}
+	return Interval{Start: s, End: end}
+}
+
+// Interval returns the data interval for tick, computing the previous tick
+// itself when the interval kind needs it.
+func (c *Calendar) Interval(tick time.Time) Interval {
+	var prev time.Time
+	if c.interval == IntervalCron {
+		prev = c.Prev(tick)
+	}
+	return c.IntervalFor(prev, tick)
+}
+
 // IntervalFor returns the data interval for tick. prevTick is only used by
 // the "cron" interval kind, where the interval is [prevTick, tick).
 func (c *Calendar) IntervalFor(prevTick, tick time.Time) Interval {
@@ -96,11 +154,17 @@ func (c *Calendar) IntervalFor(prevTick, tick time.Time) Interval {
 
 // checkCoverage samples consecutive ticks and reports a schedule whose ticks
 // don't line up with its interval kind: firing more often than the interval
-// (several runs for one interval) or less often (intervals never scheduled).
+// (several runs for one interval) or less often (intervals with no tick of
+// their own). A single anomaly is tolerated: that is what a DST change looks
+// like (a skipped or repeated local time), and the scheduler fills such gaps
+// itself. A schedule that doesn't fit its interval shows the anomaly again
+// and again.
 func (c *Calendar) checkCoverage(from time.Time, samples int) error {
 	if c.interval == IntervalCron {
 		return nil
 	}
+	var dupErr, gapErr error
+	dups, gaps := 0, 0
 	prev := c.Next(from)
 	prevIv := c.IntervalFor(time.Time{}, prev)
 	for i := 0; i < samples; i++ {
@@ -108,15 +172,23 @@ func (c *Calendar) checkCoverage(from time.Time, samples int) error {
 		iv := c.IntervalFor(prev, tick)
 		switch {
 		case iv.Start.Equal(prevIv.Start):
-			return fmt.Errorf("schedule fires more than once per %s interval (ticks %s and %s both cover %s); "+
+			dups++
+			dupErr = fmt.Errorf("schedule fires more than once per %s interval (ticks %s and %s both cover %s); "+
 				"use a less frequent cron or interval: cron",
 				c.interval, prev.Format(time.RFC3339), tick.Format(time.RFC3339), iv.Start.Format(time.RFC3339))
 		case !iv.Start.Equal(prevIv.End):
-			return fmt.Errorf("schedule skips %s intervals (nothing covers %s to %s); "+
+			gaps++
+			gapErr = fmt.Errorf("schedule skips %s intervals (no tick for %s to %s); "+
 				"use interval: cron to make each run cover the time since the previous tick",
 				c.interval, prevIv.End.Format(time.RFC3339), iv.Start.Format(time.RFC3339))
 		}
 		prev, prevIv = tick, iv
+	}
+	switch {
+	case dups > 1:
+		return dupErr
+	case gaps > 1:
+		return gapErr
 	}
 	return nil
 }

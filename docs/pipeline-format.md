@@ -175,6 +175,29 @@ the same key; outputs of different generations never overwrite each other.
 **Versions.** A run keeps the pipeline version it was created with, even if a
 new version is published while it is queued or running.
 
+**Schedules.** Each scheduled pipeline has a cursor that is saved together
+with the runs it creates, so no interval is scheduled twice and anything
+missed while hubwagen was down is caught up on restart.
+
+- The first schedule starts at `start` (catching up from there) or, without
+  `start`, at publish time: the first run is for the interval that is in
+  progress when you publish.
+- Calendar intervals (`hourly`, `daily`, `weekly`, `monthly`) are generated
+  back to back; the cron expression only decides *when* they become due. A
+  daily run fires at the first tick after its day has ended.
+- Around DST changes cron skips local times that don't exist and repeats ones
+  that occur twice. Calendar intervals are unaffected: each day still gets
+  exactly one run. With `interval: cron`, a skipped tick makes one interval
+  longer and a repeated tick makes a one-hour interval.
+- `catchup: true` (default) creates a run for every missed interval, at most
+  100 per batch; `catchup: false` creates one for the latest only.
+- Every tick is recorded as a `CronTicked` event, including ones that created
+  no run (`on_overlap: skip`, or an interval before `start`).
+- A paused pipeline creates no scheduled runs (manual triggers still work).
+  On resume, missed intervals follow the `catchup` setting.
+- Publishing a version that changes or removes the schedule takes effect
+  immediately; the cursor is kept.
+
 ### v1 compatibility (dev mode only)
 
 A file with top-level `name` and `steps` (v1 format) compiles as:

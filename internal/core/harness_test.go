@@ -56,10 +56,15 @@ type option func(*Config)
 
 func newHarness(t *testing.T, opts ...option) *harness {
 	t.Helper()
+	return newHarnessAt(t, t0, opts...)
+}
+
+func newHarnessAt(t *testing.T, now time.Time, opts ...option) *harness {
+	t.Helper()
 	st, err := state.Open(":memory:")
 	require.NoError(t, err)
 	t.Cleanup(func() { st.Close() })
-	h := &harness{t: t, ctx: context.Background(), store: st, clock: clock.NewFake(t0), rt: newFakeRuntime()}
+	h := &harness{t: t, ctx: context.Background(), store: st, clock: clock.NewFake(now), rt: newFakeRuntime()}
 	h.start(opts...)
 	return h
 }
