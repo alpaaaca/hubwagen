@@ -337,3 +337,13 @@ func processAlive(pid string) bool {
 	out, _ := runQuiet("/bin/sh", "-c", "kill -0 "+pid+" 2>/dev/null && echo alive")
 	return strings.TrimSpace(out) == "alive"
 }
+
+func TestOutputBeforeAFailureIsShipped(t *testing.T) {
+	f := newFixture(t)
+	asg := f.assignment(1, `echo "step 1 ok"; echo "about to fail" >&2; exit 4`)
+	rep := Run(ctx, asg, f.opts)
+	assert.Equal(t, "exit_code", rep.Reason)
+	assert.Equal(t, []string{"step 1 ok"}, lines(f.logs(asg), "stdout"))
+	assert.Equal(t, []string{"about to fail"}, lines(f.logs(asg), "stderr"))
+	assert.Equal(t, state.AttemptFailed, f.index(asg).Status)
+}

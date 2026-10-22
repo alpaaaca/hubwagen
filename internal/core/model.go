@@ -16,6 +16,7 @@ type pipelineState struct {
 	rec     state.Pipeline
 	running int         // runs in status running
 	queued  []*runState // runs waiting for a slot, oldest first
+	cron    cronState
 }
 
 type runState struct {

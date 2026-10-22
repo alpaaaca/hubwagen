@@ -3,112 +3,104 @@
 A workflow orchestrator for data teams. Single Go binary, no database server,
 no message broker.
 
+Pipelines are YAML, compiled into immutable, versioned specs. One event-driven
+scheduler records every state change before acting on it, runs each task as
+soon as its own dependencies finish, retries and times out tasks, runs
+schedules with explicit data intervals (catching up after downtime, correct
+across DST changes), and commits each task's outputs exactly once.
+
 ## Status
 
-hubwagen is being redesigned around compiled pipeline specs, an event-driven
-control plane, container tasks and multi-tenancy, while still running as one
-binary on a laptop or a plain server. See [docs/architecture.md](docs/architecture.md)
-for the design and [docs/roadmap.md](docs/roadmap.md) for progress.
+The redesigned engine runs on one machine today (`hubwagen dev`, `hubwagen
+run`): tasks are host processes, state is SQLite, logs and outputs live in a
+local directory. Container tasks, remote agents, an API, plain-server and
+Kubernetes deployments, and multi-tenancy come next — see
+[docs/roadmap.md](docs/roadmap.md) and [docs/architecture.md](docs/architecture.md).
 
-- **Works today (v1)**: `hubwagen run` executes a YAML DAG of shell steps with
-  parallelism, retries, timeouts, `on_failure` policies and SQLite-backed
-  history; `hubwagen tui` is a terminal dashboard over that history.
-- **New**: `hubwagen compile` validates and compiles pipelines into versioned
-  specs (below). The engine that runs them is the next milestone.
-
-## Install / Build
+## Build
 
 Requires Go 1.22+ (pure Go, no CGO — cross-compiles cleanly).
 
 ```bash
-git clone <this-repo>
-cd hubwagen
-go build -o hubwagen ./main.go
-./hubwagen version
-```
-
-Cross-compile for Linux from macOS:
-
-```bash
-GOOS=linux GOARCH=amd64 go build -o hubwagen-linux-amd64 ./main.go
+go build -o hubwagen .
+GOOS=linux GOARCH=amd64 go build -o hubwagen-linux-amd64 .   # cross-compile
 ```
 
 ## Quickstart
 
 ```bash
-# Validate a DAG without running it
-./hubwagen validate ./dags/examples/hello_world.yaml
+# Run one pipeline once and wait for it (logs stream to the terminal)
+./hubwagen run dags/examples/v1alpha1/hello_world.yaml
 
-# See the wave-by-wave execution plan without running anything
-./hubwagen run --dry-run ./dags/examples/hello_world.yaml
+# A pipeline with a daily data interval, for one day
+./hubwagen run dags/examples/v1alpha1/daily_orders.yaml --date 2026-10-20
 
-# Run it for real (creates ./hubwagen.db on first run)
-./hubwagen run ./dags/examples/hello_world.yaml
+# The same day again returns the earlier run; --rerun makes a new generation
+./hubwagen run dags/examples/v1alpha1/daily_orders.yaml --date 2026-10-20 --rerun --param full_refresh=false
 
-# Run the parallel-steps example (two independent steps run concurrently)
-./hubwagen run ./dags/examples/parallel_steps.yaml
+# Run the scheduler with the dashboard: loads every pipeline under the
+# given directories (default: dags), reloads them on change, runs schedules
+./hubwagen dev dags/examples
+
+# Same, without the dashboard: prints events and task logs
+./hubwagen dev --headless dags/examples
 ```
 
-Every run, step, and log line is recorded in SQLite (`./hubwagen.db` by default):
+Dashboard keys: `↑/↓` select, `enter` drill in, `t` trigger the selected
+pipeline, `/` filter, `v` graph view, `g/G` log top/bottom, `b` back, `?`
+help, `q` quit.
 
-```bash
-sqlite3 hubwagen.db "select id, dag_name, status from runs order by created_at desc limit 1;"
-sqlite3 hubwagen.db "select step_id, status, exit_code from step_runs where run_id = '<run-id>';"
-sqlite3 hubwagen.db "select step_id, line from logs where run_id = '<run-id>';"
-```
+Everything lives in `--data-dir` (default `.hubwagen/`): `state.db` (event log
+and run history), `bucket/` (task logs, outputs, commit markers) and
+`dev.log` (engine log while the dashboard is open). One process uses a data
+directory at a time. Stopping `hubwagen dev` terminates running tasks; on the
+next start, tasks that had already committed their outputs are recognised and
+the rest are retried.
 
-If the process is killed mid-run, the next `hubwagen run` invocation automatically marks
-any stale `running` rows as `failed` (reason: `run interrupted`) before proceeding.
-
-## CLI flags
-
-| Flag | Applies to | Default | Description |
-|---|---|---|---|
-| `--db` | all commands | `./hubwagen.db` | Path to the SQLite database file |
-| `--log-level` | all commands | `info` | `debug`, `info`, `warn`, or `error` — structured logs go to stderr |
-| `--dry-run` | `run` | `false` | Parse + validate only; print the execution plan, don't open the DB or execute |
-
-## Compiling pipelines
-
-The redesign replaces "run YAML directly" with compiled, versioned specs
-(format reference: [docs/pipeline-format.md](docs/pipeline-format.md)):
-
-```bash
-# Validate everything (CI lint mode); v1 DAG files compile via a compat mapping
-./hubwagen compile dags/examples --check --no-resolve
-
-# Write canonical specs to build/specs/<tenant>/<pipeline>/<sha256>.json,
-# resolving container image tags to digests
-./hubwagen compile dags/examples --out build/specs
-```
-
-New-format examples live in `dags/examples/v1alpha1/`. `hubwagen run` still
-executes v1 files with the old engine until the new control plane lands.
-
-## Writing a DAG
-
-This section describes the v1 format that `hubwagen run` executes. Minimal example:
+## Writing a pipeline
 
 ```yaml
-name: my_pipeline
-steps:
-  - id: extract
-    executor: shell
-    command: "echo hello"
-  - id: transform
-    executor: shell
-    depends_on: [extract]
-    command: "echo world"
+apiVersion: hubwagen.dev/v1alpha1
+kind: Pipeline
+metadata: {name: daily_orders, tenant: analytics}
+spec:
+  schedule: {cron: "0 2 * * *", timezone: Europe/Berlin, interval: daily}
+  defaults:
+    runtime: {kind: agent, pool: local}
+    retry: {limit: 2, initial: 30s}
+  tasks:
+    - id: extract
+      command: [python, -m, jobs.extract]
+      args: ["--from={{ .Interval.Start }}", "--to={{ .Interval.End }}"]
+      outputs: [{name: orders}]
+    - id: load
+      depends_on: [extract]
+      command: [python, -m, jobs.load]
+      inputs: [{name: orders, from: extract.orders}]
 ```
 
-Template variables available in `command` and `env` values: `{{ .RunDate }}`,
-`{{ .RunID }}`, `{{ .DAGName }}`, `{{ .Env.VAR_NAME }}` — rendered at run time, not
-parse time.
+Tasks get their data interval, inputs and output directories as environment
+variables (`HUBWAGEN_INPUT_ORDERS_PATH`, `HUBWAGEN_OUTPUT_ORDERS_PATH`, …).
+References: [pipeline format](docs/pipeline-format.md) (fields, templates,
+execution semantics, schedules) and [task contract](docs/task-contract.md)
+(what a task process can rely on).
+
+Older v1 DAG files (`name:` + `steps:`) still run in dev mode through a
+compatibility mapping.
+
+## Compiling for CI
+
+```bash
+./hubwagen compile pipelines/ --check                 # lint: all errors, nothing written
+./hubwagen compile pipelines/ --out build/specs       # canonical specs, image tags pinned to digests
+```
+
+Each spec is written to `build/specs/<tenant>/<pipeline>/<sha256>.json`; the
+file's hash is its version ID.
 
 ## Development
 
 ```bash
-go build ./...
 go vet ./...
 go test ./...
 go test -race ./...

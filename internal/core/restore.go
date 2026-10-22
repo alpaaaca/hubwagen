@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/alper/hubwagen/internal/state"
@@ -26,6 +27,11 @@ func (c *Core) restore(ctx context.Context) error {
 	}
 	for _, p := range cat.Pipelines {
 		c.pipelines[pipelineKey{p.Tenant, p.Name}] = &pipelineState{rec: p}
+	}
+	for _, cur := range cat.Cursors {
+		if p := c.pipelines[pipelineKey{cur.Tenant, cur.Pipeline}]; p != nil {
+			p.cron.cursor, p.cron.hasCursor = cur.LastTick, true
+		}
 	}
 
 	act, err := c.cfg.Store.LoadActive(ctx)
@@ -129,6 +135,10 @@ func (c *Core) restore(ctx context.Context) error {
 	for _, p := range c.pipelines {
 		c.startQueued(p)
 	}
+	// Schedules last: catch-up runs queue behind the restored ones.
+	for _, p := range c.sortedPipelines() {
+		c.reschedule(p)
+	}
 	return c.commit(ctx)
 }
 
@@ -190,4 +200,17 @@ func reported(reports []Report, attemptID string) bool {
 		}
 	}
 	return false
+}
+
+// sortedPipelines returns pipelines in a stable order, so restore emits the
+// same events every time.
+func (c *Core) sortedPipelines() []*pipelineState {
+	out := make([]*pipelineState, 0, len(c.pipelines))
+	for _, p := range c.pipelines {
+		out = append(out, p)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].rec.Tenant+"/"+out[i].rec.Name < out[j].rec.Tenant+"/"+out[j].rec.Name
+	})
+	return out
 }

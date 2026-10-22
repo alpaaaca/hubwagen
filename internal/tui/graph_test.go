@@ -4,12 +4,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/alper/hubwagen/internal/dag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func nodesByID(steps []dag.Step, status map[string]string) map[string]stepNode {
+func nodesByID(steps []TaskShape, status map[string]string) map[string]stepNode {
 	m := make(map[string]stepNode, len(steps))
 	for _, s := range steps {
 		m[s.ID] = stepNode{ID: s.ID, DependsOn: s.DependsOn, Status: status[s.ID]}
@@ -18,13 +17,12 @@ func nodesByID(steps []dag.Step, status map[string]string) map[string]stepNode {
 }
 
 func TestRenderGraph_LinearChain(t *testing.T) {
-	steps := []dag.Step{
+	steps := []TaskShape{
 		{ID: "step_a"},
 		{ID: "step_b", DependsOn: []string{"step_a"}},
 		{ID: "step_c", DependsOn: []string{"step_b"}},
 	}
-	waves, err := dag.TopologicalWaves(steps)
-	require.NoError(t, err)
+	waves := layers(steps)
 	require.Equal(t, [][]string{{"step_a"}, {"step_b"}, {"step_c"}}, waves)
 
 	out := renderGraph(waves, nodesByID(steps, map[string]string{
@@ -52,14 +50,13 @@ func TestRenderGraph_LinearChain(t *testing.T) {
 
 func TestRenderGraph_FanOutFanIn(t *testing.T) {
 	// Mirrors dags/examples/parallel_fanout.yaml's shape.
-	steps := []dag.Step{
+	steps := []TaskShape{
 		{ID: "seed"},
 		{ID: "branch_a", DependsOn: []string{"seed"}},
 		{ID: "branch_b", DependsOn: []string{"seed"}},
 		{ID: "merge", DependsOn: []string{"branch_a", "branch_b"}},
 	}
-	waves, err := dag.TopologicalWaves(steps)
-	require.NoError(t, err)
+	waves := layers(steps)
 	require.Len(t, waves, 3)
 
 	out := renderGraph(waves, nodesByID(steps, map[string]string{
@@ -90,13 +87,12 @@ func TestRenderGraph_DisconnectedNodeInSharedWave(t *testing.T) {
 	// Mirrors dags/examples/on_failure_skip_dependents.yaml: audit_log has
 	// no dependencies and nothing depends on it, but shares wave 0 with the
 	// start of an unrelated chain.
-	steps := []dag.Step{
+	steps := []TaskShape{
 		{ID: "audit_log"},
 		{ID: "validate"},
 		{ID: "transform", DependsOn: []string{"validate"}},
 	}
-	waves, err := dag.TopologicalWaves(steps)
-	require.NoError(t, err)
+	waves := layers(steps)
 	require.Equal(t, []string{"audit_log", "validate"}, waves[0])
 
 	out := renderGraph(waves, nodesByID(steps, nil))
@@ -109,14 +105,13 @@ func TestRenderGraph_ManyToManyDegradesGracefully(t *testing.T) {
 	// A genuine many-to-many transition: two distinct parents each feeding
 	// two distinct children. connectSimpleStar must not panic or claim a
 	// specific routing it can't back up — see its doc comment.
-	steps := []dag.Step{
+	steps := []TaskShape{
 		{ID: "p1"},
 		{ID: "p2"},
 		{ID: "c1", DependsOn: []string{"p1", "p2"}},
 		{ID: "c2", DependsOn: []string{"p1", "p2"}},
 	}
-	waves, err := dag.TopologicalWaves(steps)
-	require.NoError(t, err)
+	waves := layers(steps)
 
 	require.NotPanics(t, func() {
 		out := renderGraph(waves, nodesByID(steps, nil))

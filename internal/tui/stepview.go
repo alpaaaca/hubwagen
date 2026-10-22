@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"time"
 
@@ -10,61 +11,60 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/alper/hubwagen/internal/dag"
-	"github.com/alper/hubwagen/internal/store"
+	"github.com/alper/hubwagen/internal/state"
 )
 
-// stepListLoadedMsg carries the result of a step-status poll.
+// stepListLoadedMsg carries the result of a task-status poll.
 type stepListLoadedMsg struct {
-	steps []*store.StepRun
+	tasks []TaskInfo
 	err   error
 }
 
 // stepViewTickMsg fires every refreshInterval.
 type stepViewTickMsg struct{}
 
-// logLineMsg carries one line read from the active step's log channel.
-type logLineMsg struct{ line string }
+// logsLoadedMsg carries a selected task's log lines. logsURI identifies which
+// attempt they belong to, so a late result for a previous selection is
+// dropped.
+type logsLoadedMsg struct {
+	logsURI string
+	lines   []string
+	err     error
+}
 
-// logStreamClosedMsg signals the active step's log channel has been closed
-// (store.StreamLogs closes it once the step reaches a terminal status).
-type logStreamClosedMsg struct{}
-
-// stepViewModel is Screen 3 (US3): every step's status, plus a live-tailing
-// log pane for whichever step is selected.
+// stepViewModel is the run screen: every task's status, plus a log pane for
+// the selected task that follows its newest attempt while it runs.
 type stepViewModel struct {
 	ctx      context.Context
-	store    store.Store
-	dagName  string
+	src      Source
+	pipeline string // tenant/name, for the title
 	runID    string
-	dagSteps []dag.Step // the DAG's structure (IDs + depends_on), for graph mode
+	shape    []TaskShape // the pipeline's graph, for graph mode
 
 	table     table.Model
 	viewport  viewport.Model
-	steps     []*store.StepRun
+	tasks     []TaskInfo
 	graphView bool // toggled by 'v' — table (default) vs. dependency graph
 
-	selectedStepID string
-	logCh          <-chan string
-	logCancel      context.CancelFunc
-	logContent     string // plain string, not strings.Builder: this model is
-	// copied by value on every Update() call (see the value-receiver methods
-	// throughout this file), and a copied-then-reused strings.Builder panics
-	// at runtime ("illegal use of non-zero Builder copied by value")
+	selectedTaskID string
+	logsURI        string // the selected task's newest attempt
+	logLines       int    // lines shown, to detect growth
 
 	width, height int
 	err           string
 }
 
-func newStepViewModel(ctx context.Context, st store.Store, dagName, runID string, steps []dag.Step, w, h int) stepViewModel {
+func newStepViewModel(ctx context.Context, src Source, pipeline, runID string, shape []TaskShape, w, h int) stepViewModel {
 	cols := []table.Column{
-		{Title: "STEP", Width: 20},
-		{Title: "STATUS", Width: 16},
+		{Title: "TASK", Width: 22},
+		{Title: "STATUS", Width: 18},
+		{Title: "TRIES", Width: 5},
 		{Title: "DURATION", Width: 10},
+		{Title: "REASON", Width: 14},
 	}
 	t := table.New(table.WithColumns(cols), table.WithFocused(true), table.WithHeight(10))
 	vp := viewport.New(w, 10)
-	m := stepViewModel{ctx: ctx, store: st, dagName: dagName, runID: runID, dagSteps: steps, table: t, viewport: vp}
+	m := stepViewModel{ctx: ctx, src: src, pipeline: pipeline, runID: runID, shape: shape, table: t, viewport: vp}
 	return m.SetSize(w, h)
 }
 
@@ -88,50 +88,31 @@ func (m stepViewModel) tickCmd() tea.Cmd {
 }
 
 func (m stepViewModel) loadCmd() tea.Cmd {
-	st, ctx, runID := m.store, m.ctx, m.runID
+	src, ctx, runID := m.src, m.ctx, m.runID
 	return func() tea.Msg {
-		steps, err := st.ListStepRuns(ctx, runID)
-		return stepListLoadedMsg{steps: steps, err: err}
+		tasks, err := src.Tasks(ctx, runID)
+		return stepListLoadedMsg{tasks: tasks, err: err}
 	}
 }
 
-// selectStepCmd cancels any previous step's log subscription and starts a
-// fresh one for stepID via store.StreamLogs. StreamLogs already delivers
-// every existing line before switching to live tail and closes the channel
-// once the step is terminal (internal/store/sqlite.go), so no separate
-// GetLogs backfill call is needed — one subscription covers both.
-func (m *stepViewModel) selectStepCmd(stepID string) tea.Cmd {
-	if m.logCancel != nil {
-		m.logCancel()
+func (m stepViewModel) logsCmd(uri string) tea.Cmd {
+	if uri == "" {
+		return nil
 	}
-	logCtx, cancel := context.WithCancel(m.ctx)
-	m.logCancel = cancel
-	m.selectedStepID = stepID
-	m.logContent = ""
-	m.viewport.SetContent("")
-
-	st, runID := m.store, m.runID
+	src, ctx := m.src, m.ctx
 	return func() tea.Msg {
-		ch, err := st.StreamLogs(logCtx, runID, stepID)
-		if err != nil {
-			return logStreamClosedMsg{}
-		}
-		return startedLogStreamMsg{ch: ch}
+		lines, err := src.Logs(ctx, uri)
+		return logsLoadedMsg{logsURI: uri, lines: lines, err: err}
 	}
 }
 
-// startedLogStreamMsg hands the fresh channel back to Update, which then
-// arms the first waitForLogLine read on it.
-type startedLogStreamMsg struct{ ch <-chan string }
-
-func waitForLogLine(ch <-chan string) tea.Cmd {
-	return func() tea.Msg {
-		line, ok := <-ch
-		if !ok {
-			return logStreamClosedMsg{}
-		}
-		return logLineMsg{line: line}
-	}
+// selectTask switches the log pane to taskID's newest attempt.
+func (m *stepViewModel) selectTask(t TaskInfo) tea.Cmd {
+	m.selectedTaskID = t.TaskID
+	m.logsURI = t.LogsURI
+	m.logLines = 0
+	m.viewport.SetContent(styleMuted.Render("(no output yet)"))
+	return m.logsCmd(t.LogsURI)
 }
 
 func (m stepViewModel) Update(msg tea.Msg) (stepViewModel, tea.Cmd) {
@@ -142,55 +123,63 @@ func (m stepViewModel) Update(msg tea.Msg) (stepViewModel, tea.Cmd) {
 			return m, nil
 		}
 		m.err = ""
-		m.steps = msg.steps
-		rows := make([]table.Row, 0, len(msg.steps))
-		for _, s := range msg.steps {
+		m.tasks = msg.tasks
+		rows := make([]table.Row, 0, len(msg.tasks))
+		for _, t := range msg.tasks {
 			duration := "—"
-			if s.StartedAt != nil {
+			if t.StartedAt != nil {
 				end := time.Now()
-				if s.FinishedAt != nil {
-					end = *s.FinishedAt
+				if t.FinishedAt != nil {
+					end = *t.FinishedAt
 				}
-				duration = end.Sub(*s.StartedAt).Round(time.Second).String()
+				duration = end.Sub(*t.StartedAt).Round(time.Second).String()
 			}
-			rows = append(rows, table.Row{s.StepID, RenderStatus(s.Status), duration})
+			reason := ""
+			if t.Status != state.TaskSucceeded {
+				reason = t.Reason
+			}
+			rows = append(rows, table.Row{t.TaskID, RenderStatus(t.Status), itoa(t.Attempts), duration, reason})
 		}
 		m.table.SetRows(rows)
 
-		var cmd tea.Cmd
-		if m.selectedStepID == "" && len(m.steps) > 0 {
-			cmd = m.selectStepCmd(m.steps[0].StepID)
+		// Follow the selected task to its newest attempt (a retry starts a
+		// new log), and keep polling its log while it may still grow.
+		if m.selectedTaskID == "" && len(m.tasks) > 0 {
+			return m, m.selectTask(m.tasks[0])
 		}
-		return m, cmd
+		for _, t := range m.tasks {
+			if t.TaskID != m.selectedTaskID {
+				continue
+			}
+			if t.LogsURI != m.logsURI {
+				return m, m.selectTask(t)
+			}
+			return m, m.logsCmd(m.logsURI)
+		}
+		return m, nil
 
 	case stepViewTickMsg:
-		if m.allStepsTerminal() {
+		if m.allTerminal() {
 			return m, nil
 		}
 		return m, tea.Batch(m.loadCmd(), m.tickCmd())
 
-	case startedLogStreamMsg:
-		m.logCh = msg.ch
-		return m, waitForLogLine(m.logCh)
-
-	case logLineMsg:
-		// Check scroll position BEFORE appending — if the user was already
-		// at the bottom (the common "tailing" case), keep following new
-		// output; if they've scrolled up to read earlier lines, leave the
-		// viewport where they left it.
-		atBottom := m.viewport.AtBottom()
-		if m.logContent == "" {
-			m.logContent = msg.line
-		} else {
-			m.logContent += "\n" + msg.line
+	case logsLoadedMsg:
+		if msg.logsURI != m.logsURI || len(msg.lines) == m.logLines && msg.err == nil {
+			return m, nil
 		}
-		m.viewport.SetContent(m.logContent)
+		// Keep following the end if the user was there; leave them where
+		// they are if they scrolled up to read.
+		atBottom := m.viewport.AtBottom()
+		m.logLines = len(msg.lines)
+		content := strings.Join(msg.lines, "\n")
+		if msg.err != nil {
+			content += "\n" + styleError.Render("reading logs: "+msg.err.Error())
+		}
+		m.viewport.SetContent(content)
 		if atBottom {
 			m.viewport.GotoBottom()
 		}
-		return m, waitForLogLine(m.logCh)
-
-	case logStreamClosedMsg:
 		return m, nil
 
 	case tea.KeyMsg:
@@ -198,8 +187,8 @@ func (m stepViewModel) Update(msg tea.Msg) (stepViewModel, tea.Cmd) {
 		case key.Matches(msg, Keys.Up), key.Matches(msg, Keys.Down):
 			var cmd tea.Cmd
 			m.table, cmd = m.table.Update(msg)
-			if step, ok := m.selectedStep(); ok && step.StepID != m.selectedStepID {
-				return m, tea.Batch(cmd, m.selectStepCmd(step.StepID))
+			if t, ok := m.selectedTask(); ok && t.TaskID != m.selectedTaskID {
+				return m, tea.Batch(cmd, m.selectTask(t))
 			}
 			return m, cmd
 		case key.Matches(msg, Keys.Top):
@@ -212,9 +201,6 @@ func (m stepViewModel) Update(msg tea.Msg) (stepViewModel, tea.Cmd) {
 			m.graphView = !m.graphView
 			return m, nil
 		case key.Matches(msg, Keys.Back):
-			if m.logCancel != nil {
-				m.logCancel()
-			}
 			return m, func() tea.Msg { return navigateBackMsg{} }
 		case key.Matches(msg, Keys.Refresh):
 			return m, m.loadCmd()
@@ -226,29 +212,29 @@ func (m stepViewModel) Update(msg tea.Msg) (stepViewModel, tea.Cmd) {
 	return m, cmd
 }
 
-func (m stepViewModel) allStepsTerminal() bool {
-	if len(m.steps) == 0 {
+func (m stepViewModel) allTerminal() bool {
+	if len(m.tasks) == 0 {
 		return false
 	}
-	for _, s := range m.steps {
-		if !isTerminalStatus(s.Status) {
+	for _, t := range m.tasks {
+		if !state.TaskTerminal(t.Status) {
 			return false
 		}
 	}
 	return true
 }
 
-func (m stepViewModel) selectedStep() (*store.StepRun, bool) {
+func (m stepViewModel) selectedTask() (TaskInfo, bool) {
 	cursor := m.table.Cursor()
-	if cursor < 0 || cursor >= len(m.steps) {
-		return nil, false
+	if cursor < 0 || cursor >= len(m.tasks) {
+		return TaskInfo{}, false
 	}
-	return m.steps[cursor], true
+	return m.tasks[cursor], true
 }
 
 func (m stepViewModel) View() string {
 	var b strings.Builder
-	b.WriteString(styleTitle.Render("hubwagen — run " + m.runID + " (" + m.dagName + ")"))
+	b.WriteString(styleTitle.Render("hubwagen — run " + m.runID + " (" + m.pipeline + ")"))
 	b.WriteString("\n\n")
 	if m.graphView {
 		b.WriteString(m.renderGraphView())
@@ -256,8 +242,8 @@ func (m stepViewModel) View() string {
 		b.WriteString(colorizeStatuses(m.table.View()))
 	}
 	b.WriteString("\n\n")
-	if m.selectedStepID != "" {
-		b.WriteString(styleMuted.Render("log — " + m.selectedStepID + "\n"))
+	if m.selectedTaskID != "" {
+		b.WriteString(styleMuted.Render("log — " + m.selectedTaskID + "\n"))
 	}
 	b.WriteString(m.viewport.View())
 	if m.err != "" {
@@ -268,34 +254,29 @@ func (m stepViewModel) View() string {
 		mode = "graph"
 	}
 	b.WriteString("\n\n" + styleHelp.Render(
-		"↑/↓ select step · g/G log top/bottom · v "+mode+" view · b back · ? help · q quit"))
+		"↑/↓ select task · g/G log top/bottom · v "+mode+" view · b back · ? help · q quit"))
 	return b.String()
 }
 
-// renderGraphView builds the graph.go input (step structure + current
-// status per step) from this model's DAG definition and latest step-status
-// poll, then renders it. Falls back to a plain message if the DAG structure
-// wasn't threaded through navigation (shouldn't happen via the normal list
-// -> history -> step-view path, but keeps this screen robust regardless).
+// renderGraphView draws the pipeline's graph with each task's current status.
 func (m stepViewModel) renderGraphView() string {
-	if len(m.dagSteps) == 0 {
-		return styleMuted.Render("(DAG structure unavailable for this run)")
+	if len(m.shape) == 0 {
+		return styleMuted.Render("(pipeline graph unavailable for this run)")
 	}
-
-	statusByID := make(map[string]string, len(m.steps))
-	for _, s := range m.steps {
-		statusByID[s.StepID] = s.Status
+	status := make(map[string]string, len(m.tasks))
+	for _, t := range m.tasks {
+		status[t.TaskID] = t.Status
 	}
-
-	byID := make(map[string]stepNode, len(m.dagSteps))
-	for _, s := range m.dagSteps {
-		byID[s.ID] = stepNode{ID: s.ID, DependsOn: s.DependsOn, Status: statusByID[s.ID]}
+	byID := make(map[string]stepNode, len(m.shape))
+	for _, s := range m.shape {
+		byID[s.ID] = stepNode{ID: s.ID, DependsOn: s.DependsOn, Status: status[s.ID]}
 	}
+	return renderGraph(layers(m.shape), byID)
+}
 
-	waves, err := dag.TopologicalWaves(m.dagSteps)
-	if err != nil {
-		return styleError.Render("error building graph: " + err.Error())
+func itoa(n int) string {
+	if n == 0 {
+		return "—"
 	}
-
-	return renderGraph(waves, byID)
+	return strconv.Itoa(n)
 }

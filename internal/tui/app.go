@@ -6,15 +6,10 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
-
-	"github.com/alper/hubwagen/internal/dag"
-	"github.com/alper/hubwagen/internal/executor"
-	"github.com/alper/hubwagen/internal/store"
 )
 
 // refreshInterval is the poll cadence every screen uses to notice status
-// changes made outside the dashboard (a scheduled run, a separate `hubwagen
-// run` invocation) — comfortably inside SC-003's 3-second budget.
+// changes made outside the dashboard (scheduled runs, task progress).
 const refreshInterval = 2 * time.Second
 
 type screen int
@@ -29,30 +24,23 @@ const (
 // tea.Cmd that produces one of these; the root App intercepts them and
 // switches screens. Screens never reach into each other directly.
 //
-// steps carries the DAG's structural definition (IDs + depends_on) forward
-// from the DAG list — where it's already known via the discovered DAG —
-// through to Step View, which needs it to draw the dependency graph. The
-// store only has step *status* (store.StepRun), not the *shape* of the DAG,
-// so this has to be threaded through rather than re-fetched from the store.
+// tasks carries the pipeline's graph (task IDs + depends_on) from the list
+// through to the run view, which draws it in graph mode.
 type navigateToRunHistoryMsg struct {
-	dagName string
-	steps   []dag.Step
+	tenant, pipeline string
+	tasks            []TaskShape
 }
 type navigateToStepViewMsg struct {
-	dagName, runID string
-	steps          []dag.Step
+	tenant, pipeline, runID string
+	tasks                   []TaskShape
 }
 type navigateBackMsg struct{}
 
-// App is the root bubbletea model: the screen router and holder of state
-// shared across screens (the Store handle, dags directory, executors used
-// for triggering). It reads/writes pipeline state exclusively through
-// store.Store, per constitution Principle III.
+// App is the root bubbletea model: the screen router. Every screen reads and
+// acts through the same Source.
 type App struct {
-	ctx       context.Context
-	store     store.Store
-	dagsDir   string
-	executors map[string]executor.Executor
+	ctx context.Context
+	src Source
 
 	screen screen
 	width  int
@@ -66,14 +54,12 @@ type App struct {
 }
 
 // NewApp constructs the root model. The DAG list is loaded lazily via Init.
-func NewApp(ctx context.Context, st store.Store, dagsDir string, executors map[string]executor.Executor) App {
+func NewApp(ctx context.Context, src Source) App {
 	return App{
-		ctx:       ctx,
-		store:     st,
-		dagsDir:   dagsDir,
-		executors: executors,
-		screen:    screenDAGList,
-		dagList:   newDAGListModel(ctx, st, dagsDir, executors),
+		ctx:     ctx,
+		src:     src,
+		screen:  screenDAGList,
+		dagList: newDAGListModel(ctx, src),
 	}
 }
 
@@ -100,12 +86,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case navigateToRunHistoryMsg:
-		a.runHistory = newRunHistoryModel(a.ctx, a.store, msg.dagName, msg.steps, a.width, a.height)
+		a.runHistory = newRunHistoryModel(a.ctx, a.src, msg.tenant, msg.pipeline, msg.tasks, a.width, a.height)
 		a.screen = screenRunHistory
 		return a, a.runHistory.Init()
 
 	case navigateToStepViewMsg:
-		a.stepView = newStepViewModel(a.ctx, a.store, msg.dagName, msg.runID, msg.steps, a.width, a.height)
+		a.stepView = newStepViewModel(a.ctx, a.src, msg.tenant+"/"+msg.pipeline, msg.runID, msg.tasks, a.width, a.height)
 		a.screen = screenStepView
 		return a, a.stepView.Init()
 

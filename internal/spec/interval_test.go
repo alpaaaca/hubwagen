@@ -86,4 +86,44 @@ func TestCheckCoverage(t *testing.T) {
 	}
 	assert.ErrorContains(t, calendar(t, "0 */6 * * *", "UTC", IntervalDaily).checkCoverage(from, 20), "more than once")
 	assert.ErrorContains(t, calendar(t, "0 2 * * 1", "UTC", IntervalDaily).checkCoverage(from, 20), "skips")
+
+	// DST changes skip or repeat one local time; that alone is not an error.
+	for _, cron := range []string{"0 2 * * *", "30 2 * * *"} {
+		c := calendar(t, cron, "Europe/Berlin", IntervalDaily)
+		for _, from := range []string{"2026-03-20 00:00", "2026-10-15 00:00"} {
+			assert.NoError(t, c.checkCoverage(at(t, c.Location(), from), 20), cron+" from "+from)
+		}
+	}
+}
+
+func TestIntervalStarting(t *testing.T) {
+	c := calendar(t, "0 2 1 * *", "Europe/Berlin", IntervalMonthly)
+	loc := c.Location()
+	iv := c.IntervalStarting(at(t, loc, "2026-02-01 00:00"))
+	assert.Equal(t, at(t, loc, "2026-03-01 00:00"), iv.End)
+
+	d := calendar(t, "0 2 * * *", "Europe/Berlin", IntervalDaily)
+	iv = d.IntervalStarting(at(t, loc, "2026-03-29 00:00"))
+	assert.Equal(t, 23*time.Hour, iv.End.Sub(iv.Start))
+	assert.True(t, d.Calendar())
+	assert.False(t, calendar(t, "0 2 * * *", "UTC", IntervalCron).Calendar())
+}
+
+func TestPrev(t *testing.T) {
+	utc := time.UTC
+	cases := []struct{ cron, at, want string }{
+		{"0 2 * * *", "2026-10-21 02:00", "2026-10-20 02:00"},
+		{"0 2 * * *", "2026-10-21 01:59", "2026-10-20 02:00"},
+		{"0 2 * * 1-5", "2026-10-19 02:00", "2026-10-16 02:00"}, // Monday → Friday
+		{"*/5 * * * *", "2026-10-21 10:07", "2026-10-21 10:05"},
+		{"0 0 1 1 *", "2026-06-01 00:00", "2026-01-01 00:00"},
+	}
+	for _, tc := range cases {
+		c := calendar(t, tc.cron, "UTC", IntervalCron)
+		assert.Equal(t, at(t, utc, tc.want), c.Prev(at(t, utc, tc.at)), tc.cron+" before "+tc.at)
+	}
+
+	c := calendar(t, "0 2 * * 1-5", "UTC", IntervalCron)
+	monday := at(t, utc, "2026-10-19 02:00")
+	assert.Equal(t, Interval{Start: at(t, utc, "2026-10-16 02:00"), End: monday}, c.Interval(monday))
 }

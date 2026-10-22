@@ -69,8 +69,11 @@ type Config struct {
 	AllowV1Specs bool
 	// AutoCreateTenants creates a tenant on first publish (dev mode).
 	AutoCreateTenants bool
-	NewID             func() string // default: ULID
-	Logger            *slog.Logger
+	// DisableSchedules turns cron off: no scheduled runs, no catch-up
+	// (one-shot `hubwagen run`). Cursors are left untouched.
+	DisableSchedules bool
+	NewID            func() string // default: ULID
+	Logger           *slog.Logger
 }
 
 type Core struct {
@@ -86,6 +89,7 @@ type Core struct {
 	runsByKey map[string]*runState // newest in-memory run per run key
 	attempts  map[string]*attemptState
 	b         *batch
+	ctx       context.Context // Run's context, for store reads inside the loop
 }
 
 func New(cfg Config) *Core {
@@ -114,10 +118,18 @@ func New(cfg Config) *Core {
 	}
 }
 
+// SetRuntime registers the runtime for a task runtime kind. Runtimes report
+// back through Core.Report, so they are usually built after the core; call
+// SetRuntime before Run.
+func (c *Core) SetRuntime(kind string, rt Runtime) {
+	c.cfg.Runtimes[kind] = rt
+}
+
 // Run loads state, recovers in-flight attempts, and processes inputs until
 // ctx is cancelled (nil error) or a commit fails.
 func (c *Core) Run(ctx context.Context) error {
 	defer c.inbox.close()
+	c.ctx = ctx
 
 	if err := c.restore(ctx); err != nil {
 		return fmt.Errorf("restore: %w", err)

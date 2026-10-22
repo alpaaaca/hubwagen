@@ -9,14 +9,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	dbPath   string
-	logLevel string
-)
+var logLevel string
 
 var rootCmd = &cobra.Command{
 	Use:   "hubwagen",
-	Short: "Lightweight data pipeline scheduler",
+	Short: "Workflow orchestrator for data pipelines",
 	PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 		return configureLogging(logLevel)
 	},
@@ -27,13 +24,12 @@ func Execute() error {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&dbPath, "db", "./hubwagen.db", "path to SQLite database file")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "log level (debug|info|warn|error)")
 }
 
 // configureLogging sets the default slog logger's level from --log-level.
-// Structured logs go to stderr so they never interleave with the DAG's own
-// stdout output (step logs, ✓/✗ summary).
+// Structured logs go to stderr so they never interleave with command output
+// and task logs on stdout.
 func configureLogging(level string) error {
 	var lvl slog.Level
 	switch strings.ToLower(level) {

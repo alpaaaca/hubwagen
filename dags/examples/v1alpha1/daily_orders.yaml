@@ -25,22 +25,21 @@ spec:
     - id: extract
       command: ["/bin/sh", "-c"]
       args:
-        - 'echo "extracting {{ .Interval.Start }} → {{ .Interval.End }}" && echo "id,amount" > "$HUBWAGEN_OUTPUT_ORDERS_RAW/orders.csv"'
+        - 'echo "extracting {{ .Interval.Start }} → {{ .Interval.End }}" && printf "id,amount\n1,10\n2,32\n" > "$HUBWAGEN_OUTPUT_ORDERS_RAW_PATH/orders.csv"'
       env: {LOG_LEVEL: info}
       outputs:
         - name: orders_raw
           asset: raw.orders
           partition: '{{ .Interval.Start | date "2006-01-02" }}'
 
+    # In production this would be an isolated container:
+    #   runtime: {kind: job, image: "ghcr.io/acme/dbt@sha256:…", resources: {cpu: "2", memory: 4Gi}}
+    # Dev mode runs agent tasks as host processes; container tasks come with M3b.
     - id: transform
       depends_on: [extract]
-      runtime:
-        kind: job
-        image: docker.io/library/alpine:3.20
-        resources: {cpu: "500m", memory: 256Mi}
       command: ["/bin/sh", "-c"]
       args:
-        - 'wc -l "$HUBWAGEN_INPUT_ORDERS/orders.csv" && test "{{ .Params.full_refresh }}" = "false"'
+        - 'wc -l < "$HUBWAGEN_INPUT_ORDERS_PATH/orders.csv" && test "{{ .Params.full_refresh }}" = "false"'
       inputs:
         - name: orders
           from: extract.orders_raw

@@ -88,8 +88,10 @@ func (c *Core) publish(req PublishRequest) (PublishResult, error) {
 	c.emit(state.EventPipelineVersionPublished, s.Tenant, "", "", "",
 		versionPublishedPayload{Pipeline: s.Name, Hash: hash, PublishedBy: req.PublishedBy})
 
-	// A higher max_active_runs may let queued runs start.
+	// A higher max_active_runs may let queued runs start; the schedule may
+	// have changed.
 	c.startQueued(p)
+	c.reschedule(p)
 	return res, nil
 }
 
