@@ -56,7 +56,7 @@ func (c *Core) reschedule(p *pipelineState) {
 	cs.cal = nil
 
 	ver := c.versions[p.rec.CurrentVersion]
-	if ver == nil || ver.spec.Schedule == nil || p.rec.Paused {
+	if ver == nil || ver.spec.Schedule == nil || p.rec.Paused || c.cfg.DisableSchedules {
 		return
 	}
 	cal, err := spec.NewCalendar(ver.spec.Schedule)

@@ -69,8 +69,11 @@ type Config struct {
 	AllowV1Specs bool
 	// AutoCreateTenants creates a tenant on first publish (dev mode).
 	AutoCreateTenants bool
-	NewID             func() string // default: ULID
-	Logger            *slog.Logger
+	// DisableSchedules turns cron off: no scheduled runs, no catch-up
+	// (one-shot `hubwagen run`). Cursors are left untouched.
+	DisableSchedules bool
+	NewID            func() string // default: ULID
+	Logger           *slog.Logger
 }
 
 type Core struct {

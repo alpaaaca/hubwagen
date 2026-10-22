@@ -45,3 +45,6 @@ Thumbs.db
 
 # Compiled specs (hubwagen compile --out build/specs)
 build/
+
+# hubwagen dev / run data directory
+.hubwagen/
