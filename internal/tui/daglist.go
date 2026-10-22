@@ -3,8 +3,6 @@ package tui
 import (
 	"context"
 	"fmt"
-	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -12,15 +10,11 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/robfig/cron/v3"
 
-	"github.com/alper/hubwagen/internal/dag"
-	"github.com/alper/hubwagen/internal/executor"
-	"github.com/alper/hubwagen/internal/scheduler"
-	"github.com/alper/hubwagen/internal/store"
+	"github.com/alper/hubwagen/internal/core"
 )
 
-// dagListLoadedMsg carries the result of a discovery + last-run poll.
+// dagListLoadedMsg carries the result of a pipeline + last-run poll.
 type dagListLoadedMsg struct {
 	rows []dagListRow
 	err  error
@@ -33,15 +27,15 @@ type dagListTickMsg struct{}
 
 // triggerResultMsg carries the outcome of a manual trigger (US4).
 type triggerResultMsg struct {
-	dagName string
-	result  scheduler.TriggerResult
-	err     error
+	name   string
+	result core.TriggerResult
+	err    error
 }
 
-// dagListRow is one rendered row — either a valid DAG or an invalid file,
-// flagged rather than omitted.
+// dagListRow is one rendered row — either a pipeline or a file that failed
+// to load, flagged rather than omitted.
 type dagListRow struct {
-	Discovered   dag.Discovered
+	Pipeline     PipelineInfo
 	Name         string
 	ScheduleDisp string
 	LastStatus   string
@@ -49,13 +43,13 @@ type dagListRow struct {
 	NextRunDisp  string
 }
 
-// dagListModel is Screen 1 (US1): every discovered DAG, its schedule, its
+func (r dagListRow) invalid() bool { return r.Pipeline.Err != "" }
+
+// dagListModel is the home screen: every pipeline, its schedule, its
 // last-run status, and its next scheduled run, kept live via a poll tick.
 type dagListModel struct {
-	ctx       context.Context
-	store     store.Store
-	dagsDir   string
-	executors map[string]executor.Executor
+	ctx context.Context
+	src Source
 
 	table table.Model
 
@@ -69,10 +63,10 @@ type dagListModel struct {
 	statusMsg     string
 }
 
-func newDAGListModel(ctx context.Context, st store.Store, dagsDir string, executors map[string]executor.Executor) dagListModel {
+func newDAGListModel(ctx context.Context, src Source) dagListModel {
 	cols := []table.Column{
-		{Title: "NAME", Width: 24},
-		{Title: "SCHEDULE", Width: 16},
+		{Title: "NAME", Width: 28},
+		{Title: "SCHEDULE", Width: 28},
 		{Title: "LAST STATUS", Width: 16},
 		{Title: "LAST RUN", Width: 20},
 		{Title: "NEXT RUN", Width: 20},
@@ -82,14 +76,7 @@ func newDAGListModel(ctx context.Context, st store.Store, dagsDir string, execut
 	fi := textinput.New()
 	fi.Placeholder = "filter by name…"
 
-	return dagListModel{
-		ctx:       ctx,
-		store:     st,
-		dagsDir:   dagsDir,
-		executors: executors,
-		table:     t,
-		filter:    fi,
-	}
+	return dagListModel{ctx: ctx, src: src, table: t, filter: fi}
 }
 
 func (m dagListModel) Init() tea.Cmd {
@@ -110,67 +97,48 @@ func (m dagListModel) tickCmd() tea.Cmd {
 }
 
 func (m dagListModel) loadCmd() tea.Cmd {
-	dagsDir := m.dagsDir
-	st := m.store
-	ctx := m.ctx
+	src, ctx := m.src, m.ctx
 	return func() tea.Msg {
-		discovered, err := dag.DiscoverDir(dagsDir)
+		pipes, err := src.Pipelines(ctx)
 		if err != nil {
 			return dagListLoadedMsg{err: err}
 		}
-
-		rows := make([]dagListRow, 0, len(discovered))
-		for _, d := range discovered {
-			if d.ParseErr != nil {
-				rows = append(rows, dagListRow{
-					Discovered:   d,
-					Name:         filepath.Base(d.Path) + " (invalid)",
-					ScheduleDisp: "—",
-					LastStatus:   "invalid",
-					LastRunDisp:  "—",
-					NextRunDisp:  "—",
-				})
+		rows := make([]dagListRow, 0, len(pipes))
+		for _, p := range pipes {
+			if p.Err != "" {
+				rows = append(rows, dagListRow{Pipeline: p, Name: p.Key() + " (invalid)",
+					ScheduleDisp: "—", LastStatus: "invalid", LastRunDisp: "—", NextRunDisp: "—"})
 				continue
 			}
-
-			row := dagListRow{Discovered: d, Name: d.DAG.Name}
-			if d.DAG.Schedule == "" {
-				row.ScheduleDisp = "manual"
-				row.NextRunDisp = "—"
-			} else {
-				row.ScheduleDisp = d.DAG.Schedule
-				if sched, err := cron.ParseStandard(d.DAG.Schedule); err == nil {
-					row.NextRunDisp = sched.Next(time.Now()).Format("2006-01-02 15:04")
-				} else {
-					row.NextRunDisp = "invalid schedule"
-				}
+			row := dagListRow{Pipeline: p, Name: p.Key(), ScheduleDisp: "manual", NextRunDisp: "—"}
+			if p.Schedule != "" {
+				row.ScheduleDisp = p.Schedule
 			}
-
-			runs, err := st.ListRuns(ctx, d.DAG.Name, 1)
+			switch {
+			case p.Paused:
+				row.NextRunDisp = "paused"
+			case p.NextRun != nil:
+				row.NextRunDisp = p.NextRun.Local().Format("2006-01-02 15:04")
+			}
+			runs, err := src.Runs(ctx, p.Tenant, p.Name, 1)
 			if err == nil && len(runs) > 0 {
 				row.LastStatus = runs[0].Status
-				if runs[0].StartedAt != nil {
-					row.LastRunDisp = relativeTime(*runs[0].StartedAt)
-				}
+				row.LastRunDisp = relativeTime(runs[0].CreatedAt)
 			} else {
 				row.LastStatus = "no runs yet"
 				row.LastRunDisp = "—"
 			}
 			rows = append(rows, row)
 		}
-
-		sort.Slice(rows, func(i, j int) bool { return rows[i].Name < rows[j].Name })
 		return dagListLoadedMsg{rows: rows}
 	}
 }
 
-func (m dagListModel) triggerCmd(d dag.Discovered) tea.Cmd {
-	executors := m.executors
-	st := m.store
-	ctx := m.ctx
+func (m dagListModel) triggerCmd(p PipelineInfo) tea.Cmd {
+	src, ctx := m.src, m.ctx
 	return func() tea.Msg {
-		res, err := scheduler.TriggerManual(ctx, st, d, executors, discardWriter{}, "manual")
-		return triggerResultMsg{dagName: d.DAG.Name, result: res, err: err}
+		res, err := src.Trigger(ctx, p.Tenant, p.Name)
+		return triggerResultMsg{name: p.Key(), result: res, err: err}
 	}
 }
 
@@ -191,11 +159,11 @@ func (m dagListModel) Update(msg tea.Msg) (dagListModel, tea.Cmd) {
 
 	case triggerResultMsg:
 		if msg.err != nil {
-			m.statusMsg = fmt.Sprintf("trigger failed for %s: %v", msg.dagName, msg.err)
+			m.statusMsg = fmt.Sprintf("trigger failed for %s: %v", msg.name, msg.err)
 		} else if msg.result.Skipped {
 			m.statusMsg = msg.result.Reason
 		} else {
-			m.statusMsg = fmt.Sprintf("triggered %s (run %s)", msg.dagName, msg.result.RunID)
+			m.statusMsg = fmt.Sprintf("triggered %s (run %s)", msg.name, msg.result.RunID)
 		}
 		return m, m.loadCmd()
 
@@ -226,18 +194,24 @@ func (m dagListModel) Update(msg tea.Msg) (dagListModel, tea.Cmd) {
 			return m, m.filter.Focus()
 		case key.Matches(msg, Keys.Trigger):
 			row, ok := m.selectedRow()
-			if !ok || row.Discovered.ParseErr != nil {
-				m.statusMsg = "select a valid DAG to trigger"
+			if !ok || row.invalid() {
+				m.statusMsg = "select a valid pipeline to trigger"
 				return m, nil
 			}
-			return m, m.triggerCmd(row.Discovered)
+			return m, m.triggerCmd(row.Pipeline)
 		case key.Matches(msg, Keys.Enter):
 			row, ok := m.selectedRow()
-			if !ok || row.Discovered.ParseErr != nil {
+			if !ok {
 				return m, nil
 			}
-			dagName, steps := row.Discovered.DAG.Name, row.Discovered.DAG.Steps
-			return m, func() tea.Msg { return navigateToRunHistoryMsg{dagName: dagName, steps: steps} }
+			if row.invalid() {
+				m.statusMsg = row.Pipeline.Key() + ": " + row.Pipeline.Err
+				return m, nil
+			}
+			p := row.Pipeline
+			return m, func() tea.Msg {
+				return navigateToRunHistoryMsg{tenant: p.Tenant, pipeline: p.Name, tasks: p.Tasks}
+			}
 		case key.Matches(msg, Keys.Back):
 			return m, func() tea.Msg { return navigateBackMsg{} }
 		case key.Matches(msg, Keys.Refresh):
@@ -275,13 +249,13 @@ func (m dagListModel) selectedRow() (dagListRow, bool) {
 
 func (m dagListModel) View() string {
 	var b strings.Builder
-	b.WriteString(styleTitle.Render("hubwagen — DAG List"))
+	b.WriteString(styleTitle.Render("hubwagen — Pipelines"))
 	b.WriteString("\n\n")
 	if m.filtering {
 		b.WriteString("filter: " + m.filter.View() + "\n\n")
 	}
 	if len(m.allRows) == 0 && m.err == "" {
-		b.WriteString(styleMuted.Render("No DAGs found under " + m.dagsDir + ". Add a .yaml file there to get started.\n"))
+		b.WriteString(styleMuted.Render("No pipelines yet. Add a .yaml file to the watched directory to get started.\n"))
 	} else {
 		b.WriteString(colorizeStatuses(m.table.View()))
 		b.WriteString("\n")
@@ -292,7 +266,7 @@ func (m dagListModel) View() string {
 	if m.statusMsg != "" {
 		b.WriteString("\n" + styleMuted.Render(m.statusMsg))
 	}
-	b.WriteString("\n\n" + styleHelp.Render("↑/↓ select · enter run history · t trigger now · / filter · ? help · q quit"))
+	b.WriteString("\n\n" + styleHelp.Render("↑/↓ select · enter run history (or error) · t trigger now · / filter · ? help · q quit"))
 	return b.String()
 }
 

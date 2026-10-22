@@ -1,6 +1,5 @@
-// Package tui implements hubwagen's terminal dashboard (`hubwagen tui`) — a
-// bubbletea application that reads and writes pipeline state exclusively
-// through the store.Store interface, per constitution Principle III.
+// Package tui implements hubwagen's terminal dashboard — a bubbletea
+// application that reads and acts exclusively through a Source.
 package tui
 
 import (
@@ -20,26 +19,36 @@ var (
 // satisfies FR-016 ("never color-only"); color (via colorizeStatuses below)
 // is additive on top of that, never the only signal.
 var statusSymbols = map[string]string{
-	"succeeded": "✓",
-	"failed":    "✗",
-	"running":   "●",
-	"pending":   "○",
-	"skipped":   "⧗",
-	"cancelled": "⊘",
-	"invalid":   "!",
+	"succeeded":       "✓",
+	"failed":          "✗",
+	"upstream_failed": "✗",
+	"running":         "●",
+	"dispatched":      "◐",
+	"ready":           "◐",
+	"retry_wait":      "↻",
+	"queued":          "○",
+	"pending":         "○",
+	"skipped":         "⧗",
+	"cancelled":       "⊘",
+	"invalid":         "!",
 }
 
 // statusColors pairs every status with a color, used only by
 // colorizeStatuses — never embedded directly into a bubbles/table cell (see
 // that function's doc comment for why).
 var statusColors = map[string]lipgloss.Color{
-	"succeeded": lipgloss.Color("2"), // green
-	"failed":    lipgloss.Color("1"), // red
-	"running":   lipgloss.Color("3"), // yellow
-	"pending":   colorMuted,
-	"skipped":   colorMuted,
-	"cancelled": colorMuted,
-	"invalid":   lipgloss.Color("5"), // magenta
+	"succeeded":       lipgloss.Color("2"), // green
+	"failed":          lipgloss.Color("1"), // red
+	"upstream_failed": lipgloss.Color("1"),
+	"running":         lipgloss.Color("3"), // yellow
+	"dispatched":      lipgloss.Color("3"),
+	"ready":           lipgloss.Color("3"),
+	"retry_wait":      lipgloss.Color("3"),
+	"queued":          colorMuted,
+	"pending":         colorMuted,
+	"skipped":         colorMuted,
+	"cancelled":       colorMuted,
+	"invalid":         lipgloss.Color("5"), // magenta
 }
 
 // RenderStatus renders a status string as "<symbol> <label>", plain text,

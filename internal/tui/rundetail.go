@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -9,13 +10,12 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/alper/hubwagen/internal/dag"
-	"github.com/alper/hubwagen/internal/store"
+	"github.com/alper/hubwagen/internal/state"
 )
 
 // runHistoryLoadedMsg carries the result of a run-history poll.
 type runHistoryLoadedMsg struct {
-	runs []*store.Run
+	runs []state.Run
 	err  error
 }
 
@@ -23,34 +23,36 @@ type runHistoryLoadedMsg struct {
 // so a stray tick from elsewhere is silently ignored.
 type runHistoryTickMsg struct{}
 
-// historyDepth is the clarified run-history depth (spec.md clarification).
+// historyDepth is how many recent runs the screen shows.
 const historyDepth = 20
 
-// runHistoryModel is Screen 2 (US2): the last historyDepth runs of a
-// selected DAG, most-recent-first.
+// runHistoryModel is the second screen: the last historyDepth runs of a
+// selected pipeline, most-recent-first.
 type runHistoryModel struct {
-	ctx     context.Context
-	store   store.Store
-	dagName string
-	steps   []dag.Step // the DAG's structure, carried forward for Step View's graph mode
+	ctx      context.Context
+	src      Source
+	tenant   string
+	pipeline string
+	tasks    []TaskShape // the pipeline's graph, carried forward for the run view's graph mode
 
 	table table.Model
-	runs  []*store.Run
+	runs  []state.Run
 
 	width, height int
 	err           string
 }
 
-func newRunHistoryModel(ctx context.Context, st store.Store, dagName string, steps []dag.Step, w, h int) runHistoryModel {
+func newRunHistoryModel(ctx context.Context, src Source, tenant, pipeline string, tasks []TaskShape, w, h int) runHistoryModel {
 	cols := []table.Column{
 		{Title: "RUN ID", Width: 28},
-		{Title: "TRIGGER", Width: 10},
-		{Title: "STATUS", Width: 16},
+		{Title: "TRIGGER", Width: 8},
+		{Title: "INTERVAL", Width: 18},
+		{Title: "STATUS", Width: 18},
 		{Title: "STARTED", Width: 20},
 		{Title: "DURATION", Width: 10},
 	}
 	t := table.New(table.WithColumns(cols), table.WithFocused(true), table.WithHeight(15))
-	m := runHistoryModel{ctx: ctx, store: st, dagName: dagName, steps: steps, table: t}
+	m := runHistoryModel{ctx: ctx, src: src, tenant: tenant, pipeline: pipeline, tasks: tasks, table: t}
 	return m.SetSize(w, h)
 }
 
@@ -72,9 +74,9 @@ func (m runHistoryModel) tickCmd() tea.Cmd {
 }
 
 func (m runHistoryModel) loadCmd() tea.Cmd {
-	st, ctx, dagName := m.store, m.ctx, m.dagName
+	src, ctx, tenant, pipeline := m.src, m.ctx, m.tenant, m.pipeline
 	return func() tea.Msg {
-		runs, err := st.ListRuns(ctx, dagName, historyDepth)
+		runs, err := src.Runs(ctx, tenant, pipeline, historyDepth)
 		return runHistoryLoadedMsg{runs: runs, err: err}
 	}
 }
@@ -84,7 +86,7 @@ func (m runHistoryModel) anyNonTerminal() bool {
 		return true // nothing loaded yet — keep polling until the first load lands
 	}
 	for _, r := range m.runs {
-		if !isTerminalStatus(r.Status) {
+		if !state.RunTerminal(r.Status) {
 			return true
 		}
 	}
@@ -110,7 +112,14 @@ func (m runHistoryModel) Update(msg tea.Msg) (runHistoryModel, tea.Cmd) {
 			if r.StartedAt != nil && r.FinishedAt != nil {
 				duration = r.FinishedAt.Sub(*r.StartedAt).Round(time.Second).String()
 			}
-			rows = append(rows, table.Row{r.ID, r.Trigger, RenderStatus(r.Status), started, duration})
+			interval := "—"
+			if r.IntervalStart != nil {
+				interval = r.IntervalStart.Local().Format("2006-01-02 15:04")
+			}
+			if r.Generation > 1 {
+				interval += fmt.Sprintf(" g%d", r.Generation)
+			}
+			rows = append(rows, table.Row{r.ID, r.Trigger, interval, RenderStatus(r.Status), started, duration})
 		}
 		m.table.SetRows(rows)
 		return m, nil
@@ -128,10 +137,8 @@ func (m runHistoryModel) Update(msg tea.Msg) (runHistoryModel, tea.Cmd) {
 			if !ok {
 				return m, nil
 			}
-			dagName, runID, steps := m.dagName, run.ID, m.steps
-			return m, func() tea.Msg {
-				return navigateToStepViewMsg{dagName: dagName, runID: runID, steps: steps}
-			}
+			msg := navigateToStepViewMsg{tenant: m.tenant, pipeline: m.pipeline, runID: run.ID, tasks: m.tasks}
+			return m, func() tea.Msg { return msg }
 		case key.Matches(msg, Keys.Back):
 			return m, func() tea.Msg { return navigateBackMsg{} }
 		case key.Matches(msg, Keys.Refresh):
@@ -144,20 +151,20 @@ func (m runHistoryModel) Update(msg tea.Msg) (runHistoryModel, tea.Cmd) {
 	return m, cmd
 }
 
-func (m runHistoryModel) selectedRun() (*store.Run, bool) {
+func (m runHistoryModel) selectedRun() (state.Run, bool) {
 	cursor := m.table.Cursor()
 	if cursor < 0 || cursor >= len(m.runs) {
-		return nil, false
+		return state.Run{}, false
 	}
 	return m.runs[cursor], true
 }
 
 func (m runHistoryModel) View() string {
 	var b strings.Builder
-	b.WriteString(styleTitle.Render("hubwagen — " + m.dagName))
+	b.WriteString(styleTitle.Render("hubwagen — " + m.tenant + "/" + m.pipeline))
 	b.WriteString("\n\n")
 	if len(m.runs) == 0 && m.err == "" {
-		b.WriteString(styleMuted.Render("No runs yet for " + m.dagName + ".\n"))
+		b.WriteString(styleMuted.Render("No runs yet for " + m.tenant + "/" + m.pipeline + ". Press b, then t to trigger one.\n"))
 	} else {
 		b.WriteString(colorizeStatuses(m.table.View()))
 		b.WriteString("\n")
@@ -167,13 +174,4 @@ func (m runHistoryModel) View() string {
 	}
 	b.WriteString("\n\n" + styleHelp.Render("↑/↓ select · enter step detail · b back · ? help · q quit"))
 	return b.String()
-}
-
-func isTerminalStatus(s string) bool {
-	switch s {
-	case "succeeded", "failed", "cancelled", "skipped":
-		return true
-	default:
-		return false
-	}
 }

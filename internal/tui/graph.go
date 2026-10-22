@@ -1,12 +1,12 @@
 package tui
 
-import "strings"
+import (
+	"sort"
+	"strings"
+)
 
-// stepNode is the minimal per-step info renderGraph needs: identity,
-// dependency edges, and current status. Kept separate from dag.Step so this
-// file doesn't need to know about the rest of that struct (executor, retry
-// policy, etc.) — callers build these from whatever source has both the
-// DAG's structure and the run's step statuses.
+// stepNode is the minimal per-task info renderGraph needs: identity,
+// dependency edges, and current status.
 type stepNode struct {
 	ID        string
 	DependsOn []string
@@ -22,10 +22,10 @@ const (
 	graphGap            = 3  // spaces between adjacent boxes in the same wave row
 )
 
-// renderGraph lays out a DAG's steps as a wave-by-wave graph of connected
-// boxes — reusing dag.TopologicalWaves (built in Phase 1) for the layout, so
-// this stays consistent with how the engine itself schedules steps. Each box
-// is colored/symbolized by its current status via colorStatus.
+// renderGraph lays out a pipeline's tasks as rows of connected boxes, one
+// row per layer (see layers). Layers are only a drawing aid: the engine
+// starts each task as soon as its own dependencies finish. Each box is
+// colored/symbolized by its current status via colorStatus.
 //
 // This is a hand-rolled renderer, not a bubbles/table — so unlike
 // RenderStatus/colorizeStatuses elsewhere in this package, color can be
@@ -39,6 +39,44 @@ const (
 // children at once (genuine many-to-many crossing edges), it degrades to
 // plain vertical stubs rather than guessing at which line should cross which
 // — see connectSimpleStar's doc comment.
+// layers groups tasks for drawing: a task's layer is one more than the
+// highest layer among its dependencies; tasks within a layer are sorted by
+// ID. Tasks are assumed acyclic (the compiler guarantees it).
+func layers(tasks []TaskShape) [][]string {
+	deps := make(map[string][]string, len(tasks))
+	for _, t := range tasks {
+		deps[t.ID] = t.DependsOn
+	}
+	level := map[string]int{}
+	var depth func(id string) int
+	depth = func(id string) int {
+		if l, ok := level[id]; ok {
+			return l
+		}
+		level[id] = 0 // guards against cycles in malformed input
+		l := 0
+		for _, d := range deps[id] {
+			if _, known := deps[d]; known {
+				l = max(l, depth(d)+1)
+			}
+		}
+		level[id] = l
+		return l
+	}
+	var out [][]string
+	for _, t := range tasks {
+		l := depth(t.ID)
+		for len(out) <= l {
+			out = append(out, nil)
+		}
+		out[l] = append(out[l], t.ID)
+	}
+	for _, row := range out {
+		sort.Strings(row)
+	}
+	return out
+}
+
 func renderGraph(waves [][]string, byID map[string]stepNode) string {
 	if len(waves) == 0 {
 		return styleMuted.Render("(no steps)")
