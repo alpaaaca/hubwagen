@@ -2,24 +2,24 @@
 
 ## What this is
 
-hubwagen is a workflow orchestrator for data teams, in the middle of a redesign:
+hubwagen is a workflow orchestrator for data teams, in the middle of a
+redesign: compiled, versioned pipeline specs; one event-driven leader that is
+the only writer to SQLite (to be replicated by Litestream); container tasks
+run by warm agents or Kubernetes Jobs under one task contract; multi-tenant
+fair share; idempotent runs with explicit data intervals; built-in
+observability. Three deployment profiles from one binary: `dev` (laptop),
+`standalone` (plain servers, no Kubernetes) and `kubernetes`.
 
-- **v1 (still the runtime today)**: one Go binary that runs YAML DAGs of shell
-  steps with goroutine-per-step parallelism, stores history in SQLite, and has a
-  terminal dashboard.
-- **Redesign (in progress)**: compiled, versioned pipeline specs; one
-  event-driven leader that is the only writer to SQLite (replicated by
-  Litestream); container tasks run by warm agents or Kubernetes Jobs under one
-  task contract; multi-tenant fair share; idempotent runs with explicit data
-  intervals; built-in observability. Three deployment profiles from one binary:
-  `dev` (laptop), `standalone` (plain servers, no Kubernetes) and `kubernetes`.
+**Today (M2 done):** the new engine runs on one machine — `hubwagen dev`
+(scheduler + dashboard) and `hubwagen run` (one-shot), host-process tasks,
+`file://` bucket. The v1 engine is gone. Next is M3 (API, remote agents).
 
 Read before larger changes:
 
 - [docs/architecture.md](docs/architecture.md) — goals, decisions and why
 - [docs/roadmap.md](docs/roadmap.md) — what is done, what is next, open decisions
 - [docs/pipeline-format.md](docs/pipeline-format.md) — pipeline YAML and the compiled spec
-- [docs/task-contract.md](docs/task-contract.md) — what a task process can rely on (design)
+- [docs/task-contract.md](docs/task-contract.md) — what a task process can rely on
 
 Planning is lightweight: a design note in `docs/` when a decision needs one,
 the next milestone broken into PR-sized steps in `docs/roadmap.md`. No
@@ -27,22 +27,21 @@ spec-kit; `specs/` is legacy and gitignored.
 
 ## Current code
 
-| Path | What | Fate |
-|---|---|---|
-| `internal/spec` | Pipeline compiler: parsing (v1alpha1 + v1 compat), validation, restricted templates, data intervals, canonical JSON + sha256, image digest resolution | **New design, keep** |
-| `cmd/compile.go` | `hubwagen compile` | Keep |
-| `internal/dag`, `engine`, `executor`, `scheduler`, `log` | v1 engine (wave-based execution, shell executor, `TriggerManual`) | Replaced and deleted in M2; logic is reused (shell exec, log streaming, retry semantics) |
-| `internal/state` | New store: event log + projections, term fencing, leader-start loaders (M2 step 1) | **New design, keep** |
-| `internal/core` | Scheduler core: event loop, state machines, triggers, retries, timeouts, cancellation, restore (M2 step 2) | **New design, keep** |
-| `internal/clock`, `internal/layout` | Real/fake clock; bucket path layout shared by core and task wrapper | **New design, keep** |
-| `internal/blob` | Bucket access by URI; `file://` with atomic create-if-absent (M2 step 3) | **New design, keep** |
-| `internal/taskexec` | The task contract: env, process groups, log shipping, result file, commit markers, restart recovery (M2 step 3) | **New design, keep** |
-| `internal/runtime/localrt` | Dev-mode in-process agent: slots, pools, cancellation (M2 step 4) | **New design, keep** |
-| `internal/store` | v1 SQLite store (update-in-place tables) | Deleted in M2 step 5 |
-| `internal/tui` | Terminal dashboard (bubbletea) | Kept; data source moves to the new store (M2), then the API (M3) |
-| `cmd/run.go`, `cmd/validate.go` | v1 commands | Deleted in M2 |
-| `dags/examples/*.yaml` | v1 examples (compile via compat) | Keep while compat exists |
-| `dags/examples/v1alpha1/` | New-format examples | Keep; `TestExamplesCompile` compiles every example |
+| Path | What |
+|---|---|
+| `internal/spec` | Pipeline compiler: parsing (v1alpha1 + v1 compat), validation, restricted templates, data intervals/calendars, canonical JSON + sha256, image digest resolution |
+| `internal/state` | Store: event log + projections, term fencing, leader-start loaders |
+| `internal/core` | Scheduler core: event loop, state machines, triggers, retries, timeouts, cancellation, cron, restore |
+| `internal/clock`, `internal/layout` | Real/fake clock; bucket path layout shared by core and task wrapper |
+| `internal/blob` | Bucket access by URI; `file://` with atomic create-if-absent |
+| `internal/taskexec` | The task contract: env, process groups, log shipping, result file, commit markers, restart recovery |
+| `internal/runtime/localrt` | Dev-mode in-process agent: slots, pools, cancellation |
+| `internal/devmode` | Wires store, bucket, core and local runtime for one process; data-dir lock; pipeline loader/watcher |
+| `internal/tui` | Terminal dashboard; reads and acts through `tui.Source` (`EngineSource` today, the API client in M3) |
+| `cmd/` | `compile`, `dev` (alias `tui`), `run`, `version` |
+| `dags/examples/*.yaml` | v1 examples (compile and run via compat, dev mode only) |
+| `dags/examples/v1alpha1/` | New-format examples; `TestExamplesCompile` compiles every example |
+| `tests/` | Cross-package end-to-end tests of the engine |
 
 ## Rules that hold everywhere
 
@@ -74,8 +73,8 @@ spec-kit; `specs/` is legacy and gitignored.
 - Tests: `testify` (`assert`/`require`); no mocking frameworks — use real
   implementations (`:memory:` SQLite, temp dirs, `file://` blob, real
   subprocesses, fake clock). Unit tests next to the code; cross-package
-  integration tests in `tests/`. Pure logic (`internal/spec`, the coming
-  `internal/core`) gets table tests with no I/O.
+  integration tests in `tests/`. Pure logic (`internal/spec`, `internal/core`
+  with a fake clock) gets tests with no real processes or timers.
 - Keep docs in step with code: update `docs/roadmap.md` status and any
   affected doc in the same PR.
 
@@ -89,6 +88,6 @@ go test -race ./...
 
 ./hubwagen compile dags/examples --check --no-resolve   # validate all examples, offline
 ./hubwagen compile dags/examples --out build/specs      # write canonical specs
-./hubwagen run dags/examples/hello_world.yaml           # v1 engine (until M2)
-./hubwagen tui                                          # v1 dashboard
+./hubwagen run dags/examples/v1alpha1/hello_world.yaml  # run one pipeline once (data in .hubwagen/)
+./hubwagen dev dags/examples                            # scheduler + dashboard; --headless for plain output
 ```

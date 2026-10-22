@@ -8,11 +8,11 @@ milestone's status in the same PR that changes it.
 
 | Milestone | Status |
 |---|---|
-| v1: YAML DAGs, shell steps, SQLite history, terminal dashboard | Done. Still the only way to *run* pipelines; replaced in M2 |
+| v1: YAML DAGs, shell steps, SQLite history, terminal dashboard | Replaced by M2 and deleted; v1 files still run through the compat mapping |
 | M0: Spikes | Not started |
 | M1: Spec compiler (`hubwagen compile`) | **Done** |
-| M2: New engine in dev mode (`hubwagen dev`) | In progress: steps 1–4 done (store, core, blob + task wrapper, local runtime + cron) |
-| M3: API, CLI, remote agents, dashboard as client | — |
+| M2: New engine in dev mode (`hubwagen dev`) | **Done** |
+| M3: API, CLI, remote agents, dashboard as client | Next |
 | M3b: Standalone profile + Docker/Podman tasks | — |
 | M4: Failover on Kubernetes (Lease, Litestream, reconciliation) | — |
 | M5: Kubernetes Jobs + tenants (namespaces, quotas, fair share, auth) | — |
@@ -71,11 +71,19 @@ commits on `file://` — and the v1 engine is deleted. Planned as reviewable PRs
    interval (the compiler's schedule check no longer rejects them either).
    End-to-end tests in `tests/engine_test.go`, including recovery of an
    attempt that committed just before the leader died.
-5. **`hubwagen dev`** + minimal CLI to publish/trigger/list (in-process, no
-   API yet); remove `cmd/run.go`, `cmd/validate.go`, `internal/dag`,
-   `internal/engine`, `internal/executor`, `internal/scheduler`, `internal/log`,
-   `internal/store`.
-   The dashboard reads the new store until M3 turns it into an API client.
+5. ✅ **`hubwagen dev` and `hubwagen run`** (`internal/devmode`): one process
+   owns a data directory (lock file); `dev` loads and watches pipeline files,
+   runs schedules, and shows the dashboard (or `--headless` output); `run`
+   runs one pipeline once (`--date`/`--interval`, `--param`, `--rerun`,
+   Ctrl-C cancels) and exits non-zero unless it succeeded. The dashboard
+   reads and acts through `tui.Source`. v1 (`internal/dag`, `engine`,
+   `executor`, `scheduler`, `log`, `store`, `cmd/validate.go`) is deleted;
+   `compile --check` replaces `validate`.
+
+   Known limits until M3: other processes can't talk to a running
+   `hubwagen dev` (no API), so `run` needs its own data directory while
+   `dev` is running; container (`kind: job`) tasks fail with `no_runtime` in
+   dev mode until M3b.
 
 ## Later milestones (summary)
 
