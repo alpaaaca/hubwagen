@@ -8,7 +8,6 @@ milestone's status in the same PR that changes it.
 
 | Milestone | Status |
 |---|---|
-| v1: YAML DAGs, shell steps, SQLite history, terminal dashboard | Replaced by M2 and deleted; v1 files still run through the compat mapping |
 | M0: Spikes | Not started |
 | M1: Spec compiler (`hubwagen compile`) | **Done** |
 | M2: New engine in dev mode (`hubwagen dev`) | **Done** |
@@ -84,6 +83,10 @@ commits on `file://` — and the v1 engine is deleted. Planned as reviewable PRs
    `hubwagen dev` (no API), so `run` needs its own data directory while
    `dev` is running; container (`kind: job`) tasks fail with `no_runtime` in
    dev mode until M3b.
+
+   Afterwards the v1 compatibility mapping, the v1 example DAGs and the
+   `tui` alias were removed; v1alpha1 is the only input format, and examples
+   live in `pipelines/examples/` (`dev` defaults to `pipelines/`).
 
 ## Later milestones (summary)
 

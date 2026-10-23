@@ -14,27 +14,27 @@ import (
 	"github.com/alper/hubwagen/internal/core"
 )
 
-// dagListLoadedMsg carries the result of a pipeline + last-run poll.
-type dagListLoadedMsg struct {
-	rows []dagListRow
+// pipelineListLoadedMsg carries the result of a pipeline + last-run poll.
+type pipelineListLoadedMsg struct {
+	rows []pipelineListRow
 	err  error
 }
 
-// dagListTickMsg fires every refreshInterval to trigger a re-poll (FR-008,
-// FR-009, SC-003). Distinct type per screen so a stray tick from a screen
+// pipelineListTickMsg fires every refreshInterval to trigger a re-poll.
+// Distinct type per screen so a stray tick from a screen
 // the user has since navigated away from is silently ignored elsewhere.
-type dagListTickMsg struct{}
+type pipelineListTickMsg struct{}
 
-// triggerResultMsg carries the outcome of a manual trigger (US4).
+// triggerResultMsg carries the outcome of a manual trigger.
 type triggerResultMsg struct {
 	name   string
 	result core.TriggerResult
 	err    error
 }
 
-// dagListRow is one rendered row — either a pipeline or a file that failed
+// pipelineListRow is one rendered row — either a pipeline or a file that failed
 // to load, flagged rather than omitted.
-type dagListRow struct {
+type pipelineListRow struct {
 	Pipeline     PipelineInfo
 	Name         string
 	ScheduleDisp string
@@ -43,18 +43,18 @@ type dagListRow struct {
 	NextRunDisp  string
 }
 
-func (r dagListRow) invalid() bool { return r.Pipeline.Err != "" }
+func (r pipelineListRow) invalid() bool { return r.Pipeline.Err != "" }
 
-// dagListModel is the home screen: every pipeline, its schedule, its
+// pipelineListModel is the home screen: every pipeline, its schedule, its
 // last-run status, and its next scheduled run, kept live via a poll tick.
-type dagListModel struct {
+type pipelineListModel struct {
 	ctx context.Context
 	src Source
 
 	table table.Model
 
-	allRows     []dagListRow // unfiltered, sorted by name
-	visibleRows []dagListRow // post-filter subset, index-aligned with m.table's rows
+	allRows     []pipelineListRow // unfiltered, sorted by name
+	visibleRows []pipelineListRow // post-filter subset, index-aligned with m.table's rows
 	filter      textinput.Model
 	filtering   bool
 
@@ -63,7 +63,7 @@ type dagListModel struct {
 	statusMsg     string
 }
 
-func newDAGListModel(ctx context.Context, src Source) dagListModel {
+func newPipelineListModel(ctx context.Context, src Source) pipelineListModel {
 	cols := []table.Column{
 		{Title: "NAME", Width: 28},
 		{Title: "SCHEDULE", Width: 28},
@@ -76,14 +76,14 @@ func newDAGListModel(ctx context.Context, src Source) dagListModel {
 	fi := textinput.New()
 	fi.Placeholder = "filter by name…"
 
-	return dagListModel{ctx: ctx, src: src, table: t, filter: fi}
+	return pipelineListModel{ctx: ctx, src: src, table: t, filter: fi}
 }
 
-func (m dagListModel) Init() tea.Cmd {
+func (m pipelineListModel) Init() tea.Cmd {
 	return tea.Batch(m.loadCmd(), m.tickCmd())
 }
 
-func (m dagListModel) SetSize(w, h int) dagListModel {
+func (m pipelineListModel) SetSize(w, h int) pipelineListModel {
 	m.width, m.height = w, h
 	if h > 8 {
 		m.table.SetHeight(h - 8)
@@ -92,25 +92,25 @@ func (m dagListModel) SetSize(w, h int) dagListModel {
 	return m
 }
 
-func (m dagListModel) tickCmd() tea.Cmd {
-	return tea.Tick(refreshInterval, func(time.Time) tea.Msg { return dagListTickMsg{} })
+func (m pipelineListModel) tickCmd() tea.Cmd {
+	return tea.Tick(refreshInterval, func(time.Time) tea.Msg { return pipelineListTickMsg{} })
 }
 
-func (m dagListModel) loadCmd() tea.Cmd {
+func (m pipelineListModel) loadCmd() tea.Cmd {
 	src, ctx := m.src, m.ctx
 	return func() tea.Msg {
 		pipes, err := src.Pipelines(ctx)
 		if err != nil {
-			return dagListLoadedMsg{err: err}
+			return pipelineListLoadedMsg{err: err}
 		}
-		rows := make([]dagListRow, 0, len(pipes))
+		rows := make([]pipelineListRow, 0, len(pipes))
 		for _, p := range pipes {
 			if p.Err != "" {
-				rows = append(rows, dagListRow{Pipeline: p, Name: p.Key() + " (invalid)",
+				rows = append(rows, pipelineListRow{Pipeline: p, Name: p.Key() + " (invalid)",
 					ScheduleDisp: "—", LastStatus: "invalid", LastRunDisp: "—", NextRunDisp: "—"})
 				continue
 			}
-			row := dagListRow{Pipeline: p, Name: p.Key(), ScheduleDisp: "manual", NextRunDisp: "—"}
+			row := pipelineListRow{Pipeline: p, Name: p.Key(), ScheduleDisp: "manual", NextRunDisp: "—"}
 			if p.Schedule != "" {
 				row.ScheduleDisp = p.Schedule
 			}
@@ -130,11 +130,11 @@ func (m dagListModel) loadCmd() tea.Cmd {
 			}
 			rows = append(rows, row)
 		}
-		return dagListLoadedMsg{rows: rows}
+		return pipelineListLoadedMsg{rows: rows}
 	}
 }
 
-func (m dagListModel) triggerCmd(p PipelineInfo) tea.Cmd {
+func (m pipelineListModel) triggerCmd(p PipelineInfo) tea.Cmd {
 	src, ctx := m.src, m.ctx
 	return func() tea.Msg {
 		res, err := src.Trigger(ctx, p.Tenant, p.Name)
@@ -142,9 +142,9 @@ func (m dagListModel) triggerCmd(p PipelineInfo) tea.Cmd {
 	}
 }
 
-func (m dagListModel) Update(msg tea.Msg) (dagListModel, tea.Cmd) {
+func (m pipelineListModel) Update(msg tea.Msg) (pipelineListModel, tea.Cmd) {
 	switch msg := msg.(type) {
-	case dagListLoadedMsg:
+	case pipelineListLoadedMsg:
 		if msg.err != nil {
 			m.err = msg.err.Error()
 			return m, nil
@@ -154,7 +154,7 @@ func (m dagListModel) Update(msg tea.Msg) (dagListModel, tea.Cmd) {
 		m.applyFilter()
 		return m, nil
 
-	case dagListTickMsg:
+	case pipelineListTickMsg:
 		return m, tea.Batch(m.loadCmd(), m.tickCmd())
 
 	case triggerResultMsg:
@@ -224,10 +224,10 @@ func (m dagListModel) Update(msg tea.Msg) (dagListModel, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *dagListModel) applyFilter() {
+func (m *pipelineListModel) applyFilter() {
 	needle := strings.ToLower(strings.TrimSpace(m.filter.Value()))
 	rows := make([]table.Row, 0, len(m.allRows))
-	visible := make([]dagListRow, 0, len(m.allRows))
+	visible := make([]pipelineListRow, 0, len(m.allRows))
 	for _, r := range m.allRows {
 		if needle != "" && !strings.Contains(strings.ToLower(r.Name), needle) {
 			continue
@@ -239,15 +239,15 @@ func (m *dagListModel) applyFilter() {
 	m.table.SetRows(rows)
 }
 
-func (m dagListModel) selectedRow() (dagListRow, bool) {
+func (m pipelineListModel) selectedRow() (pipelineListRow, bool) {
 	cursor := m.table.Cursor()
 	if cursor < 0 || cursor >= len(m.visibleRows) {
-		return dagListRow{}, false
+		return pipelineListRow{}, false
 	}
 	return m.visibleRows[cursor], true
 }
 
-func (m dagListModel) View() string {
+func (m pipelineListModel) View() string {
 	var b strings.Builder
 	b.WriteString(styleTitle.Render("hubwagen — Pipelines"))
 	b.WriteString("\n\n")

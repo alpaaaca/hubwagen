@@ -15,9 +15,9 @@ const refreshInterval = 2 * time.Second
 type screen int
 
 const (
-	screenDAGList screen = iota
+	screenPipelineList screen = iota
 	screenRunHistory
-	screenStepView
+	screenTaskView
 )
 
 // Navigation messages — screens signal a desired transition by returning a
@@ -30,7 +30,7 @@ type navigateToRunHistoryMsg struct {
 	tenant, pipeline string
 	tasks            []TaskShape
 }
-type navigateToStepViewMsg struct {
+type navigateToTaskViewMsg struct {
 	tenant, pipeline, runID string
 	tasks                   []TaskShape
 }
@@ -48,32 +48,32 @@ type App struct {
 
 	showHelp bool
 
-	dagList    dagListModel
-	runHistory runHistoryModel
-	stepView   stepViewModel
+	pipelineList pipelineListModel
+	runHistory   runHistoryModel
+	taskView     taskViewModel
 }
 
-// NewApp constructs the root model. The DAG list is loaded lazily via Init.
+// NewApp constructs the root model. The pipeline list is loaded lazily via Init.
 func NewApp(ctx context.Context, src Source) App {
 	return App{
-		ctx:     ctx,
-		src:     src,
-		screen:  screenDAGList,
-		dagList: newDAGListModel(ctx, src),
+		ctx:          ctx,
+		src:          src,
+		screen:       screenPipelineList,
+		pipelineList: newPipelineListModel(ctx, src),
 	}
 }
 
 func (a App) Init() tea.Cmd {
-	return a.dagList.Init()
+	return a.pipelineList.Init()
 }
 
 func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.width, a.height = msg.Width, msg.Height
-		a.dagList = a.dagList.SetSize(msg.Width, msg.Height)
+		a.pipelineList = a.pipelineList.SetSize(msg.Width, msg.Height)
 		a.runHistory = a.runHistory.SetSize(msg.Width, msg.Height)
-		a.stepView = a.stepView.SetSize(msg.Width, msg.Height)
+		a.taskView = a.taskView.SetSize(msg.Width, msg.Height)
 		return a, nil
 
 	case tea.KeyMsg:
@@ -90,19 +90,19 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.screen = screenRunHistory
 		return a, a.runHistory.Init()
 
-	case navigateToStepViewMsg:
-		a.stepView = newStepViewModel(a.ctx, a.src, msg.tenant+"/"+msg.pipeline, msg.runID, msg.tasks, a.width, a.height)
-		a.screen = screenStepView
-		return a, a.stepView.Init()
+	case navigateToTaskViewMsg:
+		a.taskView = newTaskViewModel(a.ctx, a.src, msg.tenant+"/"+msg.pipeline, msg.runID, msg.tasks, a.width, a.height)
+		a.screen = screenTaskView
+		return a, a.taskView.Init()
 
 	case navigateBackMsg:
 		switch a.screen {
-		case screenStepView:
+		case screenTaskView:
 			a.screen = screenRunHistory
 		case screenRunHistory:
-			a.screen = screenDAGList
-		case screenDAGList:
-			// No-op — the DAG list is the root screen (contracts/keybindings.md).
+			a.screen = screenPipelineList
+		case screenPipelineList:
+			// No-op — the pipeline list is the root screen.
 		}
 		return a, nil
 	}
@@ -110,12 +110,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Not a global/navigation message — forward to the active screen.
 	var cmd tea.Cmd
 	switch a.screen {
-	case screenDAGList:
-		a.dagList, cmd = a.dagList.Update(msg)
+	case screenPipelineList:
+		a.pipelineList, cmd = a.pipelineList.Update(msg)
 	case screenRunHistory:
 		a.runHistory, cmd = a.runHistory.Update(msg)
-	case screenStepView:
-		a.stepView, cmd = a.stepView.Update(msg)
+	case screenTaskView:
+		a.taskView, cmd = a.taskView.Update(msg)
 	}
 	return a, cmd
 }
@@ -123,12 +123,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (a App) View() string {
 	var body string
 	switch a.screen {
-	case screenDAGList:
-		body = a.dagList.View()
+	case screenPipelineList:
+		body = a.pipelineList.View()
 	case screenRunHistory:
 		body = a.runHistory.View()
-	case screenStepView:
-		body = a.stepView.View()
+	case screenTaskView:
+		body = a.taskView.View()
 	}
 	if a.showHelp {
 		body += "\n\n" + a.renderHelp()
@@ -137,15 +137,14 @@ func (a App) View() string {
 }
 
 // renderHelp lists every binding the active screen responds to, built from
-// the same keys.go source the screens actually use (FR-013,
-// contracts/keybindings.md) — never a separately maintained copy.
+// the same keys.go source the screens actually use — never a separately maintained copy.
 func (a App) renderHelp() string {
 	bindings := Keys.GlobalHelp()
 	switch a.screen {
-	case screenDAGList:
-		bindings = append(bindings, Keys.DagListExtra()...)
-	case screenStepView:
-		bindings = append(bindings, Keys.StepViewExtra()...)
+	case screenPipelineList:
+		bindings = append(bindings, Keys.PipelineListExtra()...)
+	case screenTaskView:
+		bindings = append(bindings, Keys.TaskViewExtra()...)
 	}
 	line := "help: "
 	for i, b := range bindings {

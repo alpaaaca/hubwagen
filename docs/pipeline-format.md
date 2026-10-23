@@ -63,7 +63,7 @@ spec:
         - name: orders
           from: extract.orders_raw # <task-id>.<output-name>
       timeout: 2h
-      on_failure: stop             # stop|continue|skip_dependents (v1 semantics)
+      on_failure: stop             # stop|continue|skip_dependents
 
     - id: notify
       depends_on: [transform]
@@ -104,7 +104,7 @@ built-ins `eq ne lt le gt ge and or not len printf`. Not allowed: `{{ range }}`,
 
 ### Runtimes per profile
 
-The spec describes what a task needs; the server decides how (spec FR-038):
+The spec describes what a task needs; the server decides how:
 
 | Spec | `kubernetes` | `standalone` / `dev` |
 |---|---|---|
@@ -198,40 +198,19 @@ missed while hubwagen was down is caught up on restart.
 - Publishing a version that changes or removes the schedule takes effect
   immediately; the cursor is kept.
 
-### v1 compatibility (dev mode only)
-
-A file with top-level `name` and `steps` (v1 format) compiles as:
-
-| v1 | v1alpha1 |
-|---|---|
-| `steps[]` | `tasks[]` |
-| `executor: shell`, `command: "…"` | `runtime: {kind: agent, pool: local}`, `command: ["/bin/sh", "-c", "…"]` |
-| `{{ .RunDate }}` | `{{ .Run.Date }}` (v1's RunDate was the run's own date, not a data interval) |
-| `{{ .RunID }}`, `{{ .DAGName }}` | `{{ .Run.ID }}`, `{{ .Pipeline }}` |
-| `{{ .Env.X }}` | rejected — use `env:` or `secrets:` |
-| `executor: http` / `sql` | rejected with a migration hint |
-| `retry.interval_sec`, `backoff: true` | `retry.initial`, `backoff: exponential` (a step's retry block replaces the DAG's entirely, as in v1) |
-| `schedule`, `timezone` | `schedule: {cron, timezone, interval: cron, catchup: false}` |
-| `concurrency.on_overlap` unset | `skip` (v1's default) |
-| no `timeout_sec` | `timeout: 48h` (v1 steps had no timeout) |
-| DAG-level `env` | merged into every task's `env`, task values winning |
-| `executor: noop` | `command: ["true"]` |
-| tenant | `default` |
-
 ## Compiled spec
 
 The compiler normalises the definition (defaults applied, templates parsed and
 checked, image digests resolved, dependencies sorted, tasks in topological order)
 into `spec.Spec` (`internal/spec/spec.go`), serialised as canonical JSON with
 snake_case field names. Durations become integer seconds (`timeout_seconds`,
-`retry.initial_seconds`). Specs compiled from v1 files carry
-`"source_format": "v1"`, which servers outside dev mode reject.
+`retry.initial_seconds`).
 
 The API carries the spec as these canonical bytes rather than as a nested
 protobuf message, so the version hash never depends on a protobuf JSON mapping.
 
 ```
-api_version, source_format?, tenant, name, description?, labels?
+api_version, tenant, name, description?, labels?
 schedule?     {cron, timezone, interval, catchup, start?}        start: RFC 3339 UTC
 triggers[]?   {asset, partition}
 params[]?     {name, type, default?}                             sorted by name

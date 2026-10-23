@@ -30,20 +30,20 @@ GOOS=linux GOARCH=amd64 go build -o hubwagen-linux-amd64 .   # cross-compile
 
 ```bash
 # Run one pipeline once and wait for it (logs stream to the terminal)
-./hubwagen run dags/examples/v1alpha1/hello_world.yaml
+./hubwagen run pipelines/examples/hello_world.yaml
 
 # A pipeline with a daily data interval, for one day
-./hubwagen run dags/examples/v1alpha1/daily_orders.yaml --date 2026-10-20
+./hubwagen run pipelines/examples/daily_orders.yaml --date 2026-10-20
 
 # The same day again returns the earlier run; --rerun makes a new generation
-./hubwagen run dags/examples/v1alpha1/daily_orders.yaml --date 2026-10-20 --rerun --param full_refresh=false
+./hubwagen run pipelines/examples/daily_orders.yaml --date 2026-10-20 --rerun --param full_refresh=false
 
 # Run the scheduler with the dashboard: loads every pipeline under the
-# given directories (default: dags), reloads them on change, runs schedules
-./hubwagen dev dags/examples
+# given directories (default: pipelines), reloads them on change, runs schedules
+./hubwagen dev pipelines/examples
 
 # Same, without the dashboard: prints events and task logs
-./hubwagen dev --headless dags/examples
+./hubwagen dev --headless pipelines/examples
 ```
 
 Dashboard keys: `↑/↓` select, `enter` drill in, `t` trigger the selected
@@ -84,9 +84,6 @@ variables (`HUBWAGEN_INPUT_ORDERS_PATH`, `HUBWAGEN_OUTPUT_ORDERS_PATH`, …).
 References: [pipeline format](docs/pipeline-format.md) (fields, templates,
 execution semantics, schedules) and [task contract](docs/task-contract.md)
 (what a task process can rely on).
-
-Older v1 DAG files (`name:` + `steps:`) still run in dev mode through a
-compatibility mapping.
 
 ## Compiling for CI
 

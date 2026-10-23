@@ -8,24 +8,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func nodesByID(steps []TaskShape, status map[string]string) map[string]stepNode {
-	m := make(map[string]stepNode, len(steps))
-	for _, s := range steps {
-		m[s.ID] = stepNode{ID: s.ID, DependsOn: s.DependsOn, Status: status[s.ID]}
+func nodesByID(tasks []TaskShape, status map[string]string) map[string]taskNode {
+	m := make(map[string]taskNode, len(tasks))
+	for _, s := range tasks {
+		m[s.ID] = taskNode{ID: s.ID, DependsOn: s.DependsOn, Status: status[s.ID]}
 	}
 	return m
 }
 
 func TestRenderGraph_LinearChain(t *testing.T) {
-	steps := []TaskShape{
+	tasks := []TaskShape{
 		{ID: "step_a"},
 		{ID: "step_b", DependsOn: []string{"step_a"}},
 		{ID: "step_c", DependsOn: []string{"step_b"}},
 	}
-	waves := layers(steps)
+	waves := layers(tasks)
 	require.Equal(t, [][]string{{"step_a"}, {"step_b"}, {"step_c"}}, waves)
 
-	out := renderGraph(waves, nodesByID(steps, map[string]string{
+	out := renderGraph(waves, nodesByID(tasks, map[string]string{
 		"step_a": "succeeded", "step_b": "running", "step_c": "pending",
 	}))
 
@@ -49,17 +49,16 @@ func TestRenderGraph_LinearChain(t *testing.T) {
 }
 
 func TestRenderGraph_FanOutFanIn(t *testing.T) {
-	// Mirrors dags/examples/parallel_fanout.yaml's shape.
-	steps := []TaskShape{
+	tasks := []TaskShape{
 		{ID: "seed"},
 		{ID: "branch_a", DependsOn: []string{"seed"}},
 		{ID: "branch_b", DependsOn: []string{"seed"}},
 		{ID: "merge", DependsOn: []string{"branch_a", "branch_b"}},
 	}
-	waves := layers(steps)
+	waves := layers(tasks)
 	require.Len(t, waves, 3)
 
-	out := renderGraph(waves, nodesByID(steps, map[string]string{
+	out := renderGraph(waves, nodesByID(tasks, map[string]string{
 		"seed": "succeeded", "branch_a": "succeeded", "branch_b": "running", "merge": "pending",
 	}))
 
@@ -84,18 +83,17 @@ func TestRenderGraph_FanOutFanIn(t *testing.T) {
 }
 
 func TestRenderGraph_DisconnectedNodeInSharedWave(t *testing.T) {
-	// Mirrors dags/examples/on_failure_skip_dependents.yaml: audit_log has
-	// no dependencies and nothing depends on it, but shares wave 0 with the
+	// audit_log has no dependencies and nothing depends on it, but shares wave 0 with the
 	// start of an unrelated chain.
-	steps := []TaskShape{
+	tasks := []TaskShape{
 		{ID: "audit_log"},
 		{ID: "validate"},
 		{ID: "transform", DependsOn: []string{"validate"}},
 	}
-	waves := layers(steps)
+	waves := layers(tasks)
 	require.Equal(t, []string{"audit_log", "validate"}, waves[0])
 
-	out := renderGraph(waves, nodesByID(steps, nil))
+	out := renderGraph(waves, nodesByID(tasks, nil))
 	assert.Contains(t, out, "audit_log")
 	assert.Contains(t, out, "validate")
 	assert.Contains(t, out, "transform")
@@ -105,23 +103,23 @@ func TestRenderGraph_ManyToManyDegradesGracefully(t *testing.T) {
 	// A genuine many-to-many transition: two distinct parents each feeding
 	// two distinct children. connectSimpleStar must not panic or claim a
 	// specific routing it can't back up — see its doc comment.
-	steps := []TaskShape{
+	tasks := []TaskShape{
 		{ID: "p1"},
 		{ID: "p2"},
 		{ID: "c1", DependsOn: []string{"p1", "p2"}},
 		{ID: "c2", DependsOn: []string{"p1", "p2"}},
 	}
-	waves := layers(steps)
+	waves := layers(tasks)
 
 	require.NotPanics(t, func() {
-		out := renderGraph(waves, nodesByID(steps, nil))
+		out := renderGraph(waves, nodesByID(tasks, nil))
 		for _, want := range []string{"p1", "p2", "c1", "c2"} {
 			assert.Contains(t, out, want)
 		}
 	})
 }
 
-func TestRenderGraph_EmptyStepsNoPanic(t *testing.T) {
+func TestRenderGraph_EmptyTasksNoPanic(t *testing.T) {
 	require.NotPanics(t, func() {
 		out := renderGraph(nil, nil)
 		assert.NotEmpty(t, out)

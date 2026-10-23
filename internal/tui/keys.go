@@ -4,8 +4,7 @@ import "github.com/charmbracelet/bubbles/key"
 
 // KeyMap is the single source of truth for every keybinding hubwagen tui
 // responds to, across all screens. The '?' help overlay renders directly
-// from this — never a separately maintained copy of the same information
-// (contracts/keybindings.md).
+// from this — never a separately maintained copy of the same information.
 type KeyMap struct {
 	// Global — every screen.
 	Up      key.Binding
@@ -16,11 +15,11 @@ type KeyMap struct {
 	Help    key.Binding
 	Quit    key.Binding
 
-	// DAG list screen only.
+	// pipeline list screen only.
 	Filter  key.Binding
 	Trigger key.Binding
 
-	// Step view screen only (log viewport).
+	// Task view screen only (log viewport).
 	Top    key.Binding
 	Bottom key.Binding
 	Graph  key.Binding
@@ -49,12 +48,12 @@ func (k KeyMap) GlobalHelp() []key.Binding {
 	return []key.Binding{k.Up, k.Down, k.Enter, k.Back, k.Refresh, k.Help, k.Quit}
 }
 
-// DagListExtra returns the DAG list screen's additional bindings.
-func (k KeyMap) DagListExtra() []key.Binding {
+// PipelineListExtra returns the pipeline list screen's additional bindings.
+func (k KeyMap) PipelineListExtra() []key.Binding {
 	return []key.Binding{k.Filter, k.Trigger}
 }
 
-// StepViewExtra returns the step view screen's additional bindings.
-func (k KeyMap) StepViewExtra() []key.Binding {
+// TaskViewExtra returns the task view screen's additional bindings.
+func (k KeyMap) TaskViewExtra() []key.Binding {
 	return []key.Binding{k.Top, k.Bottom, k.Graph}
 }

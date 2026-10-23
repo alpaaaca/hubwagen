@@ -14,14 +14,14 @@ import (
 	"github.com/alper/hubwagen/internal/state"
 )
 
-// stepListLoadedMsg carries the result of a task-status poll.
-type stepListLoadedMsg struct {
+// taskListLoadedMsg carries the result of a task-status poll.
+type taskListLoadedMsg struct {
 	tasks []TaskInfo
 	err   error
 }
 
-// stepViewTickMsg fires every refreshInterval.
-type stepViewTickMsg struct{}
+// taskViewTickMsg fires every refreshInterval.
+type taskViewTickMsg struct{}
 
 // logsLoadedMsg carries a selected task's log lines. logsURI identifies which
 // attempt they belong to, so a late result for a previous selection is
@@ -32,9 +32,9 @@ type logsLoadedMsg struct {
 	err     error
 }
 
-// stepViewModel is the run screen: every task's status, plus a log pane for
+// taskViewModel is the run screen: every task's status, plus a log pane for
 // the selected task that follows its newest attempt while it runs.
-type stepViewModel struct {
+type taskViewModel struct {
 	ctx      context.Context
 	src      Source
 	pipeline string // tenant/name, for the title
@@ -54,7 +54,7 @@ type stepViewModel struct {
 	err           string
 }
 
-func newStepViewModel(ctx context.Context, src Source, pipeline, runID string, shape []TaskShape, w, h int) stepViewModel {
+func newTaskViewModel(ctx context.Context, src Source, pipeline, runID string, shape []TaskShape, w, h int) taskViewModel {
 	cols := []table.Column{
 		{Title: "TASK", Width: 22},
 		{Title: "STATUS", Width: 18},
@@ -64,15 +64,15 @@ func newStepViewModel(ctx context.Context, src Source, pipeline, runID string, s
 	}
 	t := table.New(table.WithColumns(cols), table.WithFocused(true), table.WithHeight(10))
 	vp := viewport.New(w, 10)
-	m := stepViewModel{ctx: ctx, src: src, pipeline: pipeline, runID: runID, shape: shape, table: t, viewport: vp}
+	m := taskViewModel{ctx: ctx, src: src, pipeline: pipeline, runID: runID, shape: shape, table: t, viewport: vp}
 	return m.SetSize(w, h)
 }
 
-func (m stepViewModel) Init() tea.Cmd {
+func (m taskViewModel) Init() tea.Cmd {
 	return tea.Batch(m.loadCmd(), m.tickCmd())
 }
 
-func (m stepViewModel) SetSize(w, h int) stepViewModel {
+func (m taskViewModel) SetSize(w, h int) taskViewModel {
 	m.width, m.height = w, h
 	if h > 14 {
 		m.table.SetHeight(6)
@@ -83,19 +83,19 @@ func (m stepViewModel) SetSize(w, h int) stepViewModel {
 	return m
 }
 
-func (m stepViewModel) tickCmd() tea.Cmd {
-	return tea.Tick(refreshInterval, func(time.Time) tea.Msg { return stepViewTickMsg{} })
+func (m taskViewModel) tickCmd() tea.Cmd {
+	return tea.Tick(refreshInterval, func(time.Time) tea.Msg { return taskViewTickMsg{} })
 }
 
-func (m stepViewModel) loadCmd() tea.Cmd {
+func (m taskViewModel) loadCmd() tea.Cmd {
 	src, ctx, runID := m.src, m.ctx, m.runID
 	return func() tea.Msg {
 		tasks, err := src.Tasks(ctx, runID)
-		return stepListLoadedMsg{tasks: tasks, err: err}
+		return taskListLoadedMsg{tasks: tasks, err: err}
 	}
 }
 
-func (m stepViewModel) logsCmd(uri string) tea.Cmd {
+func (m taskViewModel) logsCmd(uri string) tea.Cmd {
 	if uri == "" {
 		return nil
 	}
@@ -107,7 +107,7 @@ func (m stepViewModel) logsCmd(uri string) tea.Cmd {
 }
 
 // selectTask switches the log pane to taskID's newest attempt.
-func (m *stepViewModel) selectTask(t TaskInfo) tea.Cmd {
+func (m *taskViewModel) selectTask(t TaskInfo) tea.Cmd {
 	m.selectedTaskID = t.TaskID
 	m.logsURI = t.LogsURI
 	m.logLines = 0
@@ -115,9 +115,9 @@ func (m *stepViewModel) selectTask(t TaskInfo) tea.Cmd {
 	return m.logsCmd(t.LogsURI)
 }
 
-func (m stepViewModel) Update(msg tea.Msg) (stepViewModel, tea.Cmd) {
+func (m taskViewModel) Update(msg tea.Msg) (taskViewModel, tea.Cmd) {
 	switch msg := msg.(type) {
-	case stepListLoadedMsg:
+	case taskListLoadedMsg:
 		if msg.err != nil {
 			m.err = msg.err.Error()
 			return m, nil
@@ -158,7 +158,7 @@ func (m stepViewModel) Update(msg tea.Msg) (stepViewModel, tea.Cmd) {
 		}
 		return m, nil
 
-	case stepViewTickMsg:
+	case taskViewTickMsg:
 		if m.allTerminal() {
 			return m, nil
 		}
@@ -212,7 +212,7 @@ func (m stepViewModel) Update(msg tea.Msg) (stepViewModel, tea.Cmd) {
 	return m, cmd
 }
 
-func (m stepViewModel) allTerminal() bool {
+func (m taskViewModel) allTerminal() bool {
 	if len(m.tasks) == 0 {
 		return false
 	}
@@ -224,7 +224,7 @@ func (m stepViewModel) allTerminal() bool {
 	return true
 }
 
-func (m stepViewModel) selectedTask() (TaskInfo, bool) {
+func (m taskViewModel) selectedTask() (TaskInfo, bool) {
 	cursor := m.table.Cursor()
 	if cursor < 0 || cursor >= len(m.tasks) {
 		return TaskInfo{}, false
@@ -232,7 +232,7 @@ func (m stepViewModel) selectedTask() (TaskInfo, bool) {
 	return m.tasks[cursor], true
 }
 
-func (m stepViewModel) View() string {
+func (m taskViewModel) View() string {
 	var b strings.Builder
 	b.WriteString(styleTitle.Render("hubwagen — run " + m.runID + " (" + m.pipeline + ")"))
 	b.WriteString("\n\n")
@@ -259,7 +259,7 @@ func (m stepViewModel) View() string {
 }
 
 // renderGraphView draws the pipeline's graph with each task's current status.
-func (m stepViewModel) renderGraphView() string {
+func (m taskViewModel) renderGraphView() string {
 	if len(m.shape) == 0 {
 		return styleMuted.Render("(pipeline graph unavailable for this run)")
 	}
@@ -267,9 +267,9 @@ func (m stepViewModel) renderGraphView() string {
 	for _, t := range m.tasks {
 		status[t.TaskID] = t.Status
 	}
-	byID := make(map[string]stepNode, len(m.shape))
+	byID := make(map[string]taskNode, len(m.shape))
 	for _, s := range m.shape {
-		byID[s.ID] = stepNode{ID: s.ID, DependsOn: s.DependsOn, Status: status[s.ID]}
+		byID[s.ID] = taskNode{ID: s.ID, DependsOn: s.DependsOn, Status: status[s.ID]}
 	}
 	return renderGraph(layers(m.shape), byID)
 }

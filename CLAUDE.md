@@ -12,7 +12,7 @@ observability. Three deployment profiles from one binary: `dev` (laptop),
 
 **Today (M2 done):** the new engine runs on one machine — `hubwagen dev`
 (scheduler + dashboard) and `hubwagen run` (one-shot), host-process tasks,
-`file://` bucket. The v1 engine is gone. Next is M3 (API, remote agents).
+`file://` bucket. Next is M3 (API, remote agents).
 
 Read before larger changes:
 
@@ -23,13 +23,13 @@ Read before larger changes:
 
 Planning is lightweight: a design note in `docs/` when a decision needs one,
 the next milestone broken into PR-sized steps in `docs/roadmap.md`. No
-spec-kit; `specs/` is legacy and gitignored.
+spec-kit.
 
 ## Current code
 
 | Path | What |
 |---|---|
-| `internal/spec` | Pipeline compiler: parsing (v1alpha1 + v1 compat), validation, restricted templates, data intervals/calendars, canonical JSON + sha256, image digest resolution |
+| `internal/spec` | Pipeline compiler: parsing, validation, restricted templates, data intervals/calendars, canonical JSON + sha256, image digest resolution |
 | `internal/state` | Store: event log + projections, term fencing, leader-start loaders |
 | `internal/core` | Scheduler core: event loop, state machines, triggers, retries, timeouts, cancellation, cron, restore |
 | `internal/clock`, `internal/layout` | Real/fake clock; bucket path layout shared by core and task wrapper |
@@ -38,9 +38,8 @@ spec-kit; `specs/` is legacy and gitignored.
 | `internal/runtime/localrt` | Dev-mode in-process agent: slots, pools, cancellation |
 | `internal/devmode` | Wires store, bucket, core and local runtime for one process; data-dir lock; pipeline loader/watcher |
 | `internal/tui` | Terminal dashboard; reads and acts through `tui.Source` (`EngineSource` today, the API client in M3) |
-| `cmd/` | `compile`, `dev` (alias `tui`), `run`, `version` |
-| `dags/examples/*.yaml` | v1 examples (compile and run via compat, dev mode only) |
-| `dags/examples/v1alpha1/` | New-format examples; `TestExamplesCompile` compiles every example |
+| `cmd/` | `compile`, `dev`, `run`, `version` |
+| `pipelines/examples/` | Example pipelines; `TestExamplesCompile` compiles every example |
 | `tests/` | Cross-package end-to-end tests of the engine |
 
 ## Rules that hold everywhere
@@ -86,8 +85,8 @@ go vet ./...
 go test ./...
 go test -race ./...
 
-./hubwagen compile dags/examples --check --no-resolve   # validate all examples, offline
-./hubwagen compile dags/examples --out build/specs      # write canonical specs
-./hubwagen run dags/examples/v1alpha1/hello_world.yaml  # run one pipeline once (data in .hubwagen/)
-./hubwagen dev dags/examples                            # scheduler + dashboard; --headless for plain output
+./hubwagen compile pipelines/examples --check --no-resolve   # validate all examples, offline
+./hubwagen compile pipelines/examples --out build/specs      # write canonical specs
+./hubwagen run pipelines/examples/hello_world.yaml  # run one pipeline once (data in .hubwagen/)
+./hubwagen dev pipelines/examples                            # scheduler + dashboard; --headless for plain output
 ```

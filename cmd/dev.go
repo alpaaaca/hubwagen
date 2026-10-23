@@ -30,11 +30,10 @@ func addDataDirFlag(c *cobra.Command) {
 }
 
 var devCmd = &cobra.Command{
-	Use:     "dev [pipeline-file-or-dir]...",
-	Aliases: []string{"tui"},
-	Short:   "Run the scheduler locally with a terminal dashboard",
+	Use:   "dev [pipeline-file-or-dir]...",
+	Short: "Run the scheduler locally with a terminal dashboard",
 	Long: `Dev runs the whole engine in this process, against --data-dir: pipelines from
-the given files and directories (default: dags) are compiled and published,
+the given files and directories (default: pipelines) are compiled and published,
 and reloaded when they change; schedules run; tasks run as host processes in
 the "local" pool.
 
@@ -58,7 +57,7 @@ func init() {
 func runDev(cmd *cobra.Command, args []string) error {
 	paths := args
 	if len(paths) == 0 {
-		paths = []string{"dags"}
+		paths = []string{"pipelines"}
 	}
 	dashboard := !devHeadless && isatty.IsTerminal(os.Stdout.Fd()) && isatty.IsTerminal(os.Stdin.Fd())
 

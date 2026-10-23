@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -45,7 +44,7 @@ func startEngine(t *testing.T, dir string, wrap func(localrt.Reporter) localrt.R
 
 	c := core.New(core.Config{
 		Store: st, Term: term, Clock: clock.Real{}, Layout: layout.New(b.Base()),
-		Recovery: taskexec.Recovery{Bucket: b}, AllowV1Specs: true, AutoCreateTenants: true,
+		Recovery: taskexec.Recovery{Bucket: b}, AutoCreateTenants: true,
 	})
 	var reporter localrt.Reporter = c
 	if wrap != nil {
@@ -186,16 +185,4 @@ func TestEngineRecoversCommittedAttemptsAfterRestart(t *testing.T) {
 	again, err := e2.core.Trigger(context.Background(), core.TriggerRequest{Tenant: "t", Pipeline: "orders", Interval: day})
 	require.NoError(t, err)
 	assert.True(t, again.Existing)
-}
-
-func TestEngineRunsV1DagsInDevMode(t *testing.T) {
-	e := startEngine(t, t.TempDir(), nil)
-	data, err := os.ReadFile(filepath.Join("..", "dags", "examples", "parallel_fanout.yaml"))
-	require.NoError(t, err)
-	e.publish(string(data))
-
-	name := strings.TrimSuffix(filepath.Base("parallel_fanout.yaml"), ".yaml")
-	res, err := e.core.Trigger(context.Background(), core.TriggerRequest{Tenant: spec.V1Tenant, Pipeline: name})
-	require.NoError(t, err)
-	assert.Equal(t, state.RunSucceeded, e.waitRun(res.RunID).Status)
 }

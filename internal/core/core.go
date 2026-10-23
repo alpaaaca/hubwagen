@@ -65,8 +65,6 @@ type Config struct {
 	// without retry (reason no_runtime).
 	Runtimes map[string]Runtime
 	Recovery Recovery // nil: every in-flight attempt is lost
-	// AllowV1Specs accepts specs compiled from v1 DAG files (dev mode).
-	AllowV1Specs bool
 	// AutoCreateTenants creates a tenant on first publish (dev mode).
 	AutoCreateTenants bool
 	// DisableSchedules turns cron off: no scheduled runs, no catch-up
