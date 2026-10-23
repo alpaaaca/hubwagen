@@ -91,8 +91,8 @@ func Start(ctx context.Context, cfg Config) (*Engine, error) {
 
 	e.Core = core.New(core.Config{
 		Store: e.Store, Term: term, Clock: clock.Real{}, Layout: layout.New(e.Bucket.Base()),
-		Recovery:     taskexec.Recovery{Bucket: e.Bucket},
-		AllowV1Specs: true, AutoCreateTenants: true, DisableSchedules: cfg.DisableSchedules,
+		Recovery:          taskexec.Recovery{Bucket: e.Bucket},
+		AutoCreateTenants: true, DisableSchedules: cfg.DisableSchedules,
 		Logger: cfg.Logger,
 	})
 	e.Runtime = localrt.New(e.Core, localrt.Config{

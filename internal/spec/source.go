@@ -1,7 +1,7 @@
 package spec
 
 // APIVersion and KindPipeline identify the authoring format compiled by this
-// package (see specs/003-platform-redesign/contracts/pipeline-spec.md).
+// package (see docs/pipeline-format.md).
 const (
 	APIVersion   = "hubwagen.dev/v1alpha1"
 	KindPipeline = "Pipeline"

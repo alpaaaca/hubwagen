@@ -137,7 +137,7 @@ func (m runHistoryModel) Update(msg tea.Msg) (runHistoryModel, tea.Cmd) {
 			if !ok {
 				return m, nil
 			}
-			msg := navigateToStepViewMsg{tenant: m.tenant, pipeline: m.pipeline, runID: run.ID, tasks: m.tasks}
+			msg := navigateToTaskViewMsg{tenant: m.tenant, pipeline: m.pipeline, runID: run.ID, tasks: m.tasks}
 			return m, func() tea.Msg { return msg }
 		case key.Matches(msg, Keys.Back):
 			return m, func() tea.Msg { return navigateBackMsg{} }
@@ -172,6 +172,6 @@ func (m runHistoryModel) View() string {
 	if m.err != "" {
 		b.WriteString("\n" + styleError.Render("error: "+m.err))
 	}
-	b.WriteString("\n\n" + styleHelp.Render("↑/↓ select · enter step detail · b back · ? help · q quit"))
+	b.WriteString("\n\n" + styleHelp.Render("↑/↓ select · enter task detail · b back · ? help · q quit"))
 	return b.String()
 }

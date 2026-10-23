@@ -71,9 +71,9 @@ func (e *env) runToCompletion(name string) string {
 	return res.RunID
 }
 
-func loadList(t *testing.T, m dagListModel) dagListModel {
+func loadList(t *testing.T, m pipelineListModel) pipelineListModel {
 	t.Helper()
-	msg, ok := m.loadCmd()().(dagListLoadedMsg)
+	msg, ok := m.loadCmd()().(pipelineListLoadedMsg)
 	require.True(t, ok)
 	require.NoError(t, msg.err)
 	m, _ = m.Update(msg)
@@ -86,7 +86,7 @@ func TestPipelineListShowsPipelinesSchedulesAndInvalidFiles(t *testing.T) {
 	e.pipeline("beta", "  schedule: {cron: \"0 2 * * *\", timezone: Europe/Berlin, interval: daily}\n", "echo hi")
 	e.write("broken.yaml", "apiVersion: hubwagen.dev/v1alpha1\nkind: Pipeline\nmetadata: {name: Bad, tenant: t}\n")
 
-	m := loadList(t, newDAGListModel(ctx, e.src))
+	m := loadList(t, newPipelineListModel(ctx, e.src))
 	require.Len(t, m.allRows, 3)
 	view := m.View()
 	assert.Contains(t, view, "t/alpha")
@@ -102,7 +102,7 @@ func TestPipelineListFilter(t *testing.T) {
 	e := newEnv(t)
 	e.pipeline("hello_world", "", "echo hi")
 	e.pipeline("totally_different", "", "echo hi")
-	m := loadList(t, newDAGListModel(ctx, e.src))
+	m := loadList(t, newPipelineListModel(ctx, e.src))
 
 	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
 	for _, r := range "hello" {
@@ -117,7 +117,7 @@ func TestPipelineListFilter(t *testing.T) {
 func TestInvalidRowShowsItsErrorInsteadOfNavigating(t *testing.T) {
 	e := newEnv(t)
 	e.write("broken.yaml", "apiVersion: hubwagen.dev/v1alpha1\nkind: Pipeline\nmetadata: {name: Bad, tenant: t}\n")
-	m := loadList(t, newDAGListModel(ctx, e.src))
+	m := loadList(t, newPipelineListModel(ctx, e.src))
 	m, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	assert.Nil(t, cmd)
 	assert.Contains(t, m.View(), "metadata.name")
@@ -126,7 +126,7 @@ func TestInvalidRowShowsItsErrorInsteadOfNavigating(t *testing.T) {
 func TestTriggerFromTheList(t *testing.T) {
 	e := newEnv(t)
 	e.pipeline("p", "", "echo hi")
-	m := loadList(t, newDAGListModel(ctx, e.src))
+	m := loadList(t, newPipelineListModel(ctx, e.src))
 
 	m, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("t")})
 	require.NotNil(t, cmd)
@@ -152,8 +152,8 @@ func TestRunHistoryAndTaskView(t *testing.T) {
 	assert.Contains(t, h.View(), "✓ succeeded")
 
 	shape := []TaskShape{{ID: "a"}, {ID: "b", DependsOn: []string{"a"}}}
-	v := newStepViewModel(ctx, e.src, "t/p", runID, shape, 120, 30)
-	tasks := v.loadCmd()().(stepListLoadedMsg)
+	v := newTaskViewModel(ctx, e.src, "t/p", runID, shape, 120, 30)
+	tasks := v.loadCmd()().(taskListLoadedMsg)
 	require.NoError(t, tasks.err)
 	require.Len(t, tasks.tasks, 2)
 	v, cmd := v.Update(tasks)

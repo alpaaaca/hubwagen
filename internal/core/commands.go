@@ -47,9 +47,6 @@ func (c *Core) publish(req PublishRequest) (PublishResult, error) {
 	if !bytes.Equal(canon, req.SpecJSON) {
 		return PublishResult{}, fmt.Errorf("%w: spec is not in canonical form (publish the output of `hubwagen compile`)", ErrInvalid)
 	}
-	if s.SourceFormat == "v1" && !c.cfg.AllowV1Specs {
-		return PublishResult{}, fmt.Errorf("%w: spec was compiled from a v1 DAG file; convert it to %s (v1 files are accepted in dev mode only)", ErrInvalid, spec.APIVersion)
-	}
 	hash := spec.HashBytes(req.SpecJSON)
 	res := PublishResult{Tenant: s.Tenant, Pipeline: s.Name, Hash: hash}
 

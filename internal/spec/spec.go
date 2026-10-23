@@ -16,19 +16,16 @@ import (
 // so the JSON field names below are part of the version contract: renaming
 // one changes every hash.
 type Spec struct {
-	APIVersion string `json:"api_version"`
-	// SourceFormat is "v1" when the spec was compiled from a v1 DAG file via
-	// the compatibility mapping; servers outside dev mode reject such specs.
-	SourceFormat string            `json:"source_format,omitempty"`
-	Tenant       string            `json:"tenant"`
-	Name         string            `json:"name"`
-	Description  string            `json:"description,omitempty"`
-	Labels       map[string]string `json:"labels,omitempty"`
-	Schedule     *Schedule         `json:"schedule,omitempty"`
-	Triggers     []Trigger         `json:"triggers,omitempty"`
-	Params       []Param           `json:"params,omitempty"`
-	Concurrency  Concurrency       `json:"concurrency"`
-	Tasks        []Task            `json:"tasks"`
+	APIVersion  string            `json:"api_version"`
+	Tenant      string            `json:"tenant"`
+	Name        string            `json:"name"`
+	Description string            `json:"description,omitempty"`
+	Labels      map[string]string `json:"labels,omitempty"`
+	Schedule    *Schedule         `json:"schedule,omitempty"`
+	Triggers    []Trigger         `json:"triggers,omitempty"`
+	Params      []Param           `json:"params,omitempty"`
+	Concurrency Concurrency       `json:"concurrency"`
+	Tasks       []Task            `json:"tasks"`
 }
 
 type Schedule struct {

@@ -14,9 +14,9 @@ var (
 	colorAccent = lipgloss.Color("6") // cyan
 )
 
-// statusSymbols pairs every run/step status with a single glyph. Rendered as
-// "<symbol> <label>" via RenderStatus — symbol + text together is what
-// satisfies FR-016 ("never color-only"); color (via colorizeStatuses below)
+// statusSymbols pairs every run/task status with a single glyph. Rendered as
+// "<symbol> <label>" via RenderStatus — symbol + text together means
+// status is never shown by color alone; color (via colorizeStatuses below)
 // is additive on top of that, never the only signal.
 var statusSymbols = map[string]string{
 	"succeeded":       "✓",

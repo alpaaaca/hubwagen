@@ -23,9 +23,8 @@ var (
 var compileCmd = &cobra.Command{
 	Use:   "compile <file-or-dir>...",
 	Short: "Validate pipeline definitions and compile them into versioned specs",
-	Long: `Compile parses pipeline YAML (apiVersion ` + spec.APIVersion + `, or v1 DAG files via the
-compatibility mapping), validates it, and writes one canonical JSON spec per pipeline to
-<out>/<tenant>/<pipeline>/<hash>.json. The file's SHA-256 is its version ID.
+	Long: `Compile parses pipeline YAML (apiVersion ` + spec.APIVersion + `), validates it, and
+writes one canonical JSON spec per pipeline to <out>/<tenant>/<pipeline>/<hash>.json. The file's SHA-256 is its version ID.
 
 Directories are searched recursively for *.yaml and *.yml. If any file has an error,
 nothing is written.`,
@@ -93,9 +92,6 @@ func runCompile(cmd *cobra.Command, args []string) error {
 
 	for _, c := range compiled {
 		line := fmt.Sprintf("✓ %-40s %s  %s", c.Spec.Tenant+"/"+c.Spec.Name, c.Hash[:12], c.Path)
-		if c.Spec.SourceFormat != "" {
-			line += "  (" + c.Spec.SourceFormat + " compat, dev mode only)"
-		}
 		if compileOut != "" {
 			dest, err := writeSpec(compileOut, c)
 			if err != nil {

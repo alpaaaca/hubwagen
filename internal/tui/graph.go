@@ -5,9 +5,9 @@ import (
 	"strings"
 )
 
-// stepNode is the minimal per-task info renderGraph needs: identity,
+// taskNode is the minimal per-task info renderGraph needs: identity,
 // dependency edges, and current status.
-type stepNode struct {
+type taskNode struct {
 	ID        string
 	DependsOn []string
 	Status    string // "" if no run/status known yet
@@ -34,7 +34,7 @@ const (
 // render-plain-then-recolor approach for table cells.
 //
 // Layout is exact and clean for the common shapes (linear chains, a single
-// step fanning out to several, several converging on one). For a wave
+// task fanning out to several, several converging on one). For a wave
 // transition with multiple distinct parents *and* multiple distinct
 // children at once (genuine many-to-many crossing edges), it degrades to
 // plain vertical stubs rather than guessing at which line should cross which
@@ -77,9 +77,9 @@ func layers(tasks []TaskShape) [][]string {
 	return out
 }
 
-func renderGraph(waves [][]string, byID map[string]stepNode) string {
+func renderGraph(waves [][]string, byID map[string]taskNode) string {
 	if len(waves) == 0 {
-		return styleMuted.Render("(no steps)")
+		return styleMuted.Render("(no tasks)")
 	}
 
 	maxIDLen := 0
@@ -107,7 +107,7 @@ func renderGraph(waves [][]string, byID map[string]stepNode) string {
 	return strings.Join(lines, "\n")
 }
 
-func renderBoxRow(ids []string, byID map[string]stepNode, innerWidth, boxWidth, cellWidth int) (top, mid, bot string, centers []int) {
+func renderBoxRow(ids []string, byID map[string]taskNode, innerWidth, boxWidth, cellWidth int) (top, mid, bot string, centers []int) {
 	sep := strings.Repeat(" ", graphGap)
 	var topCells, midCells, botCells []string
 	col := 0
@@ -126,7 +126,7 @@ func renderBoxRow(ids []string, byID map[string]stepNode, innerWidth, boxWidth, 
 }
 
 // connectWaves draws the connector rows between two adjacent waves.
-func connectWaves(parentIDs, childIDs []string, byID map[string]stepNode, parentCenters, childCenters []int) []string {
+func connectWaves(parentIDs, childIDs []string, byID map[string]taskNode, parentCenters, childCenters []int) []string {
 	parentCol := make(map[string]int, len(parentIDs))
 	for i, id := range parentIDs {
 		parentCol[id] = parentCenters[i]
@@ -147,7 +147,7 @@ func connectWaves(parentIDs, childIDs []string, byID map[string]stepNode, parent
 	if len(edges) == 0 {
 		// No adjacent-wave edges for this transition — e.g. every child's
 		// dependencies are more than one wave back. Nothing to draw; the
-		// steps' own wave grouping still shows execution order.
+		// tasks' own wave grouping still shows execution order.
 		return []string{""}
 	}
 
@@ -171,13 +171,13 @@ func connectWaves(parentIDs, childIDs []string, byID map[string]stepNode, parent
 // converging on a single child, or a plain 1:1 line (straight or jogged).
 //
 // If a transition has multiple *distinct* parents each feeding multiple
-// *distinct* children in the same step — genuine many-to-many crossing
+// *distinct* children in the same task — genuine many-to-many crossing
 // edges — precisely routing which line goes to which box needs real lane
 // assignment (the technique tools like `git log --graph` use). Rather than
 // risk drawing a plausible-looking but *wrong* diagram, this degrades to
 // independent vertical stubs (still correct — every connection point is
 // still marked — just not joined with routed lines). None of hubwagen's
-// example DAGs hit this case; everything there is chains or single
+// example pipelines hit this case; everything there is chains or single
 // fan-out/fan-in.
 func connectSimpleStar(edges []graphEdge, width int) []string {
 	distinctParents := map[int]bool{}

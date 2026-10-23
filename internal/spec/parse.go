@@ -48,10 +48,7 @@ func (e *FileError) Error() string {
 
 func (e *FileError) Unwrap() error { return e.Err }
 
-// CompileFile parses every YAML document in data and compiles each one. A
-// document with apiVersion is a v1alpha1 Pipeline; a document with top-level
-// "steps" and no apiVersion is a v1 DAG, compiled through the compatibility
-// mapping (see compat.go).
+// CompileFile parses every YAML document in data and compiles each one.
 func CompileFile(ctx context.Context, path string, data []byte, opts Options) ([]Compiled, error) {
 	docs, err := splitDocuments(data)
 	if err != nil {
@@ -73,13 +70,10 @@ func CompileFile(ctx context.Context, path string, data []byte, opts Options) ([
 			fail(err)
 			continue
 		}
-		s, err := Compile(ctx, doc.Document, opts)
+		s, err := Compile(ctx, doc, opts)
 		if err != nil {
 			fail(err)
 			continue
-		}
-		if doc.sourceFormat != "" {
-			s.SourceFormat = doc.sourceFormat
 		}
 		canon, err := s.Canonical()
 		if err != nil {
@@ -110,43 +104,26 @@ func splitDocuments(data []byte) ([]*yaml.Node, error) {
 	}
 }
 
-// parsedDocument is a Document plus how it was produced.
-type parsedDocument struct {
-	*Document
-	sourceFormat string
-}
-
-func decodeDocument(node *yaml.Node) (parsedDocument, error) {
+func decodeDocument(node *yaml.Node) (*Document, error) {
 	var probe map[string]any
 	if err := node.Decode(&probe); err != nil {
-		return parsedDocument{}, fmt.Errorf("document must be a YAML mapping: %w", err)
+		return nil, fmt.Errorf("document must be a YAML mapping: %w", err)
 	}
-	_, hasAPIVersion := probe["apiVersion"]
-	_, hasSteps := probe["steps"]
+	if _, ok := probe["apiVersion"]; !ok {
+		return nil, fmt.Errorf("not a hubwagen pipeline: missing apiVersion (expected %q)", APIVersion)
+	}
 
 	// Re-encode the node so it can be decoded strictly: yaml.Node.Decode has
 	// no KnownFields option, only yaml.Decoder does.
 	raw, err := yaml.Marshal(node)
 	if err != nil {
-		return parsedDocument{}, err
+		return nil, err
 	}
-
-	switch {
-	case hasAPIVersion:
-		var d Document
-		if err := strictDecode(raw, &d); err != nil {
-			return parsedDocument{}, err
-		}
-		return parsedDocument{Document: &d}, nil
-	case hasSteps:
-		d, err := convertV1(raw)
-		if err != nil {
-			return parsedDocument{}, err
-		}
-		return parsedDocument{Document: d, sourceFormat: "v1"}, nil
-	default:
-		return parsedDocument{}, fmt.Errorf("not a hubwagen pipeline: missing apiVersion (expected %q)", APIVersion)
+	var d Document
+	if err := strictDecode(raw, &d); err != nil {
+		return nil, err
 	}
+	return &d, nil
 }
 
 func strictDecode(raw []byte, v any) error {

@@ -1,8 +1,6 @@
 # Architecture
 
-Where hubwagen is going and why. This replaces the spec-kit documents that
-used to live under `specs/` (now ignored, kept only locally). What is built and
-what is next is tracked in [roadmap.md](roadmap.md).
+Where hubwagen is going and why. What is built and what is next is tracked in [roadmap.md](roadmap.md).
 
 ## Goals
 
@@ -25,7 +23,7 @@ seven requirements:
 7. **Observability.** A trace per run with a span per task attempt, logs in
    object storage, Prometheus metrics labelled per tenant.
 
-And one constraint carried over from v1: **it still works as a single binary on
+And one constraint: **it still works as a single binary on
 a laptop or a plain server**, with no database server and no message broker.
 
 ## Deployment profiles
@@ -100,7 +98,7 @@ transaction the leader updates projection tables (`runs`, `task_runs`,
 `attempts`, `outputs`, `asset_partitions`, …) that the API queries. Events give
 audit, live subscriptions and deterministic tests; projections give fast
 queries. Events are group-committed (a few ms window), and **side effects only
-happen after their events commit** — v1's write-before-act rule, kept.
+happen after their events commit** (write before act).
 
 Heartbeats are not persisted. Terminal runs past the retention window (default
 90 days) are archived to the bucket as JSON and deleted from SQLite.
@@ -111,7 +109,7 @@ All scheduling state lives in one goroutine fed by channels (API commands,
 agent messages, informer events, timers). It validates input, emits events,
 commits, applies them, then performs side effects. With a fake clock it is a
 pure state machine. A task becomes ready as soon as **its own** dependencies
-satisfy its trigger rule — v1's wave barrier goes away.
+satisfy its trigger rule; there are no wave barriers.
 
 ### Leader election, terms and fencing
 
@@ -164,8 +162,7 @@ doesn't need the leader to be up.
 YAML (`apiVersion: hubwagen.dev/v1alpha1`) is compiled by `internal/spec` into
 a normalised `Spec` serialised as RFC 8785 canonical JSON; the version ID is its
 SHA-256. Image tags are resolved to digests at compile time. Templates are
-restricted to an allow-list checked on the parse tree. v1 DAG files compile
-through a compatibility mapping, marked for dev mode only. Protobuf is used for
+restricted to an allow-list checked on the parse tree. Protobuf is used for
 the API only — specs travel as their canonical bytes so the hash never depends
 on a protobuf JSON mapping. Format reference: [pipeline-format.md](pipeline-format.md).
 

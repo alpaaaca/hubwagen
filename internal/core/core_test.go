@@ -376,11 +376,6 @@ func TestPublishRejects(t *testing.T) {
 	_, err = h.core.Publish(h.ctx, PublishRequest{SpecJSON: indented})
 	assert.ErrorIs(t, err, ErrInvalid)
 	assert.ErrorContains(t, err, "canonical")
-
-	out, err := spec.CompileFile(h.ctx, "v1.yaml", []byte("name: legacy\nsteps: [{id: a, command: echo}]\n"), spec.Options{})
-	require.NoError(t, err)
-	_, err = h.core.Publish(h.ctx, PublishRequest{SpecJSON: out[0].Canonical})
-	assert.ErrorContains(t, err, "dev mode only")
 }
 
 func TestParams(t *testing.T) {

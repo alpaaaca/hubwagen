@@ -1,6 +1,3 @@
-# Local development specs (not meant to be committed)
-specs/
-
 # Build artifacts
 /hubwagen
 hubwagen-linux-amd64
