@@ -20,6 +20,7 @@ Read before larger changes:
 - [docs/roadmap.md](docs/roadmap.md) — what is done, what is next, open decisions
 - [docs/pipeline-format.md](docs/pipeline-format.md) — pipeline YAML and the compiled spec
 - [docs/task-contract.md](docs/task-contract.md) — what a task process can rely on
+- [docs/config.md](docs/config.md) — instance configuration (`hubwagen.yaml`, design)
 
 Planning is lightweight: a design note in `docs/` when a decision needs one,
 the next milestone broken into PR-sized steps in `docs/roadmap.md`. No
