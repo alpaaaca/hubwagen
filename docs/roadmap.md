@@ -92,7 +92,12 @@ commits on `file://` — and the v1 engine is deleted. Planned as reviewable PRs
 
 - **M3**: Connect API (protobuf, `buf`), `hubwagen publish`, `hubwagen agent`
   pulling work, dashboard on `WatchRuns`/`TailLogs` instead of polling SQLite.
-- **M3b**: `standalone` profile — config file, systemd units, `flock`, static
+  Instance config ([config.md](config.md)): `internal/config`, `hubwagen.yaml`
+  with defaults < file < env < flags, `hubwagen config check|show`, and the
+  sections the server and agents need (`data_dir`, `bucket`, `server`,
+  `agent`, `log`).
+- **M3b**: `standalone` profile — its config sections (auth tokens,
+  replication, secrets) and `/etc/hubwagen/hubwagen.yaml`, systemd units, `flock`, static
   tokens, file/env secret providers, Docker/Podman launcher, S3-compatible
   store for multi-host, Litestream to a local path.
 - **M4**: Lease election, terms and fencing, Litestream replication and
@@ -110,4 +115,5 @@ commits on `file://` — and the v1 engine is deleted. Planned as reviewable PRs
 | Load target for one leader | 100 task transitions/s sustained, 2,000 running tasks, 200k attempts/day | R3 / M2 |
 | Human login on Kubernetes | OIDC tokens, tenant roles from a group claim | M5 |
 | Warm-agent isolation | Several tasks of one tenant may share an agent container; agents never serve two tenants | M3 |
+| Config env variables | Only listed settings get a `HUBWAGEN_*` variable (no generic field mapping); a test rejects names the task contract reserves | M3 |
 | Format name | Keep `hubwagen.dev/v1alpha1` (changing it later changes every version hash) | Before first publish (M3) |

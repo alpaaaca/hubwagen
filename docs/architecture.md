@@ -29,7 +29,7 @@ a laptop or a plain server**, with no database server and no message broker.
 ## Deployment profiles
 
 One binary, three profiles. A compiled spec means the same thing in all of
-them; only server configuration differs.
+them; only server configuration ([config.md](config.md)) differs.
 
 | | `dev` | `standalone` | `kubernetes` |
 |---|---|---|---|
