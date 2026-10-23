@@ -295,8 +295,14 @@ func (c *Core) dispatch(t *taskState) {
 	r := t.run
 	number := t.rec.Attempts + 1
 	a := &attemptState{task: t, rec: state.Attempt{
-		ID: c.cfg.NewID(), RunID: r.rec.ID, TaskID: t.rec.TaskID, Number: number, Term: c.cfg.Term,
-		Runtime: t.def.Runtime.Kind, Pool: t.def.Runtime.Pool, Status: state.AttemptDispatched,
+		ID:           c.cfg.NewID(),
+		RunID:        r.rec.ID,
+		TaskID:       t.rec.TaskID,
+		Number:       number,
+		Term:         c.cfg.Term,
+		Runtime:      t.def.Runtime.Kind,
+		Pool:         t.def.Runtime.Pool,
+		Status:       state.AttemptDispatched,
 		LogsURI:      c.cfg.Layout.Logs(r.rec.Tenant, r.rec.Pipeline, r.rec.ID, t.rec.TaskID, number),
 		DispatchedAt: c.now(),
 	}}
