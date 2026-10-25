@@ -11,6 +11,11 @@ across DST changes), and commits each task's outputs exactly once.
 
 ## Status
 
+> **Redesign in progress.** hubwagen is moving to a durable execution engine
+> for data: pipelines as code, memoized steps, versioned outputs with lineage.
+> See [docs/architecture.md](docs/architecture.md). Everything below describes
+> the current (v1) engine, which keeps working until the new one replaces it.
+
 The redesigned engine runs on one machine today (`hubwagen dev`, `hubwagen
 run`): tasks are host processes, state is SQLite, logs and outputs live in a
 local directory. Container tasks, remote agents, an API, plain-server and

@@ -1,5 +1,9 @@
 # Instance configuration
 
+> **To be revised for v2.** Written for v1's M3 (agents, pools, profiles).
+> Server, dock and worker settings change with v2; see
+> [v2-migration.md](v2-migration.md).
+
 How a hubwagen instance (leader, agents, dev mode) is configured: one YAML
 file, `hubwagen.yaml`, plus environment variables and flags on top.
 

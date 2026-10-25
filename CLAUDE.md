@@ -2,31 +2,32 @@
 
 ## What this is
 
-hubwagen is a workflow orchestrator for data teams, in the middle of a
-redesign: compiled, versioned pipeline specs; one event-driven leader that is
-the only writer to SQLite (to be replicated by Litestream); container tasks
-run by warm agents or Kubernetes Jobs under one task contract; multi-tenant
-fair share; idempotent runs with explicit data intervals; built-in
-observability. Three deployment profiles from one binary: `dev` (laptop),
-`standalone` (plain servers, no Kubernetes) and `kubernetes`.
+hubwagen is becoming a durable execution engine for data (v2): pipelines as
+plain code (hauls) that survive crashes and long waits, side-effecting steps
+(lifts) memoized by fingerprint, and every output an immutable, versioned
+pallet in a catalog derived from the event history. One Go server that never
+runs user code, single leader on SQLite (Litestream later); workers in the
+user's environment, Python SDK first.
 
-**Today (M2 done):** the new engine runs on one machine — `hubwagen dev`
-(scheduler + dashboard) and `hubwagen run` (one-shot), host-process tasks,
-`file://` bucket. Next is M3 (API, remote agents).
+**Today:** the code is still the v1 engine (M1–M2): compiled YAML pipelines,
+`hubwagen dev` / `hubwagen run`, host-process tasks, `file://` bucket. It
+keeps working until M3c. **Next:** M3a, the haul engine in the core, then
+pallets and memoization (M3b), then the worker API and Python SDK (M3c).
 
 Read before larger changes:
 
-- [docs/architecture.md](docs/architecture.md) — goals, decisions and why
+- [docs/architecture.md](docs/architecture.md) — v2 design: hauls, lifts, pallets, memoization, commits
 - [docs/roadmap.md](docs/roadmap.md) — what is done, what is next, open decisions
-- [docs/pipeline-format.md](docs/pipeline-format.md) — pipeline YAML and the compiled spec
-- [docs/task-contract.md](docs/task-contract.md) — what a task process can rely on
-- [docs/config.md](docs/config.md) — instance configuration (`hubwagen.yaml`, design)
+- [docs/v2-migration.md](docs/v2-migration.md) — what v2 keeps, rewrites and removes from v1, per package
+- [docs/pipeline-format.md](docs/pipeline-format.md) — v1 pipeline YAML and the compiled spec (removed in M3c)
+- [docs/task-contract.md](docs/task-contract.md) — v1 task contract (parked until pod lifts)
+- [docs/config.md](docs/config.md) — instance configuration (design, to be revised for v2)
 
 Planning is lightweight: a design note in `docs/` when a decision needs one,
 the next milestone broken into PR-sized steps in `docs/roadmap.md`. No
 spec-kit.
 
-## Current code
+## Current code (v1; fate of each package in docs/v2-migration.md)
 
 | Path | What |
 |---|---|
@@ -57,9 +58,12 @@ spec-kit.
   cloud-specific calls in the core; they go behind the interfaces listed in
   `docs/architecture.md`. `internal/profile` (to come) is the only place that
   knows the active profile.
-- **Spec JSON field names are part of the version hash.** Renaming or adding a
-  non-omitempty field in `internal/spec/spec.go` changes every version ID —
-  treat it as a format change.
+- **Spec JSON field names are part of the version hash** (v1, until
+  `internal/spec` is removed). Renaming or adding a non-omitempty field in
+  `internal/spec/spec.go` changes every version ID — treat it as a format
+  change.
+- **Never reuse what can't be read.** A lift is reused only when a committed,
+  readable, non-invalid pallet matches its fingerprint; when unsure, rerun.
 - **Pure Go, no CGO.** The binary must stay static and cross-compile
   (`modernc.org/sqlite`, not `mattn/go-sqlite3`).
 
