@@ -1,5 +1,9 @@
 # Pipeline format
 
+> **v1.** This format is replaced by hauls written in code (see
+> [architecture.md](architecture.md)) and is removed with `internal/spec` in
+> M3c. See [v2-migration.md](v2-migration.md).
+
 Reference for pipeline definitions and what `hubwagen compile` turns them into.
 Implemented in `internal/spec`; the tests there (`compile_test.go`) are the
 executable version of the rules below.

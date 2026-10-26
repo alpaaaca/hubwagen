@@ -1,5 +1,8 @@
 # Task contract
 
+> **v1.** Parked: v2 lifts run inside workers. The contract returns as the
+> basis for pod lifts. See [v2-migration.md](v2-migration.md).
+
 What a task's process can rely on, in every runtime (`agent`, `job`, `local`).
 
 > **Status:** implemented in `internal/taskexec` for host processes with a
