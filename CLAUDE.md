@@ -33,7 +33,7 @@ spec-kit.
 |---|---|
 | `internal/spec` | Pipeline compiler: parsing, validation, restricted templates, data intervals/calendars, canonical JSON + sha256, image digest resolution |
 | `internal/state` | Store: event log + projections, term fencing, leader-start loaders |
-| `internal/core` | Scheduler core: event loop, state machines, triggers, retries, timeouts, cancellation, cron, restore |
+| `internal/core` | Scheduler core: event loop, state machines, triggers, retries, timeouts, cancellation, cron, restore. v2: docks (`docks.go`) and the haul engine (`hauls.go`) |
 | `internal/clock`, `internal/layout` | Real/fake clock; bucket path layout shared by core and task wrapper |
 | `internal/blob` | Bucket access by URI; `file://` with atomic create-if-absent |
 | `internal/taskexec` | The task contract: env, process groups, log shipping, result file, commit markers, restart recovery |

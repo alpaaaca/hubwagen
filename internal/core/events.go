@@ -1,6 +1,9 @@
 package core
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // Event payloads. They are stored as JSON in the event log and read by the
 // API and tests; add fields freely, but don't rename existing ones.
@@ -76,4 +79,83 @@ type attemptFinishedPayload struct {
 type outputCommittedPayload struct {
 	Output string `json:"output"`
 	URI    string `json:"uri"`
+}
+
+// v2: haul events. Seq is the sequence number of the command that created a
+// lift or timer.
+
+type haulStartedPayload struct {
+	Name    string         `json:"name"`
+	Dock    string         `json:"dock"`
+	Trigger string         `json:"trigger"`
+	Params  map[string]any `json:"params,omitempty"`
+}
+
+type haulTaskPayload struct {
+	Number int    `json:"number"`
+	Worker string `json:"worker,omitempty"`
+}
+
+type haulTaskCompletedPayload struct {
+	Number   int          `json:"number"`
+	BuildID  string       `json:"build_id,omitempty"`
+	Commands []Command    `json:"commands,omitempty"` // only the new ones
+	Outcome  *HaulOutcome `json:"outcome,omitempty"`
+}
+
+type haulTaskFailedPayload struct {
+	Number  int    `json:"number"`
+	Reason  string `json:"reason"`
+	Message string `json:"message,omitempty"`
+}
+
+type haulStuckPayload struct {
+	Reason  string `json:"reason"`
+	Message string `json:"message,omitempty"`
+}
+
+type haulFinishedPayload struct {
+	Status  string          `json:"status"`
+	Reason  string          `json:"reason,omitempty"`
+	Message string          `json:"message,omitempty"`
+	Result  json.RawMessage `json:"result,omitempty"`
+}
+
+type liftScheduledPayload struct {
+	Seq  int             `json:"seq"`
+	Name string          `json:"name"`
+	Dock string          `json:"dock"`
+	Args json.RawMessage `json:"args,omitempty"`
+}
+
+type liftAttemptDispatchedPayload struct {
+	Seq    int    `json:"seq"`
+	Number int    `json:"number"`
+	Worker string `json:"worker"`
+}
+
+type liftAttemptFinishedPayload struct {
+	Seq     int    `json:"seq"`
+	Number  int    `json:"number"`
+	Status  string `json:"status"`
+	Reason  string `json:"reason,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+// liftFinishedPayload is what a replay reads as the lift's result.
+type liftFinishedPayload struct {
+	Seq     int             `json:"seq"`
+	Status  string          `json:"status"`
+	Result  json.RawMessage `json:"result,omitempty"`
+	Reason  string          `json:"reason,omitempty"`
+	Message string          `json:"message,omitempty"`
+}
+
+type timerStartedPayload struct {
+	Seq    int       `json:"seq"`
+	FireAt time.Time `json:"fire_at"`
+}
+
+type timerPayload struct {
+	Seq int `json:"seq"`
 }

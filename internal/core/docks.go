@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/alper/hubwagen/internal/state"
 )
 
 // Docks are the queues workers pull haul tasks and lift tasks from. They live
@@ -34,6 +36,9 @@ type Task struct {
 	Seq    int    // lift: sequence number of the command that scheduled it
 	Name   string // haul or lift function
 	Args   json.RawMessage
+	// Logbook is the haul's events up to at least this task's dispatch
+	// (haul tasks only). The replay reads results from it.
+	Logbook []state.Event
 }
 
 // DockConfig limits one dock.
@@ -61,13 +66,18 @@ func (c *Core) Poll(ctx context.Context, req PollRequest) (task Task, ok bool, e
 	if !c.inbox.put(pollInput{p: p}) {
 		return Task{}, false, ErrStopped
 	}
+	var r pollResult
 	select {
-	case r := <-p.reply:
-		return r.task, r.ok, r.err
+	case r = <-p.reply:
 	case <-ctx.Done():
+		c.inbox.put(pollInput{p: p, withdraw: ctx.Err()}) // if the inbox is closed, shutdown answers p
+		r = <-p.reply
 	}
-	c.inbox.put(pollInput{p: p, withdraw: ctx.Err()}) // if the inbox is closed, shutdown answers p
-	r := <-p.reply
+	if r.ok && r.task.Kind == TaskHaul {
+		// Read after the dispatch committed, so the logbook has every result
+		// recorded up to then (and possibly later ones).
+		r.task.Logbook, r.err = c.cfg.Store.HaulEvents(context.WithoutCancel(ctx), r.task.HaulID)
+	}
 	return r.task, r.ok, r.err
 }
 
