@@ -95,10 +95,11 @@ type Core struct {
 	haulTasks    map[string]*haulTaskState
 	liftAttempts map[string]*liftAttemptState // dispatched, unfinished
 	docks        map[string]*dockState
-	datasets     map[string]string     // tenant\x00name → partition key
-	promotions   map[string]*promotion // by pallet ID, while its promote runs
-	bg           sync.WaitGroup        // background bucket I/O
-	pollers      []*poller             // waiting, oldest first
+	datasets     map[string]string            // tenant\x00name → partition key
+	builds       map[string]map[string]string // build ID → lift → code version
+	promotions   map[string]*promotion        // by pallet ID, while its promote runs
+	bg           sync.WaitGroup               // background bucket I/O
+	pollers      []*poller                    // waiting, oldest first
 	b            *batch
 	// queueOrder numbers queued tasks so the oldest across docks goes first.
 	queueOrder uint64
@@ -133,6 +134,7 @@ func New(cfg Config) *Core {
 		liftAttempts: map[string]*liftAttemptState{},
 		docks:        map[string]*dockState{},
 		datasets:     map[string]string{},
+		builds:       map[string]map[string]string{},
 		promotions:   map[string]*promotion{},
 	}
 }

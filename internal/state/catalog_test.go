@@ -229,3 +229,52 @@ func TestCatalogForeignKeys(t *testing.T) {
 		assert.Error(t, err, name)
 	}
 }
+
+func TestMemoPallet(t *testing.T) {
+	s, _ := openFile(t)
+	old := pallet("p1", "raw", "", time.Hour)
+	old.Fingerprint = "fp"
+	newer := pallet("p2", "raw", "", 2*time.Hour)
+	newer.Fingerprint = "fp"
+	invalid := pallet("p3", "raw", "", 3*time.Hour)
+	invalid.Fingerprint, invalid.State = "fp", PalletInvalid
+	other := pallet("p4", "raw", "", 4*time.Hour)
+	other.Fingerprint = "fp2"
+	putCatalog(t, s, []Dataset{dataset("raw", "")}, []Pallet{old, newer, invalid, other})
+
+	got, err := s.MemoPallet(ctx, "t", "fp", time.Time{})
+	require.NoError(t, err)
+	assert.Equal(t, "p2", got.ID, "the newest readable pallet with that fingerprint")
+
+	_, err = s.MemoPallet(ctx, "t", "fp", t0.Add(150*time.Minute))
+	assert.ErrorIs(t, err, ErrNotFound, "none young enough")
+	_, err = s.MemoPallet(ctx, "other", "fp", time.Time{})
+	assert.ErrorIs(t, err, ErrNotFound)
+}
+
+func TestBuilds(t *testing.T) {
+	s, _ := openFile(t)
+	put(t, s, nil, func(tx *Tx) error {
+		if err := tx.PutBuild(Build{ID: "b1", Lifts: map[string]string{"a": "v1", "b": "v2"}, RegisteredAt: t0}); err != nil {
+			return err
+		}
+		return tx.PutBuild(Build{ID: "empty", RegisteredAt: t0})
+	})
+	builds, err := s.LoadBuilds(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]Build{
+		"b1":    {ID: "b1", Lifts: map[string]string{"a": "v1", "b": "v2"}, RegisteredAt: t0},
+		"empty": {ID: "empty", Lifts: map[string]string{}, RegisteredAt: t0},
+	}, builds)
+}
+
+func TestGetLift(t *testing.T) {
+	s, _ := openFile(t)
+	put(t, s, nil, func(tx *Tx) error { return tx.PutHaul(haul("h1", HaulRunning)) },
+		func(tx *Tx) error { return tx.PutLift(lift("h1", 2, LiftCompleted)) })
+	l, err := s.GetLift(ctx, "h1", 2)
+	require.NoError(t, err)
+	assert.Equal(t, 2, l.Seq)
+	_, err = s.GetLift(ctx, "h1", 1)
+	assert.ErrorIs(t, err, ErrNotFound)
+}

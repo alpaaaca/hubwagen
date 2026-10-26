@@ -86,11 +86,13 @@ Goal: running the same haul twice reuses every lift, in a Go test.
    attempt, pallet manifests promoted with `PutIfAbsent` off the core loop,
    promote redone on restart from the manifest in the logbook, staging of
    failed attempts discarded. ([#19](https://github.com/alpaaaca/hubwagen/issues/19))
-3. **Fingerprints**: computed by the server from what the worker registers
-   (code version) and what the command carries (inputs, params, output);
-   content hash for `file://` inputs; opt-in memoization (`memo=True`,
-   `memo="ttl:…"`); `lift_reused` events with the matched pallet; rerun
-   reasons, including "not memoized". ([#20](https://github.com/alpaaaca/hubwagen/issues/20))
+3. ✅ **Fingerprints**: computed by the server from what the worker registers
+   (`RegisterBuild`: code version per lift) and what the command carries
+   (inputs, canonical args, output); content hash for `file://` inputs;
+   opt-in memoization for lifts with an output (`memo: fingerprint` or
+   `ttl:…`); `LiftReused` events with the matched pallet; rerun reasons
+   (`not memoized`, `no previous run`, `code changed (a → b)`,
+   `input changed`, `params changed`, `expired`, `unknown code version`). ([#20](https://github.com/alpaaaca/hubwagen/issues/20))
 4. **Single-flight**: fingerprint index with `running`/`committed`/`failed`;
    waiters attach to a running fingerprint. ([#21](https://github.com/alpaaaca/hubwagen/issues/21))
 

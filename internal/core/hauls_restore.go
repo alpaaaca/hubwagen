@@ -38,6 +38,13 @@ type restoredHauls struct {
 // datasets. It reads the store and changes nothing; settleHauls finishes the
 // job inside a batch.
 func (c *Core) loadHauls(ctx context.Context) (*restoredHauls, error) {
+	builds, err := c.cfg.Store.LoadBuilds(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for id, b := range builds {
+		c.builds[id] = b.Lifts
+	}
 	dss, err := c.cfg.Store.ListDatasets(ctx, "")
 	if err != nil {
 		return nil, err

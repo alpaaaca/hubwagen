@@ -105,6 +105,9 @@ type Lift struct {
 	Retry       json.RawMessage // retry policy, encoded by the core; nil = no retries
 	Output      json.RawMessage // where its pallet goes, encoded by the core; nil = no pallet
 	Inputs      json.RawMessage // pallets it reads, encoded by the core
+	Fingerprint string          // "" if it has none (not memoized, unknown code version)
+	FPInputs    json.RawMessage // what went into the fingerprint, encoded by the core
+	RunReason   string          // why it ran; "" if it was reused
 	Status      string
 	Attempts    int
 	RetryAt     *time.Time
@@ -174,14 +177,15 @@ func (t *Tx) PutHaulTask(v HaulTask) error {
 func (t *Tx) PutLift(v Lift) error {
 	return t.exec(`
 		INSERT INTO lifts (haul_id, seq, name, dock, args_json, timeout_ns, retry_json, output_json,
-			inputs_json, status, attempts, retry_at, reason, message, result_json, scheduled_at, finished_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			inputs_json, fingerprint, fingerprint_json, run_reason, status, attempts, retry_at, reason,
+			message, result_json, scheduled_at, finished_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (haul_id, seq) DO UPDATE SET
 			status = excluded.status, attempts = excluded.attempts, retry_at = excluded.retry_at,
 			reason = excluded.reason, message = excluded.message, result_json = excluded.result_json,
 			finished_at = excluded.finished_at`,
 		v.HaulID, v.Seq, v.Name, v.Dock, string(v.Args), int64(v.Timeout), string(v.Retry),
-		string(v.Output), string(v.Inputs), v.Status,
+		string(v.Output), string(v.Inputs), v.Fingerprint, string(v.FPInputs), v.RunReason, v.Status,
 		v.Attempts, formatTimePtr(v.RetryAt),
 		v.Reason, v.Message, string(v.Result), formatTime(v.ScheduledAt), formatTimePtr(v.FinishedAt))
 }
@@ -349,22 +353,24 @@ func scanHaulTask(sc interface{ Scan(...any) error }) (HaulTask, error) {
 }
 
 const liftColumns = `haul_id, seq, name, dock, args_json, timeout_ns, retry_json, output_json,
-	inputs_json, status, attempts, retry_at, reason, message, result_json, scheduled_at, finished_at`
+	inputs_json, fingerprint, fingerprint_json, run_reason, status, attempts, retry_at, reason, message,
+	result_json, scheduled_at, finished_at`
 
 func scanLift(sc interface{ Scan(...any) error }) (Lift, error) {
 	var (
-		v                                              Lift
-		args, retry, output, inputs, result, scheduled string
-		timeout                                        int64
-		retryAt, finished                              sql.NullString
-		err                                            error
+		v                                                        Lift
+		args, retry, output, inputs, fpInputs, result, scheduled string
+		timeout                                                  int64
+		retryAt, finished                                        sql.NullString
+		err                                                      error
 	)
-	if err = sc.Scan(&v.HaulID, &v.Seq, &v.Name, &v.Dock, &args, &timeout, &retry, &output, &inputs, &v.Status, &v.Attempts,
+	if err = sc.Scan(&v.HaulID, &v.Seq, &v.Name, &v.Dock, &args, &timeout, &retry, &output, &inputs,
+		&v.Fingerprint, &fpInputs, &v.RunReason, &v.Status, &v.Attempts,
 		&retryAt, &v.Reason, &v.Message, &result, &scheduled, &finished); err != nil {
 		return v, err
 	}
 	v.Args, v.Retry, v.Result = rawOrNil(args), rawOrNil(retry), rawOrNil(result)
-	v.Output, v.Inputs = rawOrNil(output), rawOrNil(inputs)
+	v.Output, v.Inputs, v.FPInputs = rawOrNil(output), rawOrNil(inputs), rawOrNil(fpInputs)
 	v.Timeout = time.Duration(timeout)
 	if v.RetryAt, err = parseTimePtr(retryAt); err != nil {
 		return v, err
@@ -431,4 +437,13 @@ func rawOrNil(s string) json.RawMessage {
 		return nil
 	}
 	return json.RawMessage(s)
+}
+
+// GetLift returns one lift of a haul.
+func (s *Store) GetLift(ctx context.Context, haulID string, seq int) (Lift, error) {
+	v, err := scanLift(s.r.QueryRowContext(ctx, `SELECT `+liftColumns+` FROM lifts WHERE haul_id = ? AND seq = ?`, haulID, seq))
+	if errors.Is(err, sql.ErrNoRows) {
+		return v, ErrNotFound
+	}
+	return v, err
 }

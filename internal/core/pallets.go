@@ -69,31 +69,32 @@ type promotion struct {
 
 func datasetKey(tenant, name string) string { return tenant + "\x00" + name }
 
-// checkLiftIO returns why a newly scheduled lift can't run, or "".
-func (c *Core) checkLiftIO(l *liftState) (reason, message string) {
+// checkLiftIO returns the lift's input pallets, or why it can't run.
+func (c *Core) checkLiftIO(l *liftState) (inputs []state.Pallet, reason, message string) {
 	tenant := l.haul.rec.Tenant
 	if o := l.output; o != nil {
 		if c.cfg.Pallets == nil {
-			return "no_pallet_store", "this server has no bucket for pallets"
+			return nil, "no_pallet_store", "this server has no bucket for pallets"
 		}
 		if key, ok := c.datasets[datasetKey(tenant, o.Dataset)]; ok && key != o.PartitionKey {
-			return "bad_output", fmt.Sprintf("dataset %s is partitioned by %q, the lift says %q", o.Dataset, key, o.PartitionKey)
+			return nil, "bad_output", fmt.Sprintf("dataset %s is partitioned by %q, the lift says %q", o.Dataset, key, o.PartitionKey)
 		}
 	}
 	for _, in := range l.inputs {
 		p, err := c.cfg.Store.GetPallet(c.ctx, in.Pallet)
 		switch {
 		case errors.Is(err, state.ErrNotFound):
-			return "bad_input", fmt.Sprintf("input %s: pallet %s does not exist", in.Name, in.Pallet)
+			return nil, "bad_input", fmt.Sprintf("input %s: pallet %s does not exist", in.Name, in.Pallet)
 		case err != nil:
-			return "bad_input", fmt.Sprintf("input %s: %v", in.Name, err)
+			return nil, "bad_input", fmt.Sprintf("input %s: %v", in.Name, err)
 		case p.Tenant != tenant:
-			return "bad_input", fmt.Sprintf("input %s: pallet %s belongs to another tenant", in.Name, in.Pallet)
+			return nil, "bad_input", fmt.Sprintf("input %s: pallet %s belongs to another tenant", in.Name, in.Pallet)
 		case p.State != state.PalletCommitted:
-			return "bad_input", fmt.Sprintf("input %s: pallet %s is %s", in.Name, in.Pallet, p.State)
+			return nil, "bad_input", fmt.Sprintf("input %s: pallet %s is %s", in.Name, in.Pallet, p.State)
 		}
+		inputs = append(inputs, p)
 	}
-	return "", ""
+	return inputs, "", ""
 }
 
 func (c *Core) completeLiftWithOutput(a *liftAttemptState, res LiftResult) error {
@@ -120,7 +121,7 @@ func (c *Core) completeLiftWithOutput(a *liftAttemptState, res LiftResult) error
 	rec := state.Pallet{
 		ID: id, Tenant: h.rec.Tenant, Dataset: l.output.Dataset, Partition: l.output.Partition,
 		Location:    c.cfg.Layout.PalletManifest(h.rec.Tenant, l.output.Dataset, l.output.Partition, id),
-		ContentHash: m.ContentHash, Stats: res.Output.Stats, Meta: res.Output.Meta,
+		ContentHash: m.ContentHash, Fingerprint: l.rec.Fingerprint, Stats: res.Output.Stats, Meta: res.Output.Meta,
 		HaulID: h.rec.ID, LiftSeq: l.rec.Seq, State: state.PalletPending, CreatedAt: c.now(),
 	}
 	c.putPallet(rec)
