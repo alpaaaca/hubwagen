@@ -18,8 +18,11 @@ import (
 // timer fires, the haul gets another haul task, and so on until the haul
 // function returns (completed) or raises (failed).
 //
-// Not yet: lift retries and timeouts (#15), checking replayed commands against
-// the logbook (#16), resuming hauls after a leader restart (#17).
+// A lift attempt that fails or times out is retried under the lift's retry
+// policy; only the lift's final result reaches the haul.
+//
+// Not yet: checking replayed commands against the logbook (#16), resuming
+// hauls after a leader restart (#17).
 
 // DefaultDock is where hauls and lifts go when no dock is named.
 const DefaultDock = "default"
@@ -43,13 +46,16 @@ type haulTaskState struct {
 type liftState struct {
 	rec     state.Lift
 	haul    *haulState
+	retry   RetryPolicy
 	queued  string            // attempt ID waiting on the dock for a worker
 	attempt *liftAttemptState // the dispatched attempt
+	wait    *timerRef         // pending retry, while in retry_wait
 }
 
 type liftAttemptState struct {
-	rec  state.LiftAttempt
-	lift *liftState
+	rec     state.LiftAttempt
+	lift    *liftState
+	timeout *timerRef
 }
 
 type haulTimer struct {
@@ -128,11 +134,44 @@ type Command struct {
 	Seq  int         `json:"seq"`
 	Kind CommandKind `json:"kind"`
 	// Lift.
-	Name string          `json:"name,omitempty"`
-	Dock string          `json:"dock,omitempty"` // default: the haul's dock
-	Args json.RawMessage `json:"args,omitempty"`
+	Name    string          `json:"name,omitempty"`
+	Dock    string          `json:"dock,omitempty"` // default: the haul's dock
+	Args    json.RawMessage `json:"args,omitempty"`
+	Timeout time.Duration   `json:"timeout,omitempty"` // per attempt, enforced by the leader; 0 = none
+	Retry   *RetryPolicy    `json:"retry,omitempty"`   // nil = no retries
 	// Sleep.
 	Duration time.Duration `json:"duration,omitempty"`
+}
+
+// RetryPolicy says how often and when a failed lift attempt is retried.
+type RetryPolicy struct {
+	Limit   int           `json:"limit"`             // retries after the first attempt
+	Backoff string        `json:"backoff,omitempty"` // "fixed" (default) or "exponential"
+	Initial time.Duration `json:"initial,omitempty"` // delay before the first retry
+	Max     time.Duration `json:"max,omitempty"`     // cap for exponential backoff; default Initial
+}
+
+func (r RetryPolicy) validate() error {
+	switch {
+	case r.Limit < 0:
+		return errors.New("retry limit must not be negative")
+	case r.Backoff != "" && r.Backoff != "fixed" && r.Backoff != "exponential":
+		return fmt.Errorf("retry backoff %q is not fixed or exponential", r.Backoff)
+	case r.Initial < 0 || r.Max < 0:
+		return errors.New("retry delays must not be negative")
+	case r.Max != 0 && r.Max < r.Initial:
+		return errors.New("retry max must not be below initial")
+	}
+	return nil
+}
+
+// delay is the wait before the retry that follows attempt n (1-based).
+func (r RetryPolicy) delay(n int) time.Duration {
+	maxDelay := r.Max
+	if maxDelay == 0 {
+		maxDelay = r.Initial
+	}
+	return backoffDelay(r.Backoff == "exponential", r.Initial, maxDelay, n)
 }
 
 // HaulOutcome is how the haul function ended: it returned (completed) or
@@ -176,6 +215,9 @@ type LiftResult struct {
 	Result    json.RawMessage
 	Reason    string
 	Message   string
+	// NoRetry: the failure will repeat on every attempt (bad arguments, a
+	// non-retryable error raised by the lift), so don't retry it.
+	NoRetry bool
 }
 
 // CompleteLift records a lift attempt's result. It returns once the result is
@@ -326,6 +368,14 @@ func validateHaulTaskResult(res HaulTaskResult) error {
 			if cmd.Name == "" {
 				return fmt.Errorf("commands[%d]: lift without a name", i)
 			}
+			if cmd.Timeout < 0 {
+				return fmt.Errorf("commands[%d]: timeout must not be negative", i)
+			}
+			if cmd.Retry != nil {
+				if err := cmd.Retry.validate(); err != nil {
+					return fmt.Errorf("commands[%d]: %v", i, err)
+				}
+			}
 		case CommandSleep:
 			if cmd.Duration <= 0 {
 				return fmt.Errorf("commands[%d]: sleep needs a positive duration", i)
@@ -392,14 +442,19 @@ func (c *Core) scheduleLift(h *haulState, cmd Command) {
 	}
 	l := &liftState{
 		rec: state.Lift{
-			HaulID: h.rec.ID, Seq: cmd.Seq, Name: cmd.Name, Dock: dock, Args: cmd.Args,
+			HaulID: h.rec.ID, Seq: cmd.Seq, Name: cmd.Name, Dock: dock, Args: cmd.Args, Timeout: cmd.Timeout,
 			Status: state.LiftScheduled, ScheduledAt: c.now(),
 		},
 		haul: h,
 	}
+	if cmd.Retry != nil {
+		l.retry = *cmd.Retry
+		l.rec.Retry = marshalPayload(state.EventLiftScheduled, cmd.Retry)
+	}
 	h.lifts[cmd.Seq] = l
 	c.dirtyLift(l)
-	c.emitH(state.EventLiftScheduled, h, "", liftScheduledPayload{Seq: cmd.Seq, Name: cmd.Name, Dock: dock, Args: cmd.Args})
+	c.emitH(state.EventLiftScheduled, h, "", liftScheduledPayload{
+		Seq: cmd.Seq, Name: cmd.Name, Dock: dock, Args: cmd.Args, Timeout: cmd.Timeout, Retry: cmd.Retry})
 	c.queueLiftAttempt(l)
 }
 
@@ -426,7 +481,24 @@ func (c *Core) queueLiftAttempt(l *liftState) {
 		c.dirtyLiftAttempt(a)
 		c.emitH(state.EventLiftAttemptDispatched, h, a.rec.ID,
 			liftAttemptDispatchedPayload{Seq: l.rec.Seq, Number: a.rec.Number, Worker: workerID})
+		if l.rec.Timeout > 0 {
+			c.armLiftTimeout(a)
+		}
 		return task
+	})
+}
+
+// armLiftTimeout fails the attempt if no result arrives in time. A result
+// that arrives later is ignored.
+func (c *Core) armLiftTimeout(a *liftAttemptState) {
+	l := a.lift
+	a.timeout = c.after(l.rec.Timeout, func(c *Core) {
+		if c.liftAttempts[a.rec.ID] != a {
+			return
+		}
+		msg := fmt.Sprintf("no result within %s", l.rec.Timeout)
+		c.finishLiftAttempt(a, state.AttemptFailed, "timeout", msg)
+		c.liftAttemptFailed(l, "timeout", msg, false)
 	})
 }
 
@@ -441,17 +513,42 @@ func (c *Core) completeLift(res LiftResult) error {
 	c.finishLiftAttempt(a, res.Status, res.Reason, res.Message)
 
 	l := a.lift
-	status := state.LiftCompleted
 	if res.Status == state.AttemptFailed {
-		status = state.LiftFailed // no retries yet (#15): the haul sees the failure
+		c.liftAttemptFailed(l, res.Reason, res.Message, res.NoRetry)
+		return nil
 	}
-	c.finishLift(l, status, res.Result, res.Reason, res.Message)
+	c.finishLift(l, state.LiftCompleted, res.Result, res.Reason, res.Message)
 	c.wake(l.haul)
 	return nil
 }
 
+// liftAttemptFailed retries the lift if its policy allows, otherwise fails
+// it and lets the haul see the failure.
+func (c *Core) liftAttemptFailed(l *liftState, reason, message string, noRetry bool) {
+	if noRetry || nonRetryable[reason] || l.rec.Attempts > l.retry.Limit {
+		c.finishLift(l, state.LiftFailed, nil, reason, message)
+		c.wake(l.haul)
+		return
+	}
+	d := l.retry.delay(l.rec.Attempts)
+	l.rec.Status, l.rec.RetryAt = state.LiftRetryWait, ptr(c.now().Add(d))
+	c.dirtyLift(l)
+	c.emitH(state.EventLiftRetryScheduled, l.haul, "",
+		liftRetryScheduledPayload{Seq: l.rec.Seq, NextAttempt: l.rec.Attempts + 1, RetryAt: *l.rec.RetryAt})
+	l.wait = c.after(d, func(c *Core) {
+		if l.rec.Status != state.LiftRetryWait {
+			return // cancelled meanwhile
+		}
+		l.wait = nil
+		l.rec.Status, l.rec.RetryAt = state.LiftScheduled, nil
+		c.dirtyLift(l)
+		c.queueLiftAttempt(l)
+	})
+}
+
 func (c *Core) finishLiftAttempt(a *liftAttemptState, status, reason, message string) {
 	l := a.lift
+	a.timeout.stop()
 	a.rec.Status, a.rec.Reason, a.rec.Message, a.rec.FinishedAt = status, reason, message, ptr(c.now())
 	c.dirtyLiftAttempt(a)
 	c.emitH(state.EventLiftAttemptFinished, l.haul, a.rec.ID,
@@ -463,7 +560,7 @@ func (c *Core) finishLiftAttempt(a *liftAttemptState, status, reason, message st
 
 func (c *Core) finishLift(l *liftState, status string, result json.RawMessage, reason, message string) {
 	l.rec.Status, l.rec.Result, l.rec.Reason, l.rec.Message = status, result, reason, message
-	l.rec.FinishedAt = ptr(c.now())
+	l.rec.RetryAt, l.rec.FinishedAt = nil, ptr(c.now())
 	c.dirtyLift(l)
 	c.emitH(state.EventLiftFinished, l.haul, "",
 		liftFinishedPayload{Seq: l.rec.Seq, Status: status, Result: result, Reason: reason, Message: message})
@@ -474,6 +571,8 @@ func (c *Core) finishLift(l *liftState, status string, result json.RawMessage, r
 // cancelled. Telling the worker to stop needs the worker API (heartbeats);
 // until then its result is simply ignored.
 func (c *Core) cancelLift(l *liftState, message string) {
+	l.wait.stop()
+	l.wait = nil
 	if l.queued != "" {
 		c.unqueue(l.rec.Dock, l.queued)
 		l.queued = ""

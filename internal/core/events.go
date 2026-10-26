@@ -122,10 +122,18 @@ type haulFinishedPayload struct {
 }
 
 type liftScheduledPayload struct {
-	Seq  int             `json:"seq"`
-	Name string          `json:"name"`
-	Dock string          `json:"dock"`
-	Args json.RawMessage `json:"args,omitempty"`
+	Seq     int             `json:"seq"`
+	Name    string          `json:"name"`
+	Dock    string          `json:"dock"`
+	Args    json.RawMessage `json:"args,omitempty"`
+	Timeout time.Duration   `json:"timeout,omitempty"`
+	Retry   *RetryPolicy    `json:"retry,omitempty"`
+}
+
+type liftRetryScheduledPayload struct {
+	Seq         int       `json:"seq"`
+	NextAttempt int       `json:"next_attempt"`
+	RetryAt     time.Time `json:"retry_at"`
 }
 
 type liftAttemptDispatchedPayload struct {
