@@ -78,13 +78,15 @@ Goal: running the same haul twice reuses every lift, in a Go test.
    Builds on `internal/blob` and the marker logic in `internal/taskexec`.
 3. **Fingerprints**: computed by the server from what the worker registers
    (code version) and what the command carries (inputs, params, output);
-   content hash for `file://` inputs; memoization defaults (pallet inputs or
-   snapshot params); `lift_reused` events with the matched pallet.
+   content hash for `file://` inputs; opt-in memoization (`memo=True`,
+   `memo="ttl:…"`); `lift_reused` events with the matched pallet; rerun
+   reasons, including "not memoized".
 4. **Single-flight**: fingerprint index with `running`/`committed`/`failed`;
    waiters attach to a running fingerprint.
 
-Done when: a test runs a haul, reruns it with one lift's code version changed,
-and only that lift and its downstream run; two concurrent hauls with the same
+Done when: a test runs a haul of memoized lifts, reruns it with one lift's
+code version changed, and only that lift and its downstream run (a lift
+without `memo=True` runs both times); two concurrent hauls with the same
 fingerprint run the lift once.
 
 ## M3c: Worker API + minimal Python SDK
@@ -154,7 +156,7 @@ Roughly in order of expected need:
 |---|---|---|
 | CLI name | Keep `hubwagen`; maybe add `hw` as a short alias | M3c |
 | Python SDK packaging | `sdk/python` in this repo, published as `hubwagen` on PyPI | M3c |
-| Memoization of external lifts | Never, unless snapshot params are declared | M3b |
+| Memoization default | Opt-in per lift (`memo=True`); SQL lifts on by default | M3b |
 | Code version default | Source + imported project modules + lockfile, overridable with `version=` | M3b |
 | dbt integration | One lift per project, one pallet per model | Later |
 | Catalog interoperability | OpenLineage export first; Iceberg REST catalog later, if at all | Later |

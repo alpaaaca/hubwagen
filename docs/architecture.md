@@ -101,17 +101,20 @@ from hubwagen import haul, lift, Dataset, Pallet
 
 @haul(schedule="0 3 * * *", params=lambda t: {"day": t.date() - timedelta(days=1)})
 def daily_revenue(ctx, day: date):
-    orders = ctx.lift(extract_orders, day=day)       # `day` is a snapshot parameter
+    orders = ctx.lift(extract_orders, day=day)
     report = ctx.lift(check_quality, orders)
     if report.failed:
         ctx.alert(owner="marketing", report=report)
         ctx.wait_signal("approve", timeout="24h")    # durable across deploys
     return ctx.lift(build_revenue, orders, day)
 
-@lift(snapshot=["day"])
+@lift(memo=True)                    # a closed day's orders no longer change
 def extract_orders(day: date) -> Pallet: ...
 
-@lift(output=Dataset("marketing.daily_revenue", partition="day"))
+@lift(memo=True)
+def check_quality(orders: Pallet) -> QualityReport: ...
+
+@lift(memo=True, output=Dataset("marketing.daily_revenue", partition="day"))
 def build_revenue(orders: Pallet, day: date) -> Pallet: ...
 ```
 
@@ -124,7 +127,7 @@ def ingest_orders(ctx):
     cursor = latest.meta["max_ts"] if latest else "1970-01-01T00:00:00Z"
     ctx.lift(fetch_since, cursor=cursor)             # commits a pallet with meta max_ts
 
-@lift(output=Dataset("raw.orders"), snapshot=["cursor"])
+@lift(output=Dataset("raw.orders"))  # not memoized: reads a live source
 def fetch_since(cursor: str) -> Pallet: ...
 ```
 
@@ -250,14 +253,47 @@ fingerprint = hash(
 
 ### Which lifts are memoized
 
-The server cannot know which lifts call APIs or read source systems, so the
-rule is structural and visible:
+The server cannot tell from outside whether a lift's output depends only on
+what the fingerprint covers. A lift that reads a pallet and calls an API, or
+reads a config table, looks exactly like one that reads a pallet and does pure
+arithmetic. So memoization is **opt-in**: a forgotten annotation costs a
+rerun, never correctness.
 
-- A lift with at least one pallet input is memoized.
-- A lift without pallet inputs is never memoized, unless it declares snapshot
-  parameters (`@lift(snapshot=["day"])`, a cursor) that pin what it reads.
-  Those parameters are part of the fingerprint like any other.
-- `memo="never"` and `memo="ttl:1h"` override either default.
+- `@lift` (default): never reused; runs every time.
+- `@lift(memo=True)`: the author promises the output depends only on the
+  lift's code, input pallets and parameters. Use it for transforms over
+  pallets, and for reads that a parameter pins down (a closed day's orders,
+  a cursor range on an append-only source).
+- `@lift(memo="ttl:1h")`: reuse a result up to that age. For APIs and live
+  sources where slightly stale data is acceptable.
+- **SQL lifts** (`lift.sql`) default to `memo=True`: hubwagen resolves every
+  `{{ input(...) }}` itself, so it knows all inputs. `hubwagen lint` flags
+  table references that bypass `input()`, since those are hidden inputs.
+
+`hubwagen replay` names lifts that ran only because they are not memoized,
+with a hint, so users learn where `memo=True` would help.
+
+### Hidden inputs
+
+A file, table or API that a lift reads without going through a pallet or a
+parameter is a hidden input; memoizing such a lift is a wrong reuse waiting
+to happen. Make it visible instead:
+
+- **Read it in its own lift** that is not memoized and returns a pallet. The
+  pallet's content hash then carries the change downstream:
+
+  ```python
+  @lift                                   # cheap, runs every time
+  def load_fx_rates() -> Pallet: ...
+
+  @lift(memo=True)
+  def convert(orders: Pallet, rates: Pallet) -> Pallet: ...
+  ```
+
+  If the rates did not change, the content hash is the same and `convert` is
+  reused; if they did, it reruns.
+- **Files in the repository** (config, SQL macros): `@lift(deps=[...])` adds
+  them to the code version.
 
 ### Single-flight
 
@@ -344,8 +380,8 @@ keep_fresh(
 ```
 
 It subscribes to upstream datasets, asks the catalog for stale partitions and
-starts the builder for them. Over-triggering is cheap because builders are
-memoized.
+starts the builder for them. Over-triggering is cheap when the builder's
+lifts are memoized.
 
 A pallet is **stale** when a newer pallet exists for one of its inputs'
 datasets and partitions, or when its lift's current code version differs from
@@ -507,10 +543,11 @@ building versioning, lineage and idempotent writes themselves.
 
 ## Risks
 
-- **Wrong reuse.** A code version that misses a dependency reuses an outdated
-  pallet. Mitigations: strict default hashing with the lockfile, rerun
-  reasons, `memo="never"`, and later `hubwagen verify` (recompute a sample of
-  reused lifts and compare).
+- **Wrong reuse.** A code version that misses a dependency, or a hidden input
+  in a lift marked `memo=True`, reuses an outdated pallet. Mitigations:
+  memoization is opt-in, strict default hashing with the lockfile, rerun
+  reasons, the hidden-inputs pattern, lint for SQL table references, and
+  later `hubwagen verify` (recompute a sample of reused lifts and compare).
 - **Determinism burden.** Users will write non-deterministic hauls.
   Mitigations: sequence checks with line numbers, runtime guards, lint,
   replay tests, and the stuck state so a mistake is fixable.
