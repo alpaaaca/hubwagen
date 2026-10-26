@@ -70,8 +70,10 @@ type Config struct {
 	// DisableSchedules turns cron off: no scheduled runs, no catch-up
 	// (one-shot `hubwagen run`). Cursors are left untouched.
 	DisableSchedules bool
-	NewID            func() string // default: ULID
-	Logger           *slog.Logger
+	// Docks limits docks by name; a dock not listed has no limits.
+	Docks  map[string]DockConfig
+	NewID  func() string // default: ULID
+	Logger *slog.Logger
 }
 
 type Core struct {
@@ -86,8 +88,12 @@ type Core struct {
 	runs      map[string]*runState // non-terminal, plus runs finished in the current batch
 	runsByKey map[string]*runState // newest in-memory run per run key
 	attempts  map[string]*attemptState
+	docks     map[string]*dockState
+	pollers   []*poller // waiting, oldest first
 	b         *batch
-	ctx       context.Context // Run's context, for store reads inside the loop
+	// queueOrder numbers queued tasks so the oldest across docks goes first.
+	queueOrder uint64
+	ctx        context.Context // Run's context, for store reads inside the loop
 }
 
 func New(cfg Config) *Core {
@@ -113,6 +119,7 @@ func New(cfg Config) *Core {
 		runs:      map[string]*runState{},
 		runsByKey: map[string]*runState{},
 		attempts:  map[string]*attemptState{},
+		docks:     map[string]*dockState{},
 	}
 }
 
@@ -127,6 +134,7 @@ func (c *Core) SetRuntime(kind string, rt Runtime) {
 // ctx is cancelled (nil error) or a commit fails.
 func (c *Core) Run(ctx context.Context) error {
 	defer c.inbox.close()
+	defer c.stopPollers() // before the inbox closes: both answer pollers
 	c.ctx = ctx
 
 	if err := c.restore(ctx); err != nil {
@@ -149,6 +157,7 @@ func (c *Core) process(ctx context.Context, inputs []input) error {
 	for _, in := range inputs {
 		in.apply(c)
 	}
+	c.matchDocks()
 	return c.commit(ctx)
 }
 

@@ -52,15 +52,19 @@ restart, driven entirely from Go tests with the fake clock and a fake worker.
 No Python yet.
 
 1. ✅ **Logbook events and projections** (`internal/state`): haul, haul task,
-   lift and lift attempt tables; events `haul_started`, `haul_task_completed`
-   (commands), `lift_scheduled`, `lift_completed`, `lift_failed`,
-   `timer_started`, `timer_fired`, `haul_completed`/`failed`/`cancelled`.
-   Migrations next to the v1 tables, which are dropped in M3c. ([#12](https://github.com/alpaaaca/hubwagen/issues/12))
+   lift, lift attempt and timer tables; events carry a haul ID, so a haul's
+   logbook is its events in order. Events `HaulStarted`,
+   `HaulTaskQueued`/`Dispatched`/`Completed` (commands)/`Failed`,
+   `HaulStuck`, `HaulFinished`, `LiftScheduled`,
+   `LiftAttemptDispatched`/`Started`/`Finished`, `LiftRetryScheduled`,
+   `LiftFinished` (result), `TimerStarted`/`Fired`/`Cancelled`; payloads are
+   defined by the core. Migrations next to the v1 tables, which are dropped
+   in M3c. ([#12](https://github.com/alpaaaca/hubwagen/issues/12))
 2. **Haul state machine** (`internal/core`): replay-until-blocked protocol on
    the server side — schedule a haul task when a result arrives, apply the
    returned commands, dispatch lifts, arm timers. Retries and timeouts for
    lifts reuse the v1 logic. Restore on leader start. ([#14](https://github.com/alpaaaca/hubwagen/issues/14), [#15](https://github.com/alpaaaca/hubwagen/issues/15), [#17](https://github.com/alpaaaca/hubwagen/issues/17))
-3. **Docks**: in-memory queues per dock, long-poll semantics behind an
+3. ✅ **Docks**: in-memory queues per dock, long-poll semantics behind an
    interface the API will expose; the fake worker in tests consumes it. ([#13](https://github.com/alpaaaca/hubwagen/issues/13))
 4. **Sequence check on the server**: a haul task's commands must extend the
    logbook, never contradict it; a contradiction marks the haul `stuck`. ([#16](https://github.com/alpaaaca/hubwagen/issues/16))
