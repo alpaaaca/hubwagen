@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/alper/hubwagen/internal/state"
@@ -21,8 +22,14 @@ import (
 // A lift attempt that fails or times out is retried under the lift's retry
 // policy; only the lift's final result reaches the haul.
 //
-// Not yet: checking replayed commands against the logbook (#16), resuming
-// hauls after a leader restart (#17).
+// A replay must repeat the commands already in the logbook: same kind and
+// target, in the same order. One that doesn't (non-deterministic haul code,
+// or a deploy that changed it without a version marker) makes the haul
+// stuck. Its lifts and timers carry on, but it gets no haul tasks until
+// ResumeHaul, typically after a fix is deployed; a consistent replay then
+// sets it running again.
+//
+// Not yet: resuming hauls after a leader restart (#17).
 
 // DefaultDock is where hauls and lifts go when no dock is named.
 const DefaultDock = "default"
@@ -34,6 +41,7 @@ type haulState struct {
 	task   *haulTaskState     // the queued or dispatched haul task, if any
 	replay bool               // a result arrived while task was dispatched: replay again after it
 	tasks  int                // haul tasks created so far
+	cmds   []Command          // commands recorded in the logbook, in order
 	lifts  map[int]*liftState // unfinished lifts by seq
 	timers map[int]*haulTimer // pending timers by seq
 }
@@ -141,6 +149,9 @@ type Command struct {
 	Retry   *RetryPolicy    `json:"retry,omitempty"`   // nil = no retries
 	// Sleep.
 	Duration time.Duration `json:"duration,omitempty"`
+	// Source is where the haul code made the call ("app/hauls.py:42"), for
+	// error messages.
+	Source string `json:"source,omitempty"`
 }
 
 // RetryPolicy says how often and when a failed lift attempt is retried.
@@ -228,6 +239,26 @@ func (c *Core) CompleteLift(ctx context.Context, res LiftResult) error {
 	return err
 }
 
+// ResumeHaul gives a stuck haul a new haul task, typically after a fix was
+// deployed. It is a no-op for a haul that isn't stuck or already has one.
+func (c *Core) ResumeHaul(ctx context.Context, haulID string) error {
+	_, err := submit(ctx, c, func(c *Core) (struct{}, error) {
+		if h := c.hauls[haulID]; h != nil {
+			if h.rec.Status == state.HaulStuck && h.task == nil {
+				c.queueHaulTask(h)
+			}
+			return struct{}{}, nil
+		}
+		if _, err := c.cfg.Store.GetHaul(ctx, haulID); errors.Is(err, state.ErrNotFound) {
+			return struct{}{}, fmt.Errorf("%w: haul %s", ErrNotFound, haulID)
+		} else if err != nil {
+			return struct{}{}, err
+		}
+		return struct{}{}, nil
+	})
+	return err
+}
+
 // CancelHaul cancels an open haul: queued work is withdrawn, dispatched lift
 // attempts are recorded as cancelled and their results ignored, timers stop.
 // Cancelling a finished haul is a no-op.
@@ -276,6 +307,8 @@ func (c *Core) queueHaulTask(h *haulState) {
 func (c *Core) wake(h *haulState) {
 	switch {
 	case !state.HaulOpen(h.rec.Status):
+	case h.task == nil && h.rec.Status == state.HaulStuck:
+		// Replaying the same code would get stuck again; wait for ResumeHaul.
 	case h.task == nil:
 		c.queueHaulTask(h)
 	case h.task.rec.Status == state.HaulTaskDispatched:
@@ -304,7 +337,7 @@ func (c *Core) completeHaulTask(res HaulTaskResult) error {
 	if err := validateHaulTaskResult(res); err != nil {
 		c.failHaulTask(t, "invalid_result", err.Error())
 		if state.HaulOpen(h.rec.Status) {
-			c.markStuck(h, "invalid_result", err.Error())
+			c.markStuck(h, "invalid_result", err.Error(), 0)
 		}
 		return fmt.Errorf("%w: %v", ErrInvalid, err)
 	}
@@ -314,6 +347,13 @@ func (c *Core) completeHaulTask(res HaulTaskResult) error {
 			c.finishHaul(h, state.HaulFailed, "haul_task_failed", res.Error.Message, nil)
 		}
 		return nil
+	}
+	if state.HaulOpen(h.rec.Status) {
+		if seq, msg := checkReplay(h.cmds, res.Commands); msg != "" {
+			c.failHaulTask(t, "nondeterminism", msg)
+			c.markStuck(h, "nondeterminism", msg, seq)
+			return nil // the worker did its job; the haul code is at fault
+		}
 	}
 
 	var fresh []Command
@@ -334,6 +374,7 @@ func (c *Core) completeHaulTask(res HaulTaskResult) error {
 	c.dirtyHaul(h)
 	for _, cmd := range fresh {
 		h.rec.Commands = cmd.Seq
+		h.cmds = append(h.cmds, cmd)
 		switch cmd.Kind {
 		case CommandLift:
 			c.scheduleLift(h, cmd)
@@ -350,6 +391,34 @@ func (c *Core) completeHaulTask(res HaulTaskResult) error {
 		c.queueHaulTask(h)
 	}
 	return nil
+}
+
+// checkReplay compares a replay's commands with those in the logbook. It
+// returns the first contradicting seq and a message, or "" if the replay
+// extends the logbook.
+func checkReplay(logged, replayed []Command) (int, string) {
+	for i, old := range logged {
+		if i >= len(replayed) {
+			return old.Seq, fmt.Sprintf("replay issued %d commands but the logbook has %d: missing command %d, %s",
+				len(replayed), len(logged), old.Seq, describeCommand(old))
+		}
+		if got := replayed[i]; got.Kind != old.Kind || got.Name != old.Name {
+			return old.Seq, fmt.Sprintf("command %d: replay issued %s, the logbook has %s",
+				old.Seq, describeCommand(got), describeCommand(old))
+		}
+	}
+	return 0, ""
+}
+
+func describeCommand(cmd Command) string {
+	s := string(cmd.Kind)
+	if cmd.Kind == CommandLift {
+		s += " " + strconv.Quote(cmd.Name)
+	}
+	if cmd.Source != "" {
+		s += " at " + cmd.Source
+	}
+	return s
 }
 
 func validateHaulTaskResult(res HaulTaskResult) error {
@@ -397,12 +466,13 @@ func (c *Core) failHaulTask(t *haulTaskState, reason, message string) {
 		haulTaskFailedPayload{Number: t.rec.Number, Reason: reason, Message: message})
 }
 
-// markStuck parks a haul until a replay succeeds again (for example after a
-// deploy). Its lifts and timers carry on.
-func (c *Core) markStuck(h *haulState, reason, message string) {
+// markStuck parks a haul until ResumeHaul and a consistent replay. Its lifts
+// and timers carry on. seq is the contradicting command, if any.
+func (c *Core) markStuck(h *haulState, reason, message string, seq int) {
 	h.rec.Status, h.rec.Reason, h.rec.Message = state.HaulStuck, reason, message
+	h.replay = false
 	c.dirtyHaul(h)
-	c.emitH(state.EventHaulStuck, h, "", haulStuckPayload{Reason: reason, Message: message})
+	c.emitH(state.EventHaulStuck, h, "", haulStuckPayload{Reason: reason, Message: message, Seq: seq})
 }
 
 // finishHaul closes h: unfinished lifts are cancelled, timers stop, a queued
