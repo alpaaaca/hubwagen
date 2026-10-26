@@ -60,7 +60,9 @@ type liftState struct {
 	wait    *timerRef         // pending retry, while in retry_wait
 	output  *OutputSpec       // where its pallet goes; nil = it produces none
 	inputs  []InputRef
-	pallet  string // the committed pallet, once there is one
+	memo    memoPolicy
+	pallet  string // the committed (or reused) pallet, once there is one
+	reused  bool
 }
 
 type liftAttemptState struct {
@@ -152,6 +154,9 @@ type Command struct {
 	Retry   *RetryPolicy    `json:"retry,omitempty"`   // nil = no retries
 	Output  *OutputSpec     `json:"output,omitempty"`  // the lift produces a pallet here
 	Inputs  []InputRef      `json:"inputs,omitempty"`  // pallets passed to the lift
+	// Memo: "" or "never" (default), "fingerprint", or "ttl:<duration>". Only
+	// lifts with an output can be memoized.
+	Memo string `json:"memo,omitempty"`
 	// Sleep.
 	Duration time.Duration `json:"duration,omitempty"`
 	// Source is where the haul code made the call ("app/hauls.py:42"), for
@@ -468,6 +473,13 @@ func validateHaulTaskResult(res HaulTaskResult) error {
 					return fmt.Errorf("commands[%d].inputs[%d]: no pallet", i, j)
 				}
 			}
+			memo, err := parseMemo(cmd.Memo)
+			if err != nil {
+				return fmt.Errorf("commands[%d]: %v", i, err)
+			}
+			if memo.on && cmd.Output == nil {
+				return fmt.Errorf("commands[%d]: only a lift with an output can be memoized", i)
+			}
 		case CommandSleep:
 			if cmd.Duration <= 0 {
 				return fmt.Errorf("commands[%d]: sleep needs a positive duration", i)
@@ -552,17 +564,26 @@ func (c *Core) scheduleLift(h *haulState, cmd Command) {
 		l.inputs = cmd.Inputs
 		l.rec.Inputs = marshalPayload(state.EventLiftScheduled, cmd.Inputs)
 	}
+	l.memo, _ = parseMemo(cmd.Memo) // validated with the haul task result
 	h.lifts[cmd.Seq] = l
 	c.dirtyLift(l)
+	inputs, reason, msg := c.checkLiftIO(l)
+	var match *state.Pallet
+	if reason == "" {
+		match = c.memoize(l, inputs)
+	}
 	c.emitH(state.EventLiftScheduled, h, "", liftScheduledPayload{
 		Seq: cmd.Seq, Name: cmd.Name, Dock: dock, Args: cmd.Args, Timeout: cmd.Timeout, Retry: cmd.Retry,
-		Output: cmd.Output, Inputs: cmd.Inputs})
-	if reason, msg := c.checkLiftIO(l); reason != "" {
+		Output: cmd.Output, Inputs: cmd.Inputs, Memo: cmd.Memo, Fingerprint: l.rec.Fingerprint, RunReason: l.rec.RunReason})
+	switch {
+	case reason != "":
 		c.finishLift(l, state.LiftFailed, nil, reason, msg)
 		c.wake(h)
-		return
+	case match != nil:
+		c.reuseLift(l, *match)
+	default:
+		c.queueLiftAttempt(l)
 	}
-	c.queueLiftAttempt(l)
 }
 
 // queueLiftAttempt puts the lift's next attempt on its dock. The attempt is
@@ -689,7 +710,8 @@ func (c *Core) finishLift(l *liftState, status string, result json.RawMessage, r
 	l.rec.RetryAt, l.rec.FinishedAt = nil, ptr(c.now())
 	c.dirtyLift(l)
 	c.emitH(state.EventLiftFinished, l.haul, "",
-		liftFinishedPayload{Seq: l.rec.Seq, Status: status, Result: result, Reason: reason, Message: message, Pallet: l.pallet})
+		liftFinishedPayload{Seq: l.rec.Seq, Status: status, Result: result, Reason: reason, Message: message,
+			Pallet: l.pallet, Reused: l.reused})
 	delete(l.haul.lifts, l.rec.Seq)
 }
 

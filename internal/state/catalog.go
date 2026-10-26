@@ -147,6 +147,20 @@ func (s *Store) LatestPallet(ctx context.Context, tenant, dataset, partition str
 	return v, err
 }
 
+// MemoPallet returns the newest committed pallet of a tenant built with
+// fingerprint, committed at or after since (zero: any time). It is what
+// memoization reuses. ErrNotFound if there is none.
+func (s *Store) MemoPallet(ctx context.Context, tenant, fingerprint string, since time.Time) (Pallet, error) {
+	v, err := scanPallet(s.r.QueryRowContext(ctx, `
+		SELECT `+palletColumns+` FROM pallets
+		WHERE tenant = ? AND fingerprint = ? AND state = 'committed' AND committed_at >= ?
+		ORDER BY committed_at DESC, id DESC LIMIT 1`, tenant, fingerprint, formatTime(since)))
+	if errors.Is(err, sql.ErrNoRows) {
+		return v, ErrNotFound
+	}
+	return v, err
+}
+
 // PalletFilter selects pallets for ListPallets. Empty fields don't filter.
 type PalletFilter struct {
 	Tenant    string

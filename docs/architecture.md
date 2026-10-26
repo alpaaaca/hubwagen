@@ -268,6 +268,10 @@ rerun, never correctness.
   a cursor range on an append-only source).
 - `@lift(memo="ttl:1h")`: reuse a result up to that age. For APIs and live
   sources where slightly stale data is acceptable.
+- What can be reused is a pallet, so only lifts with an output are memoized.
+  On the wire a lift command carries `memo: ""` (never), `fingerprint` or
+  `ttl:<duration>`; the SDK passes pallets as inputs rather than inside the
+  arguments, so the fingerprint sees their content hashes.
 - **SQL lifts** (`lift.sql`) default to `memo=True`: hubwagen resolves every
   `{{ input(...) }}` itself, so it knows all inputs. `hubwagen lint` flags
   table references that bypass `input()`, since those are hidden inputs.

@@ -53,6 +53,7 @@ func TestHaulProjectionsRoundTrip(t *testing.T) {
 	l.Attempts, l.Result, l.FinishedAt = 2, json.RawMessage(`{"pallet":"p1"}`), ptr(t0.Add(time.Minute))
 	l.Timeout, l.Retry = 30*time.Minute, json.RawMessage(`{"limit":2}`)
 	l.Output, l.Inputs = json.RawMessage(`{"dataset":"raw"}`), json.RawMessage(`[{"pallet":"p0"}]`)
+	l.Fingerprint, l.FPInputs, l.RunReason = "fp1", json.RawMessage(`{"lift":"x"}`), "no previous run"
 	la := LiftAttempt{
 		ID: "la1", HaulID: "h1", Seq: 1, Number: 1, Term: s.Term(), WorkerID: "w1", Status: AttemptFailed,
 		Reason: "error", Message: "boom", LeaseExpiresAt: ptr(t0.Add(time.Minute)), DispatchedAt: t0,

@@ -135,6 +135,10 @@ type liftScheduledPayload struct {
 	Retry   *RetryPolicy    `json:"retry,omitempty"`
 	Output  *OutputSpec     `json:"output,omitempty"`
 	Inputs  []InputRef      `json:"inputs,omitempty"`
+	Memo    string          `json:"memo,omitempty"`
+	// Fingerprint and RunReason: what memoization decided.
+	Fingerprint string `json:"fingerprint,omitempty"`
+	RunReason   string `json:"run_reason,omitempty"`
 }
 
 type liftRetryScheduledPayload struct {
@@ -164,7 +168,19 @@ type liftFinishedPayload struct {
 	Result  json.RawMessage `json:"result,omitempty"`
 	Reason  string          `json:"reason,omitempty"`
 	Message string          `json:"message,omitempty"`
-	Pallet  string          `json:"pallet,omitempty"` // the pallet it produced
+	Pallet  string          `json:"pallet,omitempty"` // the pallet it produced (or reused)
+	Reused  bool            `json:"reused,omitempty"`
+}
+
+type liftReusedPayload struct {
+	Seq         int    `json:"seq"`
+	Pallet      string `json:"pallet"`
+	Fingerprint string `json:"fingerprint"`
+}
+
+type buildRegisteredPayload struct {
+	ID    string            `json:"id"`
+	Lifts map[string]string `json:"lifts"`
 }
 
 type timerStartedPayload struct {
