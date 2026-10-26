@@ -9,10 +9,11 @@ pallet in a catalog derived from the event history. One Go server that never
 runs user code, single leader on SQLite (Litestream later); workers in the
 user's environment, Python SDK first.
 
-**Today:** the code is still the v1 engine (M1–M2): compiled YAML pipelines,
-`hubwagen dev` / `hubwagen run`, host-process tasks, `file://` bucket. It
-keeps working until M3c. **Next:** M3a, the haul engine in the core, then
-pallets and memoization (M3b), then the worker API and Python SDK (M3c).
+**Today:** `hubwagen dev` / `hubwagen run` still run the v1 engine (M1–M2):
+compiled YAML pipelines, host-process tasks, `file://` bucket; it keeps
+working until M3c. The v2 haul engine (M3a) is in `internal/core`, driven by
+Go tests only. **Next:** pallets and memoization (M3b), then the worker API
+and Python SDK (M3c).
 
 Read before larger changes:
 
