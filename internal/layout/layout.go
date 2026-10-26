@@ -58,3 +58,20 @@ func (l Layout) Logs(tenant, pipeline, runID, taskID string, attempt int) string
 func (l Layout) Result(tenant, runID, taskID string, attempt int) string {
 	return fmt.Sprintf("%s/results/%s/%s/%s/%d.json", l.base, tenant, runID, taskID, attempt)
 }
+
+// LiftStaging is where one lift attempt writes its output. Once the attempt's
+// pallet is committed, its manifest points here, so this becomes the data's
+// home; attempts that fail are discarded.
+func (l Layout) LiftStaging(tenant, haulID string, seq int, attemptID string) string {
+	return fmt.Sprintf("%s/lifts/%s/%s/%d/%s/", l.base, tenant, haulID, seq, attemptID)
+}
+
+// PalletManifest is a pallet's manifest: written once, create-if-absent, by
+// the promote that makes the pallet visible.
+func (l Layout) PalletManifest(tenant, dataset, partition, palletID string) string {
+	if partition == "" {
+		partition = "_"
+	}
+	return fmt.Sprintf("%s/pallets/%s/%s/%s/%s.json", l.base,
+		tenant, url.PathEscape(dataset), url.PathEscape(partition), palletID)
+}

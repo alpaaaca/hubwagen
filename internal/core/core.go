@@ -70,6 +70,9 @@ type Config struct {
 	// DisableSchedules turns cron off: no scheduled runs, no catch-up
 	// (one-shot `hubwagen run`). Cursors are left untouched.
 	DisableSchedules bool
+	// Pallets promotes and discards lift outputs. Without it, lifts that
+	// declare an output fail (reason no_pallet_store).
+	Pallets PalletStore
 	// Docks limits docks by name; a dock not listed has no limits.
 	Docks  map[string]DockConfig
 	NewID  func() string // default: ULID
@@ -92,7 +95,10 @@ type Core struct {
 	haulTasks    map[string]*haulTaskState
 	liftAttempts map[string]*liftAttemptState // dispatched, unfinished
 	docks        map[string]*dockState
-	pollers      []*poller // waiting, oldest first
+	datasets     map[string]string     // tenant\x00name → partition key
+	promotions   map[string]*promotion // by pallet ID, while its promote runs
+	bg           sync.WaitGroup        // background bucket I/O
+	pollers      []*poller             // waiting, oldest first
 	b            *batch
 	// queueOrder numbers queued tasks so the oldest across docks goes first.
 	queueOrder uint64
@@ -126,6 +132,8 @@ func New(cfg Config) *Core {
 		haulTasks:    map[string]*haulTaskState{},
 		liftAttempts: map[string]*liftAttemptState{},
 		docks:        map[string]*dockState{},
+		datasets:     map[string]string{},
+		promotions:   map[string]*promotion{},
 	}
 }
 
@@ -139,6 +147,7 @@ func (c *Core) SetRuntime(kind string, rt Runtime) {
 // Run loads state, recovers in-flight attempts, and processes inputs until
 // ctx is cancelled (nil error) or a commit fails.
 func (c *Core) Run(ctx context.Context) error {
+	defer c.bg.Wait() // last: background I/O reports into a closed inbox
 	defer c.inbox.close()
 	defer c.stopPollers() // before the inbox closes: both answer pollers
 	c.ctx = ctx

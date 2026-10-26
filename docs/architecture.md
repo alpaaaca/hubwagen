@@ -310,8 +310,8 @@ loop.
 
 ### Protocol
 
-1. The server starts a lift attempt and gives it a staging location derived
-   from fingerprint and attempt number.
+1. The server starts a lift attempt and gives it a staging location of its
+   own (`lifts/<tenant>/<haul>/<seq>/<attempt>/`).
 2. The lift writes its output only to staging and reports `completed` with an
    output descriptor.
 3. The server records completion in the logbook, then runs the commit: an

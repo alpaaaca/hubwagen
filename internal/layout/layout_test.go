@@ -15,4 +15,7 @@ func TestLayout(t *testing.T) {
 	assert.Equal(t, "gs://bucket/commits/t/p/extract/t%2Fp%2Fk/gen-2.json", l.TaskCommit("t", "p", "extract", "t/p/k", 2))
 	assert.Equal(t, "gs://bucket/logs/t/p/run1/extract/3/", l.Logs("t", "p", "run1", "extract", 3))
 	assert.Equal(t, "gs://bucket/results/t/run1/extract/3.json", l.Result("t", "run1", "extract", 3))
+	assert.Equal(t, "gs://bucket/lifts/t/h1/2/a1/", l.LiftStaging("t", "h1", 2, "a1"))
+	assert.Equal(t, "gs://bucket/pallets/t/raw.orders/2026-10-24/p1.json", l.PalletManifest("t", "raw.orders", "2026-10-24", "p1"))
+	assert.Equal(t, "gs://bucket/pallets/t/cfg/_/p2.json", l.PalletManifest("t", "cfg", "", "p2"))
 }

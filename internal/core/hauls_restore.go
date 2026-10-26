@@ -22,23 +22,49 @@ import (
 //   - retry waits and timers get what is left of their delay, firing at once
 //     if it already passed;
 //   - the commands recorded for each haul are rebuilt from its logbook, so
-//     replays are still checked against it.
+//     replays are still checked against it;
+//   - a lift whose pallet was recorded but not promoted gets the promote
+//     again, from the manifest in the logbook. Promotes are idempotent.
 
-// loadHauls rebuilds open hauls and their recorded commands. It reads the
-// store and changes nothing; settleHauls finishes the job inside a batch.
-func (c *Core) loadHauls(ctx context.Context) (*state.ActiveHauls, error) {
+// restoredHauls is what loadHauls read for settleHauls.
+type restoredHauls struct {
+	*state.ActiveHauls
+	// pending pallets of committing lifts, by "haul/seq", with their
+	// manifests from the logbook.
+	pending map[string]*promotion
+}
+
+// loadHauls rebuilds open hauls, their recorded commands and the known
+// datasets. It reads the store and changes nothing; settleHauls finishes the
+// job inside a batch.
+func (c *Core) loadHauls(ctx context.Context) (*restoredHauls, error) {
+	dss, err := c.cfg.Store.ListDatasets(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	for _, d := range dss {
+		c.datasets[datasetKey(d.Tenant, d.Name)] = d.PartitionKey
+	}
 	act, err := c.cfg.Store.LoadHauls(ctx)
 	if err != nil {
 		return nil, err
 	}
+	out := &restoredHauls{ActiveHauls: act, pending: map[string]*promotion{}}
 	for _, rec := range act.Hauls {
 		h := &haulState{rec: rec, lifts: map[int]*liftState{}, timers: map[int]*haulTimer{}}
 		evs, err := c.cfg.Store.HaulEvents(ctx, rec.ID)
 		if err != nil {
 			return nil, err
 		}
+		manifests := map[string]palletRecordedPayload{}
 		for _, e := range evs {
 			switch e.Type {
+			case state.EventPalletRecorded:
+				var p palletRecordedPayload
+				if err := json.Unmarshal(e.Payload, &p); err != nil {
+					return nil, fmt.Errorf("haul %s: event %d: %w", rec.ID, e.Seq, err)
+				}
+				manifests[p.Manifest.Pallet] = p
 			case state.EventHaulTaskQueued:
 				h.tasks++
 			case state.EventHaulTaskCompleted:
@@ -52,14 +78,25 @@ func (c *Core) loadHauls(ctx context.Context) (*state.ActiveHauls, error) {
 		if len(h.cmds) != rec.Commands {
 			return nil, fmt.Errorf("haul %s: logbook has %d commands, the haul record %d", rec.ID, len(h.cmds), rec.Commands)
 		}
+		pending, err := c.cfg.Store.ListPallets(ctx, state.PalletFilter{HaulID: rec.ID, States: []string{state.PalletPending}, Limit: 1 << 20})
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range pending {
+			rp, ok := manifests[p.ID]
+			if !ok {
+				return nil, fmt.Errorf("haul %s: pending pallet %s has no PalletRecorded event", rec.ID, p.ID)
+			}
+			out.pending[fmt.Sprintf("%s/%d", rec.ID, p.LiftSeq)] = &promotion{rec: p, manifest: rp.Manifest}
+		}
 		c.hauls[rec.ID] = h
 	}
-	return act, nil
+	return out, nil
 }
 
 // settleHauls re-queues, re-arms and replaces what loadHauls found, in the
 // restore batch.
-func (c *Core) settleHauls(act *state.ActiveHauls) error {
+func (c *Core) settleHauls(act *restoredHauls) error {
 	var needTask []*haulState
 	for _, rec := range act.HaulTasks {
 		h := c.hauls[rec.HaulID]
@@ -88,13 +125,26 @@ func (c *Core) settleHauls(act *state.ActiveHauls) error {
 	for _, rec := range act.Lifts {
 		h := c.hauls[rec.HaulID]
 		l := &liftState{rec: rec, haul: h}
-		if len(rec.Retry) > 0 {
-			if err := json.Unmarshal(rec.Retry, &l.retry); err != nil {
-				return fmt.Errorf("lift %s/%d: retry policy: %w", rec.HaulID, rec.Seq, err)
+		for _, f := range []struct {
+			raw  json.RawMessage
+			into any
+			what string
+		}{{rec.Retry, &l.retry, "retry policy"}, {rec.Output, &l.output, "output"}, {rec.Inputs, &l.inputs, "inputs"}} {
+			if len(f.raw) > 0 {
+				if err := json.Unmarshal(f.raw, f.into); err != nil {
+					return fmt.Errorf("lift %s/%d: %s: %w", rec.HaulID, rec.Seq, f.what, err)
+				}
 			}
 		}
 		h.lifts[rec.Seq] = l
 		switch rec.Status {
+		case state.LiftCommitting:
+			p := act.pending[fmt.Sprintf("%s/%d", rec.HaulID, rec.Seq)]
+			if p == nil {
+				return fmt.Errorf("lift %s/%d is committing but has no pending pallet", rec.HaulID, rec.Seq)
+			}
+			p.lift = l
+			c.promote(p)
 		case state.LiftRetryWait:
 			c.armLiftRetry(l, c.timeUntil(rec.RetryAt))
 		case state.LiftDispatched, state.LiftRunning:
