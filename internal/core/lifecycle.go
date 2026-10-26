@@ -535,13 +535,20 @@ func (c *Core) armRetry(t *taskState, d time.Duration) {
 
 // backoff is the delay before the retry following attempt n (1-based).
 func backoff(r spec.Retry, n int) time.Duration {
-	d := time.Duration(r.InitialSeconds) * time.Second
-	if r.Backoff == "exponential" {
-		for i := 1; i < n && d < time.Duration(r.MaxSeconds)*time.Second; i++ {
+	return backoffDelay(r.Backoff == "exponential", time.Duration(r.InitialSeconds)*time.Second,
+		time.Duration(r.MaxSeconds)*time.Second, n)
+}
+
+// backoffDelay is initial, doubled per earlier attempt when exponential,
+// capped at maxDelay.
+func backoffDelay(exponential bool, initial, maxDelay time.Duration, n int) time.Duration {
+	d := initial
+	if exponential {
+		for i := 1; i < n && d < maxDelay; i++ {
 			d *= 2
 		}
 	}
-	if maxDelay := time.Duration(r.MaxSeconds) * time.Second; d > maxDelay {
+	if d > maxDelay {
 		d = maxDelay
 	}
 	return d

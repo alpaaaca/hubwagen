@@ -100,6 +100,8 @@ type Lift struct {
 	Name        string
 	Dock        string
 	Args        json.RawMessage // encoded by the SDK; opaque to the server
+	Timeout     time.Duration   // per attempt; 0 = none
+	Retry       json.RawMessage // retry policy, encoded by the core; nil = no retries
 	Status      string
 	Attempts    int
 	RetryAt     *time.Time
@@ -168,14 +170,15 @@ func (t *Tx) PutHaulTask(v HaulTask) error {
 
 func (t *Tx) PutLift(v Lift) error {
 	return t.exec(`
-		INSERT INTO lifts (haul_id, seq, name, dock, args_json, status, attempts, retry_at, reason,
-			message, result_json, scheduled_at, finished_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO lifts (haul_id, seq, name, dock, args_json, timeout_ns, retry_json, status, attempts,
+			retry_at, reason, message, result_json, scheduled_at, finished_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (haul_id, seq) DO UPDATE SET
 			status = excluded.status, attempts = excluded.attempts, retry_at = excluded.retry_at,
 			reason = excluded.reason, message = excluded.message, result_json = excluded.result_json,
 			finished_at = excluded.finished_at`,
-		v.HaulID, v.Seq, v.Name, v.Dock, string(v.Args), v.Status, v.Attempts, formatTimePtr(v.RetryAt),
+		v.HaulID, v.Seq, v.Name, v.Dock, string(v.Args), int64(v.Timeout), string(v.Retry), v.Status,
+		v.Attempts, formatTimePtr(v.RetryAt),
 		v.Reason, v.Message, string(v.Result), formatTime(v.ScheduledAt), formatTimePtr(v.FinishedAt))
 }
 
@@ -341,22 +344,24 @@ func scanHaulTask(sc interface{ Scan(...any) error }) (HaulTask, error) {
 	return v, err
 }
 
-const liftColumns = `haul_id, seq, name, dock, args_json, status, attempts, retry_at, reason,
-	message, result_json, scheduled_at, finished_at`
+const liftColumns = `haul_id, seq, name, dock, args_json, timeout_ns, retry_json, status, attempts,
+	retry_at, reason, message, result_json, scheduled_at, finished_at`
 
 func scanLift(sc interface{ Scan(...any) error }) (Lift, error) {
 	var (
-		v                       Lift
-		args, result, scheduled string
-		retry, finished         sql.NullString
-		err                     error
+		v                              Lift
+		args, retry, result, scheduled string
+		timeout                        int64
+		retryAt, finished              sql.NullString
+		err                            error
 	)
-	if err = sc.Scan(&v.HaulID, &v.Seq, &v.Name, &v.Dock, &args, &v.Status, &v.Attempts, &retry,
-		&v.Reason, &v.Message, &result, &scheduled, &finished); err != nil {
+	if err = sc.Scan(&v.HaulID, &v.Seq, &v.Name, &v.Dock, &args, &timeout, &retry, &v.Status, &v.Attempts,
+		&retryAt, &v.Reason, &v.Message, &result, &scheduled, &finished); err != nil {
 		return v, err
 	}
-	v.Args, v.Result = rawOrNil(args), rawOrNil(result)
-	if v.RetryAt, err = parseTimePtr(retry); err != nil {
+	v.Args, v.Retry, v.Result = rawOrNil(args), rawOrNil(retry), rawOrNil(result)
+	v.Timeout = time.Duration(timeout)
+	if v.RetryAt, err = parseTimePtr(retryAt); err != nil {
 		return v, err
 	}
 	if v.ScheduledAt, err = parseTime(scheduled); err != nil {
