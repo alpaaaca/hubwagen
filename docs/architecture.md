@@ -191,7 +191,9 @@ later, only if profiling asks for it.
 ### Determinism
 
 Replay works only if the haul makes the same calls in the same order every
-time. Rules for haul code:
+time. (The "blocked" signal the SDK raises to stop a replay is a
+`BaseException`, so haul code's `except Exception:` can't swallow it.)
+Rules for haul code:
 
 - No clock, randomness, network or file access. Use `ctx.now()`,
   `ctx.random()` and lifts.
@@ -208,8 +210,15 @@ it continue.
 
 **Guards**, cheapest first, instead of a full sandbox:
 
-- While haul code runs, the SDK patches `time.time`, `datetime.now`,
-  `random.*` and `uuid.uuid4` to raise.
+- While haul code runs, the SDK watches calls with `sys.monitoring`
+  (Python ≥ 3.12) and raises when *user* code calls `time.time`,
+  `datetime.now`, the module-level `random` functions or `uuid.uuid4`,
+  however they were imported; library code that reads the clock (logging)
+  is left alone. Patching module attributes was tried and rejected: it
+  misses `from time import time` and breaks logging
+  ([spike S1](spikes/s1-python-replay.md)).
+- The worker runs with a fixed `PYTHONHASHSEED`, so iterating a set gives
+  the same order in every replay.
 - `hubwagen lint`: an AST check for the same calls and for iteration over sets.
 - `hubwagen test --replay`: replay recent production logbooks against the new
   code in CI, without running lifts.
