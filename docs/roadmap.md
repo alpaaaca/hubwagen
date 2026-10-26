@@ -28,7 +28,7 @@ that only matters at scale waits.
 | M2: v1 engine in dev mode | **Done** |
 | M3a: Haul engine in the core | **Done** |
 | M3b: Pallets, catalog, memoization | **Done** |
-| M3c: Worker API + minimal Python SDK | Next |
+| M3c: Worker API + minimal Python SDK | **In progress** |
 | M4: Full haul surface (fan-out, signals, triggers, testing) | — |
 | M5: Catalog in the UI, invalidation, staleness | — |
 | Later | — |
@@ -108,10 +108,11 @@ fingerprint run the lift once.
 Goal: the first demo — `hubwagen replay` on a real Python example shows
 reuse.
 
-1. **Worker API** (Connect, HTTP/JSON-callable): `RegisterBuild`,
+1. ✅ **Worker API** (Connect, HTTP/JSON-callable): `RegisterBuild`,
    `PollHaulTask`, `CompleteHaulTask`, `PollLiftTask`, `CompleteLiftTask`,
-   `Heartbeat`. `hubwagen dev` serves it; `hubwagen start` and
-   `hubwagen replay` call it. ([#22](https://github.com/alpaaaca/hubwagen/issues/22), [#23](https://github.com/alpaaaca/hubwagen/issues/23))
+   `Heartbeat` (leases; tells workers what to stop). `hubwagen dev` serves it
+   (`--listen`, default 127.0.0.1:7070). Still to do: `hubwagen start` and
+   `hubwagen replay` calling it. ([#22](https://github.com/alpaaaca/hubwagen/issues/22), [#23](https://github.com/alpaaaca/hubwagen/issues/23))
 2. **Python SDK** (`sdk/python`): `@haul`, `@lift`, `ctx.lift`, `ctx.sleep`,
    `ctx.state`, `ctx.latest_pallet`; replay until blocked; client-side
    sequence check with file and line; runtime guards on clock and randomness;

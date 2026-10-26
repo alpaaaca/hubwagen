@@ -172,6 +172,7 @@ func (c *Core) settleHauls(act *restoredHauls) error {
 			if rec.Timeout > 0 {
 				c.armLiftTimeout(a, max(ar.DispatchedAt.Add(rec.Timeout).Sub(c.now()), 0))
 			}
+			c.armLiftLease(a) // a fresh lease: heartbeats weren't persisted
 		default: // scheduled: the queued attempt was never recorded
 			c.queueLiftAttempt(l)
 		}

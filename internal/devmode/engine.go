@@ -14,14 +14,19 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"syscall"
+	"time"
 
+	"github.com/alper/hubwagen/internal/api"
 	"github.com/alper/hubwagen/internal/blob"
 	"github.com/alper/hubwagen/internal/clock"
 	"github.com/alper/hubwagen/internal/core"
 	"github.com/alper/hubwagen/internal/layout"
+	"github.com/alper/hubwagen/internal/pallet"
 	"github.com/alper/hubwagen/internal/runtime/localrt"
 	"github.com/alper/hubwagen/internal/spec"
 	"github.com/alper/hubwagen/internal/state"
@@ -36,8 +41,15 @@ type Config struct {
 	Echo io.Writer
 	// DisableSchedules: no cron runs (one-shot `hubwagen run`).
 	DisableSchedules bool
-	Logger           *slog.Logger
+	// Listen, if set, is the address the worker API is served on, e.g.
+	// 127.0.0.1:7070. Port 0 picks a free port (see Engine.APIAddr).
+	Listen string
+	Logger *slog.Logger
 }
+
+// HeartbeatTimeout is how long a worker's task survives without a heartbeat
+// in dev mode.
+const HeartbeatTimeout = time.Minute
 
 type Engine struct {
 	Store   *state.Store
@@ -45,7 +57,10 @@ type Engine struct {
 	Core    *core.Core
 	Runtime *localrt.Runtime
 	DataDir string
+	// APIAddr is the worker API's address, if it is served.
+	APIAddr string
 
+	api    *http.Server
 	lock   *os.File
 	cancel context.CancelFunc
 	done   chan error
@@ -89,9 +104,12 @@ func Start(ctx context.Context, cfg Config) (*Engine, error) {
 		return fail(err)
 	}
 
+	lay := layout.New(e.Bucket.Base())
 	e.Core = core.New(core.Config{
-		Store: e.Store, Term: term, Clock: clock.Real{}, Layout: layout.New(e.Bucket.Base()),
+		Store: e.Store, Term: term, Clock: clock.Real{}, Layout: lay,
 		Recovery:          taskexec.Recovery{Bucket: e.Bucket},
+		Pallets:           pallet.NewStore(e.Bucket, lay),
+		HeartbeatTimeout:  HeartbeatTimeout,
 		AutoCreateTenants: true, DisableSchedules: cfg.DisableSchedules,
 		Logger: cfg.Logger,
 	})
@@ -109,7 +127,32 @@ func Start(ctx context.Context, cfg Config) (*Engine, error) {
 		e.Close()
 		return nil, fmt.Errorf("starting core: %w", err)
 	}
+	if cfg.Listen != "" {
+		if err := e.serveAPI(cfg.Listen, cfg.Logger); err != nil {
+			e.Close()
+			return nil, err
+		}
+	}
 	return e, nil
+}
+
+// serveAPI starts the worker API. Long polls end when the engine closes.
+func (e *Engine) serveAPI(addr string, log *slog.Logger) error {
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("worker API: %w", err)
+	}
+	mux := http.NewServeMux()
+	path, h := api.NewWorkerHandler(e.Core, 0)
+	mux.Handle(path, h)
+	e.api = &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	e.APIAddr = ln.Addr().String()
+	go func() {
+		if err := e.api.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Error("worker API stopped", "err", err)
+		}
+	}()
+	return nil
 }
 
 // Done is closed-with-error when the core stops on its own (a failed commit).
@@ -122,6 +165,13 @@ func (e *Engine) Close() error {
 		return nil
 	}
 	e.closed = true
+	if e.api != nil {
+		// Don't wait for long polls: closing the core answers them.
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		_ = e.api.Shutdown(ctx)
+		cancel()
+		e.api.Close()
+	}
 	e.Runtime.Close()
 	// Let the core record the final reports of the tasks just stopped.
 	_ = e.Core.Barrier(context.Background())

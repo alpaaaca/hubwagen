@@ -35,7 +35,8 @@ type BuildRequest struct {
 
 // RegisterBuild records a build. Registering the same build again is a
 // no-op; reusing a build ID with other versions is an error, since builds
-// are immutable.
+// are immutable. A new build gives stuck hauls a replay: it may carry the
+// fix.
 func (c *Core) RegisterBuild(ctx context.Context, req BuildRequest) error {
 	_, err := submit(ctx, c, func(c *Core) (struct{}, error) {
 		if req.ID == "" {
@@ -58,6 +59,7 @@ func (c *Core) RegisterBuild(ctx context.Context, req BuildRequest) error {
 		b := state.Build{ID: req.ID, Lifts: lifts, RegisteredAt: c.now()}
 		c.b.catalog = append(c.b.catalog, func(tx *state.Tx) error { return tx.PutBuild(b) })
 		c.emit(state.EventBuildRegistered, "", "", "", "", buildRegisteredPayload{ID: req.ID, Lifts: lifts})
+		c.resumeStuckHauls()
 		return struct{}{}, nil
 	})
 	return err

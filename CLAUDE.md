@@ -42,6 +42,7 @@ spec-kit.
 | `internal/taskexec` | The task contract: env, process groups, log shipping, result file, commit markers, restart recovery |
 | `internal/runtime/localrt` | Dev-mode in-process agent: slots, pools, cancellation |
 | `internal/devmode` | Wires store, bucket, core and local runtime for one process; data-dir lock; pipeline loader/watcher |
+| `internal/api` | Connect services over HTTP (`WorkerService` today); generated code in `gen/` from `proto/` |
 | `internal/tui` | Terminal dashboard; reads and acts through `tui.Source` (`EngineSource` today, the API client in M3) |
 | `cmd/` | `compile`, `dev`, `run`, `version` |
 | `pipelines/examples/` | Example pipelines; `TestExamplesCompile` compiles every example |
@@ -92,6 +93,7 @@ go build -o hubwagen .
 go vet ./...
 go test ./...
 go test -race ./...
+go generate ./internal/api    # after changing proto/: buf lint + generate (via go run, nothing to install)
 
 ./hubwagen compile pipelines/examples --check --no-resolve   # validate all examples, offline
 ./hubwagen compile pipelines/examples --out build/specs      # write canonical specs

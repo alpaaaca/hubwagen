@@ -1,0 +1,224 @@
+syntax = "proto3";
+
+package hubwagen.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1;hubwagenv1";
+
+// WorkerService is what workers call: they register their build, long-poll
+// docks for haul tasks and lift tasks, report results and send heartbeats.
+// It is a Connect service, so besides gRPC it can be called as plain HTTP:
+// POST /hubwagen.v1.WorkerService/<Method> with a JSON body.
+//
+// JSON values that belong to user code (arguments, results, haul params,
+// event payloads, stats) travel as JSON text in *_json fields, so numbers
+// keep the exact form they were written in.
+service WorkerService {
+  // RegisterBuild announces a worker build and the code version of each of
+  // its lifts. Builds are immutable. A new build gives stuck hauls another
+  // replay.
+  rpc RegisterBuild(RegisterBuildRequest) returns (RegisterBuildResponse);
+  // PollHaulTask waits up to `wait` for a haul to replay.
+  rpc PollHaulTask(PollHaulTaskRequest) returns (PollHaulTaskResponse);
+  // CompleteHaulTask reports every command a replay issued, and how the haul
+  // function ended if it did.
+  rpc CompleteHaulTask(CompleteHaulTaskRequest) returns (CompleteHaulTaskResponse);
+  // PollLiftTask waits up to `wait` for a lift attempt to run.
+  rpc PollLiftTask(PollLiftTaskRequest) returns (PollLiftTaskResponse);
+  // CompleteLiftTask reports a lift attempt's result.
+  rpc CompleteLiftTask(CompleteLiftTaskRequest) returns (CompleteLiftTaskResponse);
+  // Heartbeat keeps the leases of a worker's running tasks alive and tells it
+  // which ones to stop.
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+}
+
+message RegisterBuildRequest {
+  string build_id = 1;
+  // Lift name → code version.
+  map<string, string> lift_versions = 2;
+}
+
+message RegisterBuildResponse {}
+
+message PollHaulTaskRequest {
+  string worker_id = 1;
+  repeated string docks = 2;
+  // How long to wait for work; the server caps it. Unset: answer at once.
+  google.protobuf.Duration wait = 3;
+}
+
+message PollHaulTaskResponse {
+  // Unset when there was no work in time.
+  HaulTask task = 1;
+}
+
+message HaulTask {
+  string id = 1;
+  string haul_id = 2;
+  // The registered haul function.
+  string name = 3;
+  string dock = 4;
+  string params_json = 5;
+  // The haul's events up to at least this task's dispatch. The replay reads
+  // lift results (LiftFinished), fired timers and state from it.
+  repeated Event logbook = 6;
+}
+
+message Event {
+  int64 seq = 1;
+  string type = 2;
+  google.protobuf.Timestamp time = 3;
+  string payload_json = 4;
+}
+
+message CompleteHaulTaskRequest {
+  string task_id = 1;
+  string build_id = 2;
+  // Every command the replay issued, in order, from seq 1, including those
+  // already in the logbook.
+  repeated Command commands = 3;
+  // Set when the haul function returned or raised.
+  HaulOutcome outcome = 4;
+  // Set when the replay itself failed (not the haul code).
+  TaskError error = 5;
+}
+
+message CompleteHaulTaskResponse {}
+
+message Command {
+  int32 seq = 1;
+  // Where the haul code made the call ("app/hauls.py:42").
+  string source = 2;
+  oneof kind {
+    LiftCommand lift = 3;
+    SleepCommand sleep = 4;
+  }
+}
+
+message LiftCommand {
+  string name = 1;
+  // Default: the haul's dock.
+  string dock = 2;
+  string args_json = 3;
+  // Per attempt, enforced by the server. Unset: none.
+  google.protobuf.Duration timeout = 4;
+  RetryPolicy retry = 5;
+  // The pallet the lift produces, if any.
+  Output output = 6;
+  // Pallets passed to the lift.
+  repeated InputRef inputs = 7;
+  // "" or "never", "fingerprint", or "ttl:<duration>".
+  string memo = 8;
+}
+
+message SleepCommand {
+  google.protobuf.Duration duration = 1;
+}
+
+message RetryPolicy {
+  // Retries after the first attempt.
+  int32 limit = 1;
+  // "fixed" (default) or "exponential".
+  string backoff = 2;
+  google.protobuf.Duration initial = 3;
+  google.protobuf.Duration max = 4;
+}
+
+message Output {
+  string dataset = 1;
+  string partition = 2;
+  string partition_key = 3;
+}
+
+message InputRef {
+  string name = 1;
+  string pallet = 2;
+}
+
+message HaulOutcome {
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    STATUS_COMPLETED = 1;
+    STATUS_FAILED = 2;
+  }
+  Status status = 1;
+  string result_json = 2;
+  string reason = 3;
+  string message = 4;
+}
+
+message TaskError {
+  string reason = 1;
+  string message = 2;
+}
+
+message PollLiftTaskRequest {
+  string worker_id = 1;
+  repeated string docks = 2;
+  google.protobuf.Duration wait = 3;
+}
+
+message PollLiftTaskResponse {
+  // Unset when there was no work in time.
+  LiftTask task = 1;
+}
+
+message LiftTask {
+  // The attempt ID: report and heartbeat with it.
+  string id = 1;
+  string haul_id = 2;
+  int32 seq = 3;
+  string name = 4;
+  string dock = 5;
+  string args_json = 6;
+  // For a lift with an output: where its pallet goes, and the prefix this
+  // attempt writes its files to.
+  Output output = 7;
+  string staging = 8;
+}
+
+message CompleteLiftTaskRequest {
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    STATUS_SUCCEEDED = 1;
+    STATUS_FAILED = 2;
+  }
+  string attempt_id = 1;
+  Status status = 2;
+  string result_json = 3;
+  string reason = 4;
+  string message = 5;
+  // The failure will repeat on every attempt: don't retry.
+  bool no_retry = 6;
+  // What a succeeded attempt of a lift with an output wrote.
+  LiftOutput output = 7;
+}
+
+message LiftOutput {
+  repeated File files = 1;
+  string stats_json = 2;
+  string meta_json = 3;
+}
+
+message File {
+  // Relative to the attempt's staging prefix.
+  string path = 1;
+  int64 size = 2;
+  // Hex.
+  string sha256 = 3;
+}
+
+message CompleteLiftTaskResponse {}
+
+message HeartbeatRequest {
+  string worker_id = 1;
+  // Haul task and lift attempt IDs the worker is running.
+  repeated string task_ids = 2;
+}
+
+message HeartbeatResponse {
+  // Tasks to stop: finished elsewhere, timed out, cancelled or unknown.
+  repeated string stop = 1;
+}

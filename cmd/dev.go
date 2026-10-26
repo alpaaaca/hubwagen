@@ -23,6 +23,7 @@ var (
 	devSlots    int
 	devPools    []string
 	devHeadless bool
+	devListen   string
 )
 
 func addDataDirFlag(c *cobra.Command) {
@@ -41,6 +42,10 @@ On a terminal it opens the dashboard (pipelines, runs, task status and logs;
 t triggers a run). With --headless, or without a terminal, it prints events
 and task logs instead.
 
+It also serves the worker API (--listen, default 127.0.0.1:7070), which v2
+workers use to register builds, poll for haul and lift tasks and report
+results.
+
 Only one process can use a data directory at a time.`,
 	SilenceUsage: true,
 	RunE:         runDev,
@@ -51,6 +56,7 @@ func init() {
 	devCmd.Flags().IntVar(&devSlots, "slots", 4, "tasks that may run at the same time")
 	devCmd.Flags().StringSliceVar(&devPools, "pools", []string{"local"}, "agent pools to serve with host processes")
 	devCmd.Flags().BoolVar(&devHeadless, "headless", false, "no dashboard; print events and task logs")
+	devCmd.Flags().StringVar(&devListen, "listen", "127.0.0.1:7070", `address to serve the worker API on ("" to turn it off)`)
 	rootCmd.AddCommand(devCmd)
 }
 
@@ -64,7 +70,7 @@ func runDev(cmd *cobra.Command, args []string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	cfg := devmode.Config{DataDir: dataDir, Slots: devSlots, Pools: devPools}
+	cfg := devmode.Config{DataDir: dataDir, Slots: devSlots, Pools: devPools, Listen: devListen}
 	if dashboard {
 		// Anything written to the terminal would corrupt the dashboard.
 		logFile, err := openDevLog(dataDir)
@@ -109,6 +115,9 @@ func runDev(cmd *cobra.Command, args []string) error {
 		}
 	})
 	fmt.Printf("hubwagen dev: data in %s; Ctrl-C to stop\n", e.DataDir)
+	if e.APIAddr != "" {
+		fmt.Printf("hubwagen dev: worker API on http://%s\n", e.APIAddr)
+	}
 	go e.Follow(ctx, from, func(line string) { fmt.Println("·", line) })
 
 	select {
