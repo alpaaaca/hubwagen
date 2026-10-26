@@ -27,7 +27,7 @@ that only matters at scale waits.
 | M1: Spec compiler (v1) | **Done** |
 | M2: v1 engine in dev mode | **Done** |
 | M3a: Haul engine in the core | **Done** |
-| M3b: Pallets, catalog, memoization | Next |
+| M3b: Pallets, catalog, memoization | **In progress** |
 | M3c: Worker API + minimal Python SDK | — |
 | M4: Full haul surface (fan-out, signals, triggers, testing) | — |
 | M5: Catalog in the UI, invalidation, staleness | — |
@@ -78,8 +78,10 @@ run once.
 
 Goal: running the same haul twice reuses every lift, in a Go test.
 
-1. **Pallets and datasets**: catalog tables projected from `lift_completed`
-   and commit events; pallet states `committed`, `expired`, `invalid`. ([#18](https://github.com/alpaaaca/hubwagen/issues/18))
+1. ✅ **Pallets and datasets**: catalog tables projected from `LiftFinished`
+   and commit events; pallet states `pending` (recorded, not yet promoted),
+   `committed`, `expired`, `invalid`; latest pallet per partition; upstream
+   and downstream lineage. ([#18](https://github.com/alpaaaca/hubwagen/issues/18))
 2. **Commit protocol** on `file://`: staging per fingerprint and attempt,
    pallet manifests promoted with `PutIfAbsent`, commit retried on restart.
    Builds on `internal/blob` and the marker logic in `internal/taskexec`. ([#19](https://github.com/alpaaaca/hubwagen/issues/19))
