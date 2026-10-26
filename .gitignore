@@ -45,3 +45,10 @@ build/
 
 # hubwagen dev / run data directory
 .hubwagen/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+*.egg-info/

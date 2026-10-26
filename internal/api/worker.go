@@ -64,6 +64,9 @@ func (s *WorkerServer) PollHaulTask(ctx context.Context, req *connect.Request[hu
 	}
 	out := &hubwagenv1.HaulTask{Id: t.ID, HaulId: t.HaulID, Name: t.Name, Dock: t.Dock}
 	for _, e := range t.Logbook {
+		if !replayEvents[e.Type] {
+			continue
+		}
 		out.Logbook = append(out.Logbook, &hubwagenv1.Event{
 			Seq: e.Seq, Type: string(e.Type), Time: timestamppb.New(e.Time), PayloadJson: string(e.Payload)})
 		if e.Type == state.EventHaulStarted {
@@ -76,6 +79,17 @@ func (s *WorkerServer) PollHaulTask(ctx context.Context, req *connect.Request[hu
 		}
 	}
 	return connect.NewResponse(&hubwagenv1.PollHaulTaskResponse{Task: out}), nil
+}
+
+// replayEvents are the logbook events a replay reads; the rest is
+// bookkeeping a worker doesn't need (spike S1: a 1,000-lift logbook shrinks
+// about fivefold).
+var replayEvents = map[state.EventType]bool{
+	state.EventHaulStarted:       true,
+	state.EventLiftFinished:      true,
+	state.EventTimerFired:        true,
+	state.EventQueryAnswered:     true,
+	state.EventHaulTaskCompleted: true,
 }
 
 func (s *WorkerServer) CompleteHaulTask(ctx context.Context, req *connect.Request[hubwagenv1.CompleteHaulTaskRequest]) (*connect.Response[hubwagenv1.CompleteHaulTaskResponse], error) {
@@ -145,8 +159,10 @@ func command(c *hubwagenv1.Command) (core.Command, error) {
 		if k.Sleep.Duration != nil {
 			cmd.Duration = k.Sleep.Duration.AsDuration()
 		}
+	case *hubwagenv1.Command_LatestPallet:
+		cmd.Kind, cmd.Dataset, cmd.Partition = core.CommandLatestPallet, k.LatestPallet.Dataset, k.LatestPallet.Partition
 	default:
-		return cmd, errors.New("a command is a lift or a sleep")
+		return cmd, errors.New("a command is a lift, a sleep or a latest_pallet")
 	}
 	return cmd, nil
 }
@@ -163,6 +179,9 @@ func (s *WorkerServer) PollLiftTask(ctx context.Context, req *connect.Request[hu
 	}
 	if o := t.Output; o != nil {
 		out.Output = &hubwagenv1.Output{Dataset: o.Dataset, Partition: o.Partition, PartitionKey: o.PartitionKey}
+	}
+	for _, in := range t.Inputs {
+		out.Inputs = append(out.Inputs, &hubwagenv1.InputRef{Name: in.Name, Pallet: in.Pallet})
 	}
 	return connect.NewResponse(&hubwagenv1.PollLiftTaskResponse{Task: out}), nil
 }

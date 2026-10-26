@@ -90,7 +90,7 @@ the data they move.
 | **Worker** | A process in the user's environment that registers hauls and lifts and pulls work from docks. | Worker |
 | **Signal** | External input delivered to a running haul (`approve`, `file_arrived`). | Signal |
 | **Timer** | A durable sleep or deadline held by the server. | Timer |
-| **State** | Small durable key-value state of a haul, recorded in its logbook. | Workflow variables |
+| **State** | Small key-value state of a haul, rebuilt by every replay from the logbook, so it is as durable as the logbook. | Workflow variables |
 
 ## Writing hauls and lifts
 
@@ -133,6 +133,11 @@ def ingest_orders(ctx):
 @lift(output=Dataset("raw.orders"))  # not memoized: reads a live source
 def fetch_since(cursor: str) -> Pallet: ...
 ```
+
+`ctx.latest_pallet` is a command like `ctx.lift`: the server answers it from
+the catalog at once and records the answer in the logbook (`QueryAnswered`),
+so every replay of this haul sees the same pallet even after newer ones are
+committed.
 
 The cursor is the newest pallet's metadata, so there is no `etl_state` table,
 no sensor and no haul that runs forever. `ctx.state` exists for state that

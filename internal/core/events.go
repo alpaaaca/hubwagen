@@ -178,6 +178,24 @@ type liftReusedPayload struct {
 	Fingerprint string `json:"fingerprint"`
 }
 
+// queryAnsweredPayload is a latest_pallet answer; Pallet is null when the
+// partition has no committed pallet.
+type queryAnsweredPayload struct {
+	Seq    int           `json:"seq"`
+	Pallet *palletAnswer `json:"pallet"`
+}
+
+type palletAnswer struct {
+	ID          string         `json:"id"`
+	Dataset     string         `json:"dataset"`
+	Partition   string         `json:"partition,omitempty"`
+	Location    string         `json:"location"`
+	ContentHash string         `json:"content_hash,omitempty"`
+	Meta        map[string]any `json:"meta,omitempty"`
+	Stats       map[string]any `json:"stats,omitempty"`
+	CommittedAt *time.Time     `json:"committed_at,omitempty"`
+}
+
 // liftWaitingPayload names the run a lift waits for.
 type liftWaitingPayload struct {
 	Seq         int    `json:"seq"`

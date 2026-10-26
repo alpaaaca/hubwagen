@@ -50,9 +50,10 @@ const (
 	EventLiftAttemptStarted    EventType = "LiftAttemptStarted"
 	EventLiftAttemptFinished   EventType = "LiftAttemptFinished"
 	EventLiftRetryScheduled    EventType = "LiftRetryScheduled"
-	EventLiftFinished          EventType = "LiftFinished" // carries the result
-	EventLiftReused            EventType = "LiftReused"   // memoized: an earlier pallet stands in
-	EventLiftWaiting           EventType = "LiftWaiting"  // single-flight: waits for another lift
+	EventLiftFinished          EventType = "LiftFinished"  // carries the result
+	EventLiftReused            EventType = "LiftReused"    // memoized: an earlier pallet stands in
+	EventLiftWaiting           EventType = "LiftWaiting"   // single-flight: waits for another lift
+	EventQueryAnswered         EventType = "QueryAnswered" // a haul's catalog query and its answer
 	EventTimerStarted          EventType = "TimerStarted"
 	EventTimerFired            EventType = "TimerFired"
 	EventTimerCancelled        EventType = "TimerCancelled"
