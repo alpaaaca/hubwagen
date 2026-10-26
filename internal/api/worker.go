@@ -181,7 +181,7 @@ func (s *WorkerServer) PollLiftTask(ctx context.Context, req *connect.Request[hu
 		out.Output = &hubwagenv1.Output{Dataset: o.Dataset, Partition: o.Partition, PartitionKey: o.PartitionKey}
 	}
 	for _, in := range t.Inputs {
-		out.Inputs = append(out.Inputs, &hubwagenv1.InputRef{Name: in.Name, Pallet: in.Pallet})
+		out.Inputs = append(out.Inputs, &hubwagenv1.InputRef{Name: in.Name, Pallet: in.Pallet, Location: in.Location})
 	}
 	return connect.NewResponse(&hubwagenv1.PollLiftTaskResponse{Task: out}), nil
 }

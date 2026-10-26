@@ -100,3 +100,20 @@ def nondeterministic(ctx):
     first = add if _replays["n"] == 1 else other
     ctx.lift(first, 1, 1)
     ctx.lift(add, 2, 2)
+
+
+@hw.lift(output=hw.Dataset("mart.copy"))
+def copy_orders(orders: hw.Pallet) -> dict:
+    out = hw.output()
+    names = []
+    for f in orders.files():
+        (out.path / f.name).write_text(f.read_text().upper())
+        names.append(f.name)
+    return {"files": names, "manifest_files": len(orders.manifest()["files"]),
+            "first": orders.path(names[0]).read_text()}
+
+
+@hw.haul
+def reads_inputs(ctx, day: str):
+    orders = ctx.lift(extract, day)
+    return ctx.lift(copy_orders, orders).result

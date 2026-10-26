@@ -40,46 +40,53 @@ def hubwagen_bin(tmp_path_factory) -> str:
     return str(out)
 
 
-@pytest.fixture(scope="session")
-def server(hubwagen_bin, tmp_path_factory) -> str:
-    """A `hubwagen dev` with the worker API on a free port."""
-    tmp = tmp_path_factory.mktemp("dev")
-    (tmp / "pipelines").mkdir()
+def start_dev(hubwagen_bin: str, tmp: Path) -> tuple[str, subprocess.Popen]:
+    """A `hubwagen dev` with the API on a free port, data under tmp."""
     url = f"http://127.0.0.1:{_free_port()}"
     log = open(tmp / "dev.log", "w")
     proc = subprocess.Popen([hubwagen_bin, "dev", "--headless", "--data-dir", str(tmp / "data"),
-                             "--listen", url.removeprefix("http://"), str(tmp / "pipelines")],
-                            stdout=log, stderr=subprocess.STDOUT)
+                             "--listen", url.removeprefix("http://")],
+                            cwd=tmp, stdout=log, stderr=subprocess.STDOUT)
     client = hw.Client(url)
     for _ in range(100):
         try:
             client.call("WorkerService", "Heartbeat", {"workerId": "probe"})
-            break
+            return url, proc
         except hw.ConnectError:
             time.sleep(0.1)
-    else:
+    proc.kill()
+    pytest.fail(f"hubwagen dev didn't come up; see {tmp / 'dev.log'}")
+
+
+def start_worker(server: str, module: str, cwd: Path, log: Path) -> subprocess.Popen:
+    """`python -m hubwagen.worker <module>` from cwd against server."""
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(SDK / "src"), str(cwd)])}
+    return subprocess.Popen([sys.executable, "-m", "hubwagen.worker", module, "--server", server,
+                             "--poll-wait", "1s", "--log-level", "info"],
+                            cwd=cwd, env=env, stdout=open(log, "w"), stderr=subprocess.STDOUT)
+
+
+def stop(proc: subprocess.Popen, sig=signal.SIGTERM) -> None:
+    proc.send_signal(sig)
+    try:
+        proc.wait(timeout=15)
+    except subprocess.TimeoutExpired:
         proc.kill()
-        pytest.fail(f"hubwagen dev didn't come up; see {tmp / 'dev.log'}")
+
+
+@pytest.fixture(scope="session")
+def server(hubwagen_bin, tmp_path_factory) -> str:
+    url, proc = start_dev(hubwagen_bin, tmp_path_factory.mktemp("dev"))
     yield url
-    proc.send_signal(signal.SIGINT)
-    proc.wait(timeout=30)
+    stop(proc, signal.SIGINT)
 
 
 @pytest.fixture(scope="session")
 def worker(server, tmp_path_factory) -> None:
-    """`python -m hubwagen.worker example_hauls` against the server."""
-    log_path = tmp_path_factory.mktemp("worker") / "worker.log"
-    log = open(log_path, "w")
-    env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(SDK / "src"), str(SDK / "tests")])}
-    proc = subprocess.Popen([sys.executable, "-m", "hubwagen.worker", "example_hauls", "--server", server,
-                             "--poll-wait", "1s", "--log-level", "info"],
-                            cwd=SDK / "tests", env=env, stdout=log, stderr=subprocess.STDOUT)
-    yield log_path
-    proc.send_signal(signal.SIGTERM)
-    try:
-        proc.wait(timeout=10)
-    except subprocess.TimeoutExpired:
-        proc.kill()
+    """A worker running tests/example_hauls.py."""
+    proc = start_worker(server, "example_hauls", SDK / "tests", tmp_path_factory.mktemp("worker") / "worker.log")
+    yield
+    stop(proc)
 
 
 @pytest.fixture

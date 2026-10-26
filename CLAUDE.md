@@ -46,7 +46,7 @@ spec-kit.
 | `internal/tui` | Terminal dashboard; reads and acts through `tui.Source` (`EngineSource` today, the API client in M3) |
 | `internal/haulcli` | What `start` and `replay` do: `--param` ranges, starting and waiting over `HaulService`, the replay report |
 | `cmd/` | `compile`, `dev`, `run`, `version`; v2: `start`, `replay` |
-| `pipelines/examples/` | Example pipelines; `TestExamplesCompile` compiles every example |
+| `pipelines/examples/` | v1 example pipelines (`TestExamplesCompile` compiles every YAML); `revenue/` is the v2 Python example (demo: `sdk/python/tests/test_example.py`) |
 | `tests/` | Cross-package end-to-end tests of the engine |
 | `sdk/python/` | Python SDK (stdlib only, Python ≥ 3.12): `@haul`, `@lift`, replay engine, worker; pytest runs it against a real `hubwagen dev` |
 

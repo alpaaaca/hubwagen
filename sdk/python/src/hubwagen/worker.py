@@ -87,7 +87,8 @@ class Worker:
         try:
             if d is None:
                 raise _model.NonRetryable(f"no lift {task['name']!r} in build {self.build}")
-            pallets = {i["name"]: _model.Pallet(id=i["pallet"]) for i in task.get("inputs", [])}
+            pallets = {i["name"]: _model.Pallet(id=i["pallet"], location=i.get("location", ""))
+                       for i in task.get("inputs", [])}
             kwargs = _model.decode(json.loads(task.get("argsJson") or "{}"), pallets)
             out = None
             token = None

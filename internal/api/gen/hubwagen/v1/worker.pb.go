@@ -1039,9 +1039,11 @@ func (x *Output) GetPartitionKey() string {
 }
 
 type InputRef struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Pallet        string                 `protobuf:"bytes,2,opt,name=pallet,proto3" json:"pallet,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Name   string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Pallet string                 `protobuf:"bytes,2,opt,name=pallet,proto3" json:"pallet,omitempty"`
+	// The pallet's manifest (in lift tasks; ignored in commands).
+	Location      string `protobuf:"bytes,3,opt,name=location,proto3" json:"location,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1086,6 +1088,13 @@ func (x *InputRef) GetName() string {
 func (x *InputRef) GetPallet() string {
 	if x != nil {
 		return x.Pallet
+	}
+	return ""
+}
+
+func (x *InputRef) GetLocation() string {
+	if x != nil {
+		return x.Location
 	}
 	return ""
 }
@@ -1844,10 +1853,11 @@ const file_hubwagen_v1_worker_proto_rawDesc = "" +
 	"\x06Output\x12\x18\n" +
 	"\adataset\x18\x01 \x01(\tR\adataset\x12\x1c\n" +
 	"\tpartition\x18\x02 \x01(\tR\tpartition\x12#\n" +
-	"\rpartition_key\x18\x03 \x01(\tR\fpartitionKey\"6\n" +
+	"\rpartition_key\x18\x03 \x01(\tR\fpartitionKey\"R\n" +
 	"\bInputRef\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
-	"\x06pallet\x18\x02 \x01(\tR\x06pallet\"\xe4\x01\n" +
+	"\x06pallet\x18\x02 \x01(\tR\x06pallet\x12\x1a\n" +
+	"\blocation\x18\x03 \x01(\tR\blocation\"\xe4\x01\n" +
 	"\vHaulOutcome\x127\n" +
 	"\x06status\x18\x01 \x01(\x0e2\x1f.hubwagen.v1.HaulOutcome.StatusR\x06status\x12\x1f\n" +
 	"\vresult_json\x18\x02 \x01(\tR\n" +

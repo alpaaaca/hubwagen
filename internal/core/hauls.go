@@ -616,7 +616,14 @@ func (c *Core) scheduleLift(h *haulState, cmd Command) {
 func (c *Core) queueLiftAttempt(l *liftState) {
 	h := l.haul
 	l.queued = c.cfg.NewID()
-	task := Task{Kind: TaskLift, ID: l.queued, Dock: l.rec.Dock, HaulID: h.rec.ID, Seq: l.rec.Seq, Name: l.rec.Name, Args: l.rec.Args, Inputs: l.inputs}
+	task := Task{Kind: TaskLift, ID: l.queued, Dock: l.rec.Dock, HaulID: h.rec.ID, Seq: l.rec.Seq, Name: l.rec.Name, Args: l.rec.Args}
+	for _, in := range l.inputs {
+		ti := TaskInput{Name: in.Name, Pallet: in.Pallet}
+		if p, err := c.cfg.Store.GetPallet(c.ctx, in.Pallet); err == nil {
+			ti.Location = p.Location // committed pallets are immutable: read once, here
+		}
+		task.Inputs = append(task.Inputs, ti)
+	}
 	if l.output != nil {
 		task.Output = l.output
 		task.Staging = c.cfg.Layout.LiftStaging(h.rec.Tenant, h.rec.ID, l.rec.Seq, task.ID)

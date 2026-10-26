@@ -5,7 +5,6 @@ from __future__ import annotations
 import contextvars
 import hashlib
 import os
-import urllib.parse
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -34,10 +33,8 @@ def output() -> Output:
 
 
 def local_dir(staging: str) -> Path:
-    u = urllib.parse.urlparse(staging)
-    if u.scheme != "file":
-        raise RuntimeError(f"staging {staging}: only file:// buckets are supported so far")
-    return Path(urllib.parse.unquote(u.path))
+    from ._model import local_path
+    return local_path(staging)
 
 
 def describe(o: Output) -> dict:

@@ -118,10 +118,14 @@ reuse.
    (answered and recorded by the server), `ctx.now`, `ctx.random`; replay
    until blocked; client-side sequence check with file and line; the worker
    (`python -m hubwagen.worker`, fixed hash seed, heartbeats); writing a
-   lift's output files. Still to do: runtime guards and code version from
-   imports + lockfile (#25), reading input pallets (#26). ([#24](https://github.com/alpaaaca/hubwagen/issues/24), [#25](https://github.com/alpaaaca/hubwagen/issues/25), [#26](https://github.com/alpaaaca/hubwagen/issues/26))
-3. **Example** in `pipelines/examples/`: a small Python project with an
-   extract → transform → report haul that writes local Parquet or CSV. ([#27](https://github.com/alpaaaca/hubwagen/issues/27))
+   lift's output files, and reading input pallets through their manifests
+   (`Pallet.files()`, `path()`). Still to do: runtime guards and code
+   version from imports + lockfile (#25). ([#24](https://github.com/alpaaaca/hubwagen/issues/24), [#25](https://github.com/alpaaaca/hubwagen/issues/25), [#26](https://github.com/alpaaaca/hubwagen/issues/26))
+3. ✅ **Example** in `pipelines/examples/revenue/`: a small Python project with
+   an extract → transform → report haul that writes CSV, and the demo test
+   (`sdk/python/tests/test_example.py`): `hubwagen dev` + a worker, replays
+   over a date range, a code change and a data change, each reporting what
+   was reused and what ran and why. ([#27](https://github.com/alpaaaca/hubwagen/issues/27))
 4. **Remove v1**: YAML compiler, pipeline loader and v1 tables, once nothing
    uses them (see [v2-migration.md](v2-migration.md)). ([#28](https://github.com/alpaaaca/hubwagen/issues/28))
 
