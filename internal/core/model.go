@@ -125,18 +125,30 @@ func (c *Core) effect(f func()) { c.b.effects = append(c.b.effects, f) }
 
 // emit records an event in the current batch.
 func (c *Core) emit(typ state.EventType, tenant, runID, taskID, attemptID string, payload any) {
-	var raw json.RawMessage
-	if payload != nil {
-		b, err := json.Marshal(payload)
-		if err != nil {
-			panic(fmt.Sprintf("core: marshal %s payload: %v", typ, err)) // payloads are plain structs
-		}
-		raw = b
-	}
 	c.b.events = append(c.b.events, state.Event{
 		Time: c.now(), Tenant: tenant, Type: typ,
-		RunID: runID, TaskID: taskID, AttemptID: attemptID, Payload: raw,
+		RunID: runID, TaskID: taskID, AttemptID: attemptID, Payload: marshalPayload(typ, payload),
 	})
+}
+
+// emitHaul records an event in a haul's logbook. attemptID is a haul task or
+// lift attempt ID, or empty.
+func (c *Core) emitHaul(typ state.EventType, tenant, haulID, attemptID string, payload any) {
+	c.b.events = append(c.b.events, state.Event{
+		Time: c.now(), Tenant: tenant, Type: typ,
+		HaulID: haulID, AttemptID: attemptID, Payload: marshalPayload(typ, payload),
+	})
+}
+
+func marshalPayload(typ state.EventType, payload any) json.RawMessage {
+	if payload == nil {
+		return nil
+	}
+	b, err := json.Marshal(payload)
+	if err != nil {
+		panic(fmt.Sprintf("core: marshal %s payload: %v", typ, err)) // payloads are plain structs
+	}
+	return b
 }
 
 func (c *Core) emitRun(typ state.EventType, r *runState, payload any) {

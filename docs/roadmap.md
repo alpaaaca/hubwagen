@@ -58,7 +58,7 @@ No Python yet.
    the server side — schedule a haul task when a result arrives, apply the
    returned commands, dispatch lifts, arm timers. Retries and timeouts for
    lifts reuse the v1 logic. Restore on leader start.
-3. **Docks**: in-memory queues per dock, long-poll semantics behind an
+3. ✅ **Docks**: in-memory queues per dock, long-poll semantics behind an
    interface the API will expose; the fake worker in tests consumes it.
 4. **Sequence check on the server**: a haul task's commands must extend the
    logbook, never contradict it; a contradiction marks the haul `stuck`.
