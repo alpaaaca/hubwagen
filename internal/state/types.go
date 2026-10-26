@@ -36,6 +36,24 @@ const (
 	EventTaskFinished             EventType = "TaskFinished"
 	EventRunFinished              EventType = "RunFinished"
 	EventCancelRequested          EventType = "CancelRequested"
+
+	// v2: hauls and lifts. Every one carries HaulID.
+	EventHaulStarted           EventType = "HaulStarted"
+	EventHaulTaskQueued        EventType = "HaulTaskQueued"
+	EventHaulTaskDispatched    EventType = "HaulTaskDispatched"
+	EventHaulTaskCompleted     EventType = "HaulTaskCompleted" // carries the commands
+	EventHaulTaskFailed        EventType = "HaulTaskFailed"    // worker error or lost
+	EventHaulStuck             EventType = "HaulStuck"
+	EventHaulFinished          EventType = "HaulFinished"
+	EventLiftScheduled         EventType = "LiftScheduled"
+	EventLiftAttemptDispatched EventType = "LiftAttemptDispatched"
+	EventLiftAttemptStarted    EventType = "LiftAttemptStarted"
+	EventLiftAttemptFinished   EventType = "LiftAttemptFinished"
+	EventLiftRetryScheduled    EventType = "LiftRetryScheduled"
+	EventLiftFinished          EventType = "LiftFinished" // carries the result
+	EventTimerStarted          EventType = "TimerStarted"
+	EventTimerFired            EventType = "TimerFired"
+	EventTimerCancelled        EventType = "TimerCancelled"
 )
 
 // Event is one immutable record in the log. Seq and Term are assigned by
@@ -49,6 +67,7 @@ type Event struct {
 	RunID     string
 	TaskID    string
 	AttemptID string
+	HaulID    string          // v2: a haul's logbook is its events in seq order
 	Payload   json.RawMessage // JSON object; nil is stored as {}
 }
 

@@ -276,13 +276,15 @@ func (s *Store) ListVersions(ctx context.Context, tenant, pipeline string) ([]Pi
 		 ORDER BY published_at DESC, hash`, tenant, pipeline)
 }
 
+const eventColumns = `seq, term, ts, tenant, type, run_id, task_id, attempt_id, haul_id, payload`
+
 func scanEvent(sc interface{ Scan(...any) error }) (Event, error) {
 	var (
 		v       Event
 		ts, typ string
 		payload string
 	)
-	if err := sc.Scan(&v.Seq, &v.Term, &ts, &v.Tenant, &typ, &v.RunID, &v.TaskID, &v.AttemptID, &payload); err != nil {
+	if err := sc.Scan(&v.Seq, &v.Term, &ts, &v.Tenant, &typ, &v.RunID, &v.TaskID, &v.AttemptID, &v.HaulID, &payload); err != nil {
 		return v, err
 	}
 	v.Type = EventType(typ)
@@ -299,20 +301,18 @@ func (s *Store) EventsSince(ctx context.Context, afterSeq int64, tenant string, 
 	if limit <= 0 {
 		limit = 500
 	}
-	const cols = `seq, term, ts, tenant, type, run_id, task_id, attempt_id, payload`
 	if tenant == "" {
 		return queryAll(ctx, s.r, scanEvent,
-			`SELECT `+cols+` FROM events WHERE seq > ? ORDER BY seq LIMIT ?`, afterSeq, limit)
+			`SELECT `+eventColumns+` FROM events WHERE seq > ? ORDER BY seq LIMIT ?`, afterSeq, limit)
 	}
 	return queryAll(ctx, s.r, scanEvent,
-		`SELECT `+cols+` FROM events WHERE tenant = ? AND seq > ? ORDER BY seq LIMIT ?`, tenant, afterSeq, limit)
+		`SELECT `+eventColumns+` FROM events WHERE tenant = ? AND seq > ? ORDER BY seq LIMIT ?`, tenant, afterSeq, limit)
 }
 
 // RunEvents returns every event of one run, oldest first.
 func (s *Store) RunEvents(ctx context.Context, runID string) ([]Event, error) {
 	return queryAll(ctx, s.r, scanEvent,
-		`SELECT seq, term, ts, tenant, type, run_id, task_id, attempt_id, payload
-		 FROM events WHERE run_id = ? ORDER BY seq`, runID)
+		`SELECT `+eventColumns+` FROM events WHERE run_id = ? ORDER BY seq`, runID)
 }
 
 type rowQueryer interface {
