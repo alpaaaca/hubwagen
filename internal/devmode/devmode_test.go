@@ -3,8 +3,6 @@ package devmode
 import (
 	"context"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -17,126 +15,55 @@ import (
 
 var ctx = context.Background()
 
-const pipeline = `apiVersion: hubwagen.dev/v1alpha1
-kind: Pipeline
-metadata: {name: p, tenant: t}
-spec:
-  defaults: {runtime: {kind: agent, pool: local}}
-  tasks:
-    - {id: a, command: [/bin/sh, -c], args: ["echo VERSION"]}
-`
-
-func start(t *testing.T, dir string) *Engine {
-	t.Helper()
-	e, err := Start(ctx, Config{DataDir: dir, DisableSchedules: true})
-	require.NoError(t, err)
-	t.Cleanup(func() { e.Close() })
-	return e
-}
-
-func write(t *testing.T, path, content string) {
-	t.Helper()
-	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
-	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
-}
-
 func TestDataDirIsLocked(t *testing.T) {
 	dir := t.TempDir()
-	e := start(t, dir)
-	_, err := Start(ctx, Config{DataDir: dir})
+	e, err := Start(ctx, Config{DataDir: dir})
+	require.NoError(t, err)
+	defer e.Close()
+	_, err = Start(ctx, Config{DataDir: dir})
 	assert.ErrorIs(t, err, ErrLocked)
-
-	require.NoError(t, e.Close())
-	e2 := start(t, dir) // released on Close
-	assert.Equal(t, int64(2), e2.Store.Term(), "each start is a new term")
 }
 
-func TestLoaderPublishesAndReloads(t *testing.T) {
-	data, pipes := t.TempDir(), t.TempDir()
-	e := start(t, data)
-	file := filepath.Join(pipes, "p.yaml")
-	write(t, file, strings.Replace(pipeline, "VERSION", "one", 1))
-	write(t, filepath.Join(pipes, "broken.yaml"), "apiVersion: hubwagen.dev/v1alpha1\nkind: Pipeline\nmetadata: {name: Bad, tenant: t}\n")
-	write(t, filepath.Join(pipes, ".hidden", "x.yaml"), "not: a pipeline")
-
-	l := NewLoader(e.Core, []string{pipes})
-	changed, err := l.Load(ctx)
-	require.NoError(t, err)
-	require.Len(t, changed, 2, "hidden directories are skipped")
-	files := l.Files()
-	assert.Contains(t, files[0].Err, "metadata.name", "broken.yaml sorts first and reports its error")
-	assert.Equal(t, []string{"t/p"}, files[1].Pipelines)
-
-	again, err := l.Load(ctx)
-	require.NoError(t, err)
-	assert.Empty(t, again, "unchanged files are not reloaded")
-
-	v1, err := e.Store.GetPipeline(ctx, "t", "p")
-	require.NoError(t, err)
-	write(t, file, strings.Replace(pipeline, "VERSION", "two", 1))
-	future := time.Now().Add(time.Minute)
-	require.NoError(t, os.Chtimes(file, future, future))
-	changed, err = l.Load(ctx)
-	require.NoError(t, err)
-	require.Len(t, changed, 1)
-	v2, err := e.Store.GetPipeline(ctx, "t", "p")
-	require.NoError(t, err)
-	assert.NotEqual(t, v1.CurrentVersion, v2.CurrentVersion)
-}
-
-func TestRunAndRestart(t *testing.T) {
+func TestStateSurvivesRestart(t *testing.T) {
 	dir := t.TempDir()
-	e := start(t, dir)
-	l := NewLoader(e.Core, []string{writeTemp(t, pipeline)})
-	_, err := l.Load(ctx)
+	e, err := Start(ctx, Config{DataDir: dir})
 	require.NoError(t, err)
+	res, err := e.Core.StartHaul(ctx, core.StartHaulRequest{Tenant: "t", Name: "daily", Params: map[string]any{"day": "2026-10-24"}})
+	require.NoError(t, err)
+	require.NoError(t, e.Close())
 
-	res, err := e.Core.Trigger(ctx, core.TriggerRequest{Tenant: "t", Pipeline: "p", IdempotencyKey: "k"})
+	e, err = Start(ctx, Config{DataDir: dir})
 	require.NoError(t, err)
-	run, err := e.WaitRun(ctx, res.RunID)
+	defer e.Close()
+	h, err := e.Store.GetHaul(ctx, res.HaulID)
 	require.NoError(t, err)
-	assert.Equal(t, state.RunSucceeded, run.Status)
+	assert.Equal(t, state.HaulRunning, h.Status)
+	task, ok, err := e.Core.Poll(ctx, core.PollRequest{WorkerID: "w", Docks: []string{core.DefaultDock}})
+	require.NoError(t, err)
+	require.True(t, ok, "the queued haul task was restored")
+	assert.Equal(t, res.HaulID, task.HaulID)
 
 	var lines []string
-	for _, ev := range mustEvents(t, e) {
-		if l := Describe(ev); l != "" {
-			lines = append(lines, l)
-		}
-	}
-	assert.Contains(t, strings.Join(lines, "\n"), "task a succeeded")
-
-	require.NoError(t, e.Close())
-	e2 := start(t, dir)
-	again, err := e2.Core.Trigger(ctx, core.TriggerRequest{Tenant: "t", Pipeline: "p", IdempotencyKey: "k"})
-	require.NoError(t, err)
-	assert.Equal(t, res.RunID, again.RunID, "state survives a restart")
+	fctx, cancel := context.WithTimeout(ctx, 600*time.Millisecond)
+	defer cancel()
+	e.Follow(fctx, 0, func(s string) { lines = append(lines, s) })
+	require.NotEmpty(t, lines)
+	assert.Contains(t, lines[0], `daily started {"day":"2026-10-24"}`)
+	assert.Positive(t, e.LastSeq(ctx))
 }
 
-func writeTemp(t *testing.T, content string) string {
-	t.Helper()
-	p := filepath.Join(t.TempDir(), "p.yaml")
-	write(t, p, content)
-	return p
-}
-
-func mustEvents(t *testing.T, e *Engine) []state.Event {
-	t.Helper()
-	evs, err := e.Store.EventsSince(ctx, 0, "", 1000)
-	require.NoError(t, err)
-	return evs
-}
-
-func TestServesTheWorkerAPI(t *testing.T) {
-	e, err := Start(ctx, Config{DataDir: t.TempDir(), DisableSchedules: true, Listen: "127.0.0.1:0"})
+func TestServesTheAPI(t *testing.T) {
+	e, err := Start(ctx, Config{DataDir: t.TempDir(), Listen: "127.0.0.1:0"})
 	require.NoError(t, err)
 	defer e.Close()
 	require.NotEmpty(t, e.APIAddr)
 
-	resp, err := http.Post("http://"+e.APIAddr+"/hubwagen.v1.WorkerService/Heartbeat", "application/json",
-		strings.NewReader(`{"workerId":"w1","taskIds":["x"]}`))
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	for _, path := range []string{"WorkerService/Heartbeat", "HaulService/GetHaul"} {
+		resp, err := http.Post("http://"+e.APIAddr+"/hubwagen.v1."+path, "application/json", strings.NewReader(`{"workerId":"w1","haulId":"x"}`))
+		require.NoError(t, err)
+		resp.Body.Close()
+		assert.Contains(t, []int{http.StatusOK, http.StatusNotFound}, resp.StatusCode, path)
+	}
 
 	// A long poll in flight doesn't hold up Close.
 	go http.Post("http://"+e.APIAddr+"/hubwagen.v1.WorkerService/PollLiftTask", "application/json",
@@ -145,4 +72,20 @@ func TestServesTheWorkerAPI(t *testing.T) {
 	began := time.Now()
 	require.NoError(t, e.Close())
 	assert.Less(t, time.Since(began), 5*time.Second)
+}
+
+func TestDescribe(t *testing.T) {
+	ev := func(typ state.EventType, payload string) state.Event {
+		return state.Event{Type: typ, HaulID: "01HXXXXXXXXXXABCDEFGHIJ", Payload: []byte(payload)}
+	}
+	for want, e := range map[string]state.Event{
+		"haul …ABCDEFGHIJ failed: lift_failed extract: boom":                  ev(state.EventHaulFinished, `{"status":"failed","reason":"lift_failed","message":"extract: boom"}`),
+		"haul …ABCDEFGHIJ completed":                                          ev(state.EventHaulFinished, `{"status":"completed"}`),
+		"haul …ABCDEFGHIJ: lift 2 extract scheduled (code changed (v1 → v2))": ev(state.EventLiftScheduled, `{"seq":2,"name":"extract","run_reason":"code changed (v1 → v2)"}`),
+		"haul …ABCDEFGHIJ: lift 1 reused pallet p1":                           ev(state.EventLiftReused, `{"seq":1,"pallet":"p1"}`),
+		"build b1 registered (2 lifts)":                                       {Type: state.EventBuildRegistered, Payload: []byte(`{"id":"b1","lifts":{"a":"v1","b":"v1"}}`)},
+		"":                                                                    ev(state.EventLiftFinished, `{"seq":1,"status":"completed","reused":true}`),
+	} {
+		assert.Equal(t, want, Describe(e))
+	}
 }

@@ -20,7 +20,6 @@ import (
 
 	"github.com/alper/hubwagen/internal/clock"
 	"github.com/alper/hubwagen/internal/layout"
-	"github.com/alper/hubwagen/internal/spec"
 	"github.com/alper/hubwagen/internal/state"
 	"github.com/oklog/ulid/v2"
 )
@@ -32,44 +31,11 @@ var (
 	ErrStopped = errors.New("core stopped")
 )
 
-// Runtime starts and stops attempts for one runtime kind ("agent", "job").
-// Both methods are called from the core goroutine after the corresponding
-// events are committed, so they must not block; results come back through
-// Core.Report.
-type Runtime interface {
-	Dispatch(a Assignment)
-	Cancel(attemptID, reason string)
-}
-
-// Recovery decides, on leader start, what happened to attempts that were in
-// flight when the previous leader stopped.
-type Recovery interface {
-	// Recover returns a report for every attempt it can account for (for
-	// example finished with a commit marker in place). Attempts it doesn't
-	// report are recorded as lost and retried under their task's policy.
-	Recover(ctx context.Context, inFlight []InFlight) []Report
-}
-
-// InFlight is an attempt left unfinished by the previous leader.
-type InFlight struct {
-	Attempt   state.Attempt
-	CommitURI string // the task's commit marker for this run generation
-}
-
 type Config struct {
 	Store  *state.Store
 	Term   int64 // from Store.StartTerm
 	Clock  clock.Clock
 	Layout layout.Layout
-	// Runtimes by spec runtime kind. A task whose kind has no runtime fails
-	// without retry (reason no_runtime).
-	Runtimes map[string]Runtime
-	Recovery Recovery // nil: every in-flight attempt is lost
-	// AutoCreateTenants creates a tenant on first publish (dev mode).
-	AutoCreateTenants bool
-	// DisableSchedules turns cron off: no scheduled runs, no catch-up
-	// (one-shot `hubwagen run`). Cursors are left untouched.
-	DisableSchedules bool
 	// Pallets promotes and discards lift outputs. Without it, lifts that
 	// declare an output fail (reason no_pallet_store).
 	Pallets PalletStore
@@ -88,12 +54,6 @@ type Core struct {
 	inbox mailbox
 
 	// Everything below is owned by the Run goroutine.
-	tenants      map[string]*state.Tenant
-	versions     map[string]*version
-	pipelines    map[pipelineKey]*pipelineState
-	runs         map[string]*runState // non-terminal, plus runs finished in the current batch
-	runsByKey    map[string]*runState // newest in-memory run per run key
-	attempts     map[string]*attemptState
 	hauls        map[string]*haulState // open hauls
 	haulTasks    map[string]*haulTaskState
 	liftAttempts map[string]*liftAttemptState // dispatched, unfinished
@@ -120,19 +80,10 @@ func New(cfg Config) *Core {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
-	if cfg.Runtimes == nil {
-		cfg.Runtimes = map[string]Runtime{}
-	}
 	return &Core{
 		cfg:          cfg,
 		log:          cfg.Logger.With("component", "core", "term", cfg.Term),
 		inbox:        newMailbox(),
-		tenants:      map[string]*state.Tenant{},
-		versions:     map[string]*version{},
-		pipelines:    map[pipelineKey]*pipelineState{},
-		runs:         map[string]*runState{},
-		runsByKey:    map[string]*runState{},
-		attempts:     map[string]*attemptState{},
 		hauls:        map[string]*haulState{},
 		haulTasks:    map[string]*haulTaskState{},
 		liftAttempts: map[string]*liftAttemptState{},
@@ -142,13 +93,6 @@ func New(cfg Config) *Core {
 		promotions:   map[string]*promotion{},
 		flights:      map[string]*flight{},
 	}
-}
-
-// SetRuntime registers the runtime for a task runtime kind. Runtimes report
-// back through Core.Report, so they are usually built after the core; call
-// SetRuntime before Run.
-func (c *Core) SetRuntime(kind string, rt Runtime) {
-	c.cfg.Runtimes[kind] = rt
 }
 
 // Run loads state, recovers in-flight attempts, and processes inputs until
@@ -346,35 +290,4 @@ func (r *timerRef) stop() {
 	if r.t != nil {
 		r.t.Stop()
 	}
-}
-
-// --- version cache ---
-
-type version struct {
-	hash       string
-	spec       *spec.Spec
-	loc        *time.Location
-	tasks      map[string]*spec.Task
-	dependents map[string][]string
-}
-
-func newVersion(v state.PipelineVersion) (*version, error) {
-	s, err := spec.Decode(v.SpecJSON)
-	if err != nil {
-		return nil, fmt.Errorf("version %s: %w", v.Hash, err)
-	}
-	ver := &version{hash: v.Hash, spec: s, loc: time.UTC, tasks: map[string]*spec.Task{}, dependents: map[string][]string{}}
-	if s.Schedule != nil {
-		if ver.loc, err = time.LoadLocation(s.Schedule.Timezone); err != nil {
-			return nil, err
-		}
-	}
-	for i := range s.Tasks {
-		t := &s.Tasks[i]
-		ver.tasks[t.ID] = t
-		for _, d := range t.DependsOn {
-			ver.dependents[d] = append(ver.dependents[d], t.ID)
-		}
-	}
-	return ver, nil
 }

@@ -99,7 +99,7 @@ hot reload (pipeline files are what `dev` watches, not the config).
 
 Only settings that are listed explicitly get a variable; there is no generic
 mapping of every field. The variables share the `HUBWAGEN_` prefix with the
-[task contract](task-contract.md) (`HUBWAGEN_RUN_ID`, `HUBWAGEN_SECRET_…`, …),
+task contract (v1, removed in M3c; in git history) (`HUBWAGEN_RUN_ID`, `HUBWAGEN_SECRET_…`, …),
 so a test checks that no config variable collides with a name or prefix the
 task contract reserves. The task wrapper already strips every `HUBWAGEN_*`
 variable from a task's environment, so instance settings never leak into

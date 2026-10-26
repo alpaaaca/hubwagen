@@ -205,9 +205,9 @@ func (s *Store) Append(ctx context.Context, term int64, events []Event, apply fu
 			payload = "{}"
 		}
 		res, err := sqlTx.ExecContext(ctx,
-			`INSERT INTO events (term, ts, tenant, type, run_id, task_id, attempt_id, haul_id, payload)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			term, formatTime(e.Time), e.Tenant, string(e.Type), e.RunID, e.TaskID, e.AttemptID, e.HaulID, payload)
+			`INSERT INTO events (term, ts, tenant, type, attempt_id, haul_id, payload)
+			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			term, formatTime(e.Time), e.Tenant, string(e.Type), e.AttemptID, e.HaulID, payload)
 		if err != nil {
 			return nil, fmt.Errorf("append %s event: %w", e.Type, err)
 		}

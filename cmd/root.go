@@ -13,7 +13,7 @@ var logLevel string
 
 var rootCmd = &cobra.Command{
 	Use:   "hubwagen",
-	Short: "Workflow orchestrator for data pipelines",
+	Short: "Durable execution for data: hauls, memoized lifts, versioned pallets",
 	PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 		return configureLogging(logLevel)
 	},

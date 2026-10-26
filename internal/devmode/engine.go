@@ -1,18 +1,16 @@
-// Package devmode wires the whole engine into one process for the dev
-// profile: the state store and a file:// bucket under one data directory,
-// the core, the local runtime, and a loader that compiles and publishes
-// pipeline files (and, optionally, watches them for changes).
+// Package devmode wires the server into one process for the dev profile:
+// the state store and a file:// bucket under one data directory, the core,
+// and the API (worker and haul services).
 //
 // One process owns a data directory at a time; a lock file enforces that, so
-// a second `hubwagen dev` or `hubwagen run` on the same directory fails with
-// a clear message instead of fencing the first one out.
+// a second `hubwagen dev` on the same directory fails with a clear message
+// instead of fencing the first one out.
 package devmode
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -27,23 +25,14 @@ import (
 	"github.com/alper/hubwagen/internal/core"
 	"github.com/alper/hubwagen/internal/layout"
 	"github.com/alper/hubwagen/internal/pallet"
-	"github.com/alper/hubwagen/internal/runtime/localrt"
-	"github.com/alper/hubwagen/internal/spec"
 	"github.com/alper/hubwagen/internal/state"
-	"github.com/alper/hubwagen/internal/taskexec"
 )
 
 type Config struct {
-	DataDir string   // holds state.db, bucket/ and the lock; created if missing
-	Slots   int      // concurrent tasks (default 4)
-	Pools   []string // agent pools served by host processes (default local)
-	// Echo receives every task log line, prefixed with the task ID (nil: none).
-	Echo io.Writer
-	// DisableSchedules: no cron runs (one-shot `hubwagen run`).
-	DisableSchedules bool
+	DataDir string // holds state.db, bucket/ and the lock; created if missing
 	// Listen, if set, is the address the API (worker and haul services) is
-	// served on, e.g.
-	// 127.0.0.1:7070. Port 0 picks a free port (see Engine.APIAddr).
+	// served on, e.g. 127.0.0.1:7070. Port 0 picks a free port (see
+	// Engine.APIAddr).
 	Listen string
 	Logger *slog.Logger
 }
@@ -56,9 +45,8 @@ type Engine struct {
 	Store   *state.Store
 	Bucket  blob.Bucket
 	Core    *core.Core
-	Runtime *localrt.Runtime
 	DataDir string
-	// APIAddr is the worker API's address, if it is served.
+	// APIAddr is the API's address, if it is served.
 	APIAddr string
 
 	api    *http.Server
@@ -71,7 +59,7 @@ type Engine struct {
 // ErrLocked means another process is using the data directory.
 var ErrLocked = errors.New("data directory is in use by another hubwagen process")
 
-// Start opens the data directory and runs the engine until Close.
+// Start opens the data directory and runs the server until Close.
 func Start(ctx context.Context, cfg Config) (*Engine, error) {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
@@ -108,17 +96,9 @@ func Start(ctx context.Context, cfg Config) (*Engine, error) {
 	lay := layout.New(e.Bucket.Base())
 	e.Core = core.New(core.Config{
 		Store: e.Store, Term: term, Clock: clock.Real{}, Layout: lay,
-		Recovery:          taskexec.Recovery{Bucket: e.Bucket},
-		Pallets:           pallet.NewStore(e.Bucket, lay),
-		HeartbeatTimeout:  HeartbeatTimeout,
-		AutoCreateTenants: true, DisableSchedules: cfg.DisableSchedules,
+		Pallets: pallet.NewStore(e.Bucket, lay), HeartbeatTimeout: HeartbeatTimeout,
 		Logger: cfg.Logger,
 	})
-	e.Runtime = localrt.New(e.Core, localrt.Config{
-		Pools: cfg.Pools, Slots: cfg.Slots, Logger: cfg.Logger,
-		Exec: taskexec.Options{Bucket: e.Bucket, Secrets: taskexec.EnvSecrets{Environ: os.Environ()}, Echo: cfg.Echo},
-	})
-	e.Core.SetRuntime(spec.RuntimeAgent, e.Runtime)
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	e.cancel = cancel
@@ -137,11 +117,11 @@ func Start(ctx context.Context, cfg Config) (*Engine, error) {
 	return e, nil
 }
 
-// serveAPI starts the worker API. Long polls end when the engine closes.
+// serveAPI starts the API. Long polls end when the engine closes.
 func (e *Engine) serveAPI(addr string, log *slog.Logger) error {
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
-		return fmt.Errorf("worker API: %w", err)
+		return fmt.Errorf("API: %w", err)
 	}
 	mux := http.NewServeMux()
 	path, h := api.NewWorkerHandler(e.Core, 0)
@@ -152,7 +132,7 @@ func (e *Engine) serveAPI(addr string, log *slog.Logger) error {
 	e.APIAddr = ln.Addr().String()
 	go func() {
 		if err := e.api.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Error("worker API stopped", "err", err)
+			log.Error("API stopped", "err", err)
 		}
 	}()
 	return nil
@@ -161,8 +141,8 @@ func (e *Engine) serveAPI(addr string, log *slog.Logger) error {
 // Done is closed-with-error when the core stops on its own (a failed commit).
 func (e *Engine) Done() <-chan error { return e.done }
 
-// Close stops running tasks (they are terminated and reported), then the
-// core, and releases the data directory.
+// Close stops the API and the core and releases the data directory. Work
+// that workers are running carries on; the next start picks it up.
 func (e *Engine) Close() error {
 	if e.closed {
 		return nil
@@ -175,9 +155,6 @@ func (e *Engine) Close() error {
 		cancel()
 		e.api.Close()
 	}
-	e.Runtime.Close()
-	// Let the core record the final reports of the tasks just stopped.
-	_ = e.Core.Barrier(context.Background())
 	e.cancel()
 	err := <-e.done
 	e.release()
