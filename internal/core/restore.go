@@ -72,10 +72,25 @@ func (c *Core) restore(ctx context.Context) error {
 		c.attempts[a.ID] = as
 	}
 
+	hauls, err := c.loadHauls(ctx)
+	if err != nil {
+		return err
+	}
+	lostHaulTasks := 0
+	for _, t := range hauls.HaulTasks {
+		if t.Status == state.HaulTaskDispatched {
+			lostHaulTasks++
+		}
+	}
+
 	c.b = newBatch()
 	c.emit(state.EventLeaderTermStarted, "", "", "", "", leaderTermStartedPayload{
 		Term: c.cfg.Term, ActiveRuns: len(act.Runs), LostAttempts: len(inFlight),
+		ActiveHauls: len(hauls.Hauls), LostHaulTasks: lostHaulTasks,
 	})
+	if err := c.settleHauls(hauls); err != nil {
+		return err
+	}
 
 	// Attempts the recovery accounts for get its report; the rest are lost.
 	var reports []Report

@@ -293,7 +293,12 @@ func (c *Core) queueHaulTask(h *haulState) {
 	c.haulTasks[t.rec.ID] = t
 	c.dirtyHaulTask(t)
 	c.emitH(state.EventHaulTaskQueued, h, t.rec.ID, haulTaskPayload{Number: t.rec.Number})
+	c.enqueueHaulTask(t)
+}
 
+// enqueueHaulTask puts a queued haul task on its haul's dock.
+func (c *Core) enqueueHaulTask(t *haulTaskState) {
+	h := t.haul
 	task := Task{Kind: TaskHaul, ID: t.rec.ID, Dock: h.rec.Dock, HaulID: h.rec.ID, Name: h.rec.Name}
 	c.enqueue(task, func(c *Core, workerID string) Task {
 		t.rec.Status, t.rec.WorkerID, t.rec.DispatchedAt = state.HaulTaskDispatched, workerID, ptr(c.now())
@@ -552,17 +557,18 @@ func (c *Core) queueLiftAttempt(l *liftState) {
 		c.emitH(state.EventLiftAttemptDispatched, h, a.rec.ID,
 			liftAttemptDispatchedPayload{Seq: l.rec.Seq, Number: a.rec.Number, Worker: workerID})
 		if l.rec.Timeout > 0 {
-			c.armLiftTimeout(a)
+			c.armLiftTimeout(a, l.rec.Timeout)
 		}
 		return task
 	})
 }
 
-// armLiftTimeout fails the attempt if no result arrives in time. A result
-// that arrives later is ignored.
-func (c *Core) armLiftTimeout(a *liftAttemptState) {
+// armLiftTimeout fails the attempt if no result arrives within d (the lift's
+// timeout, or what is left of it after a leader restart). A result that
+// arrives later is ignored.
+func (c *Core) armLiftTimeout(a *liftAttemptState, d time.Duration) {
 	l := a.lift
-	a.timeout = c.after(l.rec.Timeout, func(c *Core) {
+	a.timeout = c.after(d, func(c *Core) {
 		if c.liftAttempts[a.rec.ID] != a {
 			return
 		}
@@ -605,6 +611,11 @@ func (c *Core) liftAttemptFailed(l *liftState, reason, message string, noRetry b
 	c.dirtyLift(l)
 	c.emitH(state.EventLiftRetryScheduled, l.haul, "",
 		liftRetryScheduledPayload{Seq: l.rec.Seq, NextAttempt: l.rec.Attempts + 1, RetryAt: *l.rec.RetryAt})
+	c.armLiftRetry(l, d)
+}
+
+// armLiftRetry queues the lift's next attempt after d.
+func (c *Core) armLiftRetry(l *liftState, d time.Duration) {
 	l.wait = c.after(d, func(c *Core) {
 		if l.rec.Status != state.LiftRetryWait {
 			return // cancelled meanwhile

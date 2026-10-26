@@ -9,9 +9,11 @@ import (
 // API and tests; add fields freely, but don't rename existing ones.
 
 type leaderTermStartedPayload struct {
-	Term         int64 `json:"term"`
-	ActiveRuns   int   `json:"active_runs"`
-	LostAttempts int   `json:"lost_attempts"`
+	Term          int64 `json:"term"`
+	ActiveRuns    int   `json:"active_runs"`
+	LostAttempts  int   `json:"lost_attempts"`
+	ActiveHauls   int   `json:"active_hauls,omitempty"`
+	LostHaulTasks int   `json:"lost_haul_tasks,omitempty"`
 }
 
 type tenantUpsertedPayload struct {

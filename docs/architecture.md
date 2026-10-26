@@ -4,9 +4,11 @@ Where hubwagen is going and why. What is built and what is next is tracked in
 [roadmap.md](roadmap.md); what changes from the M1–M2 engine is in
 [v2-migration.md](v2-migration.md).
 
-> **Status:** design (v2). The code in the repository is still the v1 engine
-> (compiled YAML pipelines, container-task contract). Building v2 starts with
-> M3a. Where this page and the code disagree, the code describes v1.
+> **Status:** partly built. The haul engine runs in the core (M3a: hauls,
+> lifts, timers, docks, retries, the sequence check, restore), driven by Go
+> tests; pallets and memoization (M3b) and the worker API with the Python SDK
+> (M3c) come next. The v1 engine (compiled YAML pipelines, container-task
+> contract) still runs `hubwagen dev`/`run` until M3c.
 
 ## Overview
 
@@ -459,6 +461,14 @@ One goroutine fed by channels (worker results, API commands, timers),
 deterministic with a fake clock, as in v1. Term fencing from v1 stays: a
 deposed leader cannot write state, and workers reject commands from older
 terms.
+
+On leader start the core reloads open hauls and rebuilds each haul's
+recorded commands from its logbook. Workers outlive leaders, so a lift
+attempt a worker had taken stays valid (its result is accepted by the new
+leader, its timeout keeps what was left); a haul task a worker had taken is
+replaced, since replays are cheap. Queued work goes back on its docks;
+timers and retry waits keep their remaining time and fire at once if it
+passed while no leader was up.
 
 ### Worker API
 

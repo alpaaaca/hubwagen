@@ -26,8 +26,8 @@ that only matters at scale waits.
 |---|---|
 | M1: Spec compiler (v1) | **Done** |
 | M2: v1 engine in dev mode | **Done** |
-| M3a: Haul engine in the core | **In progress** |
-| M3b: Pallets, catalog, memoization | — |
+| M3a: Haul engine in the core | **Done** |
+| M3b: Pallets, catalog, memoization | Next |
 | M3c: Worker API + minimal Python SDK | — |
 | M4: Full haul surface (fan-out, signals, triggers, testing) | — |
 | M5: Catalog in the UI, invalidation, staleness | — |
@@ -60,7 +60,7 @@ No Python yet.
    `LiftFinished` (result), `TimerStarted`/`Fired`/`Cancelled`; payloads are
    defined by the core. Migrations next to the v1 tables, which are dropped
    in M3c. ([#12](https://github.com/alpaaaca/hubwagen/issues/12))
-2. **Haul state machine** (`internal/core`): replay-until-blocked protocol on
+2. ✅ **Haul state machine** (`internal/core`): replay-until-blocked protocol on
    the server side — schedule a haul task when a result arrives, apply the
    returned commands, dispatch lifts, arm timers. Retries and timeouts for
    lifts reuse the v1 logic. Restore on leader start. ([#14](https://github.com/alpaaaca/hubwagen/issues/14), [#15](https://github.com/alpaaaca/hubwagen/issues/15), [#17](https://github.com/alpaaaca/hubwagen/issues/17))
