@@ -1,104 +1,74 @@
 # hubwagen
 
-A workflow orchestrator for data teams. Single Go binary, no database server,
-no message broker.
+A durable execution engine for data. Write pipelines as plain Python
+functions; hubwagen runs them to completion through crashes, deploys and
+long waits, and records which versions of data went into and came out of
+every step. That record is the lineage graph, the catalog, and a cache:
+a rerun or backfill skips every step whose code and inputs didn't change.
 
-Pipelines are YAML, compiled into immutable, versioned specs. One event-driven
-scheduler records every state change before acting on it, runs each task as
-soon as its own dependencies finish, retries and times out tasks, runs
-schedules with explicit data intervals (catching up after downtime, correct
-across DST changes), and commits each task's outputs exactly once.
+One Go binary, no database server, no message broker. Your code runs in
+workers you start; the server never runs it.
+
+```python
+import hubwagen as hw
+
+@hw.lift(output=hw.Dataset("raw.orders", partition="day"))
+def extract_orders(day: str) -> dict: ...            # writes files to hw.output().path
+
+@hw.lift(memo=True, output=hw.Dataset("mart.daily_revenue", partition="day"))
+def daily_revenue(orders: hw.Pallet, day: str) -> dict: ...
+
+@hw.haul
+def daily(ctx, day: str):
+    orders = ctx.lift(extract_orders, day)           # a Pallet: an immutable version of data
+    return ctx.lift(daily_revenue, orders, day).id   # reused if code and inputs are unchanged
+```
 
 ## Status
 
-> **Redesign in progress.** hubwagen is moving to a durable execution engine
-> for data: pipelines as code, memoized steps, versioned outputs with lineage.
-> See [docs/architecture.md](docs/architecture.md). Everything below describes
-> the current (v1) engine, which keeps working until the new one replaces it.
+The engine runs on one machine: `hubwagen dev` (server and API), Python
+workers, `file://` storage. Built so far: durable hauls (replay until
+blocked, timers, retries, timeouts, leader restarts), pallets with
+exactly-once commits, fingerprint memoization with single-flight, a
+catalog with lineage, and the worker and haul APIs. Next: runtime
+determinism guards and import-aware code versions, then signals, schedules
+and testing tools. See [docs/roadmap.md](docs/roadmap.md) and
+[docs/architecture.md](docs/architecture.md).
 
-The redesigned engine runs on one machine today (`hubwagen dev`, `hubwagen
-run`): tasks are host processes, state is SQLite, logs and outputs live in a
-local directory. Container tasks, remote agents, an API, plain-server and
-Kubernetes deployments, and multi-tenancy come next — see
-[docs/roadmap.md](docs/roadmap.md) and [docs/architecture.md](docs/architecture.md).
+## Try it
 
-## Build
-
-Requires Go 1.22+ (pure Go, no CGO — cross-compiles cleanly).
+Requires Go 1.26+ and Python 3.12+.
 
 ```bash
 go build -o hubwagen .
-GOOS=linux GOARCH=amd64 go build -o hubwagen-linux-amd64 .   # cross-compile
+./hubwagen dev                                  # server; API on 127.0.0.1:7070, data in .hubwagen/
 ```
-
-## Quickstart
 
 ```bash
-# Run one pipeline once and wait for it (logs stream to the terminal)
-./hubwagen run pipelines/examples/hello_world.yaml
-
-# A pipeline with a daily data interval, for one day
-./hubwagen run pipelines/examples/daily_orders.yaml --date 2026-10-20
-
-# The same day again returns the earlier run; --rerun makes a new generation
-./hubwagen run pipelines/examples/daily_orders.yaml --date 2026-10-20 --rerun --param full_refresh=false
-
-# Run the scheduler with the dashboard: loads every pipeline under the
-# given directories (default: pipelines), reloads them on change, runs schedules
-./hubwagen dev pipelines/examples
-
-# Same, without the dashboard: prints events and task logs
-./hubwagen dev --headless pipelines/examples
+# in another terminal: a worker for the example project
+cd pipelines/examples/revenue
+PYTHONPATH=../../../sdk/python/src python3 -m hubwagen.worker revenue.hauls
 ```
-
-Dashboard keys: `↑/↓` select, `enter` drill in, `t` trigger the selected
-pipeline, `/` filter, `v` graph view, `g/G` log top/bottom, `b` back, `?`
-help, `q` quit.
-
-Everything lives in `--data-dir` (default `.hubwagen/`): `state.db` (event log
-and run history), `bucket/` (task logs, outputs, commit markers) and
-`dev.log` (engine log while the dashboard is open). One process uses a data
-directory at a time. Stopping `hubwagen dev` terminates running tasks; on the
-next start, tasks that had already committed their outputs are recognised and
-the rest are retried.
-
-## Writing a pipeline
-
-```yaml
-apiVersion: hubwagen.dev/v1alpha1
-kind: Pipeline
-metadata: {name: daily_orders, tenant: analytics}
-spec:
-  schedule: {cron: "0 2 * * *", timezone: Europe/Berlin, interval: daily}
-  defaults:
-    runtime: {kind: agent, pool: local}
-    retry: {limit: 2, initial: 30s}
-  tasks:
-    - id: extract
-      command: [python, -m, jobs.extract]
-      args: ["--from={{ .Interval.Start }}", "--to={{ .Interval.End }}"]
-      outputs: [{name: orders}]
-    - id: load
-      depends_on: [extract]
-      command: [python, -m, jobs.load]
-      inputs: [{name: orders, from: extract.orders}]
-```
-
-Tasks get their data interval, inputs and output directories as environment
-variables (`HUBWAGEN_INPUT_ORDERS_PATH`, `HUBWAGEN_OUTPUT_ORDERS_PATH`, …).
-References: [pipeline format](docs/pipeline-format.md) (fields, templates,
-execution semantics, schedules) and [task contract](docs/task-contract.md)
-(what a task process can rely on).
-
-## Compiling for CI
 
 ```bash
-./hubwagen compile pipelines/ --check                 # lint: all errors, nothing written
-./hubwagen compile pipelines/ --out build/specs       # canonical specs, image tags pinned to digests
+# in a third
+./hubwagen replay daily --param day=2026-10-01..2026-10-03
+./hubwagen replay daily --param day=2026-10-01..2026-10-03   # again: what's unchanged is reused
+./hubwagen start daily --param day=2026-10-04 --wait
 ```
 
-Each spec is written to `build/specs/<tenant>/<pipeline>/<sha256>.json`; the
-file's hash is its version ID.
+`replay` prints, per lift, what was reused and what ran and why:
+
+```
+3 hauls
+  extract_orders   3 run (not memoized)
+  daily_revenue    3 reused
+  revenue_report   3 reused
+3 completed
+```
+
+Writing hauls and lifts: [sdk/python/README.md](sdk/python/README.md).
+The example: [pipelines/examples/revenue](pipelines/examples/revenue).
 
 ## Development
 
@@ -106,4 +76,8 @@ file's hash is its version ID.
 go vet ./...
 go test ./...
 go test -race ./...
+(cd sdk/python && uv run --no-project --with pytest --python 3.12 pytest -q)
+go generate ./internal/api    # after changing proto/
 ```
+
+Pure Go, no CGO: the binary is static and cross-compiles.

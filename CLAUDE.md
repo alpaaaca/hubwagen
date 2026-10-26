@@ -2,58 +2,54 @@
 
 ## What this is
 
-hubwagen is becoming a durable execution engine for data (v2): pipelines as
-plain code (hauls) that survive crashes and long waits, side-effecting steps
-(lifts) memoized by fingerprint, and every output an immutable, versioned
-pallet in a catalog derived from the event history. One Go server that never
-runs user code, single leader on SQLite (Litestream later); workers in the
-user's environment, Python SDK first.
+hubwagen is a durable execution engine for data: pipelines as plain code
+(hauls) that survive crashes and long waits, side-effecting steps (lifts)
+memoized by fingerprint, and every output an immutable, versioned pallet in a
+catalog derived from the event history. One Go server that never runs user
+code, single leader on SQLite (Litestream later); workers in the user's
+environment, Python SDK first.
 
-**Today:** `hubwagen dev` / `hubwagen run` still run the v1 engine (M1–M2):
-compiled YAML pipelines, host-process tasks, `file://` bucket; it keeps
-working until M3c. The v2 haul engine (M3a) with pallets, the catalog and
-memoization (M3b) is in `internal/core`, `internal/state` and
-`internal/pallet`, driven by Go tests only. **Next:** the worker API and the
-Python SDK (M3c).
+**Today (M3c, except #25):** `hubwagen dev` serves the API; Python workers
+(`sdk/python`) run hauls and lifts; `hubwagen start`/`replay` start them and
+report reuse. The v1 engine (compiled YAML pipelines) was removed in M3c; it
+is in git history up to commit 33ca1ba. **Next:** #25 (runtime guards,
+code versions from imports), then M4 (fan-out limits, signals, schedules,
+testing).
 
 Read before larger changes:
 
 - [docs/architecture.md](docs/architecture.md) — v2 design: hauls, lifts, pallets, memoization, commits
 - [docs/roadmap.md](docs/roadmap.md) — what is done, what is next, open decisions
-- [docs/v2-migration.md](docs/v2-migration.md) — what v2 keeps, rewrites and removes from v1, per package
-- [docs/pipeline-format.md](docs/pipeline-format.md) — v1 pipeline YAML and the compiled spec (removed in M3c)
-- [docs/task-contract.md](docs/task-contract.md) — v1 task contract (parked until pod lifts)
+- [docs/v2-migration.md](docs/v2-migration.md) — what happened to each v1 package
+- [docs/spikes/](docs/spikes/) — spike findings (S1: Python replay)
+- [sdk/python/README.md](sdk/python/README.md) — writing hauls and lifts, the worker
 - [docs/config.md](docs/config.md) — instance configuration (design, to be revised for v2)
 
 Planning is lightweight: a design note in `docs/` when a decision needs one,
 the next milestone broken into PR-sized steps in `docs/roadmap.md`. No
 spec-kit.
 
-## Current code (v1; fate of each package in docs/v2-migration.md)
+## Current code
 
 | Path | What |
 |---|---|
-| `internal/spec` | Pipeline compiler: parsing, validation, restricted templates, data intervals/calendars, canonical JSON + sha256, image digest resolution |
-| `internal/state` | Store: event log + projections, term fencing, leader-start loaders |
-| `internal/core` | Scheduler core: event loop, state machines, triggers, retries, timeouts, cancellation, cron, restore. v2: docks (`docks.go`) and the haul engine (`hauls.go`) |
-| `internal/clock`, `internal/layout` | Real/fake clock; bucket path layout shared by core and task wrapper |
-| `internal/blob` | Bucket access by URI; `file://` with atomic create-if-absent |
-| `internal/pallet` | v2 storage adapter for pallets as files: manifests, content hash, idempotent promote, discard |
-| `internal/taskexec` | The task contract: env, process groups, log shipping, result file, commit markers, restart recovery |
-| `internal/runtime/localrt` | Dev-mode in-process agent: slots, pools, cancellation |
-| `internal/devmode` | Wires store, bucket, core and local runtime for one process; data-dir lock; pipeline loader/watcher |
-| `internal/api` | Connect services over HTTP (`WorkerService` today); generated code in `gen/` from `proto/` |
-| `internal/tui` | Terminal dashboard; reads and acts through `tui.Source` (`EngineSource` today, the API client in M3) |
+| `internal/core` | The core: one event loop; hauls (replay until blocked, sequence check, stuck), lifts (retries, timeouts, leases), timers, docks (long-poll), commits, memoization, single-flight, restore |
+| `internal/state` | Store: event log + projections (hauls, lifts, timers, catalog, builds), term fencing, leader-start loader |
+| `internal/pallet` | Storage adapter for pallets as files: manifests, content hash, idempotent promote, discard |
+| `internal/api` | Connect services over HTTP (`WorkerService`, `HaulService`); generated code in `gen/` from `proto/` |
+| `internal/devmode` | Wires store, bucket, core and API for one process; data-dir lock; event descriptions for `hubwagen dev` |
 | `internal/haulcli` | What `start` and `replay` do: `--param` ranges, starting and waiting over `HaulService`, the replay report |
-| `cmd/` | `compile`, `dev`, `run`, `version`; v2: `start`, `replay` |
-| `pipelines/examples/` | v1 example pipelines (`TestExamplesCompile` compiles every YAML); `revenue/` is the v2 Python example (demo: `sdk/python/tests/test_example.py`) |
-| `tests/` | Cross-package end-to-end tests of the engine |
+| `internal/schedule` | Calendar and cron math (DST-correct intervals, what is due since a cursor), for haul schedules (M4) |
+| `internal/clock`, `internal/layout`, `internal/blob` | Real/fake clock; bucket paths (lift staging, pallet manifests); bucket access with atomic create-if-absent |
+| `cmd/` | `dev`, `start`, `replay`, `version` |
 | `sdk/python/` | Python SDK (stdlib only, Python ≥ 3.12): `@haul`, `@lift`, replay engine, worker; pytest runs it against a real `hubwagen dev` |
+| `pipelines/examples/revenue/` | Example Python project; `sdk/python/tests/test_example.py` is its demo |
+| `tests/` | Cross-package end-to-end tests (leader restarts) |
 
 ## Rules that hold everywhere
 
-- **The control plane never runs user code.** It reads compiled specs and only
-  renders allow-listed template variables into strings.
+- **The control plane never runs user code.** Workers run hauls and lifts;
+  the server only records, schedules and answers.
 - **Write before act.** Record a state change durably before acting on it
   (dispatching, creating a Job, cancelling).
 - **Single writer.** Only the leader's core goroutine writes scheduler state.
@@ -64,10 +60,9 @@ spec-kit.
   cloud-specific calls in the core; they go behind the interfaces listed in
   `docs/architecture.md`. `internal/profile` (to come) is the only place that
   knows the active profile.
-- **Spec JSON field names are part of the version hash** (v1, until
-  `internal/spec` is removed). Renaming or adding a non-omitempty field in
-  `internal/spec/spec.go` changes every version ID — treat it as a format
-  change.
+- **Fingerprint inputs are a format.** Changing what goes into a lift's
+  fingerprint (`fingerprintInputs` in `internal/core/memo.go`) invalidates
+  every memoized pallet — treat it as a format change.
 - **Never reuse what can't be read.** A lift is reused only when a committed,
   readable, non-invalid pallet matches its fingerprint; when unsure, rerun.
 - **Pure Go, no CGO.** The binary must stay static and cross-compile
@@ -77,13 +72,13 @@ spec-kit.
 
 - Raw `database/sql`, no ORM; migrations are embedded SQL files.
 - IDs are ULIDs (`github.com/oklog/ulid/v2`).
-- Errors for users name the location (`file: spec.tasks[1].depends_on[0]: …`)
+- Errors for users name the location (`commands[2]: …`, `app/hauls.py:42`)
   and report all problems at once where possible.
 - Structured logs via `log/slog` to stderr; command output to stdout.
 - Tests: `testify` (`assert`/`require`); no mocking frameworks — use real
   implementations (`:memory:` SQLite, temp dirs, `file://` blob, real
   subprocesses, fake clock). Unit tests next to the code; cross-package
-  integration tests in `tests/`. Pure logic (`internal/spec`, `internal/core`
+  integration tests in `tests/`. Pure logic (`internal/schedule`, `internal/core`
   with a fake clock) gets tests with no real processes or timers.
 - Keep docs in step with code: update `docs/roadmap.md` status and any
   affected doc in the same PR.
@@ -98,9 +93,7 @@ go test -race ./...
 go generate ./internal/api    # after changing proto/: buf lint + generate (via go run, nothing to install)
 (cd sdk/python && uv run --no-project --with pytest --python 3.12 pytest -q)   # Python SDK, incl. against hubwagen dev
 
-./hubwagen compile pipelines/examples --check --no-resolve   # validate all examples, offline
-./hubwagen compile pipelines/examples --out build/specs      # write canonical specs
-./hubwagen run pipelines/examples/hello_world.yaml  # run one pipeline once (data in .hubwagen/)
-./hubwagen dev pipelines/examples                            # scheduler + dashboard; --headless for plain output
-./hubwagen replay <haul> --param day=2026-03-01..2026-03-31  # v2: start hauls on a running dev, report reuse
+./hubwagen dev                                                # server + API on 127.0.0.1:7070 (data in .hubwagen/)
+(cd pipelines/examples/revenue && PYTHONPATH=../../../sdk/python/src python3 -m hubwagen.worker revenue.hauls)
+./hubwagen replay daily --param day=2026-10-01..2026-10-03   # start hauls, report what was reused
 ```

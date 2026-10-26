@@ -58,7 +58,7 @@ func (c *Core) RegisterBuild(ctx context.Context, req BuildRequest) error {
 		c.builds[req.ID] = lifts
 		b := state.Build{ID: req.ID, Lifts: lifts, RegisteredAt: c.now()}
 		c.b.catalog = append(c.b.catalog, func(tx *state.Tx) error { return tx.PutBuild(b) })
-		c.emit(state.EventBuildRegistered, "", "", "", "", buildRegisteredPayload{ID: req.ID, Lifts: lifts})
+		c.emit(state.EventBuildRegistered, "", buildRegisteredPayload{ID: req.ID, Lifts: lifts})
 		c.resumeStuckHauls()
 		return struct{}{}, nil
 	})

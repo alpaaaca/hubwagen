@@ -48,7 +48,7 @@ func TestRestartReplacesDispatchedHaulTask(t *testing.T) {
 			term = e.Payload
 		}
 	}
-	assert.JSONEq(t, `{"term":2,"active_runs":0,"lost_attempts":0,"active_hauls":1,"lost_haul_tasks":1}`, string(term))
+	assert.JSONEq(t, `{"term":2,"active_hauls":1,"lost_haul_tasks":1}`, string(term))
 }
 
 func TestDispatchedLiftSurvivesRestart(t *testing.T) {

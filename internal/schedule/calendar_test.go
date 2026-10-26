@@ -1,4 +1,4 @@
-package spec
+package schedule
 
 import (
 	"testing"
@@ -10,7 +10,7 @@ import (
 
 func calendar(t *testing.T, cronExpr, tz, interval string) *Calendar {
 	t.Helper()
-	c, err := NewCalendar(&Schedule{Cron: cronExpr, Timezone: tz, Interval: interval})
+	c, err := NewCalendar(Schedule{Cron: cronExpr, Timezone: tz, Interval: interval})
 	require.NoError(t, err)
 	return c
 }
@@ -82,16 +82,16 @@ func TestCheckCoverage(t *testing.T) {
 		{"*/5 * * * *", IntervalCron},
 	}
 	for _, tc := range ok {
-		assert.NoError(t, calendar(t, tc.cron, "UTC", tc.interval).checkCoverage(from, 20), tc.cron)
+		assert.NoError(t, calendar(t, tc.cron, "UTC", tc.interval).CheckCoverage(from, 20), tc.cron)
 	}
-	assert.ErrorContains(t, calendar(t, "0 */6 * * *", "UTC", IntervalDaily).checkCoverage(from, 20), "more than once")
-	assert.ErrorContains(t, calendar(t, "0 2 * * 1", "UTC", IntervalDaily).checkCoverage(from, 20), "skips")
+	assert.ErrorContains(t, calendar(t, "0 */6 * * *", "UTC", IntervalDaily).CheckCoverage(from, 20), "more than once")
+	assert.ErrorContains(t, calendar(t, "0 2 * * 1", "UTC", IntervalDaily).CheckCoverage(from, 20), "skips")
 
 	// DST changes skip or repeat one local time; that alone is not an error.
 	for _, cron := range []string{"0 2 * * *", "30 2 * * *"} {
 		c := calendar(t, cron, "Europe/Berlin", IntervalDaily)
 		for _, from := range []string{"2026-03-20 00:00", "2026-10-15 00:00"} {
-			assert.NoError(t, c.checkCoverage(at(t, c.Location(), from), 20), cron+" from "+from)
+			assert.NoError(t, c.CheckCoverage(at(t, c.Location(), from), 20), cron+" from "+from)
 		}
 	}
 }

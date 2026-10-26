@@ -44,7 +44,7 @@ def start_dev(hubwagen_bin: str, tmp: Path) -> tuple[str, subprocess.Popen]:
     """A `hubwagen dev` with the API on a free port, data under tmp."""
     url = f"http://127.0.0.1:{_free_port()}"
     log = open(tmp / "dev.log", "w")
-    proc = subprocess.Popen([hubwagen_bin, "dev", "--headless", "--data-dir", str(tmp / "data"),
+    proc = subprocess.Popen([hubwagen_bin, "dev", "--data-dir", str(tmp / "data"),
                              "--listen", url.removeprefix("http://")],
                             cwd=tmp, stdout=log, stderr=subprocess.STDOUT)
     client = hw.Client(url)

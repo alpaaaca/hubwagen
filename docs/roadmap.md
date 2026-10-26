@@ -43,7 +43,8 @@ single-goroutine core with retries, timeouts, cancellation and DST-safe cron
 (`internal/core`), `file://` bucket with atomic create-if-absent
 (`internal/blob`), the task contract with commit markers and restart recovery
 (`internal/taskexec`), in-process runtime (`internal/runtime/localrt`),
-`hubwagen dev`/`run` with the dashboard. The per-step history is in git. [v2-migration.md](v2-migration.md) says which parts v2 reuses.
+`hubwagen dev`/`run` with the dashboard. The per-step history is in git. [v2-migration.md](v2-migration.md) says which parts v2 reused; the rest was
+removed in M3c and is in git history (commit 33ca1ba).
 
 ## M3a: Haul engine in the core
 
@@ -126,8 +127,10 @@ reuse.
    (`sdk/python/tests/test_example.py`): `hubwagen dev` + a worker, replays
    over a date range, a code change and a data change, each reporting what
    was reused and what ran and why. ([#27](https://github.com/alpaaaca/hubwagen/issues/27))
-4. **Remove v1**: YAML compiler, pipeline loader and v1 tables, once nothing
-   uses them (see [v2-migration.md](v2-migration.md)). ([#28](https://github.com/alpaaaca/hubwagen/issues/28))
+4. ✅ **Remove v1**: YAML compiler, pipeline loader, v1 state machines and
+   tables, the task wrapper and local runtime, the dashboard (back in M5),
+   `compile` and `run`. The calendar math moved to `internal/schedule` for
+   M4 (see [v2-migration.md](v2-migration.md)). ([#28](https://github.com/alpaaaca/hubwagen/issues/28))
 
 Done when: `hubwagen dev` + a local worker run the example, and a replay over
 a date range reports reused and rerun lifts with reasons.
@@ -135,8 +138,8 @@ a date range reports reused and rerun lifts with reasons.
 ## M4: Full haul surface
 
 `lift_async` and `gather` with `max_parallel`; signals (`wait_signal`,
-`hubwagen signal`); cron schedules on hauls with catch-up policy (reusing v1
-cron); dataset subscriptions with debounce; child hauls; `continue_as_new`;
+`hubwagen signal`); cron schedules on hauls with catch-up policy (on
+`internal/schedule`, extracted from v1's cron); dataset subscriptions with debounce; child hauls; `continue_as_new`;
 version markers; `hubwagen lint`; `hubwagen test` with a fake ctx and
 `--replay <logbook>`.
 

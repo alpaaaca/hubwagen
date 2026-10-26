@@ -30,21 +30,21 @@ one static binary — so most of the engine is reused, not rewritten.
 
 | Package | Fate | How |
 |---|---|---|
-| `internal/state` | **Kept, extended** | Event log, projections, term fencing and leader-start loaders stay. Logbook and catalog tables are added (M3a, M3b); v1 tables are dropped in M3c |
+| `internal/state` | **Kept, extended** | Event log, projections, term fencing and leader-start loaders stay. Logbook and catalog tables were added (M3a, M3b); v1 tables were dropped in M3c (migration 007) |
 | `internal/core` | **Kept, extended** | The single-goroutine loop, group commit, `c.after`/`c.effect`, retries, timeouts, cancellation and restore carry over. Run/task state machines become haul/lift state machines; single-flight and memoization lookups are added |
-| `internal/core/cron.go` | **Kept** | Cursors, catch-up and DST-safe intervals become haul schedules |
+| `internal/core/cron.go` | **Extracted** (M3c) | The calendar math and the cursor loop moved to `internal/schedule` (`Calendar`, `Due`), free of pipelines; M4 wires it to hauls |
 | `internal/clock` | **Kept** | |
 | `internal/blob` | **Kept** | `PutIfAbsent` is the basis of pallet manifest commits |
 | `internal/layout` | **Rewritten** | Paths keyed by fingerprint and attempt instead of run key and generation |
-| `internal/taskexec` | **Parked** | Commit-marker and recovery logic informs M3b. The process wrapper and contract return for pod lifts (later) |
-| `internal/runtime/localrt` | **Parked** | Returns as the local pod-lift launcher |
-| `internal/devmode` | **Rewritten** | Same role (one process, data-dir lock), but it serves the worker API instead of loading YAML |
-| `internal/tui` | **Kept, extended** | Stays on `tui.Source`; views change to hauls, logbooks and the catalog (M5) |
+| `internal/taskexec` | **Removed** (M3c) | Its commit-marker ideas became `internal/pallet`. The process wrapper and task contract come back from git history for pod lifts (later) |
+| `internal/runtime/localrt` | **Removed** (M3c) | Comes back from git history as the local pod-lift launcher |
+| `internal/devmode` | **Rewritten** (M3c) | Same role (one process, data-dir lock); it serves the API instead of loading YAML |
+| `internal/tui` | **Removed** (M3c) | Its views were all v1. M5 builds a dashboard for hauls, logbooks and the catalog on the API; `hubwagen dev` prints events meanwhile |
 | `internal/spec` | **Removed** (M3c) | The compiler, YAML format and spec hash go away. The template allow-list may be reused for SQL lifts, image digest resolution for code versions of pod lifts |
 | `cmd/compile` | **Removed** (M3c) | Replaced by `hubwagen lint` and worker registration |
-| `cmd/dev`, `cmd/run` | **Rewritten** | `dev` serves the API; `run` is replaced by `start`/`replay` |
-| `pipelines/examples/` | **Replaced** (M3c) | Python example projects |
-| `tests/` | **Kept** | Engine end-to-end tests are rewritten for hauls |
+| `cmd/dev`, `cmd/run` | **Rewritten / removed** (M3c) | `dev` serves the API; `run` is replaced by `start`/`replay` |
+| `pipelines/examples/` | **Replaced** (M3c) | `revenue/`, a Python project |
+| `tests/` | **Kept** | The v1 engine test is gone; the leader-restart test covers hauls |
 
 ## Docs
 
@@ -52,12 +52,12 @@ one static binary — so most of the engine is reused, not rewritten.
 |---|---|
 | [architecture.md](architecture.md) | Rewritten for v2 |
 | [roadmap.md](roadmap.md) | Rewritten for v2 |
-| [pipeline-format.md](pipeline-format.md) | Describes v1; removed with `internal/spec` in M3c. Replaced by an SDK reference |
-| [task-contract.md](task-contract.md) | Describes v1; parked until pod lifts |
+| pipeline-format.md | Removed in M3c; the SDK README (`sdk/python/README.md`) replaces it |
+| task-contract.md | Removed in M3c; returns from git history with pod lifts |
 | [config.md](config.md) | Design for v1's M3; to be revised for the v2 server and worker settings before `internal/config` is built |
 
-## Until M3c
+## Done
 
-v1 keeps working: `hubwagen compile`, `dev` and `run` behave as today while
-M3a and M3b add v2 tables and state machines next to the v1 ones. M3c removes
-v1 in one step, once the Python example runs end to end.
+v1 was removed in M3c (#28). The last commit with it is 33ca1ba: `git checkout 33ca1ba`
+to see or run it. A v1 data directory upgrades in place: the v1 tables are
+dropped, v1 events stay in the log as history.

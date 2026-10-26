@@ -1,4 +1,8 @@
-package spec
+// Package schedule is calendar and cron math for schedules: ticks, data
+// intervals (DST-correct, in a schedule's timezone) and which intervals are
+// due since a cursor. It knows nothing about pipelines or hauls; v1's
+// pipeline scheduler used it, and haul schedules (M4) will.
+package schedule
 
 import (
 	"fmt"
@@ -7,8 +11,8 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-// Interval kinds. A run's data interval is computed from the schedule tick
-// that created it, in the pipeline's timezone, so a "daily" interval is
+// Interval kinds. A data interval is computed from the schedule tick that
+// created it, in the schedule's timezone, so a "daily" interval is
 // midnight to midnight local time (23 or 25 hours across DST changes).
 const (
 	IntervalHourly  = "hourly"  // previous full hour
@@ -30,6 +34,15 @@ type Interval struct {
 
 func (iv Interval) IsZero() bool { return iv.Start.IsZero() && iv.End.IsZero() }
 
+// Schedule describes when something runs and which data interval each run
+// covers.
+type Schedule struct {
+	Cron     string    // standard 5-field cron
+	Timezone string    // IANA name; "" means UTC
+	Interval string    // hourly|daily|weekly|monthly|cron
+	Start    time.Time // earliest interval start to schedule; zero: none
+}
+
 // Calendar computes schedule ticks and their data intervals for a Schedule.
 type Calendar struct {
 	sched    cron.Schedule
@@ -38,7 +51,7 @@ type Calendar struct {
 	start    time.Time
 }
 
-func NewCalendar(s *Schedule) (*Calendar, error) {
+func NewCalendar(s Schedule) (*Calendar, error) {
 	loc, err := time.LoadLocation(s.Timezone)
 	if err != nil {
 		return nil, fmt.Errorf("timezone %q: %w", s.Timezone, err)
@@ -50,19 +63,13 @@ func NewCalendar(s *Schedule) (*Calendar, error) {
 	if !validIntervals[s.Interval] {
 		return nil, fmt.Errorf("interval %q must be hourly|daily|weekly|monthly|cron", s.Interval)
 	}
-	c := &Calendar{sched: sched, loc: loc, interval: s.Interval}
-	if s.Start != "" {
-		if c.start, err = time.Parse(time.RFC3339, s.Start); err != nil {
-			return nil, fmt.Errorf("start %q: %w", s.Start, err)
-		}
-	}
-	return c, nil
+	return &Calendar{sched: sched, loc: loc, interval: s.Interval, start: s.Start}, nil
 }
 
-// Location is the pipeline's timezone.
+// Location is the schedule's timezone.
 func (c *Calendar) Location() *time.Location { return c.loc }
 
-// Start is the earliest interval start the pipeline schedules (zero if unset).
+// Start is the earliest interval start the schedule has (zero if unset).
 func (c *Calendar) Start() time.Time { return c.start }
 
 // Next returns the first tick strictly after t.
@@ -152,14 +159,14 @@ func (c *Calendar) IntervalFor(prevTick, tick time.Time) Interval {
 	}
 }
 
-// checkCoverage samples consecutive ticks and reports a schedule whose ticks
+// CheckCoverage samples consecutive ticks and reports a schedule whose ticks
 // don't line up with its interval kind: firing more often than the interval
 // (several runs for one interval) or less often (intervals with no tick of
 // their own). A single anomaly is tolerated: that is what a DST change looks
 // like (a skipped or repeated local time), and the scheduler fills such gaps
 // itself. A schedule that doesn't fit its interval shows the anomaly again
 // and again.
-func (c *Calendar) checkCoverage(from time.Time, samples int) error {
+func (c *Calendar) CheckCoverage(from time.Time, samples int) error {
 	if c.interval == IntervalCron {
 		return nil
 	}

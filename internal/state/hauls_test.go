@@ -142,7 +142,7 @@ func TestHaulEventsIsTheLogbook(t *testing.T) {
 		{Type: EventHaulStarted, Tenant: "t", HaulID: "h1", Time: t0},
 		{Type: EventHaulStarted, Tenant: "t", HaulID: "h2", Time: t0},
 		{Type: EventLiftScheduled, Tenant: "t", HaulID: "h1", Time: t0, Payload: json.RawMessage(`{"seq":1}`)},
-		{Type: EventCronTicked, Tenant: "t", Time: t0},
+		{Type: EventLeaderTermStarted, Time: t0},
 		{Type: EventLiftFinished, Tenant: "t", HaulID: "h1", Time: t0, Payload: json.RawMessage(`{"seq":1}`)},
 	})
 
@@ -273,8 +273,8 @@ func TestHaulStatusHelpers(t *testing.T) {
 	assert.False(t, LiftTerminal(LiftRetryWait))
 }
 
-// A v1 database (only 001 applied, with events) upgrades in place; old events
-// get an empty HaulID.
+// A v1 database (only 001 applied, with events) upgrades in place: v1 tables
+// are dropped (007), old events stay with an empty HaulID.
 func TestMigrateV1Database(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "state.db")
 	db, err := sql.Open("sqlite", dsn(path, false))
@@ -298,7 +298,7 @@ func TestMigrateV1Database(t *testing.T) {
 	evs, err := s.EventsSince(ctx, 0, "", 0)
 	require.NoError(t, err)
 	require.Len(t, evs, 1)
-	assert.Equal(t, "r1", evs[0].RunID)
+	assert.Equal(t, EventType("RunCreated"), evs[0].Type, "v1 events stay as history")
 	assert.Equal(t, "", evs[0].HaulID)
 
 	_, err = s.StartTerm(ctx, 0)

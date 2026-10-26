@@ -142,7 +142,7 @@ func (c *Core) ensureDataset(tenant string, o OutputSpec) {
 	c.datasets[key] = o.PartitionKey
 	d := state.Dataset{Tenant: tenant, Name: o.Dataset, PartitionKey: o.PartitionKey, CreatedAt: c.now()}
 	c.b.catalog = append(c.b.catalog, func(tx *state.Tx) error { return tx.PutDataset(d) })
-	c.emit(state.EventDatasetCreated, tenant, "", "", "", datasetCreatedPayload{Name: o.Dataset, PartitionKey: o.PartitionKey})
+	c.emit(state.EventDatasetCreated, tenant, datasetCreatedPayload{Name: o.Dataset, PartitionKey: o.PartitionKey})
 }
 
 func (c *Core) putPallet(rec state.Pallet) {
