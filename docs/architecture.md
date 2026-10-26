@@ -351,13 +351,19 @@ come later; their capabilities are documented with each adapter.
 A backfill starts hauls for a range of parameters; memoization makes it cheap.
 
 ```
-$ hubwagen replay daily_revenue --day 2026-03-01..2026-03-31
-  31 hauls started
+$ hubwagen replay daily_revenue --param day=2026-03-01..2026-03-31
+31 hauls started
+31 hauls
   extract_orders   31 reused
   check_quality    31 reused
-  build_revenue    31 run      (code changed: 7c1e → a04b)
-  report_extract   31 run      (input changed)
+  build_revenue    31 run (code changed (7c1e → a04b))
+  report_extract   31 run (input changed)
+31 completed
 ```
+
+`hubwagen start <haul> --param …` starts one haul (`--wait` waits and
+reports the same way). Both talk to `HaulService` (`StartHaul`, `GetHaul`)
+on the server.
 
 `hubwagen pallet invalidate <id> --reason …` marks a pallet and everything
 built from it, directly or transitively, invalid. Invalid pallets are never

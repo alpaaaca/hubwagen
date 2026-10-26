@@ -248,3 +248,10 @@ func TestErrorsMapToConnectCodes(t *testing.T) {
 	_, err = s.client.PollHaulTask(ctx, connect.NewRequest(&hubwagenv1.PollHaulTaskRequest{Docks: []string{"default"}}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "no worker ID")
 }
+
+func httptestServer(t *testing.T, h http.Handler) string {
+	t.Helper()
+	srv := httptest.NewServer(h)
+	t.Cleanup(srv.Close)
+	return srv.URL
+}

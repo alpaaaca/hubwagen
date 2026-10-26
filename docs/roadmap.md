@@ -111,8 +111,8 @@ reuse.
 1. ✅ **Worker API** (Connect, HTTP/JSON-callable): `RegisterBuild`,
    `PollHaulTask`, `CompleteHaulTask`, `PollLiftTask`, `CompleteLiftTask`,
    `Heartbeat` (leases; tells workers what to stop). `hubwagen dev` serves it
-   (`--listen`, default 127.0.0.1:7070). Still to do: `hubwagen start` and
-   `hubwagen replay` calling it. ([#22](https://github.com/alpaaaca/hubwagen/issues/22), [#23](https://github.com/alpaaaca/hubwagen/issues/23))
+   (`--listen`, default 127.0.0.1:7070), with `HaulService` (`StartHaul`,
+   `GetHaul`) next to it; `hubwagen start` and `hubwagen replay` call it. ([#22](https://github.com/alpaaaca/hubwagen/issues/22), [#23](https://github.com/alpaaaca/hubwagen/issues/23))
 2. **Python SDK** (`sdk/python`): `@haul`, `@lift`, `ctx.lift`, `ctx.sleep`,
    `ctx.state`, `ctx.latest_pallet`; replay until blocked; client-side
    sequence check with file and line; runtime guards on clock and randomness;

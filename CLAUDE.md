@@ -44,7 +44,8 @@ spec-kit.
 | `internal/devmode` | Wires store, bucket, core and local runtime for one process; data-dir lock; pipeline loader/watcher |
 | `internal/api` | Connect services over HTTP (`WorkerService` today); generated code in `gen/` from `proto/` |
 | `internal/tui` | Terminal dashboard; reads and acts through `tui.Source` (`EngineSource` today, the API client in M3) |
-| `cmd/` | `compile`, `dev`, `run`, `version` |
+| `internal/haulcli` | What `start` and `replay` do: `--param` ranges, starting and waiting over `HaulService`, the replay report |
+| `cmd/` | `compile`, `dev`, `run`, `version`; v2: `start`, `replay` |
 | `pipelines/examples/` | Example pipelines; `TestExamplesCompile` compiles every example |
 | `tests/` | Cross-package end-to-end tests of the engine |
 
@@ -99,4 +100,5 @@ go generate ./internal/api    # after changing proto/: buf lint + generate (via 
 ./hubwagen compile pipelines/examples --out build/specs      # write canonical specs
 ./hubwagen run pipelines/examples/hello_world.yaml  # run one pipeline once (data in .hubwagen/)
 ./hubwagen dev pipelines/examples                            # scheduler + dashboard; --headless for plain output
+./hubwagen replay <haul> --param day=2026-03-01..2026-03-31  # v2: start hauls on a running dev, report reuse
 ```

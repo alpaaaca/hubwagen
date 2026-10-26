@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package hubwagen.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1;hubwagenv1";
+
+// HaulService is what people and tools call: start hauls and follow them.
+// Like WorkerService it is a Connect service, callable as plain HTTP/JSON.
+service HaulService {
+  // StartHaul starts a haul and queues its first replay.
+  rpc StartHaul(StartHaulRequest) returns (StartHaulResponse);
+  // GetHaul returns a haul and its lifts.
+  rpc GetHaul(GetHaulRequest) returns (GetHaulResponse);
+}
+
+message StartHaulRequest {
+  string tenant = 1;
+  // The registered haul function.
+  string name = 2;
+  // Default: "default".
+  string dock = 3;
+  // A JSON object.
+  string params_json = 4;
+  // Default: "manual".
+  string trigger = 5;
+}
+
+message StartHaulResponse {
+  string haul_id = 1;
+}
+
+message GetHaulRequest {
+  string haul_id = 1;
+}
+
+message GetHaulResponse {
+  Haul haul = 1;
+}
+
+message Haul {
+  string id = 1;
+  string tenant = 2;
+  string name = 3;
+  // running, stuck, completed, failed or cancelled.
+  string status = 4;
+  string reason = 5;
+  string message = 6;
+  string params_json = 7;
+  string result_json = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp finished_at = 10;
+  repeated Lift lifts = 11;
+}
+
+message Lift {
+  int32 seq = 1;
+  string name = 2;
+  // scheduled, waiting, dispatched, retry_wait, committing, completed,
+  // failed or cancelled.
+  string status = 3;
+  // Why it ran ("code changed (v1 → v2)", "not memoized", ...); empty if it
+  // was reused.
+  string run_reason = 4;
+  // Memoized: an earlier pallet stood in, nothing ran.
+  bool reused = 5;
+  int32 attempts = 6;
+  // The pallet it produced or reused, if any.
+  string pallet = 7;
+  // Why it failed or was cancelled.
+  string reason = 8;
+  string message = 9;
+}
