@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -219,12 +220,19 @@ func rawJSON(field, s string) (json.RawMessage, error) {
 	return json.RawMessage(s), nil
 }
 
+// jsonObject decodes a *_json field holding an object, keeping numbers
+// exact (json.Number); "" means unset.
 func jsonObject(field, s string) (map[string]any, error) {
 	if s == "" {
 		return nil, nil
 	}
+	dec := json.NewDecoder(strings.NewReader(s))
+	dec.UseNumber()
 	var m map[string]any
-	if err := json.Unmarshal([]byte(s), &m); err != nil {
+	if err := dec.Decode(&m); err != nil || dec.More() {
+		if err == nil {
+			err = errors.New("trailing data")
+		}
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%s must be a JSON object: %v", field, err))
 	}
 	return m, nil

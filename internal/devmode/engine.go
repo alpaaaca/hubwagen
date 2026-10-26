@@ -41,7 +41,8 @@ type Config struct {
 	Echo io.Writer
 	// DisableSchedules: no cron runs (one-shot `hubwagen run`).
 	DisableSchedules bool
-	// Listen, if set, is the address the worker API is served on, e.g.
+	// Listen, if set, is the address the API (worker and haul services) is
+	// served on, e.g.
 	// 127.0.0.1:7070. Port 0 picks a free port (see Engine.APIAddr).
 	Listen string
 	Logger *slog.Logger
@@ -144,6 +145,8 @@ func (e *Engine) serveAPI(addr string, log *slog.Logger) error {
 	}
 	mux := http.NewServeMux()
 	path, h := api.NewWorkerHandler(e.Core, 0)
+	mux.Handle(path, h)
+	path, h = api.NewHaulHandler(e.Core, e.Store)
 	mux.Handle(path, h)
 	e.api = &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	e.APIAddr = ln.Addr().String()

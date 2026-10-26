@@ -1,0 +1,42 @@
+package api
+
+import (
+	"net/http"
+	"testing"
+
+	"connectrpc.com/connect"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
+	"github.com/alper/hubwagen/internal/api/gen/hubwagen/v1/hubwagenv1connect"
+	"github.com/alper/hubwagen/internal/state"
+)
+
+func TestHaulService(t *testing.T) {
+	s := start(t)
+	mux := http.NewServeMux()
+	path, h := NewHaulHandler(s.core, s.store)
+	mux.Handle(path, h)
+	srv := httptestServer(t, mux)
+	c := hubwagenv1connect.NewHaulServiceClient(http.DefaultClient, srv)
+
+	res, err := c.StartHaul(ctx, connect.NewRequest(&hubwagenv1.StartHaulRequest{
+		Tenant: "t", Name: "daily_revenue", ParamsJson: `{"day":"2026-10-24","n":10000000000000001}`}))
+	require.NoError(t, err)
+	got, err := c.GetHaul(ctx, connect.NewRequest(&hubwagenv1.GetHaulRequest{HaulId: res.Msg.HaulId}))
+	require.NoError(t, err)
+	hl := got.Msg.Haul
+	assert.Equal(t, state.HaulRunning, hl.Status)
+	assert.Equal(t, "daily_revenue", hl.Name)
+	assert.Contains(t, hl.ParamsJson, `"n":10000000000000001`, "numbers stay exact")
+	assert.NotNil(t, hl.CreatedAt)
+	assert.Nil(t, hl.FinishedAt)
+
+	_, err = c.GetHaul(ctx, connect.NewRequest(&hubwagenv1.GetHaulRequest{HaulId: "nope"}))
+	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+	_, err = c.StartHaul(ctx, connect.NewRequest(&hubwagenv1.StartHaulRequest{Tenant: "t", Name: "x", ParamsJson: "[1]"}))
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "params must be an object")
+	_, err = c.StartHaul(ctx, connect.NewRequest(&hubwagenv1.StartHaulRequest{Name: "x"}))
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "no tenant")
+}
