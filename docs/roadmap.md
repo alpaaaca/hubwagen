@@ -3,7 +3,9 @@
 What is built, what is next, and what is still undecided. Design rationale is
 in [architecture.md](architecture.md); what v2 keeps and drops from the v1
 engine is in [v2-migration.md](v2-migration.md). Keep this file current:
-update a milestone's status in the same PR that changes it.
+update a milestone's status in the same PR that changes it. Each
+milestone's PR-sized steps are GitHub issues under a milestone of the same
+name; the links below point to them.
 
 ## Direction
 
@@ -53,15 +55,15 @@ No Python yet.
    lift and lift attempt tables; events `haul_started`, `haul_task_completed`
    (commands), `lift_scheduled`, `lift_completed`, `lift_failed`,
    `timer_started`, `timer_fired`, `haul_completed`/`failed`/`cancelled`.
-   Migrations next to the v1 tables, which are dropped in M3c.
+   Migrations next to the v1 tables, which are dropped in M3c. ([#12](https://github.com/alpaaaca/hubwagen/issues/12))
 2. **Haul state machine** (`internal/core`): replay-until-blocked protocol on
    the server side — schedule a haul task when a result arrives, apply the
    returned commands, dispatch lifts, arm timers. Retries and timeouts for
-   lifts reuse the v1 logic. Restore on leader start.
+   lifts reuse the v1 logic. Restore on leader start. ([#14](https://github.com/alpaaaca/hubwagen/issues/14), [#15](https://github.com/alpaaaca/hubwagen/issues/15), [#17](https://github.com/alpaaaca/hubwagen/issues/17))
 3. **Docks**: in-memory queues per dock, long-poll semantics behind an
-   interface the API will expose; the fake worker in tests consumes it.
+   interface the API will expose; the fake worker in tests consumes it. ([#13](https://github.com/alpaaaca/hubwagen/issues/13))
 4. **Sequence check on the server**: a haul task's commands must extend the
-   logbook, never contradict it; a contradiction marks the haul `stuck`.
+   logbook, never contradict it; a contradiction marks the haul `stuck`. ([#16](https://github.com/alpaaaca/hubwagen/issues/16))
 
 Done when: an end-to-end test in `tests/` runs a three-lift haul with a sleep,
 kills and restarts the leader mid-haul, and the haul completes with each lift
@@ -72,17 +74,17 @@ run once.
 Goal: running the same haul twice reuses every lift, in a Go test.
 
 1. **Pallets and datasets**: catalog tables projected from `lift_completed`
-   and commit events; pallet states `committed`, `expired`, `invalid`.
+   and commit events; pallet states `committed`, `expired`, `invalid`. ([#18](https://github.com/alpaaaca/hubwagen/issues/18))
 2. **Commit protocol** on `file://`: staging per fingerprint and attempt,
    pallet manifests promoted with `PutIfAbsent`, commit retried on restart.
-   Builds on `internal/blob` and the marker logic in `internal/taskexec`.
+   Builds on `internal/blob` and the marker logic in `internal/taskexec`. ([#19](https://github.com/alpaaaca/hubwagen/issues/19))
 3. **Fingerprints**: computed by the server from what the worker registers
    (code version) and what the command carries (inputs, params, output);
    content hash for `file://` inputs; opt-in memoization (`memo=True`,
    `memo="ttl:…"`); `lift_reused` events with the matched pallet; rerun
-   reasons, including "not memoized".
+   reasons, including "not memoized". ([#20](https://github.com/alpaaaca/hubwagen/issues/20))
 4. **Single-flight**: fingerprint index with `running`/`committed`/`failed`;
-   waiters attach to a running fingerprint.
+   waiters attach to a running fingerprint. ([#21](https://github.com/alpaaaca/hubwagen/issues/21))
 
 Done when: a test runs a haul of memoized lifts, reruns it with one lift's
 code version changed, and only that lift and its downstream run (a lift
@@ -97,16 +99,16 @@ reuse.
 1. **Worker API** (Connect, HTTP/JSON-callable): `RegisterBuild`,
    `PollHaulTask`, `CompleteHaulTask`, `PollLiftTask`, `CompleteLiftTask`,
    `Heartbeat`. `hubwagen dev` serves it; `hubwagen start` and
-   `hubwagen replay` call it.
+   `hubwagen replay` call it. ([#22](https://github.com/alpaaaca/hubwagen/issues/22), [#23](https://github.com/alpaaaca/hubwagen/issues/23))
 2. **Python SDK** (`sdk/python`): `@haul`, `@lift`, `ctx.lift`, `ctx.sleep`,
    `ctx.state`, `ctx.latest_pallet`; replay until blocked; client-side
    sequence check with file and line; runtime guards on clock and randomness;
    code version from source + imported project modules + lockfile;
-   `file://` output helpers.
+   `file://` output helpers. ([#24](https://github.com/alpaaaca/hubwagen/issues/24), [#25](https://github.com/alpaaaca/hubwagen/issues/25), [#26](https://github.com/alpaaaca/hubwagen/issues/26))
 3. **Example** in `pipelines/examples/`: a small Python project with an
-   extract → transform → report haul that writes local Parquet or CSV.
+   extract → transform → report haul that writes local Parquet or CSV. ([#27](https://github.com/alpaaaca/hubwagen/issues/27))
 4. **Remove v1**: YAML compiler, pipeline loader and v1 tables, once nothing
-   uses them (see [v2-migration.md](v2-migration.md)).
+   uses them (see [v2-migration.md](v2-migration.md)). ([#28](https://github.com/alpaaaca/hubwagen/issues/28))
 
 Done when: `hubwagen dev` + a local worker run the example, and a replay over
 a date range reports reused and rerun lifts with reasons.
@@ -145,10 +147,10 @@ Roughly in order of expected need:
 
 | | Question | Blocks |
 |---|---|---|
-| S1 | Python replay prototype: how slow is full replay for a 1,000-event logbook? Does patching clock/random in a running interpreter catch typical mistakes without breaking libraries imported by haul modules? | M3c |
-| S2 | Code version from imports: can the SDK resolve a lift's project-local imports reliably (relative imports, `importlib`, namespace packages), and how often does the lockfile term cause reruns in a real project? | M3c |
-| S3 | Load: one leader with group commit at the target load (first v1 signal: ~60k events/s in batches of 128 on an M1 Mac). Re-measure with logbook events. | Load target sign-off |
-| S4 | Litestream as a library with a replica path per leader term (from v1's R1). | Failover |
+| [S1](https://github.com/alpaaaca/hubwagen/issues/10) | Python replay prototype: how slow is full replay for a 1,000-event logbook? Does patching clock/random in a running interpreter catch typical mistakes without breaking libraries imported by haul modules? | M3c |
+| [S2](https://github.com/alpaaaca/hubwagen/issues/11) | Code version from imports: can the SDK resolve a lift's project-local imports reliably (relative imports, `importlib`, namespace packages), and how often does the lockfile term cause reruns in a real project? | M3c |
+| [S3](https://github.com/alpaaaca/hubwagen/issues/29) | Load: one leader with group commit at the target load (first v1 signal: ~60k events/s in batches of 128 on an M1 Mac). Re-measure with logbook events. | Load target sign-off |
+| [S4](https://github.com/alpaaaca/hubwagen/issues/30) | Litestream as a library with a replica path per leader term (from v1's R1). | Failover |
 
 ## Open decisions
 
