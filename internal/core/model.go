@@ -57,7 +57,14 @@ type batch struct {
 	tasks    []*taskState
 	attempts []*attemptState
 	outputs  []state.Output
-	seen     map[any]bool
+
+	hauls        []*haulState
+	haulTasks    []*haulTaskState
+	lifts        []*liftState
+	liftAttempts []*liftAttemptState
+	timers       []*haulTimer
+
+	seen map[any]bool
 
 	effects []func()
 	replies []func(error)
@@ -67,7 +74,9 @@ func newBatch() *batch { return &batch{seen: map[any]bool{}} }
 
 func (b *batch) empty() bool {
 	return len(b.events) == 0 && len(b.catalog) == 0 && len(b.runs) == 0 &&
-		len(b.tasks) == 0 && len(b.attempts) == 0 && len(b.outputs) == 0
+		len(b.tasks) == 0 && len(b.attempts) == 0 && len(b.outputs) == 0 &&
+		len(b.hauls) == 0 && len(b.haulTasks) == 0 && len(b.lifts) == 0 &&
+		len(b.liftAttempts) == 0 && len(b.timers) == 0
 }
 
 // write is the Store.Append callback. Order follows foreign keys.
@@ -97,7 +106,40 @@ func (b *batch) write(tx *state.Tx) error {
 			return fmt.Errorf("output %s/%s/%s: %w", o.RunID, o.TaskID, o.Name, err)
 		}
 	}
+	for _, h := range b.hauls {
+		if err := tx.PutHaul(h.rec); err != nil {
+			return fmt.Errorf("haul %s: %w", h.rec.ID, err)
+		}
+	}
+	for _, t := range b.haulTasks {
+		if err := tx.PutHaulTask(t.rec); err != nil {
+			return fmt.Errorf("haul task %s: %w", t.rec.ID, err)
+		}
+	}
+	for _, l := range b.lifts {
+		if err := tx.PutLift(l.rec); err != nil {
+			return fmt.Errorf("lift %s/%d: %w", l.rec.HaulID, l.rec.Seq, err)
+		}
+	}
+	for _, a := range b.liftAttempts {
+		if err := tx.PutLiftAttempt(a.rec); err != nil {
+			return fmt.Errorf("lift attempt %s: %w", a.rec.ID, err)
+		}
+	}
+	for _, t := range b.timers {
+		if err := tx.PutTimer(t.rec); err != nil {
+			return fmt.Errorf("timer %s/%d: %w", t.rec.HaulID, t.rec.Seq, err)
+		}
+	}
 	return nil
+}
+
+// dirty marks v to be written at commit, once per batch.
+func dirty[T any](b *batch, list *[]*T, v *T) {
+	if !b.seen[v] {
+		b.seen[v] = true
+		*list = append(*list, v)
+	}
 }
 
 func (c *Core) dirtyRun(r *runState) {

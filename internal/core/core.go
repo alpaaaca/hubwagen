@@ -82,15 +82,18 @@ type Core struct {
 	inbox mailbox
 
 	// Everything below is owned by the Run goroutine.
-	tenants   map[string]*state.Tenant
-	versions  map[string]*version
-	pipelines map[pipelineKey]*pipelineState
-	runs      map[string]*runState // non-terminal, plus runs finished in the current batch
-	runsByKey map[string]*runState // newest in-memory run per run key
-	attempts  map[string]*attemptState
-	docks     map[string]*dockState
-	pollers   []*poller // waiting, oldest first
-	b         *batch
+	tenants      map[string]*state.Tenant
+	versions     map[string]*version
+	pipelines    map[pipelineKey]*pipelineState
+	runs         map[string]*runState // non-terminal, plus runs finished in the current batch
+	runsByKey    map[string]*runState // newest in-memory run per run key
+	attempts     map[string]*attemptState
+	hauls        map[string]*haulState // open hauls
+	haulTasks    map[string]*haulTaskState
+	liftAttempts map[string]*liftAttemptState // dispatched, unfinished
+	docks        map[string]*dockState
+	pollers      []*poller // waiting, oldest first
+	b            *batch
 	// queueOrder numbers queued tasks so the oldest across docks goes first.
 	queueOrder uint64
 	ctx        context.Context // Run's context, for store reads inside the loop
@@ -110,16 +113,19 @@ func New(cfg Config) *Core {
 		cfg.Runtimes = map[string]Runtime{}
 	}
 	return &Core{
-		cfg:       cfg,
-		log:       cfg.Logger.With("component", "core", "term", cfg.Term),
-		inbox:     newMailbox(),
-		tenants:   map[string]*state.Tenant{},
-		versions:  map[string]*version{},
-		pipelines: map[pipelineKey]*pipelineState{},
-		runs:      map[string]*runState{},
-		runsByKey: map[string]*runState{},
-		attempts:  map[string]*attemptState{},
-		docks:     map[string]*dockState{},
+		cfg:          cfg,
+		log:          cfg.Logger.With("component", "core", "term", cfg.Term),
+		inbox:        newMailbox(),
+		tenants:      map[string]*state.Tenant{},
+		versions:     map[string]*version{},
+		pipelines:    map[pipelineKey]*pipelineState{},
+		runs:         map[string]*runState{},
+		runsByKey:    map[string]*runState{},
+		attempts:     map[string]*attemptState{},
+		hauls:        map[string]*haulState{},
+		haulTasks:    map[string]*haulTaskState{},
+		liftAttempts: map[string]*liftAttemptState{},
+		docks:        map[string]*dockState{},
 	}
 }
 
