@@ -27,8 +27,8 @@ that only matters at scale waits.
 | M1: Spec compiler (v1) | **Done** |
 | M2: v1 engine in dev mode | **Done** |
 | M3a: Haul engine in the core | **Done** |
-| M3b: Pallets, catalog, memoization | **In progress** |
-| M3c: Worker API + minimal Python SDK | — |
+| M3b: Pallets, catalog, memoization | **Done** |
+| M3c: Worker API + minimal Python SDK | Next |
 | M4: Full haul surface (fan-out, signals, triggers, testing) | — |
 | M5: Catalog in the UI, invalidation, staleness | — |
 | Later | — |
@@ -93,8 +93,10 @@ Goal: running the same haul twice reuses every lift, in a Go test.
    `ttl:…`); `LiftReused` events with the matched pallet; rerun reasons
    (`not memoized`, `no previous run`, `code changed (a → b)`,
    `input changed`, `params changed`, `expired`, `unknown code version`). ([#20](https://github.com/alpaaaca/hubwagen/issues/20))
-4. **Single-flight**: fingerprint index with `running`/`committed`/`failed`;
-   waiters attach to a running fingerprint. ([#21](https://github.com/alpaaaca/hubwagen/issues/21))
+4. ✅ **Single-flight**: a memoized lift whose fingerprint is already running
+   waits for it (`LiftWaiting`) and reuses its pallet; if the run fails, the
+   first waiter runs itself. Flights are in memory and rebuilt on restore
+   (committed fingerprints are the catalog's own index). ([#21](https://github.com/alpaaaca/hubwagen/issues/21))
 
 Done when: a test runs a haul of memoized lifts, reruns it with one lift's
 code version changed, and only that lift and its downstream run (a lift

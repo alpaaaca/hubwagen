@@ -24,7 +24,9 @@ import (
 //   - the commands recorded for each haul are rebuilt from its logbook, so
 //     replays are still checked against it;
 //   - a lift whose pallet was recorded but not promoted gets the promote
-//     again, from the manifest in the logbook. Promotes are idempotent.
+//     again, from the manifest in the logbook. Promotes are idempotent;
+//   - single-flight is rebuilt: unfinished lifts with a fingerprint own their
+//     flights again, waiting lifts rejoin them.
 
 // restoredHauls is what loadHauls read for settleHauls.
 type restoredHauls struct {
@@ -129,6 +131,7 @@ func (c *Core) settleHauls(act *restoredHauls) error {
 			attempts[fmt.Sprintf("%s/%d", a.HaulID, a.Seq)] = a
 		}
 	}
+	var restored []*liftState
 	for _, rec := range act.Lifts {
 		h := c.hauls[rec.HaulID]
 		l := &liftState{rec: rec, haul: h}
@@ -144,7 +147,9 @@ func (c *Core) settleHauls(act *restoredHauls) error {
 			}
 		}
 		h.lifts[rec.Seq] = l
+		restored = append(restored, l)
 		switch rec.Status {
+		case state.LiftWaiting: // rejoins its flight below
 		case state.LiftCommitting:
 			p := act.pending[fmt.Sprintf("%s/%d", rec.HaulID, rec.Seq)]
 			if p == nil {
@@ -171,6 +176,7 @@ func (c *Core) settleHauls(act *restoredHauls) error {
 			c.queueLiftAttempt(l)
 		}
 	}
+	c.restoreFlights(restored)
 
 	for _, rec := range act.Timers {
 		h := c.hauls[rec.HaulID]

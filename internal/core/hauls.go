@@ -63,6 +63,7 @@ type liftState struct {
 	memo    memoPolicy
 	pallet  string // the committed (or reused) pallet, once there is one
 	reused  bool
+	flight  *flight // the flight it waits on, while waiting
 }
 
 type liftAttemptState struct {
@@ -580,9 +581,13 @@ func (c *Core) scheduleLift(h *haulState, cmd Command) {
 		c.finishLift(l, state.LiftFailed, nil, reason, msg)
 		c.wake(h)
 	case match != nil:
-		c.reuseLift(l, *match)
+		var result json.RawMessage
+		if orig, err := c.cfg.Store.GetLift(c.ctx, match.HaulID, match.LiftSeq); err == nil {
+			result = orig.Result
+		}
+		c.reuseLift(l, match.ID, result)
 	default:
-		c.queueLiftAttempt(l)
+		c.runOrWait(l)
 	}
 }
 
@@ -713,6 +718,7 @@ func (c *Core) finishLift(l *liftState, status string, result json.RawMessage, r
 		liftFinishedPayload{Seq: l.rec.Seq, Status: status, Result: result, Reason: reason, Message: message,
 			Pallet: l.pallet, Reused: l.reused})
 	delete(l.haul.lifts, l.rec.Seq)
+	c.landFlight(l)
 }
 
 // cancelLift withdraws a queued attempt or records the dispatched one as
@@ -721,6 +727,7 @@ func (c *Core) finishLift(l *liftState, status string, result json.RawMessage, r
 func (c *Core) cancelLift(l *liftState, message string) {
 	l.wait.stop()
 	l.wait = nil
+	c.leaveFlight(l)
 	if l.queued != "" {
 		c.unqueue(l.rec.Dock, l.queued)
 		l.queued = ""

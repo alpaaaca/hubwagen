@@ -38,6 +38,7 @@ const (
 	LiftRunning    = "running"
 	LiftRetryWait  = "retry_wait"
 	LiftCommitting = "committing" // succeeded; its pallet is being promoted
+	LiftWaiting    = "waiting"    // its fingerprint is running in another lift (single-flight)
 	LiftCompleted  = "completed"
 	LiftFailed     = "failed"
 	LiftCancelled  = "cancelled"
@@ -183,7 +184,7 @@ func (t *Tx) PutLift(v Lift) error {
 		ON CONFLICT (haul_id, seq) DO UPDATE SET
 			status = excluded.status, attempts = excluded.attempts, retry_at = excluded.retry_at,
 			reason = excluded.reason, message = excluded.message, result_json = excluded.result_json,
-			finished_at = excluded.finished_at`,
+			run_reason = excluded.run_reason, finished_at = excluded.finished_at`,
 		v.HaulID, v.Seq, v.Name, v.Dock, string(v.Args), int64(v.Timeout), string(v.Retry),
 		string(v.Output), string(v.Inputs), v.Fingerprint, string(v.FPInputs), v.RunReason, v.Status,
 		v.Attempts, formatTimePtr(v.RetryAt),

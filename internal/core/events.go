@@ -178,6 +178,14 @@ type liftReusedPayload struct {
 	Fingerprint string `json:"fingerprint"`
 }
 
+// liftWaitingPayload names the run a lift waits for.
+type liftWaitingPayload struct {
+	Seq         int    `json:"seq"`
+	Fingerprint string `json:"fingerprint"`
+	Haul        string `json:"haul"`   // the running lift's haul
+	OnSeq       int    `json:"on_seq"` // and its seq
+}
+
 type buildRegisteredPayload struct {
 	ID    string            `json:"id"`
 	Lifts map[string]string `json:"lifts"`

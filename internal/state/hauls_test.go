@@ -305,3 +305,15 @@ func TestMigrateV1Database(t *testing.T) {
 	require.NoError(t, err)
 	put(t, s, nil, func(tx *Tx) error { return tx.PutHaul(haul("h1", HaulRunning)) })
 }
+
+func TestLiftRunReasonCanChange(t *testing.T) {
+	s, _ := openFile(t)
+	l := lift("h1", 1, LiftWaiting)
+	l.RunReason = "no previous run"
+	put(t, s, nil, func(tx *Tx) error { return tx.PutHaul(haul("h1", HaulRunning)) }, func(tx *Tx) error { return tx.PutLift(l) })
+	l.Status, l.RunReason = LiftScheduled, "the run it waited for failed"
+	put(t, s, nil, func(tx *Tx) error { return tx.PutLift(l) })
+	got, err := s.GetLift(ctx, "h1", 1)
+	require.NoError(t, err)
+	assert.Equal(t, "the run it waited for failed", got.RunReason)
+}

@@ -11,9 +11,10 @@ user's environment, Python SDK first.
 
 **Today:** `hubwagen dev` / `hubwagen run` still run the v1 engine (M1–M2):
 compiled YAML pipelines, host-process tasks, `file://` bucket; it keeps
-working until M3c. The v2 haul engine (M3a) is in `internal/core`, driven by
-Go tests only. **Next:** pallets and memoization (M3b), then the worker API
-and Python SDK (M3c).
+working until M3c. The v2 haul engine (M3a) with pallets, the catalog and
+memoization (M3b) is in `internal/core`, `internal/state` and
+`internal/pallet`, driven by Go tests only. **Next:** the worker API and the
+Python SDK (M3c).
 
 Read before larger changes:
 
