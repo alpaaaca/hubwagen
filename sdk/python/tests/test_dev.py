@@ -65,3 +65,10 @@ def test_unknown_haul_fails(client):
     h = wait(client, client.start_haul("no_such_haul"))
     assert h["status"] == "failed"
     assert h["reason"] == "haul_task_failed"
+
+
+def test_lift_reads_its_input_pallet(client):
+    h = wait(client, client.start_haul("reads_inputs", {"day": "2026-11-01"}))
+    assert h["status"] == "completed", h
+    assert json.loads(h["resultJson"]) == {"files": ["orders.csv"], "manifest_files": 1,
+                                           "first": "order,day\n1,2026-11-01\n"}

@@ -6,8 +6,19 @@ import dataclasses
 import datetime as _dt
 import hashlib
 import inspect
+import json
+import urllib.parse
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable
+
+
+def local_path(uri: str) -> Path:
+    """A file:// URI as a local path. Other buckets aren't supported yet."""
+    u = urllib.parse.urlparse(uri)
+    if u.scheme != "file":
+        raise RuntimeError(f"{uri}: only file:// buckets are supported so far")
+    return Path(urllib.parse.unquote(u.path))
 
 
 @dataclass(frozen=True)
@@ -36,6 +47,28 @@ class Pallet:
     result: Any = None
     # The pallet was reused (memoized), not built by this haul.
     reused: bool = False
+
+    # Reading a pallet's data: inside a lift that got it as an argument.
+
+    def manifest(self) -> dict:
+        """The pallet's manifest: its data prefix and files (path, size,
+        sha256)."""
+        if not self.location:
+            raise RuntimeError(f"pallet {self.id}: no location; read pallets inside the lift they were passed to")
+        return json.loads(local_path(self.location).read_text())
+
+    def files(self) -> list[Path]:
+        """The pallet's files as local paths, in path order."""
+        m = self.manifest()
+        base = local_path(m["data"])
+        return [base / f["path"] for f in m["files"]]
+
+    def path(self, name: str) -> Path:
+        """One of the pallet's files, by its path within the pallet."""
+        m = self.manifest()
+        if not any(f["path"] == name for f in m["files"]):
+            raise FileNotFoundError(f"pallet {self.id} has no file {name!r}")
+        return local_path(m["data"]) / name
 
 
 @dataclass(frozen=True)

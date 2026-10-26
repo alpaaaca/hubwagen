@@ -338,3 +338,21 @@ func TestLiftOutputNeedsAPalletStore(t *testing.T) {
 	h.replay(seqs(output("extract", "raw", "")), nil)
 	assert.Equal(t, "no_pallet_store", h.lift(id).Reason)
 }
+
+func TestLiftTaskCarriesInputLocations(t *testing.T) {
+	b := newBucket(t)
+	h := newHarness(t, withBucket(b, nil))
+	id := h.startHaul("x")
+	h.replay(seqs(output("extract", "raw", "")), nil)
+	a := h.poll(TaskLift)
+	require.NoError(t, h.core.CompleteLift(h.ctx, LiftResult{AttemptID: a.ID, Status: state.AttemptSucceeded,
+		Output: writeOutput(t, b, a, map[string]string{"a.csv": "x"})}))
+	h.waitLift(id, state.LiftCompleted)
+	raw := h.pallets(id)[0]
+
+	build := lift("build")
+	build.Inputs = []InputRef{{Name: "orders", Pallet: raw.ID}}
+	h.replay(seqs(output("extract", "raw", ""), build), nil)
+	task := h.poll(TaskLift)
+	assert.Equal(t, []TaskInput{{Name: "orders", Pallet: raw.ID, Location: raw.Location}}, task.Inputs)
+}

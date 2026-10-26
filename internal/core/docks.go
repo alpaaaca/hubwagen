@@ -40,11 +40,19 @@ type Task struct {
 	// the prefix this attempt writes its files to.
 	Output  *OutputSpec
 	Staging string
-	// Inputs (lifts): the pallets passed to it, by argument name.
-	Inputs []InputRef
+	// Inputs (lifts): the pallets passed to it, by argument name, with
+	// where their manifests are.
+	Inputs []TaskInput
 	// Logbook is the haul's events up to at least this task's dispatch
 	// (haul tasks only). The replay reads results from it.
 	Logbook []state.Event
+}
+
+// TaskInput is a pallet passed to a lift, as the worker gets it.
+type TaskInput struct {
+	Name     string
+	Pallet   string
+	Location string // the pallet's manifest
 }
 
 // DockConfig limits one dock.

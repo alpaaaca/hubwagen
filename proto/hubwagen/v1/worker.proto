@@ -146,6 +146,8 @@ message Output {
 message InputRef {
   string name = 1;
   string pallet = 2;
+  // The pallet's manifest (in lift tasks; ignored in commands).
+  string location = 3;
 }
 
 message HaulOutcome {
