@@ -477,10 +477,21 @@ passed while no leader was up.
 
 ### Worker API
 
-Connect services (protobuf, also callable as plain HTTP/JSON, which keeps
-the Python SDK free of gRPC tooling): `RegisterBuild`, `PollHaulTask`,
-`CompleteHaulTask` (commands), `PollLiftTask`, `CompleteLiftTask`
-(output descriptor), `Heartbeat`. Long-poll, so workers behind NAT work.
+`hubwagen.v1.WorkerService` (`proto/hubwagen/v1/worker.proto`, served by
+`internal/api`): Connect, so also callable as plain HTTP/JSON
+(`POST /hubwagen.v1.WorkerService/<Method>`), which keeps the Python SDK free
+of gRPC tooling. `RegisterBuild`, `PollHaulTask`, `CompleteHaulTask`
+(commands), `PollLiftTask`, `CompleteLiftTask` (output descriptor),
+`Heartbeat`. Polls are long polls (capped at 30 s), so workers behind NAT
+work. JSON that belongs to user code (arguments, results, params, event
+payloads) travels as JSON text in `*_json` fields, so numbers stay exact.
+
+Heartbeats are leases: with a heartbeat timeout (one minute in dev mode), a
+dispatched lift attempt or haul task whose worker stops sending heartbeats
+is lost — the attempt goes through its lift's retry policy, the haul task is
+replaced. The heartbeat response lists the tasks a worker should stop
+(cancelled, timed out, finished elsewhere). Leases aren't persisted; a new
+leader gives restored attempts fresh ones.
 
 ### Workers and execution
 

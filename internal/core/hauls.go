@@ -47,8 +47,9 @@ type haulState struct {
 }
 
 type haulTaskState struct {
-	rec  state.HaulTask
-	haul *haulState
+	rec   state.HaulTask
+	haul  *haulState
+	lease *timerRef
 }
 
 type liftState struct {
@@ -70,6 +71,7 @@ type liftAttemptState struct {
 	rec     state.LiftAttempt
 	lift    *liftState
 	timeout *timerRef
+	lease   *timerRef
 }
 
 type haulTimer struct {
@@ -318,6 +320,7 @@ func (c *Core) enqueueHaulTask(t *haulTaskState) {
 		t.rec.Status, t.rec.WorkerID, t.rec.DispatchedAt = state.HaulTaskDispatched, workerID, ptr(c.now())
 		c.dirtyHaulTask(t)
 		c.emitH(state.EventHaulTaskDispatched, h, t.rec.ID, haulTaskPayload{Number: t.rec.Number, Worker: workerID})
+		c.armHaulTaskLease(t)
 		return task
 	})
 }
@@ -346,6 +349,7 @@ func (c *Core) completeHaulTask(res HaulTaskResult) error {
 		return fmt.Errorf("%w: haul task %s was not dispatched", ErrInvalid, res.TaskID)
 	}
 	h := t.haul
+	t.lease.stop()
 	delete(c.haulTasks, t.rec.ID)
 	if h.task == t {
 		h.task = nil
@@ -621,6 +625,7 @@ func (c *Core) queueLiftAttempt(l *liftState) {
 		if l.rec.Timeout > 0 {
 			c.armLiftTimeout(a, l.rec.Timeout)
 		}
+		c.armLiftLease(a)
 		return task
 	})
 }
@@ -698,6 +703,7 @@ func (c *Core) armLiftRetry(l *liftState, d time.Duration) {
 func (c *Core) finishLiftAttempt(a *liftAttemptState, status, reason, message string) {
 	l := a.lift
 	a.timeout.stop()
+	a.lease.stop()
 	a.rec.Status, a.rec.Reason, a.rec.Message, a.rec.FinishedAt = status, reason, message, ptr(c.now())
 	c.dirtyLiftAttempt(a)
 	c.emitH(state.EventLiftAttemptFinished, l.haul, a.rec.ID,

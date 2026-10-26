@@ -73,6 +73,9 @@ type Config struct {
 	// Pallets promotes and discards lift outputs. Without it, lifts that
 	// declare an output fail (reason no_pallet_store).
 	Pallets PalletStore
+	// HeartbeatTimeout, if set, is how long a dispatched lift attempt or haul
+	// task survives without a heartbeat from its worker (see leases.go).
+	HeartbeatTimeout time.Duration
 	// Docks limits docks by name; a dock not listed has no limits.
 	Docks  map[string]DockConfig
 	NewID  func() string // default: ULID

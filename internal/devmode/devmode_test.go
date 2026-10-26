@@ -2,6 +2,7 @@ package devmode
 
 import (
 	"context"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -123,4 +124,25 @@ func mustEvents(t *testing.T, e *Engine) []state.Event {
 	evs, err := e.Store.EventsSince(ctx, 0, "", 1000)
 	require.NoError(t, err)
 	return evs
+}
+
+func TestServesTheWorkerAPI(t *testing.T) {
+	e, err := Start(ctx, Config{DataDir: t.TempDir(), DisableSchedules: true, Listen: "127.0.0.1:0"})
+	require.NoError(t, err)
+	defer e.Close()
+	require.NotEmpty(t, e.APIAddr)
+
+	resp, err := http.Post("http://"+e.APIAddr+"/hubwagen.v1.WorkerService/Heartbeat", "application/json",
+		strings.NewReader(`{"workerId":"w1","taskIds":["x"]}`))
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	// A long poll in flight doesn't hold up Close.
+	go http.Post("http://"+e.APIAddr+"/hubwagen.v1.WorkerService/PollLiftTask", "application/json",
+		strings.NewReader(`{"workerId":"w1","docks":["default"],"wait":"30s"}`))
+	time.Sleep(100 * time.Millisecond)
+	began := time.Now()
+	require.NoError(t, e.Close())
+	assert.Less(t, time.Since(began), 5*time.Second)
 }
