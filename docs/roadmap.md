@@ -26,7 +26,7 @@ that only matters at scale waits.
 |---|---|
 | M1: Spec compiler (v1) | **Done** |
 | M2: v1 engine in dev mode | **Done** |
-| M3a: Haul engine in the core | Next |
+| M3a: Haul engine in the core | **In progress** |
 | M3b: Pallets, catalog, memoization | — |
 | M3c: Worker API + minimal Python SDK | — |
 | M4: Full haul surface (fan-out, signals, triggers, testing) | — |
@@ -51,7 +51,7 @@ Goal: a haul with several lifts, a timer and a retry survives a leader
 restart, driven entirely from Go tests with the fake clock and a fake worker.
 No Python yet.
 
-1. **Logbook events and projections** (`internal/state`): haul, haul task,
+1. ✅ **Logbook events and projections** (`internal/state`): haul, haul task,
    lift and lift attempt tables; events `haul_started`, `haul_task_completed`
    (commands), `lift_scheduled`, `lift_completed`, `lift_failed`,
    `timer_started`, `timer_fired`, `haul_completed`/`failed`/`cancelled`.
