@@ -61,8 +61,10 @@ message HaulTask {
   string name = 3;
   string dock = 4;
   string params_json = 5;
-  // The haul's events up to at least this task's dispatch. The replay reads
-  // lift results (LiftFinished), fired timers and state from it.
+  // The haul's events a replay reads, up to at least this task's dispatch:
+  // HaulStarted (params), LiftFinished (results), TimerFired, QueryAnswered
+  // and HaulTaskCompleted (the commands recorded so far, for the SDK's own
+  // sequence check). Bookkeeping events are left out to keep it small.
   repeated Event logbook = 6;
 }
 
@@ -94,7 +96,16 @@ message Command {
   oneof kind {
     LiftCommand lift = 3;
     SleepCommand sleep = 4;
+    LatestPalletCommand latest_pallet = 5;
   }
+}
+
+// LatestPalletCommand asks for a dataset partition's newest committed
+// pallet. The server answers at once and records the answer in the logbook
+// (QueryAnswered), so every replay sees the same pallet.
+message LatestPalletCommand {
+  string dataset = 1;
+  string partition = 2;
 }
 
 message LiftCommand {
@@ -177,6 +188,8 @@ message LiftTask {
   // attempt writes its files to.
   Output output = 7;
   string staging = 8;
+  // The pallets passed to the lift, by argument name.
+  repeated InputRef inputs = 9;
 }
 
 message CompleteLiftTaskRequest {

@@ -63,7 +63,9 @@ func init() {
 func runDev(cmd *cobra.Command, args []string) error {
 	paths := args
 	if len(paths) == 0 {
-		paths = []string{"pipelines"}
+		if _, err := os.Stat("pipelines"); err == nil {
+			paths = []string{"pipelines"}
+		}
 	}
 	dashboard := !devHeadless && isatty.IsTerminal(os.Stdout.Fd()) && isatty.IsTerminal(os.Stdin.Fd())
 

@@ -40,6 +40,8 @@ type Task struct {
 	// the prefix this attempt writes its files to.
 	Output  *OutputSpec
 	Staging string
+	// Inputs (lifts): the pallets passed to it, by argument name.
+	Inputs []InputRef
 	// Logbook is the haul's events up to at least this task's dispatch
 	// (haul tasks only). The replay reads results from it.
 	Logbook []state.Event

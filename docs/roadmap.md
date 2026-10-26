@@ -113,11 +113,13 @@ reuse.
    `Heartbeat` (leases; tells workers what to stop). `hubwagen dev` serves it
    (`--listen`, default 127.0.0.1:7070), with `HaulService` (`StartHaul`,
    `GetHaul`) next to it; `hubwagen start` and `hubwagen replay` call it. ([#22](https://github.com/alpaaaca/hubwagen/issues/22), [#23](https://github.com/alpaaaca/hubwagen/issues/23))
-2. **Python SDK** (`sdk/python`): `@haul`, `@lift`, `ctx.lift`, `ctx.sleep`,
-   `ctx.state`, `ctx.latest_pallet`; replay until blocked; client-side
-   sequence check with file and line; runtime guards on clock and randomness;
-   code version from source + imported project modules + lockfile;
-   `file://` output helpers. ([#24](https://github.com/alpaaaca/hubwagen/issues/24), [#25](https://github.com/alpaaaca/hubwagen/issues/25), [#26](https://github.com/alpaaaca/hubwagen/issues/26))
+2. **Python SDK** (`sdk/python`): ✅ `@haul`, `@lift`, `ctx.lift`,
+   `lift_async`/`gather`, `ctx.sleep`, `ctx.state`, `ctx.latest_pallet`
+   (answered and recorded by the server), `ctx.now`, `ctx.random`; replay
+   until blocked; client-side sequence check with file and line; the worker
+   (`python -m hubwagen.worker`, fixed hash seed, heartbeats); writing a
+   lift's output files. Still to do: runtime guards and code version from
+   imports + lockfile (#25), reading input pallets (#26). ([#24](https://github.com/alpaaaca/hubwagen/issues/24), [#25](https://github.com/alpaaaca/hubwagen/issues/25), [#26](https://github.com/alpaaaca/hubwagen/issues/26))
 3. **Example** in `pipelines/examples/`: a small Python project with an
    extract → transform → report haul that writes local Parquet or CSV. ([#27](https://github.com/alpaaaca/hubwagen/issues/27))
 4. **Remove v1**: YAML compiler, pipeline loader and v1 tables, once nothing

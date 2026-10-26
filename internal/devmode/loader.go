@@ -2,7 +2,6 @@ package devmode
 
 import (
 	"context"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -155,9 +154,7 @@ func findYAML(paths []string) ([]string, error) {
 			return nil, err
 		}
 	}
-	if len(out) == 0 {
-		return nil, fmt.Errorf("no *.yaml or *.yml files in %s", strings.Join(paths, ", "))
-	}
+	// No pipeline files is fine: v2 hauls come from workers, not YAML.
 	sort.Strings(out)
 	return out, nil
 }

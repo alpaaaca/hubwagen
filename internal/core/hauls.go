@@ -142,6 +142,10 @@ type CommandKind string
 const (
 	CommandLift  CommandKind = "lift"
 	CommandSleep CommandKind = "sleep"
+	// CommandLatestPallet asks for a dataset partition's newest committed
+	// pallet. The server answers at once and records the answer
+	// (QueryAnswered), so every replay sees the same one.
+	CommandLatestPallet CommandKind = "latest_pallet"
 )
 
 // Command is one step a haul's replay issued, numbered from 1 in the order
@@ -162,6 +166,9 @@ type Command struct {
 	Memo string `json:"memo,omitempty"`
 	// Sleep.
 	Duration time.Duration `json:"duration,omitempty"`
+	// Latest pallet.
+	Dataset   string `json:"dataset,omitempty"`
+	Partition string `json:"partition,omitempty"`
 	// Source is where the haul code made the call ("app/hauls.py:42"), for
 	// error messages.
 	Source string `json:"source,omitempty"`
@@ -403,6 +410,8 @@ func (c *Core) completeHaulTask(res HaulTaskResult) error {
 			c.scheduleLift(h, cmd)
 		case CommandSleep:
 			c.startTimer(h, cmd)
+		case CommandLatestPallet:
+			c.answerLatestPallet(h, cmd)
 		}
 	}
 	if o := res.Outcome; o != nil {
@@ -425,7 +434,7 @@ func checkReplay(logged, replayed []Command) (int, string) {
 			return old.Seq, fmt.Sprintf("replay issued %d commands but the logbook has %d: missing command %d, %s",
 				len(replayed), len(logged), old.Seq, describeCommand(old))
 		}
-		if got := replayed[i]; got.Kind != old.Kind || got.Name != old.Name {
+		if got := replayed[i]; got.Kind != old.Kind || got.Name != old.Name || got.Dataset != old.Dataset {
 			return old.Seq, fmt.Sprintf("command %d: replay issued %s, the logbook has %s",
 				old.Seq, describeCommand(got), describeCommand(old))
 		}
@@ -435,8 +444,11 @@ func checkReplay(logged, replayed []Command) (int, string) {
 
 func describeCommand(cmd Command) string {
 	s := string(cmd.Kind)
-	if cmd.Kind == CommandLift {
+	switch cmd.Kind {
+	case CommandLift:
 		s += " " + strconv.Quote(cmd.Name)
+	case CommandLatestPallet:
+		s += " " + strconv.Quote(cmd.Dataset)
 	}
 	if cmd.Source != "" {
 		s += " at " + cmd.Source
@@ -488,6 +500,10 @@ func validateHaulTaskResult(res HaulTaskResult) error {
 		case CommandSleep:
 			if cmd.Duration <= 0 {
 				return fmt.Errorf("commands[%d]: sleep needs a positive duration", i)
+			}
+		case CommandLatestPallet:
+			if cmd.Dataset == "" {
+				return fmt.Errorf("commands[%d]: latest_pallet needs a dataset", i)
 			}
 		default:
 			return fmt.Errorf("commands[%d]: unknown kind %q", i, cmd.Kind)
@@ -600,7 +616,7 @@ func (c *Core) scheduleLift(h *haulState, cmd Command) {
 func (c *Core) queueLiftAttempt(l *liftState) {
 	h := l.haul
 	l.queued = c.cfg.NewID()
-	task := Task{Kind: TaskLift, ID: l.queued, Dock: l.rec.Dock, HaulID: h.rec.ID, Seq: l.rec.Seq, Name: l.rec.Name, Args: l.rec.Args}
+	task := Task{Kind: TaskLift, ID: l.queued, Dock: l.rec.Dock, HaulID: h.rec.ID, Seq: l.rec.Seq, Name: l.rec.Name, Args: l.rec.Args, Inputs: l.inputs}
 	if l.output != nil {
 		task.Output = l.output
 		task.Staging = c.cfg.Layout.LiftStaging(h.rec.Tenant, h.rec.ID, l.rec.Seq, task.ID)
@@ -779,4 +795,20 @@ func sortedKeys[V any](m map[int]V) []int {
 	}
 	sort.Ints(keys)
 	return keys
+}
+
+// answerLatestPallet answers a latest_pallet query from the catalog and
+// records the answer, then lets the haul replay with it.
+func (c *Core) answerLatestPallet(h *haulState, cmd Command) {
+	var answer *palletAnswer
+	p, err := c.cfg.Store.LatestPallet(c.ctx, h.rec.Tenant, cmd.Dataset, cmd.Partition)
+	switch {
+	case err == nil:
+		answer = &palletAnswer{ID: p.ID, Dataset: p.Dataset, Partition: p.Partition, Location: p.Location,
+			ContentHash: p.ContentHash, Meta: p.Meta, Stats: p.Stats, CommittedAt: p.CommittedAt}
+	case !errors.Is(err, state.ErrNotFound):
+		c.log.Error("latest pallet lookup failed", "haul", h.rec.ID, "seq", cmd.Seq, "err", err)
+	}
+	c.emitH(state.EventQueryAnswered, h, "", queryAnsweredPayload{Seq: cmd.Seq, Pallet: answer})
+	h.replay = true
 }

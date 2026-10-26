@@ -48,6 +48,7 @@ spec-kit.
 | `cmd/` | `compile`, `dev`, `run`, `version`; v2: `start`, `replay` |
 | `pipelines/examples/` | Example pipelines; `TestExamplesCompile` compiles every example |
 | `tests/` | Cross-package end-to-end tests of the engine |
+| `sdk/python/` | Python SDK (stdlib only, Python ≥ 3.12): `@haul`, `@lift`, replay engine, worker; pytest runs it against a real `hubwagen dev` |
 
 ## Rules that hold everywhere
 
@@ -95,6 +96,7 @@ go vet ./...
 go test ./...
 go test -race ./...
 go generate ./internal/api    # after changing proto/: buf lint + generate (via go run, nothing to install)
+(cd sdk/python && uv run --no-project --with pytest --python 3.12 pytest -q)   # Python SDK, incl. against hubwagen dev
 
 ./hubwagen compile pipelines/examples --check --no-resolve   # validate all examples, offline
 ./hubwagen compile pipelines/examples --out build/specs      # write canonical specs
