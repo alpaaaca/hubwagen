@@ -52,6 +52,7 @@ const (
 	EventLiftRetryScheduled    EventType = "LiftRetryScheduled"
 	EventLiftFinished          EventType = "LiftFinished" // carries the result
 	EventLiftReused            EventType = "LiftReused"   // memoized: an earlier pallet stands in
+	EventLiftWaiting           EventType = "LiftWaiting"  // single-flight: waits for another lift
 	EventTimerStarted          EventType = "TimerStarted"
 	EventTimerFired            EventType = "TimerFired"
 	EventTimerCancelled        EventType = "TimerCancelled"

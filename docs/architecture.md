@@ -5,9 +5,10 @@ Where hubwagen is going and why. What is built and what is next is tracked in
 [v2-migration.md](v2-migration.md).
 
 > **Status:** partly built. The haul engine runs in the core (M3a: hauls,
-> lifts, timers, docks, retries, the sequence check, restore), driven by Go
-> tests; pallets and memoization (M3b) and the worker API with the Python SDK
-> (M3c) come next. The v1 engine (compiled YAML pipelines, container-task
+> lifts, timers, docks, retries, the sequence check, restore) with pallets,
+> the catalog and memoization (M3b: file:// commits, fingerprints,
+> single-flight), driven by Go tests; the worker API with the Python SDK
+> (M3c) comes next. The v1 engine (compiled YAML pipelines, container-task
 > contract) still runs `hubwagen dev`/`run` until M3c.
 
 ## Overview

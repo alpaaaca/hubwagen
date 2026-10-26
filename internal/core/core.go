@@ -98,6 +98,7 @@ type Core struct {
 	datasets     map[string]string            // tenant\x00name → partition key
 	builds       map[string]map[string]string // build ID → lift → code version
 	promotions   map[string]*promotion        // by pallet ID, while its promote runs
+	flights      map[string]*flight           // running memoized lifts, by tenant\x00fingerprint
 	bg           sync.WaitGroup               // background bucket I/O
 	pollers      []*poller                    // waiting, oldest first
 	b            *batch
@@ -136,6 +137,7 @@ func New(cfg Config) *Core {
 		datasets:     map[string]string{},
 		builds:       map[string]map[string]string{},
 		promotions:   map[string]*promotion{},
+		flights:      map[string]*flight{},
 	}
 }
 

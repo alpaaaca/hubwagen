@@ -229,16 +229,3 @@ func (c *Core) rerunReason(tenant string, fpi fingerprintInputs, ttl time.Durati
 	}
 	return "no previous run"
 }
-
-// reuseLift completes l with a pallet built earlier by the same fingerprint,
-// without running anything.
-func (c *Core) reuseLift(l *liftState, p state.Pallet) {
-	var result json.RawMessage
-	if orig, err := c.cfg.Store.GetLift(c.ctx, p.HaulID, p.LiftSeq); err == nil {
-		result = orig.Result
-	}
-	l.pallet, l.reused = p.ID, true
-	c.emitH(state.EventLiftReused, l.haul, "", liftReusedPayload{Seq: l.rec.Seq, Pallet: p.ID, Fingerprint: l.rec.Fingerprint})
-	c.finishLift(l, state.LiftCompleted, result, "", "")
-	c.wake(l.haul)
-}
