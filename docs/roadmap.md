@@ -66,8 +66,9 @@ No Python yet.
    lifts reuse the v1 logic. Restore on leader start. ([#14](https://github.com/alpaaaca/hubwagen/issues/14), [#15](https://github.com/alpaaaca/hubwagen/issues/15), [#17](https://github.com/alpaaaca/hubwagen/issues/17))
 3. ✅ **Docks**: in-memory queues per dock, long-poll semantics behind an
    interface the API will expose; the fake worker in tests consumes it. ([#13](https://github.com/alpaaaca/hubwagen/issues/13))
-4. **Sequence check on the server**: a haul task's commands must extend the
-   logbook, never contradict it; a contradiction marks the haul `stuck`. ([#16](https://github.com/alpaaaca/hubwagen/issues/16))
+4. ✅ **Sequence check on the server**: a haul task's commands must extend the
+   logbook, never contradict it; a contradiction marks the haul `stuck`
+   until `ResumeHaul` and a consistent replay. ([#16](https://github.com/alpaaaca/hubwagen/issues/16))
 
 Done when: an end-to-end test in `tests/` runs a three-lift haul with a sleep,
 kills and restarts the leader mid-haul, and the haul completes with each lift

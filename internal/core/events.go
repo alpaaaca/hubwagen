@@ -112,6 +112,7 @@ type haulTaskFailedPayload struct {
 type haulStuckPayload struct {
 	Reason  string `json:"reason"`
 	Message string `json:"message,omitempty"`
+	Seq     int    `json:"seq,omitempty"` // the contradicting command
 }
 
 type haulFinishedPayload struct {
