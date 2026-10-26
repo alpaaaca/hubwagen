@@ -36,6 +36,9 @@ type Bucket interface {
 	// List returns the URIs of all objects under prefix (a "directory" URI
 	// ending in /), sorted.
 	List(ctx context.Context, prefix string) ([]string, error)
+	// DeletePrefix removes every object under prefix (a "directory" URI
+	// ending in /). Removing nothing is not an error.
+	DeletePrefix(ctx context.Context, prefix string) error
 	// LocalPath maps a URI to a filesystem path when the bucket is local, so
 	// host-process tasks can be handed plain paths.
 	LocalPath(uri string) (string, bool)
@@ -173,6 +176,20 @@ func (b *fileBucket) List(_ context.Context, prefix string) ([]string, error) {
 	})
 	sort.Strings(out)
 	return out, err
+}
+
+func (b *fileBucket) DeletePrefix(_ context.Context, prefix string) error {
+	if !strings.HasSuffix(prefix, "/") {
+		return fmt.Errorf("blob: delete prefix %q must end in /", prefix)
+	}
+	dir, err := b.path(strings.TrimSuffix(prefix, "/"))
+	if err != nil {
+		return err
+	}
+	if dir == b.root {
+		return fmt.Errorf("blob: refusing to delete the whole bucket")
+	}
+	return os.RemoveAll(dir)
 }
 
 // writeTemp writes data to a fsynced temp file next to p.

@@ -37,6 +37,7 @@ spec-kit.
 | `internal/core` | Scheduler core: event loop, state machines, triggers, retries, timeouts, cancellation, cron, restore. v2: docks (`docks.go`) and the haul engine (`hauls.go`) |
 | `internal/clock`, `internal/layout` | Real/fake clock; bucket path layout shared by core and task wrapper |
 | `internal/blob` | Bucket access by URI; `file://` with atomic create-if-absent |
+| `internal/pallet` | v2 storage adapter for pallets as files: manifests, content hash, idempotent promote, discard |
 | `internal/taskexec` | The task contract: env, process groups, log shipping, result file, commit markers, restart recovery |
 | `internal/runtime/localrt` | Dev-mode in-process agent: slots, pools, cancellation |
 | `internal/devmode` | Wires store, bucket, core and local runtime for one process; data-dir lock; pipeline loader/watcher |

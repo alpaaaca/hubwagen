@@ -106,3 +106,21 @@ func TestPutIfAbsentHasExactlyOneWinner(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, list, 1, "no temp files left behind")
 }
+
+func TestDeletePrefix(t *testing.T) {
+	b, _ := open(t)
+	base := b.Base()
+	require.NoError(t, b.Put(ctx, base+"/lifts/t/h1/1/a1/part-0.csv", []byte("x")))
+	require.NoError(t, b.Put(ctx, base+"/lifts/t/h1/1/a1/sub/part-1.csv", []byte("y")))
+	require.NoError(t, b.Put(ctx, base+"/lifts/t/h1/1/a2/part-0.csv", []byte("z")))
+
+	require.NoError(t, b.DeletePrefix(ctx, base+"/lifts/t/h1/1/a1/"))
+	left, err := b.List(ctx, base+"/lifts/")
+	require.NoError(t, err)
+	assert.Equal(t, []string{base + "/lifts/t/h1/1/a2/part-0.csv"}, left)
+
+	require.NoError(t, b.DeletePrefix(ctx, base+"/nothing/"), "removing nothing is fine")
+	assert.Error(t, b.DeletePrefix(ctx, base+"/lifts"), "needs a directory URI")
+	assert.Error(t, b.DeletePrefix(ctx, base+"/"), "never the whole bucket")
+	assert.Error(t, b.DeletePrefix(ctx, "file:///elsewhere/"), "never outside the bucket")
+}

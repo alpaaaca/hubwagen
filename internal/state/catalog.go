@@ -114,8 +114,13 @@ func (s *Store) GetDataset(ctx context.Context, tenant, name string) (Dataset, e
 	return v, err
 }
 
-// ListDatasets returns a tenant's datasets by name.
+// ListDatasets returns a tenant's datasets (all tenants' if tenant is empty)
+// by tenant and name.
 func (s *Store) ListDatasets(ctx context.Context, tenant string) ([]Dataset, error) {
+	if tenant == "" {
+		return queryAll(ctx, s.r, scanDataset,
+			`SELECT tenant, name, partition_key, created_at FROM datasets ORDER BY tenant, name`)
+	}
 	return queryAll(ctx, s.r, scanDataset,
 		`SELECT tenant, name, partition_key, created_at FROM datasets WHERE tenant = ? ORDER BY name`, tenant)
 }
@@ -147,6 +152,7 @@ type PalletFilter struct {
 	Tenant    string
 	Dataset   string
 	Partition *string // nil: every partition
+	HaulID    string  // pallets produced by this haul
 	States    []string
 	BeforeID  string // pages backwards: only IDs (ULIDs) lower than this
 	Limit     int    // default 50
@@ -163,6 +169,9 @@ func (s *Store) ListPallets(ctx context.Context, f PalletFilter) ([]Pallet, erro
 	}
 	if f.Dataset != "" {
 		where, args = append(where, "dataset = ?"), append(args, f.Dataset)
+	}
+	if f.HaulID != "" {
+		where, args = append(where, "haul_id = ?"), append(args, f.HaulID)
 	}
 	if f.Partition != nil {
 		where, args = append(where, "partition = ?"), append(args, *f.Partition)

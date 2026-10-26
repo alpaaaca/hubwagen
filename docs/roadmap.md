@@ -82,9 +82,10 @@ Goal: running the same haul twice reuses every lift, in a Go test.
    and commit events; pallet states `pending` (recorded, not yet promoted),
    `committed`, `expired`, `invalid`; latest pallet per partition; upstream
    and downstream lineage. ([#18](https://github.com/alpaaaca/hubwagen/issues/18))
-2. **Commit protocol** on `file://`: staging per fingerprint and attempt,
-   pallet manifests promoted with `PutIfAbsent`, commit retried on restart.
-   Builds on `internal/blob` and the marker logic in `internal/taskexec`. ([#19](https://github.com/alpaaaca/hubwagen/issues/19))
+2. ✅ **Commit protocol** on `file://` (`internal/pallet`): staging per
+   attempt, pallet manifests promoted with `PutIfAbsent` off the core loop,
+   promote redone on restart from the manifest in the logbook, staging of
+   failed attempts discarded. ([#19](https://github.com/alpaaaca/hubwagen/issues/19))
 3. **Fingerprints**: computed by the server from what the worker registers
    (code version) and what the command carries (inputs, params, output);
    content hash for `file://` inputs; opt-in memoization (`memo=True`,

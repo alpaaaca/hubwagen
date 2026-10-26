@@ -58,6 +58,9 @@ type liftState struct {
 	queued  string            // attempt ID waiting on the dock for a worker
 	attempt *liftAttemptState // the dispatched attempt
 	wait    *timerRef         // pending retry, while in retry_wait
+	output  *OutputSpec       // where its pallet goes; nil = it produces none
+	inputs  []InputRef
+	pallet  string // the committed pallet, once there is one
 }
 
 type liftAttemptState struct {
@@ -147,6 +150,8 @@ type Command struct {
 	Args    json.RawMessage `json:"args,omitempty"`
 	Timeout time.Duration   `json:"timeout,omitempty"` // per attempt, enforced by the leader; 0 = none
 	Retry   *RetryPolicy    `json:"retry,omitempty"`   // nil = no retries
+	Output  *OutputSpec     `json:"output,omitempty"`  // the lift produces a pallet here
+	Inputs  []InputRef      `json:"inputs,omitempty"`  // pallets passed to the lift
 	// Sleep.
 	Duration time.Duration `json:"duration,omitempty"`
 	// Source is where the haul code made the call ("app/hauls.py:42"), for
@@ -229,6 +234,9 @@ type LiftResult struct {
 	// NoRetry: the failure will repeat on every attempt (bad arguments, a
 	// non-retryable error raised by the lift), so don't retry it.
 	NoRetry bool
+	// Output describes what a succeeded attempt of a lift with an output
+	// wrote to its staging prefix.
+	Output *LiftOutput
 }
 
 // CompleteLift records a lift attempt's result. It returns once the result is
@@ -450,6 +458,16 @@ func validateHaulTaskResult(res HaulTaskResult) error {
 					return fmt.Errorf("commands[%d]: %v", i, err)
 				}
 			}
+			if cmd.Output != nil {
+				if err := cmd.Output.validate(); err != nil {
+					return fmt.Errorf("commands[%d]: %v", i, err)
+				}
+			}
+			for j, in := range cmd.Inputs {
+				if in.Pallet == "" {
+					return fmt.Errorf("commands[%d].inputs[%d]: no pallet", i, j)
+				}
+			}
 		case CommandSleep:
 			if cmd.Duration <= 0 {
 				return fmt.Errorf("commands[%d]: sleep needs a positive duration", i)
@@ -526,10 +544,24 @@ func (c *Core) scheduleLift(h *haulState, cmd Command) {
 		l.retry = *cmd.Retry
 		l.rec.Retry = marshalPayload(state.EventLiftScheduled, cmd.Retry)
 	}
+	if cmd.Output != nil {
+		l.output = cmd.Output
+		l.rec.Output = marshalPayload(state.EventLiftScheduled, cmd.Output)
+	}
+	if len(cmd.Inputs) > 0 {
+		l.inputs = cmd.Inputs
+		l.rec.Inputs = marshalPayload(state.EventLiftScheduled, cmd.Inputs)
+	}
 	h.lifts[cmd.Seq] = l
 	c.dirtyLift(l)
 	c.emitH(state.EventLiftScheduled, h, "", liftScheduledPayload{
-		Seq: cmd.Seq, Name: cmd.Name, Dock: dock, Args: cmd.Args, Timeout: cmd.Timeout, Retry: cmd.Retry})
+		Seq: cmd.Seq, Name: cmd.Name, Dock: dock, Args: cmd.Args, Timeout: cmd.Timeout, Retry: cmd.Retry,
+		Output: cmd.Output, Inputs: cmd.Inputs})
+	if reason, msg := c.checkLiftIO(l); reason != "" {
+		c.finishLift(l, state.LiftFailed, nil, reason, msg)
+		c.wake(h)
+		return
+	}
 	c.queueLiftAttempt(l)
 }
 
@@ -539,6 +571,10 @@ func (c *Core) queueLiftAttempt(l *liftState) {
 	h := l.haul
 	l.queued = c.cfg.NewID()
 	task := Task{Kind: TaskLift, ID: l.queued, Dock: l.rec.Dock, HaulID: h.rec.ID, Seq: l.rec.Seq, Name: l.rec.Name, Args: l.rec.Args}
+	if l.output != nil {
+		task.Output = l.output
+		task.Staging = c.cfg.Layout.LiftStaging(h.rec.Tenant, h.rec.ID, l.rec.Seq, task.ID)
+	}
 	c.enqueue(task, func(c *Core, workerID string) Task {
 		l.queued = ""
 		l.rec.Attempts++
@@ -586,9 +622,14 @@ func (c *Core) completeLift(res LiftResult) error {
 	if a == nil {
 		return fmt.Errorf("%w: lift attempt %s is unknown or finished", ErrNotFound, res.AttemptID)
 	}
-	c.finishLiftAttempt(a, res.Status, res.Reason, res.Message)
-
 	l := a.lift
+	if res.Output != nil && (l.output == nil || res.Status != state.AttemptSucceeded) {
+		return fmt.Errorf("%w: only a succeeded attempt of a lift with an output reports one", ErrInvalid)
+	}
+	if res.Status == state.AttemptSucceeded && l.output != nil {
+		return c.completeLiftWithOutput(a, res)
+	}
+	c.finishLiftAttempt(a, res.Status, res.Reason, res.Message)
 	if res.Status == state.AttemptFailed {
 		c.liftAttemptFailed(l, res.Reason, res.Message, res.NoRetry)
 		return nil
@@ -608,6 +649,7 @@ func (c *Core) liftAttemptFailed(l *liftState, reason, message string, noRetry b
 	}
 	d := l.retry.delay(l.rec.Attempts)
 	l.rec.Status, l.rec.RetryAt = state.LiftRetryWait, ptr(c.now().Add(d))
+	l.rec.Reason, l.rec.Message = reason, message // the last failure, until the lift finishes
 	c.dirtyLift(l)
 	c.emitH(state.EventLiftRetryScheduled, l.haul, "",
 		liftRetryScheduledPayload{Seq: l.rec.Seq, NextAttempt: l.rec.Attempts + 1, RetryAt: *l.rec.RetryAt})
@@ -637,6 +679,9 @@ func (c *Core) finishLiftAttempt(a *liftAttemptState, status, reason, message st
 	delete(c.liftAttempts, a.rec.ID)
 	l.attempt = nil
 	c.releaseLift(l.rec.Dock)
+	if status != state.AttemptSucceeded && l.output != nil {
+		c.discardStaging(c.cfg.Layout.LiftStaging(l.haul.rec.Tenant, l.rec.HaulID, l.rec.Seq, a.rec.ID))
+	}
 }
 
 func (c *Core) finishLift(l *liftState, status string, result json.RawMessage, reason, message string) {
@@ -644,7 +689,7 @@ func (c *Core) finishLift(l *liftState, status string, result json.RawMessage, r
 	l.rec.RetryAt, l.rec.FinishedAt = nil, ptr(c.now())
 	c.dirtyLift(l)
 	c.emitH(state.EventLiftFinished, l.haul, "",
-		liftFinishedPayload{Seq: l.rec.Seq, Status: status, Result: result, Reason: reason, Message: message})
+		liftFinishedPayload{Seq: l.rec.Seq, Status: status, Result: result, Reason: reason, Message: message, Pallet: l.pallet})
 	delete(l.haul.lifts, l.rec.Seq)
 }
 

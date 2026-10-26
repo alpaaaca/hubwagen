@@ -3,6 +3,8 @@ package core
 import (
 	"encoding/json"
 	"time"
+
+	"github.com/alper/hubwagen/internal/pallet"
 )
 
 // Event payloads. They are stored as JSON in the event log and read by the
@@ -131,6 +133,8 @@ type liftScheduledPayload struct {
 	Args    json.RawMessage `json:"args,omitempty"`
 	Timeout time.Duration   `json:"timeout,omitempty"`
 	Retry   *RetryPolicy    `json:"retry,omitempty"`
+	Output  *OutputSpec     `json:"output,omitempty"`
+	Inputs  []InputRef      `json:"inputs,omitempty"`
 }
 
 type liftRetryScheduledPayload struct {
@@ -160,6 +164,7 @@ type liftFinishedPayload struct {
 	Result  json.RawMessage `json:"result,omitempty"`
 	Reason  string          `json:"reason,omitempty"`
 	Message string          `json:"message,omitempty"`
+	Pallet  string          `json:"pallet,omitempty"` // the pallet it produced
 }
 
 type timerStartedPayload struct {
@@ -169,4 +174,26 @@ type timerStartedPayload struct {
 
 type timerPayload struct {
 	Seq int `json:"seq"`
+}
+
+// Catalog events.
+
+type datasetCreatedPayload struct {
+	Name         string `json:"name"`
+	PartitionKey string `json:"partition_key,omitempty"`
+}
+
+// palletRecordedPayload carries the whole manifest, so a new leader can redo
+// the promote.
+type palletRecordedPayload struct {
+	Seq      int             `json:"seq"`
+	Manifest pallet.Manifest `json:"manifest"`
+	Location string          `json:"location"`
+}
+
+type palletPayload struct {
+	Pallet  string `json:"pallet"`
+	Seq     int    `json:"seq"`
+	Reason  string `json:"reason,omitempty"`
+	Message string `json:"message,omitempty"`
 }

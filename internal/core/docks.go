@@ -36,6 +36,10 @@ type Task struct {
 	Seq    int    // lift: sequence number of the command that scheduled it
 	Name   string // haul or lift function
 	Args   json.RawMessage
+	// Output and Staging (lifts with an output): the pallet to produce and
+	// the prefix this attempt writes its files to.
+	Output  *OutputSpec
+	Staging string
 	// Logbook is the haul's events up to at least this task's dispatch
 	// (haul tasks only). The replay reads results from it.
 	Logbook []state.Event
