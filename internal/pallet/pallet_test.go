@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -36,22 +37,44 @@ func write(t *testing.T, b blob.Bucket, prefix, path, content string) File {
 func TestContentHashIgnoresOrderAndLocation(t *testing.T) {
 	a := File{Path: "a.csv", Size: 1, SHA256: strings.Repeat("a", 64)}
 	b := File{Path: "b.csv", Size: 2, SHA256: strings.Repeat("b", 64)}
-	assert.Equal(t, ContentHash([]File{a, b}), ContentHash([]File{b, a}))
-	assert.True(t, strings.HasPrefix(ContentHash([]File{a}), "sha256:"))
+	assert.Equal(t, ContentHash([]File{a, b}, nil), ContentHash([]File{b, a}, nil))
+	assert.True(t, strings.HasPrefix(ContentHash([]File{a}, nil), "sha256:"))
 
 	changed := b
 	changed.SHA256 = strings.Repeat("c", 64)
-	assert.NotEqual(t, ContentHash([]File{a, b}), ContentHash([]File{a, changed}))
+	assert.NotEqual(t, ContentHash([]File{a, b}, nil), ContentHash([]File{a, changed}, nil))
 	renamed := b
 	renamed.Path = "c.csv"
-	assert.NotEqual(t, ContentHash([]File{a, b}), ContentHash([]File{a, renamed}))
+	assert.NotEqual(t, ContentHash([]File{a, b}, nil), ContentHash([]File{a, renamed}, nil))
 
-	m1, err := New("p1", "t", "raw", "", "file:///x/a1/", []File{b, a})
+	m1, err := New("p1", "t", "raw", "", "file:///x/a1/", []File{b, a}, nil)
 	require.NoError(t, err)
-	m2, err := New("p2", "t", "raw", "", "file:///y/a2/", []File{a, b})
+	m2, err := New("p2", "t", "raw", "", "file:///y/a2/", []File{a, b}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, m1.ContentHash, m2.ContentHash, "same files, different pallets and places")
 	assert.Equal(t, []File{a, b}, m1.Files, "sorted by path")
+}
+
+func TestContentHashCoversTheResult(t *testing.T) {
+	a := File{Path: "a.csv", Size: 1, SHA256: strings.Repeat("a", 64)}
+	files := ContentHash([]File{a}, nil)
+	assert.Equal(t, files, ContentHash([]File{a}, json.RawMessage("null")), "null is no result")
+	assert.Equal(t, files, ContentHash([]File{a}, json.RawMessage(" ")), "nor is nothing")
+	one := ContentHash([]File{a}, json.RawMessage(`{"rows":1}`))
+	assert.NotEqual(t, files, one)
+	assert.NotEqual(t, one, ContentHash([]File{a}, json.RawMessage(`{"rows":2}`)))
+	assert.NotEqual(t, ContentHash(nil, json.RawMessage(`1`)), ContentHash(nil, json.RawMessage(`2`)),
+		"pallets without files differ by their results")
+
+	m, err := New("p", "t", "d", "", "file:///x/", []File{a}, json.RawMessage(`{"rows":1}`))
+	require.NoError(t, err)
+	assert.Equal(t, one, m.ContentHash)
+	assert.JSONEq(t, `{"rows":1}`, string(m.Result))
+	m, err = New("p", "t", "d", "", "file:///x/", []File{a}, json.RawMessage("null"))
+	require.NoError(t, err)
+	assert.Nil(t, m.Result, "a null result is left out of the manifest")
+	_, err = New("p", "t", "d", "", "file:///x/", nil, json.RawMessage("{"))
+	assert.Error(t, err)
 }
 
 func TestNewRejectsBadFiles(t *testing.T) {
@@ -64,10 +87,10 @@ func TestNewRejectsBadFiles(t *testing.T) {
 		"negative":   {{Path: "a", Size: -1, SHA256: ok}},
 		"bad sum":    {{Path: "a", SHA256: "abc"}},
 	} {
-		_, err := New("p", "t", "d", "", "file:///x/", files)
+		_, err := New("p", "t", "d", "", "file:///x/", files, nil)
 		assert.Error(t, err, name)
 	}
-	_, err := New("p", "t", "d", "", "file:///x", nil)
+	_, err := New("p", "t", "d", "", "file:///x", nil, nil)
 	assert.Error(t, err, "data prefix must be a directory")
 }
 
@@ -75,7 +98,7 @@ func TestPromoteWritesManifestOnce(t *testing.T) {
 	s, b, l := open(t)
 	staging := l.LiftStaging("t", "h1", 1, "a1")
 	files := []File{write(t, b, staging, "part-0.csv", "id,n\n1,2\n"), write(t, b, staging, "sub/part-1.csv", "3,4\n")}
-	m, err := New("p1", "t", "raw.orders", "2026-10-24", staging, files)
+	m, err := New("p1", "t", "raw.orders", "2026-10-24", staging, files, nil)
 	require.NoError(t, err)
 
 	uri, err := s.Promote(ctx, m)
@@ -91,7 +114,7 @@ func TestPromoteWritesManifestOnce(t *testing.T) {
 
 	other := m
 	other.Files = files[:1]
-	other.ContentHash = ContentHash(other.Files)
+	other.ContentHash = ContentHash(other.Files, nil)
 	_, err = s.Promote(ctx, other)
 	assert.ErrorIs(t, err, ErrConflict)
 }
@@ -100,7 +123,7 @@ func TestPromoteChecksFilesArePresent(t *testing.T) {
 	s, b, l := open(t)
 	staging := l.LiftStaging("t", "h1", 1, "a1")
 	present := write(t, b, staging, "a.csv", "x")
-	m, err := New("p1", "t", "raw", "", staging, []File{present, {Path: "b.csv", Size: 1, SHA256: present.SHA256}})
+	m, err := New("p1", "t", "raw", "", staging, []File{present, {Path: "b.csv", Size: 1, SHA256: present.SHA256}}, nil)
 	require.NoError(t, err)
 
 	_, err = s.Promote(ctx, m)
@@ -113,7 +136,7 @@ func TestPromoteChecksFilesArePresent(t *testing.T) {
 func TestConcurrentPromotesAgree(t *testing.T) {
 	s, b, l := open(t)
 	staging := l.LiftStaging("t", "h1", 1, "a1")
-	m, err := New("p1", "t", "raw", "", staging, []File{write(t, b, staging, "a.csv", "x")})
+	m, err := New("p1", "t", "raw", "", staging, []File{write(t, b, staging, "a.csv", "x")}, nil)
 	require.NoError(t, err)
 
 	// Two leaders (a deposed one and its successor) promote the same pallet.

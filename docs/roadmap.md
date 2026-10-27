@@ -128,6 +128,8 @@ reuse.
    ✅ Routing by build: builds register their hauls; workers get only the
    hauls and lifts their build defines; `StartHaul` refuses unknown hauls.
    The worker reads its modules from `[tool.hubwagen]` in `pyproject.toml`.
+   ✅ Memoized results: lifts without an output can be memoized (their
+   result is reused); a pallet's content hash covers the lift's result.
 3. ✅ **Example** in `pipelines/examples/revenue/`: a small Python project with
    an extract → transform → report haul that writes CSV, and the demo test
    (`sdk/python/tests/test_example.py`): `hubwagen dev` + a worker, replays

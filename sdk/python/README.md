@@ -57,9 +57,9 @@ haul.
 
 ## Lifts
 
-`@hw.lift(...)` options: `memo=True` or `memo="ttl:1h"` (only with an
-output: reuse the earlier pallet when code, inputs and arguments are
-unchanged), `output=hw.Dataset(name, partition="arg")`, `version=` (pin the
+`@hw.lift(...)` options: `memo=True` or `memo="ttl:1h"` (reuse what an
+earlier run produced when code, inputs and arguments are unchanged: its
+pallet, or for a lift without an output, its result), `output=hw.Dataset(name, partition="arg")`, `version=` (pin the
 code version), `timeout=` (seconds), `retry=hw.Retry(limit, backoff,
 initial, max)` or an int, `dock=`. Pass pallets as arguments: they travel
 as inputs (lineage, and content hashes in the fingerprint), not inside the

@@ -62,8 +62,7 @@ type liftState struct {
 	output  *OutputSpec       // where its pallet goes; nil = it produces none
 	inputs  []InputRef
 	memo    memoPolicy
-	pallet  string // the committed (or reused) pallet, once there is one
-	reused  bool
+	pallet  string  // the committed (or reused) pallet, once there is one
 	flight  *flight // the flight it waits on, while waiting
 }
 
@@ -165,8 +164,8 @@ type Command struct {
 	Retry   *RetryPolicy    `json:"retry,omitempty"`   // nil = no retries
 	Output  *OutputSpec     `json:"output,omitempty"`  // the lift produces a pallet here
 	Inputs  []InputRef      `json:"inputs,omitempty"`  // pallets passed to the lift
-	// Memo: "" or "never" (default), "fingerprint", or "ttl:<duration>". Only
-	// lifts with an output can be memoized.
+	// Memo: "" or "never" (default), "fingerprint", or "ttl:<duration>". A
+	// lift with an output reuses a pallet; one without reuses a result.
 	Memo string `json:"memo,omitempty"`
 	// Sleep.
 	Duration time.Duration `json:"duration,omitempty"`
@@ -494,12 +493,8 @@ func validateHaulTaskResult(res HaulTaskResult) error {
 					return fmt.Errorf("commands[%d].inputs[%d]: no pallet", i, j)
 				}
 			}
-			memo, err := parseMemo(cmd.Memo)
-			if err != nil {
+			if _, err := parseMemo(cmd.Memo); err != nil {
 				return fmt.Errorf("commands[%d]: %v", i, err)
-			}
-			if memo.on && cmd.Output == nil {
-				return fmt.Errorf("commands[%d]: only a lift with an output can be memoized", i)
 			}
 		case CommandSleep:
 			if cmd.Duration <= 0 {
@@ -593,7 +588,7 @@ func (c *Core) scheduleLift(h *haulState, cmd Command) {
 	h.lifts[cmd.Seq] = l
 	c.dirtyLift(l)
 	inputs, reason, msg := c.checkLiftIO(l)
-	var match *state.Pallet
+	var match *memoMatch
 	if reason == "" {
 		match = c.memoize(l, inputs)
 	}
@@ -605,11 +600,7 @@ func (c *Core) scheduleLift(h *haulState, cmd Command) {
 		c.finishLift(l, state.LiftFailed, nil, reason, msg)
 		c.wake(h)
 	case match != nil:
-		var result json.RawMessage
-		if orig, err := c.cfg.Store.GetLift(c.ctx, match.HaulID, match.LiftSeq); err == nil {
-			result = orig.Result
-		}
-		c.reuseLift(l, match.ID, result)
+		c.reuseLift(l, *match)
 	default:
 		c.runOrWait(l)
 	}
@@ -749,7 +740,7 @@ func (c *Core) finishLift(l *liftState, status string, result json.RawMessage, r
 	c.dirtyLift(l)
 	c.emitH(state.EventLiftFinished, l.haul, "",
 		liftFinishedPayload{Seq: l.rec.Seq, Status: status, Result: result, Reason: reason, Message: message,
-			Pallet: l.pallet, Reused: l.reused})
+			Pallet: l.pallet, Reused: l.rec.Reused})
 	delete(l.haul.lifts, l.rec.Seq)
 	c.landFlight(l)
 }

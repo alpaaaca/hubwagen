@@ -219,9 +219,18 @@ def test_params_are_decoded():
     assert json.loads(r.outcome["resultJson"]) == {"$date": "2026-10-24"}
 
 
+def test_memo_without_output():
+    @hw.lift(memo=True)
+    def rate(day: str) -> float:
+        return 1.08
+
+    r = run(lambda ctx: ctx.lift(rate, "2026-10-24"), [])
+    lift = r.commands[0]["lift"]
+    assert lift["memo"] == "fingerprint"
+    assert "output" not in lift
+
+
 def test_decorator_checks():
-    with pytest.raises(ValueError, match="only a lift with an output"):
-        hw.lift(lambda: 1, name="x", memo=True)
     with pytest.raises(ValueError, match="memo="):
         hw.lift(lambda: 1, name="y", memo="always", output=hw.Dataset("d"))
     with pytest.raises(ValueError, match="not one of its arguments"):

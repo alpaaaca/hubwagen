@@ -109,6 +109,7 @@ type Lift struct {
 	Fingerprint string          // "" if it has none (not memoized, unknown code version)
 	FPInputs    json.RawMessage // what went into the fingerprint, encoded by the core
 	RunReason   string          // why it ran; "" if it was reused
+	Reused      bool            // completed by memoization, without running
 	Status      string
 	Attempts    int
 	RetryAt     *time.Time
@@ -178,15 +179,15 @@ func (t *Tx) PutHaulTask(v HaulTask) error {
 func (t *Tx) PutLift(v Lift) error {
 	return t.exec(`
 		INSERT INTO lifts (haul_id, seq, name, dock, args_json, timeout_ns, retry_json, output_json,
-			inputs_json, fingerprint, fingerprint_json, run_reason, status, attempts, retry_at, reason,
+			inputs_json, fingerprint, fingerprint_json, run_reason, reused, status, attempts, retry_at, reason,
 			message, result_json, scheduled_at, finished_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (haul_id, seq) DO UPDATE SET
 			status = excluded.status, attempts = excluded.attempts, retry_at = excluded.retry_at,
 			reason = excluded.reason, message = excluded.message, result_json = excluded.result_json,
-			run_reason = excluded.run_reason, finished_at = excluded.finished_at`,
+			run_reason = excluded.run_reason, reused = excluded.reused, finished_at = excluded.finished_at`,
 		v.HaulID, v.Seq, v.Name, v.Dock, string(v.Args), int64(v.Timeout), string(v.Retry),
-		string(v.Output), string(v.Inputs), v.Fingerprint, string(v.FPInputs), v.RunReason, v.Status,
+		string(v.Output), string(v.Inputs), v.Fingerprint, string(v.FPInputs), v.RunReason, v.Reused, v.Status,
 		v.Attempts, formatTimePtr(v.RetryAt),
 		v.Reason, v.Message, string(v.Result), formatTime(v.ScheduledAt), formatTimePtr(v.FinishedAt))
 }
@@ -286,6 +287,32 @@ func (s *Store) ListHaulTasks(ctx context.Context, haulID string) ([]HaulTask, e
 		`SELECT `+haulTaskColumns+` FROM haul_tasks WHERE haul_id = ? ORDER BY number`, haulID)
 }
 
+// liftRuns are completed lifts of a tenant that ran with a fingerprint and
+// produced no pallet: what memoization of results looks at.
+const liftRuns = `SELECT ` + liftColumns + ` FROM lifts
+	WHERE haul_id IN (SELECT id FROM hauls WHERE tenant = ?)
+	AND fingerprint <> '' AND reused = 0 AND status = 'completed' AND output_json = ''`
+
+// MemoResult returns the newest lift of a tenant that ran with fingerprint,
+// produced no pallet and completed at or after since (zero: any time). Its
+// result is what memoization reuses for a lift without an output.
+// ErrNotFound if there is none.
+func (s *Store) MemoResult(ctx context.Context, tenant, fingerprint string, since time.Time) (Lift, error) {
+	v, err := scanLift(s.r.QueryRowContext(ctx, liftRuns+` AND fingerprint = ? AND finished_at >= ?
+		ORDER BY finished_at DESC LIMIT 1`, tenant, fingerprint, formatTime(since)))
+	if errors.Is(err, sql.ErrNoRows) {
+		return v, ErrNotFound
+	}
+	return v, err
+}
+
+// RecentLiftRuns returns up to limit lifts of a tenant named name that ran
+// as MemoResult counts them, newest first: what a rerun is compared with.
+func (s *Store) RecentLiftRuns(ctx context.Context, tenant, name string, limit int) ([]Lift, error) {
+	return queryAll(ctx, s.r, scanLift, liftRuns+` AND name = ? ORDER BY finished_at DESC LIMIT ?`,
+		tenant, name, limit)
+}
+
 // ListLifts returns a haul's lifts in command order.
 func (s *Store) ListLifts(ctx context.Context, haulID string) ([]Lift, error) {
 	return queryAll(ctx, s.r, scanLift,
@@ -354,7 +381,7 @@ func scanHaulTask(sc interface{ Scan(...any) error }) (HaulTask, error) {
 }
 
 const liftColumns = `haul_id, seq, name, dock, args_json, timeout_ns, retry_json, output_json,
-	inputs_json, fingerprint, fingerprint_json, run_reason, status, attempts, retry_at, reason, message,
+	inputs_json, fingerprint, fingerprint_json, run_reason, reused, status, attempts, retry_at, reason, message,
 	result_json, scheduled_at, finished_at`
 
 func scanLift(sc interface{ Scan(...any) error }) (Lift, error) {
@@ -366,7 +393,7 @@ func scanLift(sc interface{ Scan(...any) error }) (Lift, error) {
 		err                                                      error
 	)
 	if err = sc.Scan(&v.HaulID, &v.Seq, &v.Name, &v.Dock, &args, &timeout, &retry, &output, &inputs,
-		&v.Fingerprint, &fpInputs, &v.RunReason, &v.Status, &v.Attempts,
+		&v.Fingerprint, &fpInputs, &v.RunReason, &v.Reused, &v.Status, &v.Attempts,
 		&retryAt, &v.Reason, &v.Message, &result, &scheduled, &finished); err != nil {
 		return v, err
 	}

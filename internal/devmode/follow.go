@@ -70,6 +70,9 @@ func Describe(ev state.Event) string {
 	case state.EventLiftScheduled:
 		return fmt.Sprintf("haul %s: lift %d %s scheduled (%s)", haul, num("seq"), str("name"), str("run_reason"))
 	case state.EventLiftReused:
+		if str("pallet") == "" {
+			return fmt.Sprintf("haul %s: lift %d reused the result of haul %s lift %d", haul, num("seq"), str("haul"), num("on_seq"))
+		}
 		return fmt.Sprintf("haul %s: lift %d reused pallet %s", haul, num("seq"), str("pallet"))
 	case state.EventLiftAttemptDispatched:
 		return fmt.Sprintf("haul %s: lift %d attempt %d → %s", haul, num("seq"), num("number"), str("worker"))

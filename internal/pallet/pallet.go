@@ -39,30 +39,45 @@ type File struct {
 // fields, so writing it twice (a retried promote, a deposed leader racing
 // the new one) produces identical objects.
 type Manifest struct {
-	Pallet      string `json:"pallet"`
-	Tenant      string `json:"tenant"`
-	Dataset     string `json:"dataset"`
-	Partition   string `json:"partition,omitempty"`
-	Data        string `json:"data"` // prefix URI the files are under, ending in /
-	Files       []File `json:"files"`
-	ContentHash string `json:"content_hash"`
+	Pallet    string `json:"pallet"`
+	Tenant    string `json:"tenant"`
+	Dataset   string `json:"dataset"`
+	Partition string `json:"partition,omitempty"`
+	Data      string `json:"data"` // prefix URI the files are under, ending in /
+	Files     []File `json:"files"`
+	// Result is what the lift returned, as canonical JSON; omitted when it
+	// returned nothing (null).
+	Result      json.RawMessage `json:"result,omitempty"`
+	ContentHash string          `json:"content_hash"`
 }
 
 // ContentHash identifies a pallet's data independent of where it lives: the
-// sha256 of every file's path, size and checksum, in path order. Two
-// pallets with the same files have the same hash.
-func ContentHash(files []File) string {
+// sha256 of every file's path, size and checksum, in path order, then the
+// lift's result (canonical JSON) unless it is empty or null. Two pallets
+// with the same files and result have the same hash; an empty or null
+// result leaves the hash of the files alone.
+func ContentHash(files []File, result json.RawMessage) string {
 	sorted := append([]File(nil), files...)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Path < sorted[j].Path })
 	h := sha256.New()
 	for _, f := range sorted {
 		fmt.Fprintf(h, "%s\x00%d\x00%s\n", f.Path, f.Size, f.SHA256)
 	}
+	if !noResult(result) {
+		fmt.Fprintf(h, "\x00result\x00%s\n", result)
+	}
 	return "sha256:" + hex.EncodeToString(h.Sum(nil))
 }
 
+func noResult(r json.RawMessage) bool {
+	t := bytes.TrimSpace(r)
+	return len(t) == 0 || bytes.Equal(t, []byte("null"))
+}
+
 // New fills in a manifest: files sorted by path, content hash computed.
-func New(palletID, tenant, dataset, partition, data string, files []File) (Manifest, error) {
+// result must be canonical JSON (object keys sorted), so equal results hash
+// equally.
+func New(palletID, tenant, dataset, partition, data string, files []File, result json.RawMessage) (Manifest, error) {
 	if !strings.HasSuffix(data, "/") {
 		return Manifest{}, fmt.Errorf("pallet: data prefix %q must end in /", data)
 	}
@@ -82,9 +97,14 @@ func New(palletID, tenant, dataset, partition, data string, files []File) (Manif
 		}
 		seen[f.Path] = true
 	}
+	if noResult(result) {
+		result = nil
+	} else if !json.Valid(result) {
+		return Manifest{}, errors.New("pallet: result is not JSON")
+	}
 	return Manifest{
 		Pallet: palletID, Tenant: tenant, Dataset: dataset, Partition: partition,
-		Data: data, Files: sorted, ContentHash: ContentHash(sorted),
+		Data: data, Files: sorted, Result: result, ContentHash: ContentHash(sorted, result),
 	}, nil
 }
 

@@ -241,7 +241,9 @@ deploy) as sub-states of running.
 Before dispatching a lift, the server computes its fingerprint and looks it
 up. If a readable committed pallet with that fingerprint exists, the lift is
 not run: the logbook records `lift_reused` and the haul continues with that
-pallet.
+pallet. A lift without an output is reused the same way, by the result of
+the newest lift that ran with that fingerprint and completed; results live
+in the server's store, so they are always readable.
 
 ### Fingerprint
 
@@ -260,8 +262,8 @@ fingerprint = hash(
   `@lift(deps=["sql/macros/"])` adds non-Python files. `@lift(version="3")`
   replaces the computed value when the user knows better.
 - **Input keys** are the pallet's content hash when its storage adapter can
-  provide one cheaply (a `file://` manifest hashes its file checksums), and the
-  pallet id otherwise. With content hashes, an upstream rebuild that produces
+  provide one cheaply (a `file://` manifest hashes its file checksums and the
+  lift's result, unless that is null), and the pallet id otherwise. With content hashes, an upstream rebuild that produces
   identical data does not ripple downstream.
 - **Bias: strict.** A needless rerun costs money; a wrong reuse silently
   serves stale data. Every rerun reports its reason (`code changed`,
@@ -283,10 +285,11 @@ rerun, never correctness.
   a cursor range on an append-only source).
 - `@lift(memo="ttl:1h")`: reuse a result up to that age. For APIs and live
   sources where slightly stale data is acceptable.
-- What can be reused is a pallet, so only lifts with an output are memoized.
-  On the wire a lift command carries `memo: ""` (never), `fingerprint` or
-  `ttl:<duration>`; the SDK passes pallets as inputs rather than inside the
-  arguments, so the fingerprint sees their content hashes.
+- A lift with an output reuses a pallet; one without reuses the result of a
+  lift that ran (not one that was itself reused, so a TTL counts from the
+  run). On the wire a lift command carries `memo: ""` (never), `fingerprint`
+  or `ttl:<duration>`; the SDK passes pallets as inputs rather than inside
+  the arguments, so the fingerprint sees their content hashes.
 - **SQL lifts** (`lift.sql`) default to `memo=True`: hubwagen resolves every
   `{{ input(...) }}` itself, so it knows all inputs. `hubwagen lint` flags
   table references that bypass `input()`, since those are hidden inputs.

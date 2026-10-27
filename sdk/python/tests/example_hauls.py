@@ -1,5 +1,6 @@
 """Hauls the integration tests run on a real worker."""
 
+import random
 import time
 from pathlib import Path
 
@@ -24,6 +25,17 @@ def arithmetic(ctx, x: int):
     z = ctx.lift(add, y, 10)
     ctx.state["last"] = z
     return {"z": z, "after_sleep": started.isoformat(), "draw": ctx.random()}
+
+
+@hw.lift(memo=True)
+def exchange_rate(day: str) -> float:
+    """A result without an output, memoized: a draw, so a rerun shows."""
+    return random.random()
+
+
+@hw.haul
+def rates(ctx, day: str):
+    return ctx.lift(exchange_rate, day)
 
 
 @hw.lift(memo=True, output=hw.Dataset("raw.orders", partition="day"))

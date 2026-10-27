@@ -103,9 +103,13 @@ type liftFinishedPayload struct {
 	Reused  bool            `json:"reused,omitempty"`
 }
 
+// liftReusedPayload names what stands in for the lift: a pallet, or for a
+// lift without an output, the result of the lift (Haul, OnSeq) that ran.
 type liftReusedPayload struct {
 	Seq         int    `json:"seq"`
-	Pallet      string `json:"pallet"`
+	Pallet      string `json:"pallet,omitempty"`
+	Haul        string `json:"haul,omitempty"`
+	OnSeq       int    `json:"on_seq,omitempty"`
 	Fingerprint string `json:"fingerprint"`
 }
 

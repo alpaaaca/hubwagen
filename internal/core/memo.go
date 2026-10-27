@@ -16,11 +16,13 @@ import (
 	"github.com/alper/hubwagen/internal/state"
 )
 
-// Memoization. A lift that opts in (Command.Memo) and produces a pallet gets
-// a fingerprint: a hash of its name, its code version in the build that
-// replayed the haul, its input pallets' content, its arguments and its
-// output. If a committed pallet with that fingerprint exists (young enough,
-// for a TTL), the lift is not run: the haul continues with that pallet.
+// Memoization. A lift that opts in (Command.Memo) gets a fingerprint: a hash
+// of its name, its code version in the build that replayed the haul, its
+// input pallets' content, its arguments and its output, if any. If what an
+// earlier run with that fingerprint produced is still there (and young
+// enough, for a TTL), the lift is not run: the haul continues with it. For a
+// lift with an output that is a committed pallet; for one without, the
+// result of a lift that ran and completed, which the store always has.
 // Otherwise the lift runs, and its scheduling records why (RunReason).
 //
 // Arguments are part of the fingerprint as canonical JSON (keys sorted), so
@@ -193,11 +195,20 @@ func canonicalJSON(raw json.RawMessage) (json.RawMessage, error) {
 	return json.Marshal(v) // maps marshal with sorted keys
 }
 
-// memoize computes l's fingerprint and looks for a pallet to reuse. It sets
+// memoMatch is what a reused lift completes with: the pallet (if it has an
+// output) and result of the lift that ran with the same fingerprint.
+type memoMatch struct {
+	pallet string
+	haulID string
+	seq    int
+	result json.RawMessage
+}
+
+// memoize computes l's fingerprint and looks for something to reuse. It sets
 // the lift's fingerprint and, when the lift has to run, its RunReason.
-func (c *Core) memoize(l *liftState, inputs []state.Pallet) *state.Pallet {
+func (c *Core) memoize(l *liftState, inputs []state.Pallet) *memoMatch {
 	h := l.haul
-	if !l.memo.on || l.output == nil {
+	if !l.memo.on {
 		l.rec.RunReason = "not memoized"
 		return nil
 	}
@@ -211,9 +222,9 @@ func (c *Core) memoize(l *liftState, inputs []state.Pallet) *state.Pallet {
 		l.rec.RunReason = "arguments are not JSON"
 		return nil
 	}
-	fpi := fingerprintInputs{
-		Lift: l.rec.Name, CodeVersion: version, Args: args,
-		Dataset: l.output.Dataset, Partition: l.output.Partition,
+	fpi := fingerprintInputs{Lift: l.rec.Name, CodeVersion: version, Args: args}
+	if l.output != nil {
+		fpi.Dataset, fpi.Partition = l.output.Dataset, l.output.Partition
 	}
 	for i, in := range l.inputs {
 		key := inputs[i].ContentHash
@@ -235,10 +246,10 @@ func (c *Core) memoize(l *liftState, inputs []state.Pallet) *state.Pallet {
 	if l.memo.ttl > 0 {
 		since = c.now().Add(-l.memo.ttl)
 	}
-	p, err := c.cfg.Store.MemoPallet(c.ctx, h.rec.Tenant, l.rec.Fingerprint, since)
+	m, err := c.lookupMemo(h.rec.Tenant, l, since)
 	switch {
 	case err == nil:
-		return &p
+		return &m
 	case !errors.Is(err, state.ErrNotFound):
 		c.log.Warn("memo lookup failed", "haul", h.rec.ID, "seq", l.rec.Seq, "err", err)
 		l.rec.RunReason = "memo lookup failed"
@@ -248,19 +259,37 @@ func (c *Core) memoize(l *liftState, inputs []state.Pallet) *state.Pallet {
 	return nil
 }
 
-// rerunReason compares a lift that has to run with whatever built the
-// latest pallet of its output partition.
-func (c *Core) rerunReason(tenant string, fpi fingerprintInputs, ttl time.Duration) string {
-	prev, err := c.cfg.Store.LatestPallet(c.ctx, tenant, fpi.Dataset, fpi.Partition)
+// lookupMemo finds what a run with l's fingerprint produced, completed at or
+// after since.
+func (c *Core) lookupMemo(tenant string, l *liftState, since time.Time) (memoMatch, error) {
+	if l.output == nil {
+		run, err := c.cfg.Store.MemoResult(c.ctx, tenant, l.rec.Fingerprint, since)
+		if err != nil {
+			return memoMatch{}, err
+		}
+		return memoMatch{haulID: run.HaulID, seq: run.Seq, result: run.Result}, nil
+	}
+	p, err := c.cfg.Store.MemoPallet(c.ctx, tenant, l.rec.Fingerprint, since)
 	if err != nil {
-		return "no previous run"
+		return memoMatch{}, err
 	}
-	lift, err := c.cfg.Store.GetLift(c.ctx, prev.HaulID, prev.LiftSeq)
-	if err != nil || len(lift.FPInputs) == 0 {
-		return "no previous run" // built without a fingerprint
+	m := memoMatch{pallet: p.ID, haulID: p.HaulID, seq: p.LiftSeq}
+	if orig, err := c.cfg.Store.GetLift(c.ctx, p.HaulID, p.LiftSeq); err == nil {
+		m.result = orig.Result
 	}
-	var old fingerprintInputs
-	if err := json.Unmarshal(lift.FPInputs, &old); err != nil {
+	return m, nil
+}
+
+// recentRunsCompared is how many earlier runs of a lift without an output
+// rerunReason looks through for one with the same arguments.
+const recentRunsCompared = 50
+
+// rerunReason compares a lift that has to run with an earlier run: whatever
+// built the latest pallet of its output partition or, for a lift without an
+// output, its latest run with the same arguments.
+func (c *Core) rerunReason(tenant string, fpi fingerprintInputs, ttl time.Duration) string {
+	old, ok := c.previousRun(tenant, fpi)
+	if !ok {
 		return "no previous run"
 	}
 	if old.Lift != fpi.Lift {
@@ -283,4 +312,37 @@ func (c *Core) rerunReason(tenant string, fpi fingerprintInputs, ttl time.Durati
 		return fmt.Sprintf("expired (older than %s)", ttl)
 	}
 	return "no previous run"
+}
+
+// previousRun returns what went into the fingerprint of the run fpi is
+// compared with; see rerunReason.
+func (c *Core) previousRun(tenant string, fpi fingerprintInputs) (fingerprintInputs, bool) {
+	var lifts []state.Lift
+	if fpi.Dataset == "" {
+		runs, err := c.cfg.Store.RecentLiftRuns(c.ctx, tenant, fpi.Lift, recentRunsCompared)
+		if err != nil {
+			return fingerprintInputs{}, false
+		}
+		lifts = runs
+	} else {
+		prev, err := c.cfg.Store.LatestPallet(c.ctx, tenant, fpi.Dataset, fpi.Partition)
+		if err != nil {
+			return fingerprintInputs{}, false
+		}
+		lift, err := c.cfg.Store.GetLift(c.ctx, prev.HaulID, prev.LiftSeq)
+		if err != nil {
+			return fingerprintInputs{}, false
+		}
+		lifts = []state.Lift{lift}
+	}
+	for _, l := range lifts {
+		var old fingerprintInputs
+		if len(l.FPInputs) == 0 || json.Unmarshal(l.FPInputs, &old) != nil {
+			continue // built without a fingerprint
+		}
+		if fpi.Dataset != "" || bytes.Equal(old.Args, fpi.Args) {
+			return old, true
+		}
+	}
+	return fingerprintInputs{}, false
 }

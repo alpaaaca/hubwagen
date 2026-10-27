@@ -25,7 +25,8 @@ func memoLift(name, dataset string, from ...int) step {
 }
 
 // runHaul runs a sequential haul to its end under build, writing content[name]
-// as each lift's single file. It returns the lifts that actually ran.
+// as the single file of each lift with an output. Lifts return h.results[name],
+// else {"by":name}. It returns the lifts that actually ran.
 func (h *harness) runHaul(b blob.Bucket, build string, steps []step, content map[string]string) (haulID string, ran []string) {
 	h.t.Helper()
 	haulID = h.startHaul("pipeline")
@@ -51,8 +52,14 @@ func (h *harness) runHaul(b blob.Bucket, build string, steps []step, content map
 			if !ok {
 				text = task.Name
 			}
-			require.NoError(h.t, h.core.CompleteLift(h.ctx, LiftResult{AttemptID: task.ID, Status: state.AttemptSucceeded,
-				Result: json.RawMessage(`{"by":"` + task.Name + `"}`), Output: writeOutput(h.t, b, task, map[string]string{"data.csv": text})}))
+			res := LiftResult{AttemptID: task.ID, Status: state.AttemptSucceeded, Result: json.RawMessage(`{"by":"` + task.Name + `"}`)}
+			if r, ok := h.results[task.Name]; ok {
+				res.Result = json.RawMessage(r)
+			}
+			if task.Staging != "" {
+				res.Output = writeOutput(h.t, b, task, map[string]string{"data.csv": text})
+			}
+			require.NoError(h.t, h.core.CompleteLift(h.ctx, res))
 		}
 	}
 }
@@ -269,7 +276,9 @@ func TestMemoParsingAndValidation(t *testing.T) {
 	}
 	noOutput := lift("x")
 	noOutput.Memo = "fingerprint"
-	assert.ErrorContains(t, validateHaulTaskResult(HaulTaskResult{Commands: seqs(noOutput)}), "only a lift with an output")
+	assert.NoError(t, validateHaulTaskResult(HaulTaskResult{Commands: seqs(noOutput)}), "results are memoized too")
+	noOutput.Memo = "always"
+	assert.Error(t, validateHaulTaskResult(HaulTaskResult{Commands: seqs(noOutput)}))
 }
 
 func TestCanonicalJSON(t *testing.T) {
