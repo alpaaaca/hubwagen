@@ -54,9 +54,9 @@ const (
 
 // WorkerServiceClient is a client for the hubwagen.v1.WorkerService service.
 type WorkerServiceClient interface {
-	// RegisterBuild announces a worker build and the code version of each of
-	// its lifts. Builds are immutable. A new build gives stuck hauls another
-	// replay.
+	// RegisterBuild announces a worker build: the hauls it defines and the
+	// code version of each of its lifts. Builds are immutable. A new build
+	// gives stuck hauls another replay.
 	RegisterBuild(context.Context, *connect.Request[v1.RegisterBuildRequest]) (*connect.Response[v1.RegisterBuildResponse], error)
 	// PollHaulTask waits up to `wait` for a haul to replay.
 	PollHaulTask(context.Context, *connect.Request[v1.PollHaulTaskRequest]) (*connect.Response[v1.PollHaulTaskResponse], error)
@@ -164,9 +164,9 @@ func (c *workerServiceClient) Heartbeat(ctx context.Context, req *connect.Reques
 
 // WorkerServiceHandler is an implementation of the hubwagen.v1.WorkerService service.
 type WorkerServiceHandler interface {
-	// RegisterBuild announces a worker build and the code version of each of
-	// its lifts. Builds are immutable. A new build gives stuck hauls another
-	// replay.
+	// RegisterBuild announces a worker build: the hauls it defines and the
+	// code version of each of its lifts. Builds are immutable. A new build
+	// gives stuck hauls another replay.
 	RegisterBuild(context.Context, *connect.Request[v1.RegisterBuildRequest]) (*connect.Response[v1.RegisterBuildResponse], error)
 	// PollHaulTask waits up to `wait` for a haul to replay.
 	PollHaulTask(context.Context, *connect.Request[v1.PollHaulTaskRequest]) (*connect.Response[v1.PollHaulTaskResponse], error)

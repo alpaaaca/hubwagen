@@ -114,6 +114,8 @@ func start(t *testing.T) *server {
 	srv := httptest.NewServer(mux)
 
 	s := &server{core: c, url: srv.URL, bucket: b}
+	require.NoError(t, c.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Hauls: []string{"daily_orders"},
+		Lifts: map[string]string{"extract": "v1", "report": "v1"}}))
 	s.build.Store("b1")
 	workCtx, stopWork := context.WithCancel(runCtx)
 	worked := make(chan struct{})
@@ -204,7 +206,6 @@ func (s *server) replayRange(t *testing.T, days string) string {
 
 func TestReplayOverADateRange(t *testing.T) {
 	s := start(t)
-	require.NoError(t, s.core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Lifts: map[string]string{"extract": "v1", "report": "v1"}}))
 
 	assert.Equal(t, `3 hauls
   extract   3 run (no previous run)

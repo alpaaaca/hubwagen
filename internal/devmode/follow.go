@@ -85,7 +85,8 @@ func Describe(ev state.Event) string {
 		return fmt.Sprintf("haul %s: lift %d completed", haul, num("seq"))
 	case state.EventBuildRegistered:
 		lifts, _ := p["lifts"].(map[string]any)
-		return fmt.Sprintf("build %s registered (%d lifts)", str("id"), len(lifts))
+		hauls, _ := p["hauls"].([]any)
+		return fmt.Sprintf("build %s registered (%d hauls, %d lifts)", str("id"), len(hauls), len(lifts))
 	}
 	return ""
 }

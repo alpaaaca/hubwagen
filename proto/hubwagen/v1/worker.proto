@@ -16,9 +16,9 @@ option go_package = "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1;hubw
 // event payloads, stats) travel as JSON text in *_json fields, so numbers
 // keep the exact form they were written in.
 service WorkerService {
-  // RegisterBuild announces a worker build and the code version of each of
-  // its lifts. Builds are immutable. A new build gives stuck hauls another
-  // replay.
+  // RegisterBuild announces a worker build: the hauls it defines and the
+  // code version of each of its lifts. Builds are immutable. A new build
+  // gives stuck hauls another replay.
   rpc RegisterBuild(RegisterBuildRequest) returns (RegisterBuildResponse);
   // PollHaulTask waits up to `wait` for a haul to replay.
   rpc PollHaulTask(PollHaulTaskRequest) returns (PollHaulTaskResponse);
@@ -38,6 +38,9 @@ message RegisterBuildRequest {
   string build_id = 1;
   // Lift name → code version.
   map<string, string> lift_versions = 2;
+  // The hauls this build defines. Workers that poll with this build get only
+  // these hauls' tasks, and only lifts in lift_versions.
+  repeated string hauls = 3;
 }
 
 message RegisterBuildResponse {}
@@ -47,6 +50,10 @@ message PollHaulTaskRequest {
   repeated string docks = 2;
   // How long to wait for work; the server caps it. Unset: answer at once.
   google.protobuf.Duration wait = 3;
+  // The worker's registered build: it gets only haul tasks its build
+  // defines. Unset: any. An unknown build fails with FAILED_PRECONDITION;
+  // register it and poll again.
+  string build_id = 4;
 }
 
 message PollHaulTaskResponse {
@@ -171,6 +178,8 @@ message PollLiftTaskRequest {
   string worker_id = 1;
   repeated string docks = 2;
   google.protobuf.Duration wait = 3;
+  // As in PollHaulTaskRequest: only lifts the worker's build defines.
+  string build_id = 4;
 }
 
 message PollLiftTaskResponse {

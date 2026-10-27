@@ -58,12 +58,22 @@ def start_dev(hubwagen_bin: str, tmp: Path, url: str | None = None) -> tuple[str
     pytest.fail(f"hubwagen dev didn't come up; see {tmp / 'dev.log'}")
 
 
-def start_worker(server: str, module: str, cwd: Path, log: Path) -> subprocess.Popen:
-    """`python -m hubwagen.worker <module>` from cwd against server."""
+def start_worker(server: str, module: str | None, cwd: Path, log: Path) -> subprocess.Popen:
+    """`python -m hubwagen.worker [module]` from cwd against server, once it
+    has registered its build (the server starts only hauls a build defines).
+    No module: the worker reads them from cwd/pyproject.toml."""
     env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(SDK / "src"), str(cwd)])}
-    return subprocess.Popen([sys.executable, "-m", "hubwagen.worker", module, "--server", server,
+    proc = subprocess.Popen([sys.executable, "-m", "hubwagen.worker", *([module] if module else []), "--server", server,
                              "--poll-wait", "1s", "--log-level", "info"],
                             cwd=cwd, env=env, stdout=open(log, "w"), stderr=subprocess.STDOUT)
+    for _ in range(200):
+        if "registered build" in log.read_text():
+            return proc
+        if proc.poll() is not None:
+            break
+        time.sleep(0.05)
+    proc.kill()
+    pytest.fail(f"worker didn't register; see {log}:\n{log.read_text()}")
 
 
 def stop(proc: subprocess.Popen, sig=signal.SIGTERM) -> None:

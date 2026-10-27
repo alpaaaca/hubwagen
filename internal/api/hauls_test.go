@@ -10,6 +10,7 @@ import (
 
 	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
 	"github.com/alper/hubwagen/internal/api/gen/hubwagen/v1/hubwagenv1connect"
+	"github.com/alper/hubwagen/internal/core"
 	"github.com/alper/hubwagen/internal/state"
 )
 
@@ -20,6 +21,11 @@ func TestHaulService(t *testing.T) {
 	mux.Handle(path, h)
 	srv := httptestServer(t, mux)
 	c := hubwagenv1connect.NewHaulServiceClient(http.DefaultClient, srv)
+
+	_, err := c.StartHaul(ctx, connect.NewRequest(&hubwagenv1.StartHaulRequest{Tenant: "t", Name: "daily_revenue"}))
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err), "no build defines it yet")
+	assert.ErrorContains(t, err, `no registered build defines haul "daily_revenue"`)
+	require.NoError(t, s.core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Hauls: []string{"daily_revenue", "x"}}))
 
 	res, err := c.StartHaul(ctx, connect.NewRequest(&hubwagenv1.StartHaulRequest{
 		Tenant: "t", Name: "daily_revenue", ParamsJson: `{"day":"2026-10-24","n":10000000000000001}`}))

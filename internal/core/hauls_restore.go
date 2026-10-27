@@ -45,7 +45,7 @@ func (c *Core) loadHauls(ctx context.Context) (*restoredHauls, error) {
 		return nil, err
 	}
 	for id, b := range builds {
-		c.builds[id] = b.Lifts
+		c.addBuild(id, b.Lifts, b.Hauls)
 	}
 	dss, err := c.cfg.Store.ListDatasets(ctx, "")
 	if err != nil {
