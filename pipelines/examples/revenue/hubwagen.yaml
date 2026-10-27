@@ -11,6 +11,6 @@ server:
 workers:
   - name: py
     replicas: 3
-    command: [python3, -m, hubwagen.worker, revenue.hauls, --lifts, "2"]
+    command: [python3, -m, hubwagen.worker, --lifts, "2"]   # modules: pyproject.toml
     env:
       PYTHONPATH: ../../../sdk/python/src   # an installed SDK needs none

@@ -2,6 +2,10 @@
 
 import json
 
+import pytest
+
+import hubwagen as hw
+
 from conftest import wait
 
 
@@ -61,10 +65,10 @@ def test_nondeterminism_makes_the_haul_stuck(client):
     assert "example_hauls.py" in h["message"], "both call sites are named"
 
 
-def test_unknown_haul_fails(client):
-    h = wait(client, client.start_haul("no_such_haul"))
-    assert h["status"] == "failed"
-    assert h["reason"] == "haul_task_failed"
+def test_unknown_haul_is_rejected(client):
+    with pytest.raises(hw.ConnectError) as e:
+        client.start_haul("no_such_haul")
+    assert e.value.code == "failed_precondition", "no registered build defines it"
 
 
 def test_lift_reads_its_input_pallet(client):

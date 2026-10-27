@@ -40,16 +40,16 @@ func NewWorkerHandler(c *core.Core, maxWait time.Duration) (string, http.Handler
 var _ hubwagenv1connect.WorkerServiceHandler = (*WorkerServer)(nil)
 
 func (s *WorkerServer) RegisterBuild(ctx context.Context, req *connect.Request[hubwagenv1.RegisterBuildRequest]) (*connect.Response[hubwagenv1.RegisterBuildResponse], error) {
-	err := s.core.RegisterBuild(ctx, core.BuildRequest{ID: req.Msg.BuildId, Lifts: req.Msg.LiftVersions})
+	err := s.core.RegisterBuild(ctx, core.BuildRequest{ID: req.Msg.BuildId, Hauls: req.Msg.Hauls, Lifts: req.Msg.LiftVersions})
 	if err != nil {
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&hubwagenv1.RegisterBuildResponse{}), nil
 }
 
-func (s *WorkerServer) poll(ctx context.Context, worker string, docks []string, wait time.Duration, kind core.TaskKind) (core.Task, bool, error) {
+func (s *WorkerServer) poll(ctx context.Context, worker, build string, docks []string, wait time.Duration, kind core.TaskKind) (core.Task, bool, error) {
 	wait = min(max(wait, 0), s.maxWait)
-	t, ok, err := s.core.Poll(ctx, core.PollRequest{WorkerID: worker, Docks: docks, Kinds: []core.TaskKind{kind}, Wait: wait})
+	t, ok, err := s.core.Poll(ctx, core.PollRequest{WorkerID: worker, BuildID: build, Docks: docks, Kinds: []core.TaskKind{kind}, Wait: wait})
 	if err != nil {
 		return t, false, connectError(err)
 	}
@@ -58,7 +58,7 @@ func (s *WorkerServer) poll(ctx context.Context, worker string, docks []string, 
 
 func (s *WorkerServer) PollHaulTask(ctx context.Context, req *connect.Request[hubwagenv1.PollHaulTaskRequest]) (*connect.Response[hubwagenv1.PollHaulTaskResponse], error) {
 	m := req.Msg
-	t, ok, err := s.poll(ctx, m.WorkerId, m.Docks, m.Wait.AsDuration(), core.TaskHaul)
+	t, ok, err := s.poll(ctx, m.WorkerId, m.BuildId, m.Docks, m.Wait.AsDuration(), core.TaskHaul)
 	if err != nil || !ok {
 		return connect.NewResponse(&hubwagenv1.PollHaulTaskResponse{}), err
 	}
@@ -169,7 +169,7 @@ func command(c *hubwagenv1.Command) (core.Command, error) {
 
 func (s *WorkerServer) PollLiftTask(ctx context.Context, req *connect.Request[hubwagenv1.PollLiftTaskRequest]) (*connect.Response[hubwagenv1.PollLiftTaskResponse], error) {
 	m := req.Msg
-	t, ok, err := s.poll(ctx, m.WorkerId, m.Docks, m.Wait.AsDuration(), core.TaskLift)
+	t, ok, err := s.poll(ctx, m.WorkerId, m.BuildId, m.Docks, m.Wait.AsDuration(), core.TaskLift)
 	if err != nil || !ok {
 		return connect.NewResponse(&hubwagenv1.PollLiftTaskResponse{}), err
 	}
@@ -264,6 +264,8 @@ func connectError(err error) error {
 		return connect.NewError(connect.CodeNotFound, err)
 	case errors.Is(err, core.ErrInvalid):
 		return connect.NewError(connect.CodeInvalidArgument, err)
+	case errors.Is(err, core.ErrUnknownHaul), errors.Is(err, core.ErrUnknownBuild):
+		return connect.NewError(connect.CodeFailedPrecondition, err)
 	case errors.Is(err, core.ErrStopped):
 		return connect.NewError(connect.CodeUnavailable, err)
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):

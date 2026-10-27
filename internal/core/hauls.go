@@ -115,6 +115,10 @@ func (c *Core) startHaul(req StartHaulRequest) (StartHaulResult, error) {
 	if req.Tenant == "" || req.Name == "" {
 		return StartHaulResult{}, fmt.Errorf("%w: a haul needs a tenant and a name", ErrInvalid)
 	}
+	if !c.haulNames[req.Name] {
+		return StartHaulResult{}, fmt.Errorf("%w: no registered build defines haul %q; start a worker whose code has it",
+			ErrUnknownHaul, req.Name)
+	}
 	if req.Dock == "" {
 		req.Dock = DefaultDock
 	}

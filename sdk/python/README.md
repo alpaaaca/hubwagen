@@ -25,7 +25,7 @@ def daily_revenue(ctx, day: str):
 
 ```bash
 hubwagen dev                                            # server + worker API on 127.0.0.1:7070
-python -m hubwagen.worker app.hauls                     # registers the build, polls for work
+python -m hubwagen.worker                               # modules from pyproject.toml; registers the build, polls
 hubwagen start daily_revenue --param day=2026-10-24 --wait
 hubwagen replay daily_revenue --param day=2026-10-01..2026-10-24
 ```
@@ -69,11 +69,28 @@ Arguments and results are JSON; `date` and `datetime` round-trip.
 
 ## Worker
 
-`python -m hubwagen.worker app.hauls [more.modules] [--server URL]
-[--dock NAME] [--lifts N] [--worker-id ID]` imports the modules, registers the build (each
-lift's code version: `version=` or a hash of its source), replays hauls and
-runs lifts, and sends heartbeats for running lifts. It re-executes itself
-with `PYTHONHASHSEED=0` so set iteration order is the same in every replay.
+`python -m hubwagen.worker [app.hauls more.modules] [--server URL]
+[--dock NAME] [--lifts N] [--worker-id ID]` imports the modules, registers
+the build, replays hauls and runs lifts, and sends heartbeats for running
+lifts. The build is the hauls the modules define and each lift's code
+version (`version=` or a hash of its source). It re-executes itself with
+`PYTHONHASHSEED=0` so set iteration order is the same in every replay.
+
+Without module names it imports the ones the project lists, so the command
+is the same for every project:
+
+```toml
+# pyproject.toml
+[tool.hubwagen]
+modules = ["app.hauls", "app.backfills"]
+```
+
+The worker polls with its build, and the server hands it only the hauls and
+lifts that build defines. Projects with different code can therefore share
+a server and its docks. The server refuses to start a haul that no
+registered build defines, so start a worker for it first. If the server
+doesn't know the worker's build (a leader that lost it), the worker
+registers again.
 
 If the server is down when a lift finishes, the worker keeps the result,
 and keeps the attempt's heartbeats going, until the server takes it. A

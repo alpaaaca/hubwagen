@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/alper/hubwagen/internal/state"
@@ -63,9 +64,12 @@ type DockConfig struct {
 // PollRequest asks for the next task from any of Docks.
 type PollRequest struct {
 	WorkerID string
-	Docks    []string
-	Kinds    []TaskKind    // empty: any
-	Wait     time.Duration // how long to wait for work; 0 = answer at once
+	// BuildID, if set, is the worker's registered build: it gets only the
+	// haul tasks and lifts its build defines.
+	BuildID string
+	Docks   []string
+	Kinds   []TaskKind    // empty: any
+	Wait    time.Duration // how long to wait for work; 0 = answer at once
 }
 
 // Poll returns the next task for a worker, waiting up to req.Wait (measured
@@ -141,6 +145,12 @@ func (in pollInput) apply(c *Core) {
 		c.dropPoller(in.p)
 		in.p.finish(pollResult{err: in.withdraw})
 		return
+	}
+	if b := in.p.req.BuildID; b != "" {
+		if _, ok := c.builds[b]; !ok {
+			in.p.finish(pollResult{err: fmt.Errorf("%w: build %s is not registered", ErrUnknownBuild, b)})
+			return
+		}
 	}
 	if in.p.req.Wait > 0 {
 		p := in.p
@@ -245,8 +255,9 @@ func (c *Core) matchDocks() {
 	c.pollers = kept
 }
 
-// nextTask picks the oldest haul task on p's docks, else the oldest lift on
-// a dock with a free slot, and removes it from its queue.
+// nextTask picks the oldest haul task on p's docks that p's build can run,
+// else the oldest such lift on a dock with a free slot, and removes it from
+// its queue.
 func (c *Core) nextTask(p *poller) *queuedTask {
 	for _, kind := range []TaskKind{TaskHaul, TaskLift} {
 		if !p.wants(kind) {
@@ -255,6 +266,7 @@ func (c *Core) nextTask(p *poller) *queuedTask {
 		var (
 			best     *queuedTask
 			bestDock *dockState
+			bestAt   int
 		)
 		for _, name := range p.req.Docks {
 			d := c.docks[name]
@@ -268,15 +280,21 @@ func (c *Core) nextTask(p *poller) *queuedTask {
 				}
 				list = d.lifts
 			}
-			if len(list) > 0 && (best == nil || list[0].order < best.order) {
-				best, bestDock = list[0], d
+			for i, q := range list {
+				if best != nil && q.order > best.order {
+					break // queues are oldest first
+				}
+				if c.canRun(p.req.BuildID, q.task) {
+					best, bestDock, bestAt = q, d, i
+					break
+				}
 			}
 		}
 		if best != nil {
 			if kind == TaskHaul {
-				bestDock.haulTasks = bestDock.haulTasks[1:]
+				bestDock.haulTasks = slices.Delete(bestDock.haulTasks, bestAt, bestAt+1)
 			} else {
-				bestDock.lifts = bestDock.lifts[1:]
+				bestDock.lifts = slices.Delete(bestDock.lifts, bestAt, bestAt+1)
 				bestDock.runningLifts++
 			}
 			return best

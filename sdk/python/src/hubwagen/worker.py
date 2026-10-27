@@ -1,9 +1,11 @@
-"""The worker: `python -m hubwagen.worker app.hauls [more.modules]`.
+"""The worker: `python -m hubwagen.worker [app.hauls more.modules]`.
 
-It imports the modules (registering their hauls and lifts), registers the
-build with the server, and then polls: one thread replays hauls, a few run
-lifts, one sends heartbeats for running lifts. Ctrl-C stops polling and
-lets running lifts finish.
+It imports the modules (registering their hauls and lifts; with none given,
+the ones listed under [tool.hubwagen] modules in ./pyproject.toml), registers
+the build with the server, and then polls: one thread replays hauls, a few
+run lifts, one sends heartbeats for running lifts. It polls with its build,
+so it gets only the hauls and lifts its code defines. Ctrl-C stops polling
+and lets running lifts finish.
 
 A lift's result is kept, and its attempt heartbeated, until the server
 accepts it: if the leader is down when the lift finishes, the worker retries
@@ -25,7 +27,9 @@ import socket
 import sys
 import threading
 import time
+import tomllib
 import traceback
+from pathlib import Path
 from typing import Any
 
 from . import _model, _output, _replay
@@ -65,7 +69,8 @@ class Worker:
 
     def register(self) -> None:
         versions = {name: d.code_version() for name, d in _model.LIFTS.items()}
-        self.client.call("WorkerService", "RegisterBuild", {"buildId": self.build, "liftVersions": versions})
+        self.client.call("WorkerService", "RegisterBuild",
+                         {"buildId": self.build, "hauls": sorted(_model.HAULS), "liftVersions": versions})
         log.info("registered build %s: %d hauls, %d lifts", self.build, len(_model.HAULS), len(_model.LIFTS))
 
     # --- hauls ---
@@ -150,11 +155,17 @@ class Worker:
         while not self.stopping.is_set():
             try:
                 res = self.client.call("WorkerService", method,
-                                       {"workerId": self.id, "docks": self.docks, "wait": self.poll_wait}, timeout=60)
+                                       {"workerId": self.id, "buildId": self.build, "docks": self.docks,
+                                        "wait": self.poll_wait}, timeout=60)
                 if res.get("task"):
                     run(res["task"])
             except ConnectError as e:
                 log.warning("%s: %s; retrying", method, e)
+                if e.code == "failed_precondition":  # the leader doesn't know our build (lost it, or a new one)
+                    try:
+                        self.register()
+                    except ConnectError as e2:
+                        log.warning("RegisterBuild: %s", e2)
                 self.stopping.wait(1)
             except Exception:  # noqa: BLE001 - keep the worker alive
                 log.exception("%s failed", method)
@@ -198,6 +209,26 @@ class Worker:
         threading.Thread(target=watch, name="supervisor", daemon=True).start()
 
 
+def project_modules(directory: Path) -> list[str]:
+    """The modules listed under [tool.hubwagen] modules in directory/pyproject.toml."""
+    path = directory / "pyproject.toml"
+    hint = "pass them (python -m hubwagen.worker app.hauls) or list them in pyproject.toml:\n" \
+           "  [tool.hubwagen]\n  modules = [\"app.hauls\"]"
+    if not path.exists():
+        raise SystemExit(f"no modules given and no {path}; {hint}")
+    with path.open("rb") as f:
+        try:
+            conf = tomllib.load(f)
+        except tomllib.TOMLDecodeError as e:
+            raise SystemExit(f"{path}: {e}") from None
+    modules = conf.get("tool", {}).get("hubwagen", {}).get("modules")
+    if modules is None:
+        raise SystemExit(f"no modules given and none in {path}; {hint}")
+    if not isinstance(modules, list) or not modules or not all(isinstance(m, str) and m for m in modules):
+        raise SystemExit(f"{path}: [tool.hubwagen] modules must be a non-empty list of module names")
+    return modules
+
+
 def main(argv: list[str] | None = None) -> None:
     argv = sys.argv[1:] if argv is None else argv
     # Iterating a set of strings must give the same order in every replay, in
@@ -206,7 +237,8 @@ def main(argv: list[str] | None = None) -> None:
         os.execve(sys.executable, [sys.executable, "-m", "hubwagen.worker", *argv], {**os.environ, "PYTHONHASHSEED": "0"})
 
     p = argparse.ArgumentParser(prog="python -m hubwagen.worker", description=__doc__.splitlines()[0])
-    p.add_argument("modules", nargs="+", help="modules that define hauls and lifts, e.g. app.hauls")
+    p.add_argument("modules", nargs="*",
+                   help="modules that define hauls and lifts, e.g. app.hauls (default: [tool.hubwagen] modules in ./pyproject.toml)")
     p.add_argument("--server", default=os.environ.get("HUBWAGEN_SERVER", "http://127.0.0.1:7070"))
     p.add_argument("--dock", action="append", default=None, help="dock to poll (repeatable; default: default)")
     p.add_argument("--lifts", type=int, default=4, help="lifts to run at the same time")
@@ -217,7 +249,7 @@ def main(argv: list[str] | None = None) -> None:
     logging.basicConfig(level=args.log_level.upper(), format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
     sys.path.insert(0, os.getcwd())
-    for m in args.modules:
+    for m in args.modules or project_modules(Path.cwd()):
         importlib.import_module(m)
     w = Worker(Client(args.server), args.dock or ["default"], lifts=args.lifts, poll_wait=args.poll_wait,
                worker_id=args.worker_id)

@@ -255,7 +255,7 @@ func TestMemoPallet(t *testing.T) {
 func TestBuilds(t *testing.T) {
 	s, _ := openFile(t)
 	put(t, s, nil, func(tx *Tx) error {
-		if err := tx.PutBuild(Build{ID: "b1", Lifts: map[string]string{"a": "v1", "b": "v2"}, RegisteredAt: t0}); err != nil {
+		if err := tx.PutBuild(Build{ID: "b1", Hauls: []string{"daily", "backfill"}, Lifts: map[string]string{"a": "v1", "b": "v2"}, RegisteredAt: t0}); err != nil {
 			return err
 		}
 		return tx.PutBuild(Build{ID: "empty", RegisteredAt: t0})
@@ -263,7 +263,7 @@ func TestBuilds(t *testing.T) {
 	builds, err := s.LoadBuilds(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, map[string]Build{
-		"b1":    {ID: "b1", Lifts: map[string]string{"a": "v1", "b": "v2"}, RegisteredAt: t0},
+		"b1":    {ID: "b1", Hauls: []string{"backfill", "daily"}, Lifts: map[string]string{"a": "v1", "b": "v2"}, RegisteredAt: t0},
 		"empty": {ID: "empty", Lifts: map[string]string{}, RegisteredAt: t0},
 	}, builds)
 }

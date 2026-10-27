@@ -153,7 +153,7 @@ func (s *server) work(t *testing.T, haulID string) []string {
 func TestHaulRunsEndToEndOverTheAPI(t *testing.T) {
 	s := start(t)
 	_, err := s.client.RegisterBuild(ctx, connect.NewRequest(&hubwagenv1.RegisterBuildRequest{
-		BuildId: "b1", LiftVersions: map[string]string{"extract": "v1", "build": "v1"}}))
+		BuildId: "b1", Hauls: []string{"daily_revenue"}, LiftVersions: map[string]string{"extract": "v1", "build": "v1"}}))
 	require.NoError(t, err)
 
 	start := func() string {
