@@ -67,6 +67,49 @@ arguments. Raise `hubwagen.NonRetryable` for failures retrying won't fix.
 
 Arguments and results are JSON; `date` and `datetime` round-trip.
 
+### Dataframes and tables
+
+A lift can return a pandas or Polars DataFrame, a Polars LazyFrame or an
+Arrow Table. The worker writes it as Parquet (`data.parquet`) into the
+attempt's staging prefix, so it becomes a pallet: in the lift's
+`output=` dataset if it has one, else in its implicit dataset
+`lift:<name>`. The haul gets a handle (a `Pallet` whose `.result` is
+`{"$frame": "polars", "rows": …, "columns": […]}`), never the data; pass
+it to the next lift, which gets the data loaded by its parameter's
+annotation:
+
+```python
+import pandas as pd
+import polars as pl
+
+@hw.lift(memo=True)
+def orders(day: str) -> pl.DataFrame: ...
+
+@hw.lift(memo=True)
+def totals(orders: pl.LazyFrame) -> pl.DataFrame:     # scans the Parquet
+    return orders.group_by("region").agg(pl.col("amount").sum()).collect()
+
+@hw.lift
+def report(totals: pd.DataFrame) -> str: ...           # converted on load
+
+@hw.haul
+def daily(ctx, day: str):
+    return ctx.lift(report, ctx.lift(totals, ctx.lift(orders, day)))
+```
+
+- Annotation `pl.DataFrame`, `pl.LazyFrame`, `pd.DataFrame` or `pa.Table`:
+  loaded as that type. `hw.Pallet`: the handle (files via `.files()`,
+  data via `.load(as_=…)`). None: loaded as it was written.
+- Memoization works as for files: the pallet's content hash covers the
+  Parquet bytes, so an identical frame upstream lets downstream lifts be
+  reused. A frame can't be an argument or part of a result; it is returned
+  on its own.
+- pandas, Polars and pyarrow are imported only when a lift uses them; the
+  SDK needs none of them. `hw.register_codec(name, types, write, read,
+  describe)` adds a type; codecs write Parquet, so each can read what the
+  others wrote.
+- Needs a server with a bucket (`hubwagen dev` has one).
+
 ## Worker
 
 `python -m hubwagen.worker [app.hauls more.modules] [--server URL]
@@ -104,7 +147,10 @@ the worker in the logbook; the default is `<hostname>-<pid>`.
 
 ```bash
 uv run --no-project --with pytest --python 3.12 pytest -q        # from sdk/python
+uv run --no-project --with pytest --with polars --with pandas --with pyarrow --python 3.12 pytest -q   # incl. dataframes
 ```
+
+`tests/test_frames.py` is skipped without polars, pandas and pyarrow.
 
 `tests/test_replay.py` tests replay on hand-built logbooks;
 `tests/test_dev.py` builds the Go binary (or uses `$HUBWAGEN_BIN`), runs

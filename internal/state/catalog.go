@@ -161,6 +161,19 @@ func (s *Store) MemoPallet(ctx context.Context, tenant, fingerprint string, sinc
 	return v, err
 }
 
+// LiftPallet returns the pallet lift (haulID, seq) built: its committed one,
+// else the newest (a promote that failed leaves an invalid one behind).
+// ErrNotFound if it built none.
+func (s *Store) LiftPallet(ctx context.Context, haulID string, seq int) (Pallet, error) {
+	v, err := scanPallet(s.r.QueryRowContext(ctx, `
+		SELECT `+palletColumns+` FROM pallets WHERE haul_id = ? AND lift_seq = ?
+		ORDER BY state = 'committed' DESC, created_at DESC, id DESC LIMIT 1`, haulID, seq))
+	if errors.Is(err, sql.ErrNoRows) {
+		return v, ErrNotFound
+	}
+	return v, err
+}
+
 // PalletFilter selects pallets for ListPallets. Empty fields don't filter.
 type PalletFilter struct {
 	Tenant    string

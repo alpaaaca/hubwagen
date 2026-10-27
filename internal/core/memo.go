@@ -195,6 +195,10 @@ func canonicalJSON(raw json.RawMessage) (json.RawMessage, error) {
 	return json.Marshal(v) // maps marshal with sorted keys
 }
 
+// errUnreadable: a run with the fingerprint exists, but what it built can't
+// be read any more, so it isn't reused.
+var errUnreadable = errors.New("not readable")
+
 // memoMatch is what a reused lift completes with: the pallet (if it has an
 // output) and result of the lift that ran with the same fingerprint.
 type memoMatch struct {
@@ -250,6 +254,9 @@ func (c *Core) memoize(l *liftState, inputs []state.Pallet) *memoMatch {
 	switch {
 	case err == nil:
 		return &m
+	case errors.Is(err, errUnreadable):
+		l.rec.RunReason = fmt.Sprintf("the earlier run's output can't be read (%v)", err)
+		return nil
 	case !errors.Is(err, state.ErrNotFound):
 		c.log.Warn("memo lookup failed", "haul", h.rec.ID, "seq", l.rec.Seq, "err", err)
 		l.rec.RunReason = "memo lookup failed"
@@ -267,7 +274,18 @@ func (c *Core) lookupMemo(tenant string, l *liftState, since time.Time) (memoMat
 		if err != nil {
 			return memoMatch{}, err
 		}
-		return memoMatch{haulID: run.HaulID, seq: run.Seq, result: run.Result}, nil
+		m := memoMatch{haulID: run.HaulID, seq: run.Seq, result: run.Result}
+		// It may have built a pallet in its implicit dataset (a dataframe):
+		// then that pallet is what gets reused, and it must be readable.
+		switch p, err := c.cfg.Store.LiftPallet(c.ctx, run.HaulID, run.Seq); {
+		case err == nil && p.State == state.PalletCommitted:
+			m.pallet = p.ID
+		case err == nil:
+			return memoMatch{}, fmt.Errorf("%w: pallet %s is %s", errUnreadable, p.ID, p.State)
+		case !errors.Is(err, state.ErrNotFound):
+			return memoMatch{}, err
+		}
+		return m, nil
 	}
 	p, err := c.cfg.Store.MemoPallet(c.ctx, tenant, l.rec.Fingerprint, since)
 	if err != nil {

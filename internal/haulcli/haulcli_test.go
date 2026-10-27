@@ -143,7 +143,7 @@ func (s *server) work(ctx context.Context) {
 			_ = s.core.CompleteHaulTask(ctx, core.HaulTaskResult{TaskID: task.ID, BuildID: s.build.Load().(string), Commands: cmds, Outcome: outcome})
 		case core.TaskLift:
 			res := core.LiftResult{AttemptID: task.ID, Status: state.AttemptSucceeded}
-			if task.Staging != "" {
+			if task.Output != nil {
 				content := []byte("orders for " + string(task.Args))
 				_ = s.bucket.Put(ctx, task.Staging+"orders.csv", content)
 				sum := sha256.Sum256(content)

@@ -130,6 +130,9 @@ reuse.
    The worker reads its modules from `[tool.hubwagen]` in `pyproject.toml`.
    ✅ Memoized results: lifts without an output can be memoized (their
    result is reused); a pallet's content hash covers the lift's result.
+   ✅ Dataframes: lifts return pandas/Polars frames and Arrow tables (written
+   as Parquet into a pallet, in the lift's implicit dataset `lift:<name>`
+   when it has no output) and take them as arguments, loaded by annotation.
 3. ✅ **Example** in `pipelines/examples/revenue/`: a small Python project with
    an extract → transform → report haul that writes CSV, and the demo test
    (`sdk/python/tests/test_example.py`): `hubwagen dev` + a worker, replays
