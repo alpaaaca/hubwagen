@@ -41,8 +41,12 @@ func newHarnessAt(t *testing.T, now time.Time, opts ...option) *harness {
 	t.Cleanup(func() { st.Close() })
 	h := &harness{t: t, ctx: context.Background(), store: st, clock: clock.NewFake(now)}
 	h.start(opts...)
+	// StartHaul takes only hauls some build defines: these are the tests'.
+	require.NoError(t, h.core.RegisterBuild(h.ctx, BuildRequest{ID: "test-hauls", Hauls: testHauls}))
 	return h
 }
+
+var testHauls = []string{"a", "b", "daily_revenue", "fanout", "fire_and_forget", "ingest", "pipeline", "x", "y"}
 
 // start runs a core with a new term over the harness's store.
 func (h *harness) start(opts ...option) {

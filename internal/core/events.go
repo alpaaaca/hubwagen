@@ -137,6 +137,7 @@ type liftWaitingPayload struct {
 
 type buildRegisteredPayload struct {
 	ID    string            `json:"id"`
+	Hauls []string          `json:"hauls,omitempty"`
 	Lifts map[string]string `json:"lifts"`
 }
 

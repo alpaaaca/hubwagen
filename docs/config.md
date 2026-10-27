@@ -22,7 +22,7 @@ server:
 workers:                         # started by hubwagen dev and hubwagen workers
   - name: py                     # IDs are <name>-<n>: py-1, py-2, py-3
     replicas: 3                  # default 1; 0 turns the group off
-    command: [python3, -m, hubwagen.worker, app.hauls, --lifts, "2"]
+    command: [python3, -m, hubwagen.worker, --lifts, "2"]   # modules: pyproject.toml
     dir: .                       # working directory; default the file's
     env:                         # added to hubwagen's own environment
       PYTHONPATH: src
@@ -42,7 +42,12 @@ workers:                         # started by hubwagen dev and hubwagen workers
 ### Workers
 
 A worker is any process that speaks the worker API; hubwagen doesn't care
-what language it is in. Every process gets three variables, which its `env`
+what language it is in. The config describes processes, not pipelines.
+Which hauls a worker runs is up to its code: the Python worker imports the
+modules its project lists under `[tool.hubwagen]` in `pyproject.toml`. It
+registers the hauls they define, and the server sends it only those. One
+group per project (its own `dir` and virtualenv) is enough for any number
+of pipelines in it, and several projects can share the server. Every process gets three variables, which its `env`
 can't set:
 
 | Variable | Value |

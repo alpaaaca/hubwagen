@@ -9,7 +9,8 @@ option go_package = "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1;hubw
 // HaulService is what people and tools call: start hauls and follow them.
 // Like WorkerService it is a Connect service, callable as plain HTTP/JSON.
 service HaulService {
-  // StartHaul starts a haul and queues its first replay.
+  // StartHaul starts a haul and queues its first replay. A haul no
+  // registered build defines fails with FAILED_PRECONDITION.
   rpc StartHaul(StartHaulRequest) returns (StartHaulResponse);
   // GetHaul returns a haul and its lifts.
   rpc GetHaul(GetHaulRequest) returns (GetHaulResponse);

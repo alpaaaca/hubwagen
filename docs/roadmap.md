@@ -125,6 +125,9 @@ reuse.
    ✅ `hubwagen.yaml` (server settings and worker processes; `hubwagen dev`
    starts and restarts them, `hubwagen workers` runs them alone), see
    [config.md](config.md).
+   ✅ Routing by build: builds register their hauls; workers get only the
+   hauls and lifts their build defines; `StartHaul` refuses unknown hauls.
+   The worker reads its modules from `[tool.hubwagen]` in `pyproject.toml`.
 3. ✅ **Example** in `pipelines/examples/revenue/`: a small Python project with
    an extract → transform → report haul that writes CSV, and the demo test
    (`sdk/python/tests/test_example.py`): `hubwagen dev` + a worker, replays

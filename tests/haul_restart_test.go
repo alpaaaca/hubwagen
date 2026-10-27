@@ -155,6 +155,7 @@ func TestHaulSurvivesLeaderRestarts(t *testing.T) {
 	go func() { defer close(workerDone); w.loop(wctx) }()
 	t.Cleanup(func() { stopWorker(); <-workerDone })
 
+	require.NoError(t, current().RegisterBuild(ctx, core.BuildRequest{ID: "b1", Hauls: []string{"daily_revenue"}}))
 	res, err := current().StartHaul(ctx, core.StartHaulRequest{Tenant: "t", Name: "daily_revenue"})
 	require.NoError(t, err)
 	id := res.HaulID

@@ -25,7 +25,7 @@ def demo(hubwagen_bin, tmp_path):
     project = tmp_path / "revenue"
     shutil.copytree(EXAMPLE, project)
     url, dev = start_dev(hubwagen_bin, tmp_path)
-    procs = {"worker": start_worker(url, "revenue.hauls", project, tmp_path / "worker.log")}
+    procs = {"worker": start_worker(url, None, project, tmp_path / "worker.log")}  # modules from pyproject.toml
 
     def replay(days: str) -> str:
         r = subprocess.run([hubwagen_bin, "replay", "daily", "--server", url, "--param", f"day={days}"],
@@ -35,7 +35,7 @@ def demo(hubwagen_bin, tmp_path):
 
     def restart_worker():
         stop(procs["worker"])
-        procs["worker"] = start_worker(url, "revenue.hauls", project, tmp_path / "worker2.log")
+        procs["worker"] = start_worker(url, None, project, tmp_path / "worker2.log")
 
     yield project, replay, restart_worker
     stop(procs["worker"])

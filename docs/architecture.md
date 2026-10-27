@@ -500,10 +500,15 @@ passed while no leader was up.
 `hubwagen.v1.WorkerService` (`proto/hubwagen/v1/worker.proto`, served by
 `internal/api`): Connect, so also callable as plain HTTP/JSON
 (`POST /hubwagen.v1.WorkerService/<Method>`), which keeps the Python SDK free
-of gRPC tooling. `RegisterBuild`, `PollHaulTask`, `CompleteHaulTask`
-(commands), `PollLiftTask`, `CompleteLiftTask` (output descriptor),
-`Heartbeat`. Polls are long polls (capped at 30 s), so workers behind NAT
-work. JSON that belongs to user code (arguments, results, params, event
+of gRPC tooling. `RegisterBuild` (the hauls a build defines and its lifts'
+code versions), `PollHaulTask`, `CompleteHaulTask` (commands),
+`PollLiftTask`, `CompleteLiftTask` (output descriptor), `Heartbeat`. Polls
+are long polls (capped at 30 s), so workers behind NAT work.
+
+Polls carry the worker's build, and a worker gets only the haul tasks and
+lifts its build defines. Projects with different code can therefore share
+docks; docks separate resources (GPU, memory), not codebases. `StartHaul`
+refuses a haul that no registered build defines. JSON that belongs to user code (arguments, results, params, event
 payloads) travels as JSON text in `*_json` fields, so numbers stay exact.
 
 Heartbeats are leases: with a heartbeat timeout (one minute in dev mode), a
@@ -528,7 +533,7 @@ leader gives restored attempts fresh ones.
 
 ```
 $ hubwagen dev                                # server + UI, SQLite in .hubwagen/
-$ python -m hubwagen.worker app.hauls         # local worker on the default dock
+$ python -m hubwagen.worker                   # local worker; modules from pyproject.toml
 $ hubwagen start daily_revenue --day 2026-10-24
 $ hubwagen test                               # hauls against a fake ctx, lifts with fake pallets
 ```

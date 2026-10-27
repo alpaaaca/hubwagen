@@ -27,26 +27,42 @@ import (
 // the SDK passes pallets as Inputs, not inside Args: then an identical
 // rebuild upstream (same content hash) doesn't change the fingerprint.
 
-// BuildRequest registers a worker build: the code version of each lift.
+// BuildRequest registers a worker build: the hauls it defines and the code
+// version of each lift.
 type BuildRequest struct {
 	ID    string
+	Hauls []string
 	Lifts map[string]string // lift name → code version
 }
 
 // RegisterBuild records a build. Registering the same build again is a
-// no-op; reusing a build ID with other versions is an error, since builds
-// are immutable. A new build gives stuck hauls a replay: it may carry the
-// fix.
+// no-op; reusing a build ID with other hauls or versions is an error, since
+// builds are immutable (a build recorded before hauls were, gets its hauls
+// added). A new build gives stuck hauls a replay: it may carry the fix.
+//
+// Workers that poll with a build ID get only the haul tasks and lifts their
+// build defines, so projects with different code can share docks.
 func (c *Core) RegisterBuild(ctx context.Context, req BuildRequest) error {
 	_, err := submit(ctx, c, func(c *Core) (struct{}, error) {
 		if req.ID == "" {
 			return struct{}{}, fmt.Errorf("%w: a build needs an ID", ErrInvalid)
 		}
+		hauls := slices.Compact(slices.Sorted(slices.Values(req.Hauls)))
+		if slices.Contains(hauls, "") {
+			return struct{}{}, fmt.Errorf("%w: build %s: haul names must not be empty", ErrInvalid, req.ID)
+		}
 		if old, ok := c.builds[req.ID]; ok {
 			if !mapsEqual(old, req.Lifts) {
 				return struct{}{}, fmt.Errorf("%w: build %s is already registered with other code versions", ErrInvalid, req.ID)
 			}
-			return struct{}{}, nil
+			known := c.buildHauls[req.ID]
+			switch {
+			case len(known) == 0 && len(hauls) > 0: // recorded before hauls were
+			case !setEqual(known, hauls):
+				return struct{}{}, fmt.Errorf("%w: build %s is already registered with other hauls", ErrInvalid, req.ID)
+			default:
+				return struct{}{}, nil
+			}
 		}
 		lifts := map[string]string{}
 		for k, v := range req.Lifts {
@@ -55,14 +71,51 @@ func (c *Core) RegisterBuild(ctx context.Context, req BuildRequest) error {
 			}
 			lifts[k] = v
 		}
-		c.builds[req.ID] = lifts
-		b := state.Build{ID: req.ID, Lifts: lifts, RegisteredAt: c.now()}
+		c.addBuild(req.ID, lifts, hauls)
+		b := state.Build{ID: req.ID, Hauls: hauls, Lifts: lifts, RegisteredAt: c.now()}
 		c.b.catalog = append(c.b.catalog, func(tx *state.Tx) error { return tx.PutBuild(b) })
-		c.emit(state.EventBuildRegistered, "", buildRegisteredPayload{ID: req.ID, Lifts: lifts})
+		c.emit(state.EventBuildRegistered, "", buildRegisteredPayload{ID: req.ID, Hauls: hauls, Lifts: lifts})
 		c.resumeStuckHauls()
 		return struct{}{}, nil
 	})
 	return err
+}
+
+func (c *Core) addBuild(id string, lifts map[string]string, hauls []string) {
+	c.builds[id] = lifts
+	set := map[string]bool{}
+	for _, h := range hauls {
+		set[h] = true
+		c.haulNames[h] = true
+	}
+	c.buildHauls[id] = set
+}
+
+// canRun reports whether a worker of build can take t: its build defines the
+// haul or lift. Pollers without a build ID, and builds recorded without
+// hauls, take any haul task.
+func (c *Core) canRun(build string, t Task) bool {
+	if build == "" {
+		return true
+	}
+	if t.Kind == TaskHaul {
+		hauls := c.buildHauls[build]
+		return len(hauls) == 0 || hauls[t.Name]
+	}
+	_, ok := c.builds[build][t.Name]
+	return ok
+}
+
+func setEqual(set map[string]bool, list []string) bool {
+	if len(set) != len(list) {
+		return false
+	}
+	for _, v := range list {
+		if !set[v] {
+			return false
+		}
+	}
+	return true
 }
 
 func mapsEqual(a, b map[string]string) bool {

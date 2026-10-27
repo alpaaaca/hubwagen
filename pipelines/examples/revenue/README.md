@@ -14,7 +14,8 @@ go build -o hubwagen .
 
 [hubwagen.yaml](hubwagen.yaml) starts three workers (`py-1`..`py-3`), with
 data in `.hubwagen/` here. To run a worker by hand instead, from this
-directory: `PYTHONPATH=../../../sdk/python/src python3 -m hubwagen.worker revenue.hauls`.
+directory: `PYTHONPATH=../../../sdk/python/src python3 -m hubwagen.worker`. It
+imports the modules listed in [pyproject.toml](pyproject.toml).
 
 What to try:
 

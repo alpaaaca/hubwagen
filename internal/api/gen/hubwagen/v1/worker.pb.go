@@ -125,7 +125,10 @@ type RegisterBuildRequest struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	BuildId string                 `protobuf:"bytes,1,opt,name=build_id,json=buildId,proto3" json:"build_id,omitempty"`
 	// Lift name → code version.
-	LiftVersions  map[string]string `protobuf:"bytes,2,rep,name=lift_versions,json=liftVersions,proto3" json:"lift_versions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	LiftVersions map[string]string `protobuf:"bytes,2,rep,name=lift_versions,json=liftVersions,proto3" json:"lift_versions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// The hauls this build defines. Workers that poll with this build get only
+	// these hauls' tasks, and only lifts in lift_versions.
+	Hauls         []string `protobuf:"bytes,3,rep,name=hauls,proto3" json:"hauls,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -174,6 +177,13 @@ func (x *RegisterBuildRequest) GetLiftVersions() map[string]string {
 	return nil
 }
 
+func (x *RegisterBuildRequest) GetHauls() []string {
+	if x != nil {
+		return x.Hauls
+	}
+	return nil
+}
+
 type RegisterBuildResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -215,7 +225,11 @@ type PollHaulTaskRequest struct {
 	WorkerId string                 `protobuf:"bytes,1,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"`
 	Docks    []string               `protobuf:"bytes,2,rep,name=docks,proto3" json:"docks,omitempty"`
 	// How long to wait for work; the server caps it. Unset: answer at once.
-	Wait          *durationpb.Duration `protobuf:"bytes,3,opt,name=wait,proto3" json:"wait,omitempty"`
+	Wait *durationpb.Duration `protobuf:"bytes,3,opt,name=wait,proto3" json:"wait,omitempty"`
+	// The worker's registered build: it gets only haul tasks its build
+	// defines. Unset: any. An unknown build fails with FAILED_PRECONDITION;
+	// register it and poll again.
+	BuildId       string `protobuf:"bytes,4,opt,name=build_id,json=buildId,proto3" json:"build_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -269,6 +283,13 @@ func (x *PollHaulTaskRequest) GetWait() *durationpb.Duration {
 		return x.Wait
 	}
 	return nil
+}
+
+func (x *PollHaulTaskRequest) GetBuildId() string {
+	if x != nil {
+		return x.BuildId
+	}
+	return ""
 }
 
 type PollHaulTaskResponse struct {
@@ -1220,10 +1241,12 @@ func (x *TaskError) GetMessage() string {
 }
 
 type PollLiftTaskRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkerId      string                 `protobuf:"bytes,1,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"`
-	Docks         []string               `protobuf:"bytes,2,rep,name=docks,proto3" json:"docks,omitempty"`
-	Wait          *durationpb.Duration   `protobuf:"bytes,3,opt,name=wait,proto3" json:"wait,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	WorkerId string                 `protobuf:"bytes,1,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"`
+	Docks    []string               `protobuf:"bytes,2,rep,name=docks,proto3" json:"docks,omitempty"`
+	Wait     *durationpb.Duration   `protobuf:"bytes,3,opt,name=wait,proto3" json:"wait,omitempty"`
+	// As in PollHaulTaskRequest: only lifts the worker's build defines.
+	BuildId       string `protobuf:"bytes,4,opt,name=build_id,json=buildId,proto3" json:"build_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1277,6 +1300,13 @@ func (x *PollLiftTaskRequest) GetWait() *durationpb.Duration {
 		return x.Wait
 	}
 	return nil
+}
+
+func (x *PollLiftTaskRequest) GetBuildId() string {
+	if x != nil {
+		return x.BuildId
+	}
+	return ""
 }
 
 type PollLiftTaskResponse struct {
@@ -1790,18 +1820,20 @@ var File_hubwagen_v1_worker_proto protoreflect.FileDescriptor
 
 const file_hubwagen_v1_worker_proto_rawDesc = "" +
 	"\n" +
-	"\x18hubwagen/v1/worker.proto\x12\vhubwagen.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcc\x01\n" +
+	"\x18hubwagen/v1/worker.proto\x12\vhubwagen.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe2\x01\n" +
 	"\x14RegisterBuildRequest\x12\x19\n" +
 	"\bbuild_id\x18\x01 \x01(\tR\abuildId\x12X\n" +
-	"\rlift_versions\x18\x02 \x03(\v23.hubwagen.v1.RegisterBuildRequest.LiftVersionsEntryR\fliftVersions\x1a?\n" +
+	"\rlift_versions\x18\x02 \x03(\v23.hubwagen.v1.RegisterBuildRequest.LiftVersionsEntryR\fliftVersions\x12\x14\n" +
+	"\x05hauls\x18\x03 \x03(\tR\x05hauls\x1a?\n" +
 	"\x11LiftVersionsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x17\n" +
-	"\x15RegisterBuildResponse\"w\n" +
+	"\x15RegisterBuildResponse\"\x92\x01\n" +
 	"\x13PollHaulTaskRequest\x12\x1b\n" +
 	"\tworker_id\x18\x01 \x01(\tR\bworkerId\x12\x14\n" +
 	"\x05docks\x18\x02 \x03(\tR\x05docks\x12-\n" +
-	"\x04wait\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x04wait\"A\n" +
+	"\x04wait\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x04wait\x12\x19\n" +
+	"\bbuild_id\x18\x04 \x01(\tR\abuildId\"A\n" +
 	"\x14PollHaulTaskResponse\x12)\n" +
 	"\x04task\x18\x01 \x01(\v2\x15.hubwagen.v1.HaulTaskR\x04task\"\xaa\x01\n" +
 	"\bHaulTask\x12\x0e\n" +
@@ -1870,11 +1902,12 @@ const file_hubwagen_v1_worker_proto_rawDesc = "" +
 	"\rSTATUS_FAILED\x10\x02\"=\n" +
 	"\tTaskError\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"w\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\x92\x01\n" +
 	"\x13PollLiftTaskRequest\x12\x1b\n" +
 	"\tworker_id\x18\x01 \x01(\tR\bworkerId\x12\x14\n" +
 	"\x05docks\x18\x02 \x03(\tR\x05docks\x12-\n" +
-	"\x04wait\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x04wait\"A\n" +
+	"\x04wait\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x04wait\x12\x19\n" +
+	"\bbuild_id\x18\x04 \x01(\tR\abuildId\"A\n" +
 	"\x14PollLiftTaskResponse\x12)\n" +
 	"\x04task\x18\x01 \x01(\v2\x15.hubwagen.v1.LiftTaskR\x04task\"\x80\x02\n" +
 	"\bLiftTask\x12\x0e\n" +

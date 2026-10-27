@@ -27,6 +27,11 @@ import (
 var (
 	ErrNotFound = errors.New("not found")
 	ErrInvalid  = errors.New("invalid request")
+	// ErrUnknownBuild: a worker polled with a build the leader doesn't know;
+	// it should register it (again).
+	ErrUnknownBuild = errors.New("unknown build")
+	// ErrUnknownHaul: no registered build defines the haul.
+	ErrUnknownHaul = errors.New("unknown haul")
 	// ErrStopped is returned to callers when the core is not running.
 	ErrStopped = errors.New("core stopped")
 )
@@ -60,6 +65,8 @@ type Core struct {
 	docks        map[string]*dockState
 	datasets     map[string]string            // tenant\x00name → partition key
 	builds       map[string]map[string]string // build ID → lift → code version
+	buildHauls   map[string]map[string]bool   // build ID → hauls it defines (none recorded: any)
+	haulNames    map[string]bool              // hauls some build defines; StartHaul accepts only these
 	promotions   map[string]*promotion        // by pallet ID, while its promote runs
 	flights      map[string]*flight           // running memoized lifts, by tenant\x00fingerprint
 	bg           sync.WaitGroup               // background bucket I/O
@@ -90,6 +97,8 @@ func New(cfg Config) *Core {
 		docks:        map[string]*dockState{},
 		datasets:     map[string]string{},
 		builds:       map[string]map[string]string{},
+		buildHauls:   map[string]map[string]bool{},
+		haulNames:    map[string]bool{},
 		promotions:   map[string]*promotion{},
 		flights:      map[string]*flight{},
 	}

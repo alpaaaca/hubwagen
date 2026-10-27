@@ -41,7 +41,8 @@ const (
 
 // HaulServiceClient is a client for the hubwagen.v1.HaulService service.
 type HaulServiceClient interface {
-	// StartHaul starts a haul and queues its first replay.
+	// StartHaul starts a haul and queues its first replay. A haul no
+	// registered build defines fails with FAILED_PRECONDITION.
 	StartHaul(context.Context, *connect.Request[v1.StartHaulRequest]) (*connect.Response[v1.StartHaulResponse], error)
 	// GetHaul returns a haul and its lifts.
 	GetHaul(context.Context, *connect.Request[v1.GetHaulRequest]) (*connect.Response[v1.GetHaulResponse], error)
@@ -91,7 +92,8 @@ func (c *haulServiceClient) GetHaul(ctx context.Context, req *connect.Request[v1
 
 // HaulServiceHandler is an implementation of the hubwagen.v1.HaulService service.
 type HaulServiceHandler interface {
-	// StartHaul starts a haul and queues its first replay.
+	// StartHaul starts a haul and queues its first replay. A haul no
+	// registered build defines fails with FAILED_PRECONDITION.
 	StartHaul(context.Context, *connect.Request[v1.StartHaulRequest]) (*connect.Response[v1.StartHaulResponse], error)
 	// GetHaul returns a haul and its lifts.
 	GetHaul(context.Context, *connect.Request[v1.GetHaulRequest]) (*connect.Response[v1.GetHaulResponse], error)
