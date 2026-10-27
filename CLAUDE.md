@@ -21,6 +21,7 @@ Read before larger changes:
 - [docs/architecture.md](docs/architecture.md) — v2 design: hauls, lifts, pallets, memoization, commits
 - [docs/roadmap.md](docs/roadmap.md) — what is done, what is next, open decisions
 - [docs/v2-migration.md](docs/v2-migration.md) — what happened to each v1 package
+- [docs/failover.md](docs/failover.md) — design: nodes, leader election and state handoff (not built)
 - [docs/spikes/](docs/spikes/) — spike findings (S1: Python replay)
 - [sdk/python/README.md](sdk/python/README.md) — writing hauls and lifts, the worker
 - [docs/config.md](docs/config.md) — instance configuration (`hubwagen.yaml`)
