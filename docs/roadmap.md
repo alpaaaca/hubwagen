@@ -159,7 +159,8 @@ Roughly in order of expected need:
 - Object-store buckets (`gs://`, `s3://`) and warehouse/table-format adapters.
 - Pod lifts: local containers in single-node mode, Kubernetes Jobs in a
   cluster (starting from the v1 task contract).
-- Auth, tenants and per-dock budgets; Litestream replication and failover.
+- Auth, tenants and per-dock budgets; Litestream replication and failover
+  (design: [failover.md](failover.md)).
 - `hubwagen deploy --dry-run` (rebuild preview), `hubwagen verify`,
   `keep_fresh`, data modes, build pinning.
 - Go SDK.
@@ -172,7 +173,7 @@ Roughly in order of expected need:
 | [S1](https://github.com/alpaaaca/hubwagen/issues/10) | Python replay prototype: how slow is full replay for a 1,000-event logbook? Does patching clock/random in a running interpreter catch typical mistakes without breaking libraries imported by haul modules? | M3c | **Done**: full replay is ~1 ms for 1,000 events (O(n²) over a haul's life); guard with `sys.monitoring`, not patching (13/13 caught, 0 libraries broken); call sites via `sys._getframe` are free. [Findings](spikes/s1-python-replay.md) |
 | [S2](https://github.com/alpaaaca/hubwagen/issues/11) | Code version from imports: can the SDK resolve a lift's project-local imports reliably (relative imports, `importlib`, namespace packages), and how often does the lockfile term cause reruns in a real project? | M3c | |
 | [S3](https://github.com/alpaaaca/hubwagen/issues/29) | Load: one leader with group commit at the target load (first v1 signal: ~60k events/s in batches of 128 on an M1 Mac). Re-measure with logbook events. | Load target sign-off | |
-| [S4](https://github.com/alpaaaca/hubwagen/issues/30) | Litestream as a library with a replica path per leader term (from v1's R1). | Failover | |
+| [S4](https://github.com/alpaaaca/hubwagen/issues/30) | Litestream as a library with a replica path per leader term (from v1's R1). | Failover ([failover.md](failover.md), option A) | |
 
 ## Open decisions
 
@@ -184,6 +185,7 @@ Roughly in order of expected need:
 | Code version default | Source + imported project modules + lockfile, overridable with `version=` | M3b |
 | dbt integration | One lift per project, one pallet per model | Later |
 | Catalog interoperability | OpenLineage export first; Iceberg REST catalog later, if at all | Later |
+| Failover | Nodes that supervise workers and can lead; bucket lease + Litestream first, embedded Raft if no-loss is needed ([failover.md](failover.md)) | Failover |
 | `standalone` profile | Single-node mode covers it; revisit with auth and multi-host | Later |
 | Load target for one leader | 100 lift transitions/s sustained, 2,000 running lifts | S3 |
 | Licence and distribution | Open | Before first release |

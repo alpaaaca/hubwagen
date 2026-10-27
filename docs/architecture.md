@@ -548,7 +548,7 @@ production catalog read-only and commits to a personal namespace;
 |---|---|
 | `Store` (events + projections) | `internal/state` (SQLite); Postgres later behind the same interface |
 | `Replicator` | `litestream`, `noop` |
-| `Elector` | `single`; `k8slease` later |
+| `Elector` | `single`; `bucketlease`, `k8slease` later ([failover.md](failover.md)) |
 | `Blob` (incl. `PutIfAbsent`) | `internal/blob`: `file://`; `gs://`/`s3://` later |
 | Storage adapter (promote, readability) | `file://` manifests; others later |
 | Pod launcher | local subprocess/container; Kubernetes Jobs later |
