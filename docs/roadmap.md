@@ -192,7 +192,7 @@ Roughly in order of expected need:
 |---|---|---|
 | CLI name | Keep `hubwagen`; maybe add `hw` as a short alias | M3c |
 | Python SDK packaging | `sdk/python` in this repo, published as `hubwagen` on PyPI | M3c |
-| Memoization default | Opt-in per lift (`memo=True`); SQL lifts on by default. Under review: reuse by default with `live=True` to opt out, results and dataframes memoized without `hw.output()` ([api-simplification.md](api-simplification.md)) | Before the first release |
+| Memoization default | Opt-in per lift (`memo=True`); SQL lifts on by default. Results and dataframes are memoized without `hw.output()`; under review: reuse by default with `live=True` to opt out ([api-simplification.md](api-simplification.md)) | Before the first release |
 | Code version default | Source + imported project modules + lockfile, overridable with `version=` | M3b |
 | dbt integration | One lift per project, one pallet per model | Later |
 | Catalog interoperability | OpenLineage export first; Iceberg REST catalog later, if at all | Later |
