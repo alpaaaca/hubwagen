@@ -40,10 +40,10 @@ def hubwagen_bin(tmp_path_factory) -> str:
     return str(out)
 
 
-def start_dev(hubwagen_bin: str, tmp: Path) -> tuple[str, subprocess.Popen]:
-    """A `hubwagen dev` with the API on a free port, data under tmp."""
-    url = f"http://127.0.0.1:{_free_port()}"
-    log = open(tmp / "dev.log", "w")
+def start_dev(hubwagen_bin: str, tmp: Path, url: str | None = None) -> tuple[str, subprocess.Popen]:
+    """A `hubwagen dev` with the API on url (default: a free port), data under tmp."""
+    url = url or f"http://127.0.0.1:{_free_port()}"
+    log = open(tmp / "dev.log", "a")
     proc = subprocess.Popen([hubwagen_bin, "dev", "--data-dir", str(tmp / "data"),
                              "--listen", url.removeprefix("http://")],
                             cwd=tmp, stdout=log, stderr=subprocess.STDOUT)

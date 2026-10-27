@@ -27,7 +27,8 @@ the same ones hubwagen dev starts, but without a server: they connect to
 --server (default: the config's server.listen). Use it to restart the server
 while the workers keep running, or to run workers on another machine.
 
-Each process gets HUBWAGEN_SERVER and HUBWAGEN_WORKER_ID (<name>-<n>). One
+Each process gets HUBWAGEN_SERVER, HUBWAGEN_WORKER_ID (<name>-<n>) and
+HUBWAGEN_SUPERVISOR_PID (this process; workers stop when it is gone). One
 that exits is restarted with backoff; Ctrl-C stops them all.`,
 	Args:         cobra.NoArgs,
 	SilenceUsage: true,
@@ -104,7 +105,8 @@ func workerProcesses(cfg *config.Config, server string) []supervise.Process {
 			for k, v := range w.Env {
 				env = append(env, k+"="+v)
 			}
-			env = append(env, config.EnvServer+"="+server, config.EnvWorkerID+"="+id)
+			env = append(env, config.EnvServer+"="+server, config.EnvWorkerID+"="+id,
+				config.EnvSupervisorPID+"="+strconv.Itoa(os.Getpid()))
 			procs = append(procs, supervise.Process{ID: id, Command: w.Command, Dir: w.Dir, Env: env})
 		}
 	}

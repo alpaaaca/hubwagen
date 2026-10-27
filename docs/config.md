@@ -42,15 +42,21 @@ workers:                         # started by hubwagen dev and hubwagen workers
 ### Workers
 
 A worker is any process that speaks the worker API; hubwagen doesn't care
-what language it is in. Every process gets two variables, which its `env`
+what language it is in. Every process gets three variables, which its `env`
 can't set:
 
 | Variable | Value |
 |---|---|
 | `HUBWAGEN_SERVER` | the API's URL, e.g. `http://127.0.0.1:7070` (an unspecified listen host such as `0.0.0.0` becomes `127.0.0.1`) |
 | `HUBWAGEN_WORKER_ID` | `<name>-<n>`; the logbook records it on every dispatch |
+| `HUBWAGEN_SUPERVISOR_PID` | the hubwagen process that started it; a worker stops once its parent is no longer this process |
 
-The Python worker (`python -m hubwagen.worker`) reads both.
+The Python worker (`python -m hubwagen.worker`) reads all three. The last
+one covers a supervisor that dies without stopping its workers (`kill -9`, a
+crash). The workers run in their own process groups, so nothing else would
+stop them, and the next `hubwagen dev` would start a second set. The Python
+worker checks every second and then stops as on Ctrl-C: running lifts
+finish and report.
 
 `hubwagen dev` starts the workers after the API is up. It prefixes their
 output with their ID (`py-2 | …`) and restarts one that exits, with backoff
@@ -80,8 +86,9 @@ With one leader and three workers from one file:
   `lost` and retried elsewhere if the lift has a retry policy.
 - **The leader restarts**: run `hubwagen dev --no-workers` and
   `hubwagen workers` in two terminals, then Ctrl-C and restart dev. Workers
-  retry until it's back; lifts that were running report to the new leader
-  and aren't rerun.
+  retry until it's back. A lift that finishes while the leader is down keeps
+  its result, and its attempt keeps sending heartbeats, until the new leader
+  takes the result. It isn't rerun.
 
 ## Later
 

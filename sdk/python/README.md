@@ -70,10 +70,18 @@ Arguments and results are JSON; `date` and `datetime` round-trip.
 ## Worker
 
 `python -m hubwagen.worker app.hauls [more.modules] [--server URL]
-[--dock NAME] [--lifts N]` imports the modules, registers the build (each
+[--dock NAME] [--lifts N] [--worker-id ID]` imports the modules, registers the build (each
 lift's code version: `version=` or a hash of its source), replays hauls and
 runs lifts, and sends heartbeats for running lifts. It re-executes itself
 with `PYTHONHASHSEED=0` so set iteration order is the same in every replay.
+
+If the server is down when a lift finishes, the worker keeps the result,
+and keeps the attempt's heartbeats going, until the server takes it. A
+restarted leader therefore doesn't rerun the lift. Ctrl-C stops polling and
+lets running lifts finish. Started by `hubwagen dev` or `hubwagen workers`,
+the worker also stops that way when that process is gone
+(`$HUBWAGEN_SUPERVISOR_PID`). `--worker-id` (or `$HUBWAGEN_WORKER_ID`) names
+the worker in the logbook; the default is `<hostname>-<pid>`.
 
 ## Tests
 

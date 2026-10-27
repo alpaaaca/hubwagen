@@ -30,11 +30,16 @@ const (
 	DefaultListen  = "127.0.0.1:7070"
 )
 
-// Variables the server sets for every worker it starts; a worker's env can't
+// Variables hubwagen sets for every worker it starts; a worker's env can't
 // set them.
 const (
 	EnvServer   = "HUBWAGEN_SERVER"
 	EnvWorkerID = "HUBWAGEN_WORKER_ID"
+	// EnvSupervisorPID is the PID of the hubwagen process that started the
+	// worker. A worker should stop once its parent is no longer that
+	// process, so a supervisor that dies without stopping its workers (kill
+	// -9, a crash) leaves none behind.
+	EnvSupervisorPID = "HUBWAGEN_SUPERVISOR_PID"
 )
 
 type Config struct {
@@ -163,7 +168,7 @@ func Parse(data []byte, dir string) (*Config, error) {
 			add("%s.replicas: must be 0 or more", at)
 		}
 		for k := range w.Env {
-			if k == EnvServer || k == EnvWorkerID {
+			if k == EnvServer || k == EnvWorkerID || k == EnvSupervisorPID {
 				add("%s.env.%s: set by hubwagen", at, k)
 			}
 		}

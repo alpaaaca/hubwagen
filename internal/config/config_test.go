@@ -64,7 +64,7 @@ workers:
     dir: nowhere
   - name: w
     command: [x]
-    env: {HUBWAGEN_SERVER: x}
+    env: {HUBWAGEN_SERVER: x, HUBWAGEN_SUPERVISOR_PID: "1"}
 `), t.TempDir())
 	require.Error(t, err)
 	for _, want := range []string{
@@ -76,6 +76,7 @@ workers:
 		"workers[1].dir:",
 		`workers[2].name: "w" is used twice`,
 		"workers[2].env.HUBWAGEN_SERVER: set by hubwagen",
+		"workers[2].env.HUBWAGEN_SUPERVISOR_PID: set by hubwagen",
 	} {
 		assert.Contains(t, err.Error(), want)
 	}
