@@ -153,9 +153,12 @@ class Ctx:
         if r.get("status") != "completed":
             raise LiftFailed(d.name, r.get("reason", r.get("status", "")), r.get("message", ""))
         result = decode(r.get("result"))
-        if d.output is None:
+        if not r.get("pallet"):
             return result
-        return Pallet(id=r.get("pallet", ""), dataset=d.output.name, result=result, reused=bool(r.get("reused")),
+        # A pallet: the lift's output, or for a lift without one, the
+        # dataframe it returned, in its implicit dataset.
+        dataset = d.output.name if d.output is not None else "lift:" + d.name
+        return Pallet(id=r["pallet"], dataset=dataset, result=result, reused=bool(r.get("reused")),
                       partition=self._partition_of(seq))
 
     def _partition_of(self, seq: int) -> str:
@@ -163,7 +166,8 @@ class Ctx:
 
     def lift(self, f: Callable | str, *args: Any, **kwargs: Any) -> Any:
         """Run a lift and wait for it. Returns what it returned, or a Pallet
-        for a lift with an output. Raises LiftFailed if it failed."""
+        for a lift with an output or one that returned a dataframe. Raises
+        LiftFailed if it failed."""
         seq, d = self._lift_command(f, args, kwargs)
         r = self._consume(seq)
         if r is None:

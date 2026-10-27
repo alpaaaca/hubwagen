@@ -32,7 +32,7 @@ import traceback
 from pathlib import Path
 from typing import Any
 
-from . import _model, _output, _replay
+from . import _codecs, _model, _output, _replay
 from .client import Client, ConnectError
 
 log = logging.getLogger("hubwagen.worker")
@@ -41,6 +41,26 @@ POLL_WAIT = "20s"
 HEARTBEAT_EVERY = 20.0  # seconds; the server's timeout is longer (a minute in dev)
 DELIVER_BACKOFF = (0.5, 10.0)  # seconds: first and longest wait between tries to deliver a result
 SUPERVISOR_CHECK_EVERY = 1.0  # seconds
+
+
+def load_inputs(fn: Any, kwargs: dict[str, Any]) -> dict[str, Any]:
+    """Load the pallets passed as fn's arguments as their annotations ask:
+    a dataframe or table type loads the data, hw.Pallet keeps the handle,
+    no annotation loads a dataframe as it was written (other pallets stay
+    handles)."""
+    hints = _codecs.parameter_types(fn)
+    out = dict(kwargs)
+    for name, v in kwargs.items():
+        if not isinstance(v, _model.Pallet):
+            continue
+        ann = hints.get(name)
+        if isinstance(ann, type) and issubclass(ann, _model.Pallet):
+            continue
+        if _codecs.for_type(ann) is not None:
+            out[name] = v.load(ann)
+        elif ann in (None, Any) and _codecs.frame_tag(v.manifest().get("result")):
+            out[name] = v.load()
+    return out
 
 
 def build_id() -> str:
@@ -103,7 +123,7 @@ class Worker:
                 raise _model.NonRetryable(f"no lift {task['name']!r} in build {self.build}")
             pallets = {i["name"]: _model.Pallet(id=i["pallet"], location=i.get("location", ""))
                        for i in task.get("inputs", [])}
-            kwargs = _model.decode(json.loads(task.get("argsJson") or "{}"), pallets)
+            kwargs = load_inputs(d.fn, _model.decode(json.loads(task.get("argsJson") or "{}"), pallets))
             out = None
             token = None
             if d.output is not None:
@@ -115,6 +135,12 @@ class Worker:
             finally:
                 if token is not None:
                     _output._current.reset(token)
+            if _codecs.for_value(result) is not None:
+                if out is None:
+                    if not task.get("staging"):
+                        raise _model.NonRetryable("returning a dataframe needs a server with a bucket for pallets")
+                    out = _output.Output(path=_output.local_dir(task["staging"]))
+                result = _codecs.write(result, out.path)
             body["status"] = "STATUS_SUCCEEDED"
             body["resultJson"] = json.dumps(_model.encode(result))
             if out is not None:

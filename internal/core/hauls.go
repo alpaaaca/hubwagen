@@ -619,8 +619,8 @@ func (c *Core) queueLiftAttempt(l *liftState) {
 		}
 		task.Inputs = append(task.Inputs, ti)
 	}
-	if l.output != nil {
-		task.Output = l.output
+	task.Output = l.output
+	if c.cfg.Pallets != nil {
 		task.Staging = c.cfg.Layout.LiftStaging(h.rec.Tenant, h.rec.ID, l.rec.Seq, task.ID)
 	}
 	c.enqueue(task, func(c *Core, workerID string) Task {
@@ -672,11 +672,14 @@ func (c *Core) completeLift(res LiftResult) error {
 		return fmt.Errorf("%w: lift attempt %s is unknown or finished", ErrNotFound, res.AttemptID)
 	}
 	l := a.lift
-	if res.Output != nil && (l.output == nil || res.Status != state.AttemptSucceeded) {
-		return fmt.Errorf("%w: only a succeeded attempt of a lift with an output reports one", ErrInvalid)
+	if res.Output != nil && res.Status != state.AttemptSucceeded {
+		return fmt.Errorf("%w: only a succeeded attempt reports an output", ErrInvalid)
 	}
 	if res.Status == state.AttemptSucceeded && l.output != nil {
-		return c.completeLiftWithOutput(a, res)
+		return c.completeLiftWithOutput(a, res, *l.output)
+	}
+	if res.Status == state.AttemptSucceeded && res.Output != nil {
+		return c.completeLiftWithOutput(a, res, OutputSpec{Dataset: ImplicitDataset(l.rec.Name)})
 	}
 	c.finishLiftAttempt(a, res.Status, res.Reason, res.Message)
 	if res.Status == state.AttemptFailed {
@@ -729,7 +732,7 @@ func (c *Core) finishLiftAttempt(a *liftAttemptState, status, reason, message st
 	delete(c.liftAttempts, a.rec.ID)
 	l.attempt = nil
 	c.releaseLift(l.rec.Dock)
-	if status != state.AttemptSucceeded && l.output != nil {
+	if status != state.AttemptSucceeded {
 		c.discardStaging(c.cfg.Layout.LiftStaging(l.haul.rec.Tenant, l.rec.HaulID, l.rec.Seq, a.rec.ID))
 	}
 }

@@ -158,6 +158,28 @@ def partner_files(ctx, day: date):
 The number of files is unknown until runtime. That is a loop, not a special
 primitive.
 
+### Dataframes between lifts
+
+```python
+@lift(memo=True)
+def orders(day: date) -> pl.DataFrame: ...
+
+@lift(memo=True)
+def totals(orders: pl.LazyFrame) -> pl.DataFrame: ...
+
+@haul
+def daily(ctx, day: date):
+    return ctx.lift(totals, ctx.lift(orders, day))
+```
+
+A returned dataframe or Arrow table is written as Parquet by the worker into
+the attempt's staging prefix and committed as a pallet: in the lift's output
+dataset, or without one, in its implicit dataset `lift:<name>`
+(unpartitioned; declared outputs can't use the `lift:` prefix). The haul
+only ever holds the handle; the next lift gets the data, loaded as its
+parameter's annotation asks. Every lift attempt gets a staging prefix for
+this, and the server commits whatever files a succeeded attempt reports.
+
 ### SQL lifts
 
 ```python
@@ -285,8 +307,9 @@ rerun, never correctness.
   a cursor range on an append-only source).
 - `@lift(memo="ttl:1h")`: reuse a result up to that age. For APIs and live
   sources where slightly stale data is acceptable.
-- A lift with an output reuses a pallet; one without reuses the result of a
-  lift that ran (not one that was itself reused, so a TTL counts from the
+- A lift with an output reuses a pallet; one without reuses the pallet it
+  built in its implicit dataset (a dataframe it returned, see below) or else
+  the result of a lift that ran (not one that was itself reused, so a TTL counts from the
   run). On the wire a lift command carries `memo: ""` (never), `fingerprint`
   or `ttl:<duration>`; the SDK passes pallets as inputs rather than inside
   the arguments, so the fingerprint sees their content hashes.

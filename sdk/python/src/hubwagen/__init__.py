@@ -16,6 +16,7 @@
 Run a worker with `python -m hubwagen.worker app.hauls`.
 """
 
+from ._codecs import register_codec
 from ._model import Dataset, LiftFailed, NonRetryable, Pallet, Retry, haul, lift
 from ._output import Output, output
 from ._replay import Blocked, Ctx, Handle
@@ -23,5 +24,5 @@ from .client import Client, ConnectError
 
 __all__ = [
     "Blocked", "Client", "ConnectError", "Ctx", "Dataset", "Handle", "LiftFailed", "NonRetryable",
-    "Output", "Pallet", "Retry", "haul", "lift", "output",
+    "Output", "Pallet", "Retry", "haul", "lift", "output", "register_codec",
 ]

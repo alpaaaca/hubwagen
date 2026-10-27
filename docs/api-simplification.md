@@ -1,6 +1,7 @@
 # Simplifying the authoring API
 
-Design note, not built. Proposes how the Python SDK can drop most of the
+Design note; steps 1 and 2 are built (see Steps), the rest is not.
+Proposes how the Python SDK can drop most of the
 ceremony around lifts, memoization and outputs while the core keeps its
 guarantees. Decisions here would change [architecture.md](architecture.md)
 (Core concepts, Writing hauls and lifts, Memoization, Commits) and
@@ -113,7 +114,7 @@ def daily(ctx, day: str):
 - Handles still travel as inputs, not inside the arguments, so lineage and
   fingerprints work exactly as they do now.
 
-Codecs are pluggable (`hw.register_codec(type, write, read)`), with
+Codecs are pluggable (`hw.register_codec(name, types, write, read)`), with
 built-in ones for pandas, Polars and Arrow imported lazily: the SDK stays
 stdlib-only, and a project that doesn't use pandas never imports it.
 
@@ -212,11 +213,18 @@ the rule that the server never runs user code.
 
 PR-sized, in order:
 
-1. **Result pallets.** Memoize lifts without an output; content hash covers
-   the result. Keep `memo=` as the switch. Small, and removes the empty
-   pallet workaround.
-2. **Codecs.** Dataframes and Arrow tables in and out of lifts,
-   annotation-based loading, hashing while writing.
+1. ✅ **Result pallets.** Memoize lifts without an output; content hash
+   covers the result. Keep `memo=` as the switch. Small, and removes the
+   empty pallet workaround. *Built differently:* a plain result is reused
+   from the lifts table (the newest run with the fingerprint), not from a
+   pallet, since the catalog has no pallets without a dataset; a pallet's
+   manifest records the result and its content hash covers it unless null.
+2. ✅ **Codecs.** Dataframes and Arrow tables in and out of lifts,
+   annotation-based loading. *As built:* every lift attempt gets a staging
+   prefix; a frame returned by a lift without an output becomes a pallet in
+   its implicit dataset `lift:<name>` (unpartitioned; the prefix is
+   reserved); hashing still reads the written file afterwards, not while
+   writing; a frame must be returned on its own, not inside a value.
 3. **Reuse by default.** `live=` replaces `memo=`; `--reuse`; replay report
    and `--dry-run`. Example project and docs rewritten without `memo=` and
    `hw.output()`.
@@ -224,7 +232,8 @@ PR-sized, in order:
    starting with Iceberg or Delta.
 5. **Object-store checksums**, with the `s3://` / `gs://` buckets.
 
-1 and 2 are useful on their own and don't depend on the decision in 4.
+1 and 2 are useful on their own and don't depend on the reuse decision
+(step 3).
 
 ## Open questions
 
@@ -235,8 +244,9 @@ PR-sized, in order:
 - **Names.** Authors would only meet `haul` and `lift`; "pallet" would
   appear in the catalog and UI. Whether `haul`/`lift` themselves should be
   plainer (`flow`/`step`) is a separate question.
-- **Where codecs write without a dataset.** Under the lift's name in the
-  bucket, keyed by dataset and partition once those exist; ties into the
-  bucket layout and retention, which are also undecided.
+- **Where codecs write without a dataset.** Partly settled by step 2: the
+  implicit dataset `lift:<name>`, unpartitioned. The files still sit under
+  the attempt's staging prefix; the bucket layout and retention are
+  undecided.
 - **Spark detection.** Whether returning a Spark `DataFrame` should be
   supported at all, or always require `hw.table`.

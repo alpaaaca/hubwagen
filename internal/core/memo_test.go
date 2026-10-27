@@ -56,7 +56,7 @@ func (h *harness) runHaul(b blob.Bucket, build string, steps []step, content map
 			if r, ok := h.results[task.Name]; ok {
 				res.Result = json.RawMessage(r)
 			}
-			if task.Staging != "" {
+			if task.Output != nil {
 				res.Output = writeOutput(h.t, b, task, map[string]string{"data.csv": text})
 			}
 			require.NoError(h.t, h.core.CompleteLift(h.ctx, res))

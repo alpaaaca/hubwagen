@@ -70,6 +70,16 @@ class Pallet:
             raise FileNotFoundError(f"pallet {self.id} has no file {name!r}")
         return local_path(m["data"]) / name
 
+    def load(self, as_: type | None = None) -> Any:
+        """The dataframe or table a lift returned into this pallet, loaded
+        as as_ (e.g. pl.LazyFrame, pd.DataFrame) or as it was written."""
+        from . import _codecs
+
+        m = self.manifest()
+        if not any(f["path"] == _codecs.FILE for f in m["files"]):
+            raise FileNotFoundError(f"pallet {self.id} holds no dataframe (no {_codecs.FILE})")
+        return _codecs.load(local_path(m["data"]) / _codecs.FILE, _codecs.frame_tag(m.get("result")), as_)
+
 
 @dataclass(frozen=True)
 class Retry:
@@ -201,6 +211,11 @@ def lift_def(f: Callable | str) -> LiftDef:
 def encode(v: Any) -> Any:
     """Arguments and results as JSON: dates and datetimes get a tag so they
     come back as what they were; pallets become references."""
+    from . import _codecs
+
+    if _codecs.for_value(v) is not None:
+        raise TypeError(f"a {type(v).__name__} isn't JSON: return it from a lift on its own (it becomes a pallet) "
+                        "and pass the lift's handle on")
     if isinstance(v, Pallet):
         return {"$pallet": v.id, "dataset": v.dataset, "partition": v.partition}
     if isinstance(v, _dt.datetime):

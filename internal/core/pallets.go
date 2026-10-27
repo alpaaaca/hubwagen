@@ -4,13 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/alper/hubwagen/internal/pallet"
 	"github.com/alper/hubwagen/internal/state"
 )
 
-// Lifts with an output produce a pallet. The worker writes files to the
+// Lifts with an output produce a pallet, and so does a lift without one
+// that reports files (the SDK writes a returned dataframe as Parquet): its
+// pallet goes to the lift's implicit dataset, ImplicitDataset(name),
+// unpartitioned. The worker writes files to the
 // attempt's staging prefix and reports them; the core records the pallet as
 // pending (with its manifest in the logbook), then promotes it off the loop
 // and, once the promote succeeded, commits it: only then is the lift
@@ -25,10 +29,19 @@ type OutputSpec struct {
 	PartitionKey string `json:"partition_key,omitempty"` // e.g. "day"; set when the dataset is created
 }
 
+// ImplicitDatasetPrefix starts the names of implicit datasets; outputs a
+// lift declares can't use it.
+const ImplicitDatasetPrefix = "lift:"
+
+// ImplicitDataset is where the pallets of a lift without an output go.
+func ImplicitDataset(lift string) string { return ImplicitDatasetPrefix + lift }
+
 func (o OutputSpec) validate() error {
 	switch {
 	case o.Dataset == "":
 		return errors.New("output without a dataset")
+	case strings.HasPrefix(o.Dataset, ImplicitDatasetPrefix):
+		return fmt.Errorf("output dataset %q: names starting with %q are for lifts without an output", o.Dataset, ImplicitDatasetPrefix)
 	case o.PartitionKey == "" && o.Partition != "":
 		return fmt.Errorf("output partition %q for a dataset without a partition key", o.Partition)
 	case o.PartitionKey != "" && o.Partition == "":
@@ -97,8 +110,17 @@ func (c *Core) checkLiftIO(l *liftState) (inputs []state.Pallet, reason, message
 	return inputs, "", ""
 }
 
-func (c *Core) completeLiftWithOutput(a *liftAttemptState, res LiftResult) error {
+// completeLiftWithOutput completes a succeeded attempt that produces a
+// pallet in o: the lift's output, or for a lift without one that reported
+// files, its implicit dataset.
+func (c *Core) completeLiftWithOutput(a *liftAttemptState, res LiftResult, o OutputSpec) error {
 	l, h := a.lift, a.lift.haul
+	if c.cfg.Pallets == nil {
+		msg := "this server has no bucket for pallets"
+		c.finishLiftAttempt(a, state.AttemptFailed, "no_pallet_store", msg)
+		c.liftAttemptFailed(l, "no_pallet_store", msg, true)
+		return nil
+	}
 	if res.Output == nil {
 		msg := "the lift succeeded but reported no output"
 		c.finishLiftAttempt(a, state.AttemptFailed, "no_output", msg)
@@ -107,13 +129,13 @@ func (c *Core) completeLiftWithOutput(a *liftAttemptState, res LiftResult) error
 	}
 	staging := c.cfg.Layout.LiftStaging(h.rec.Tenant, h.rec.ID, l.rec.Seq, a.rec.ID)
 	id := c.cfg.NewID()
-	m, err := newManifest(id, h.rec.Tenant, *l.output, staging, res)
+	m, err := newManifest(id, h.rec.Tenant, o, staging, res)
 	if err != nil {
 		c.finishLiftAttempt(a, state.AttemptFailed, "bad_output", err.Error())
 		c.liftAttemptFailed(l, "bad_output", err.Error(), true)
 		return nil
 	}
-	return c.recordPallet(a, res, id, m)
+	return c.recordPallet(a, res, o, id, m)
 }
 
 // newManifest describes what the attempt wrote and returned.
@@ -127,16 +149,16 @@ func newManifest(id, tenant string, o OutputSpec, staging string, res LiftResult
 
 // recordPallet records a succeeded attempt's pallet as pending and starts
 // its promote.
-func (c *Core) recordPallet(a *liftAttemptState, res LiftResult, id string, m pallet.Manifest) error {
+func (c *Core) recordPallet(a *liftAttemptState, res LiftResult, o OutputSpec, id string, m pallet.Manifest) error {
 	l, h := a.lift, a.lift.haul
 	c.finishLiftAttempt(a, state.AttemptSucceeded, res.Reason, res.Message)
 	l.rec.Status, l.rec.Result = state.LiftCommitting, res.Result
 	c.dirtyLift(l)
 
-	c.ensureDataset(h.rec.Tenant, *l.output)
+	c.ensureDataset(h.rec.Tenant, o)
 	rec := state.Pallet{
-		ID: id, Tenant: h.rec.Tenant, Dataset: l.output.Dataset, Partition: l.output.Partition,
-		Location:    c.cfg.Layout.PalletManifest(h.rec.Tenant, l.output.Dataset, l.output.Partition, id),
+		ID: id, Tenant: h.rec.Tenant, Dataset: o.Dataset, Partition: o.Partition,
+		Location:    c.cfg.Layout.PalletManifest(h.rec.Tenant, o.Dataset, o.Partition, id),
 		ContentHash: m.ContentHash, Fingerprint: l.rec.Fingerprint, Stats: res.Output.Stats, Meta: res.Output.Meta,
 		HaulID: h.rec.ID, LiftSeq: l.rec.Seq, State: state.PalletPending, CreatedAt: c.now(),
 	}

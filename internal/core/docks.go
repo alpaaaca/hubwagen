@@ -37,8 +37,10 @@ type Task struct {
 	Seq    int    // lift: sequence number of the command that scheduled it
 	Name   string // haul or lift function
 	Args   json.RawMessage
-	// Output and Staging (lifts with an output): the pallet to produce and
-	// the prefix this attempt writes its files to.
+	// Output (lifts with an output): the pallet to produce. Staging (every
+	// lift, when the server has a bucket): the prefix this attempt writes its
+	// files to. A lift without an output that writes files there (a
+	// dataframe it returned) produces a pallet in its implicit dataset.
 	Output  *OutputSpec
 	Staging string
 	// Inputs (lifts): the pallets passed to it, by argument name, with

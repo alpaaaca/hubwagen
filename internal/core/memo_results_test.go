@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alper/hubwagen/internal/blob"
 	"github.com/alper/hubwagen/internal/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -166,4 +167,55 @@ func TestContentHashCoversTheResult(t *testing.T) {
 		return ""
 	}
 	assert.NotEqual(t, hash(first), hash(id))
+}
+
+// frameRun runs one haul whose lift (memoized, no output) builds a pallet
+// in its implicit dataset, unless it is reused. It returns the haul and
+// whether the lift ran.
+func frameRun(t *testing.T, h *harness, b blob.Bucket) (string, bool) {
+	t.Helper()
+	cmd := lift("frame")
+	cmd.Memo = "fingerprint"
+	id := h.memoHaul("t", cmd)
+	ran := false
+	if h.lift(id).Status != state.LiftCompleted {
+		task := h.poll(TaskLift)
+		require.NoError(t, h.core.CompleteLift(h.ctx, LiftResult{AttemptID: task.ID, Status: state.AttemptSucceeded,
+			Result: json.RawMessage(`{"$frame":"polars"}`), Output: writeOutput(t, b, task, map[string]string{"data.parquet": "x"})}))
+		ran = true
+		h.waitLift(id, state.LiftCompleted)
+	}
+	// Let the haul finish, so the next one's haul task is the first queued.
+	ht := h.poll(TaskHaul)
+	require.Equal(t, id, ht.HaulID)
+	require.NoError(t, h.core.CompleteHaulTask(h.ctx, HaulTaskResult{TaskID: ht.ID, BuildID: "b1", Commands: seqs(cmd),
+		Outcome: &HaulOutcome{Status: state.HaulCompleted}}))
+	return id, ran
+}
+
+func TestMemoizedLiftReusesItsImplicitPallet(t *testing.T) {
+	b := newBucket(t)
+	h := newHarness(t, withBucket(b, nil))
+	h.build("b1", map[string]string{"frame": "v1"})
+	first, ran := frameRun(t, h, b)
+	require.True(t, ran)
+	h.waitLift(first, state.LiftCompleted)
+	built := h.pallets(first)
+	require.Len(t, built, 1)
+
+	second, ran := frameRun(t, h, b)
+	assert.False(t, ran)
+	l := h.waitLift(second, state.LiftCompleted)
+	assert.True(t, l.Reused)
+	p := reusedEvent(t, h, second)
+	assert.Equal(t, built[0].ID, p.Pallet, "the pallet stands in, so the haul gets a handle")
+
+	// Once that pallet is invalid, the lift runs again.
+	inv := built[0]
+	inv.State, inv.Reason = state.PalletInvalid, "bad data"
+	_, err := h.store.Append(h.ctx, h.store.Term(), nil, func(tx *state.Tx) error { return tx.PutPallet(inv) })
+	require.NoError(t, err)
+	third, ran := frameRun(t, h, b)
+	assert.True(t, ran)
+	assert.Contains(t, h.reasons(third)["frame"], "can't be read")
 }

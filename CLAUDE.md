@@ -22,7 +22,7 @@ Read before larger changes:
 - [docs/roadmap.md](docs/roadmap.md) — what is done, what is next, open decisions
 - [docs/v2-migration.md](docs/v2-migration.md) — what happened to each v1 package
 - [docs/failover.md](docs/failover.md) — design: nodes, leader election and state handoff (not built)
-- [docs/api-simplification.md](docs/api-simplification.md) — design: lifts return values and dataframes, reuse by default (not built)
+- [docs/api-simplification.md](docs/api-simplification.md) — design: lifts return values and dataframes, reuse by default (steps 1–2 built)
 - [docs/spikes/](docs/spikes/) — spike findings (S1: Python replay)
 - [sdk/python/README.md](sdk/python/README.md) — writing hauls and lifts, the worker
 - [docs/config.md](docs/config.md) — instance configuration (`hubwagen.yaml`)
@@ -95,7 +95,7 @@ go vet ./...
 go test ./...
 go test -race ./...
 go generate ./internal/api    # after changing proto/: buf lint + generate (via go run, nothing to install)
-(cd sdk/python && uv run --no-project --with pytest --python 3.12 pytest -q)   # Python SDK, incl. against hubwagen dev
+(cd sdk/python && uv run --no-project --with pytest --with polars --with pandas --with pyarrow --python 3.12 pytest -q)   # Python SDK, incl. against hubwagen dev and dataframes
 
 ./hubwagen dev --config pipelines/examples/revenue/hubwagen.yaml   # server + 3 workers; API on 127.0.0.1:7070
 ./hubwagen replay daily --param day=2026-10-01..2026-10-03   # start hauls, report what was reused

@@ -289,11 +289,43 @@ func TestLiftSucceedingWithoutOutputFails(t *testing.T) {
 	assert.Equal(t, "no_output", l.Reason, "no retry either")
 }
 
-func TestOutputForLiftWithoutOneIsRejected(t *testing.T) {
+func TestOutputOfAFailedAttemptIsRejected(t *testing.T) {
 	h := newHarness(t, withBucket(newBucket(t), nil))
 	_, plain := h.startLift(lift("plain"))
-	assert.ErrorIs(t, h.core.CompleteLift(h.ctx, LiftResult{AttemptID: plain.ID, Status: state.AttemptSucceeded,
+	assert.ErrorIs(t, h.core.CompleteLift(h.ctx, LiftResult{AttemptID: plain.ID, Status: state.AttemptFailed,
 		Output: &LiftOutput{}}), ErrInvalid)
+}
+
+func TestLiftWithoutOutputCanBuildAPallet(t *testing.T) {
+	b := newBucket(t)
+	h := newHarness(t, withBucket(b, nil))
+	id, a := h.startLift(lift("frame"))
+	require.NotEmpty(t, a.Staging, "every lift gets a staging prefix")
+	assert.Nil(t, a.Output)
+	require.NoError(t, h.core.CompleteLift(h.ctx, LiftResult{AttemptID: a.ID, Status: state.AttemptSucceeded,
+		Result: json.RawMessage(`{"$frame":"polars","rows":1}`), Output: writeOutput(t, b, a, map[string]string{"data.parquet": "x"})}))
+	l := h.waitLift(id, state.LiftCompleted)
+	ps := h.pallets(id)
+	require.Len(t, ps, 1)
+	assert.Equal(t, "lift:frame", ps[0].Dataset, "its implicit dataset")
+	assert.Equal(t, "", ps[0].Partition)
+	assert.Equal(t, state.PalletCommitted, ps[0].State)
+	assert.JSONEq(t, `{"$frame":"polars","rows":1}`, string(l.Result))
+	assert.Empty(t, l.Output, "no output was declared")
+}
+
+func TestImplicitDatasetsAreReserved(t *testing.T) {
+	cmd := output("x", "lift:x", "")
+	assert.ErrorContains(t, validateHaulTaskResult(HaulTaskResult{Commands: seqs(cmd)}), "for lifts without an output")
+}
+
+func TestLiftWithoutOutputNeedsABucketForFiles(t *testing.T) {
+	h := newHarness(t)
+	id, a := h.startLift(lift("frame"))
+	assert.Empty(t, a.Staging, "no bucket, no staging")
+	require.NoError(t, h.core.CompleteLift(h.ctx, LiftResult{AttemptID: a.ID, Status: state.AttemptSucceeded,
+		Output: &LiftOutput{}}))
+	assert.Equal(t, "no_pallet_store", h.waitLift(id, state.LiftFailed).Reason)
 }
 
 func TestLiftInputsMustBeCommittedPallets(t *testing.T) {
