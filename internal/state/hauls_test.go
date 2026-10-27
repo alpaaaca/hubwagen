@@ -317,3 +317,41 @@ func TestLiftRunReasonCanChange(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "the run it waited for failed", got.RunReason)
 }
+
+func TestMemoResultFindsRunsOnly(t *testing.T) {
+	s, _ := openFile(t)
+	other := haul("h2", HaulCompleted)
+	other.Tenant = "u"
+	run := func(haulID string, seq int, at time.Time, edit func(*Lift)) func(tx *Tx) error {
+		l := lift(haulID, seq, LiftCompleted)
+		l.Fingerprint, l.RunReason, l.Result, l.FinishedAt = "fp", "no previous run", json.RawMessage(fmt.Sprint(seq)), ptr(at)
+		if edit != nil {
+			edit(&l)
+		}
+		return func(tx *Tx) error { return tx.PutLift(l) }
+	}
+	put(t, s, nil,
+		func(tx *Tx) error { return tx.PutHaul(haul("h1", HaulCompleted)) },
+		func(tx *Tx) error { return tx.PutHaul(other) },
+		run("h1", 1, t0, nil),
+		run("h1", 2, t0.Add(time.Minute), func(l *Lift) { l.Reused, l.RunReason = true, "" }),
+		run("h1", 3, t0.Add(2*time.Minute), func(l *Lift) { l.Output = json.RawMessage(`{"dataset":"raw"}`) }),
+		run("h1", 4, t0.Add(3*time.Minute), func(l *Lift) { l.Status = LiftFailed }),
+		run("h2", 1, t0.Add(4*time.Minute), nil), // another tenant
+	)
+
+	got, err := s.MemoResult(ctx, "t", "fp", time.Time{})
+	require.NoError(t, err)
+	assert.Equal(t, 1, got.Seq, "not the reuse, the pallet's lift, the failure or another tenant's run")
+	assert.JSONEq(t, "1", string(got.Result))
+	_, err = s.MemoResult(ctx, "t", "fp", t0.Add(time.Second))
+	assert.ErrorIs(t, err, ErrNotFound, "too old")
+	_, err = s.MemoResult(ctx, "t", "other", time.Time{})
+	assert.ErrorIs(t, err, ErrNotFound)
+
+	runs, err := s.RecentLiftRuns(ctx, "t", "extract_orders", 10)
+	require.NoError(t, err)
+	require.Len(t, runs, 1)
+	assert.Equal(t, 1, runs[0].Seq)
+	assert.False(t, runs[0].Reused)
+}

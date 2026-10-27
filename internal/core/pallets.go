@@ -107,12 +107,28 @@ func (c *Core) completeLiftWithOutput(a *liftAttemptState, res LiftResult) error
 	}
 	staging := c.cfg.Layout.LiftStaging(h.rec.Tenant, h.rec.ID, l.rec.Seq, a.rec.ID)
 	id := c.cfg.NewID()
-	m, err := pallet.New(id, h.rec.Tenant, l.output.Dataset, l.output.Partition, staging, res.Output.Files)
+	m, err := newManifest(id, h.rec.Tenant, *l.output, staging, res)
 	if err != nil {
 		c.finishLiftAttempt(a, state.AttemptFailed, "bad_output", err.Error())
 		c.liftAttemptFailed(l, "bad_output", err.Error(), true)
 		return nil
 	}
+	return c.recordPallet(a, res, id, m)
+}
+
+// newManifest describes what the attempt wrote and returned.
+func newManifest(id, tenant string, o OutputSpec, staging string, res LiftResult) (pallet.Manifest, error) {
+	result, err := canonicalJSON(res.Result)
+	if err != nil {
+		return pallet.Manifest{}, fmt.Errorf("the result is not JSON: %v", err)
+	}
+	return pallet.New(id, tenant, o.Dataset, o.Partition, staging, res.Output.Files, result)
+}
+
+// recordPallet records a succeeded attempt's pallet as pending and starts
+// its promote.
+func (c *Core) recordPallet(a *liftAttemptState, res LiftResult, id string, m pallet.Manifest) error {
+	l, h := a.lift, a.lift.haul
 	c.finishLiftAttempt(a, state.AttemptSucceeded, res.Reason, res.Message)
 	l.rec.Status, l.rec.Result = state.LiftCommitting, res.Result
 	c.dirtyLift(l)

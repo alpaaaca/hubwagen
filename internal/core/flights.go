@@ -1,7 +1,6 @@
 package core
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/alper/hubwagen/internal/state"
@@ -11,7 +10,8 @@ import (
 // (a backfill and the daily schedule, say) would both miss the memo lookup,
 // since neither has finished. So the first one to run a fingerprint owns the
 // flight; a later lift with the same fingerprint waits for it instead of
-// running. When the owner commits its pallet, every waiter reuses it. When
+// running. When the owner completes (with its pallet committed, if it has an
+// output), every waiter reuses what it produced. When
 // the owner fails or is cancelled, the first waiter runs itself, under its
 // own retry policy, and the rest wait on it.
 //
@@ -57,10 +57,10 @@ func (c *Core) landFlight(l *liftState) {
 		return
 	}
 	delete(c.flights, key)
-	if l.rec.Status == state.LiftCompleted && l.pallet != "" {
+	if l.rec.Status == state.LiftCompleted && (l.pallet != "" || l.output == nil) {
 		for _, w := range f.waiters {
 			w.flight = nil
-			c.reuseLift(w, l.pallet, l.rec.Result)
+			c.reuseLift(w, memoMatch{pallet: l.pallet, haulID: l.rec.HaulID, seq: l.rec.Seq, result: l.rec.Result})
 		}
 		return
 	}
@@ -96,13 +96,14 @@ func (c *Core) leaveFlight(l *liftState) {
 	}
 }
 
-// reuseLift completes l with a pallet built by the same fingerprint, earlier
-// or by the flight it waited on, without running anything.
-func (c *Core) reuseLift(l *liftState, palletID string, result json.RawMessage) {
-	l.pallet, l.reused = palletID, true
+// reuseLift completes l with what a lift with the same fingerprint produced,
+// earlier or in the flight it waited on, without running anything.
+func (c *Core) reuseLift(l *liftState, m memoMatch) {
+	l.pallet, l.rec.Reused = m.pallet, true
 	l.rec.RunReason = ""
-	c.emitH(state.EventLiftReused, l.haul, "", liftReusedPayload{Seq: l.rec.Seq, Pallet: palletID, Fingerprint: l.rec.Fingerprint})
-	c.finishLift(l, state.LiftCompleted, result, "", "")
+	c.emitH(state.EventLiftReused, l.haul, "", liftReusedPayload{
+		Seq: l.rec.Seq, Pallet: m.pallet, Haul: m.haulID, OnSeq: m.seq, Fingerprint: l.rec.Fingerprint})
+	c.finishLift(l, state.LiftCompleted, m.result, "", "")
 	c.wake(l.haul)
 }
 

@@ -23,6 +23,8 @@ type harness struct {
 	core  *Core
 	stop  func() error
 	ids   int
+	// results overrides what runHaul's lifts return, by lift name (JSON).
+	results map[string]string
 	// expectRunErr: the test makes core.Run fail on purpose.
 	expectRunErr bool
 }

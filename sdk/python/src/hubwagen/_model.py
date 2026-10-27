@@ -164,11 +164,10 @@ def lift(fn: Callable | None = None, *, name: str | None = None, memo: bool | st
     """Mark a function as a lift: one side-effecting unit of work, run on a
     worker and retried by policy. With output=, it produces a pallet: write
     files to hubwagen.output().path. With memo=True, an unchanged lift
-    (code, inputs, arguments) reuses the earlier pallet instead of running.
-    The function stays callable as is, for tests."""
+    (code, inputs, arguments) reuses what an earlier run produced instead of
+    running: its pallet, or without an output, its result. The function
+    stays callable as is, for tests."""
     memo_s = _memo(memo)
-    if memo_s and output is None:
-        raise ValueError("only a lift with an output can be memoized: its pallet is what gets reused")
     if isinstance(timeout, _dt.timedelta):
         timeout = timeout.total_seconds()
     if isinstance(retry, int):

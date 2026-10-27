@@ -41,6 +41,18 @@ def test_memoized_rerun_reuses_pallets(client):
     assert json.loads(other_day["resultJson"])["reused"] == [False, False]
 
 
+def test_memoized_result_without_output(client):
+    first = wait(client, client.start_haul("rates", {"day": "2026-10-24"}))
+    assert first["status"] == "completed", first
+    second = wait(client, client.start_haul("rates", {"day": "2026-10-24"}))
+    assert json.loads(second["resultJson"]) == json.loads(first["resultJson"]), "the recorded result"
+    assert lifts(second)["exchange_rate"]["reused"]
+    assert not lifts(first)["exchange_rate"].get("reused")
+
+    other_day = wait(client, client.start_haul("rates", {"day": "2026-10-25"}))
+    assert not lifts(other_day)["exchange_rate"].get("reused")
+
+
 def test_cursor_from_the_catalog(client):
     cursors = [json.loads(wait(client, client.start_haul("ingest"))["resultJson"]) for _ in range(3)]
     assert cursors == [1, 2, 3]
