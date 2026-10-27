@@ -122,6 +122,9 @@ reuse.
    lift's output files, and reading input pallets through their manifests
    (`Pallet.files()`, `path()`). Still to do: runtime guards and code
    version from imports + lockfile (#25). ([#24](https://github.com/alpaaaca/hubwagen/issues/24), [#25](https://github.com/alpaaaca/hubwagen/issues/25), [#26](https://github.com/alpaaaca/hubwagen/issues/26))
+   ✅ `hubwagen.yaml` (server settings and worker processes; `hubwagen dev`
+   starts and restarts them, `hubwagen workers` runs them alone), see
+   [config.md](config.md).
 3. ✅ **Example** in `pipelines/examples/revenue/`: a small Python project with
    an extract → transform → report haul that writes CSV, and the demo test
    (`sdk/python/tests/test_example.py`): `hubwagen dev` + a worker, replays

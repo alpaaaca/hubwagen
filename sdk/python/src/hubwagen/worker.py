@@ -175,6 +175,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--dock", action="append", default=None, help="dock to poll (repeatable; default: default)")
     p.add_argument("--lifts", type=int, default=4, help="lifts to run at the same time")
     p.add_argument("--poll-wait", default=POLL_WAIT, help="how long one poll waits for work, e.g. 20s")
+    p.add_argument("--worker-id", default=os.environ.get("HUBWAGEN_WORKER_ID"), help="default: <hostname>-<pid>")
     p.add_argument("--log-level", default="info")
     args = p.parse_args(argv)
     logging.basicConfig(level=args.log_level.upper(), format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -182,7 +183,8 @@ def main(argv: list[str] | None = None) -> None:
     sys.path.insert(0, os.getcwd())
     for m in args.modules:
         importlib.import_module(m)
-    w = Worker(Client(args.server), args.dock or ["default"], lifts=args.lifts, poll_wait=args.poll_wait)
+    w = Worker(Client(args.server), args.dock or ["default"], lifts=args.lifts, poll_wait=args.poll_wait,
+               worker_id=args.worker_id)
     while True:
         try:
             w.register()

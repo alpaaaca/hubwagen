@@ -23,7 +23,7 @@ Read before larger changes:
 - [docs/v2-migration.md](docs/v2-migration.md) — what happened to each v1 package
 - [docs/spikes/](docs/spikes/) — spike findings (S1: Python replay)
 - [sdk/python/README.md](sdk/python/README.md) — writing hauls and lifts, the worker
-- [docs/config.md](docs/config.md) — instance configuration (design, to be revised for v2)
+- [docs/config.md](docs/config.md) — instance configuration (`hubwagen.yaml`)
 
 Planning is lightweight: a design note in `docs/` when a decision needs one,
 the next milestone broken into PR-sized steps in `docs/roadmap.md`. No
@@ -41,7 +41,9 @@ spec-kit.
 | `internal/haulcli` | What `start` and `replay` do: `--param` ranges, starting and waiting over `HaulService`, the replay report |
 | `internal/schedule` | Calendar and cron math (DST-correct intervals, what is due since a cursor), for haul schedules (M4) |
 | `internal/clock`, `internal/layout`, `internal/blob` | Real/fake clock; bucket paths (lift staging, pallet manifests); bucket access with atomic create-if-absent |
-| `cmd/` | `dev`, `start`, `replay`, `version` |
+| `internal/config` | `hubwagen.yaml`: data dir, listen address, worker processes |
+| `internal/supervise` | Runs and restarts worker processes for `dev` and `workers` (prefixed output, SIGTERM then kill) |
+| `cmd/` | `dev`, `workers`, `start`, `replay`, `version` |
 | `sdk/python/` | Python SDK (stdlib only, Python ≥ 3.12): `@haul`, `@lift`, replay engine, worker; pytest runs it against a real `hubwagen dev` |
 | `pipelines/examples/revenue/` | Example Python project; `sdk/python/tests/test_example.py` is its demo |
 | `tests/` | Cross-package end-to-end tests (leader restarts) |
@@ -93,7 +95,6 @@ go test -race ./...
 go generate ./internal/api    # after changing proto/: buf lint + generate (via go run, nothing to install)
 (cd sdk/python && uv run --no-project --with pytest --python 3.12 pytest -q)   # Python SDK, incl. against hubwagen dev
 
-./hubwagen dev                                                # server + API on 127.0.0.1:7070 (data in .hubwagen/)
-(cd pipelines/examples/revenue && PYTHONPATH=../../../sdk/python/src python3 -m hubwagen.worker revenue.hauls)
+./hubwagen dev --config pipelines/examples/revenue/hubwagen.yaml   # server + 3 workers; API on 127.0.0.1:7070
 ./hubwagen replay daily --param day=2026-10-01..2026-10-03   # start hauls, report what was reused
 ```

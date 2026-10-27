@@ -82,6 +82,7 @@ func TestDescribe(t *testing.T) {
 		"haul …ABCDEFGHIJ failed: lift_failed extract: boom":                  ev(state.EventHaulFinished, `{"status":"failed","reason":"lift_failed","message":"extract: boom"}`),
 		"haul …ABCDEFGHIJ completed":                                          ev(state.EventHaulFinished, `{"status":"completed"}`),
 		"haul …ABCDEFGHIJ: lift 2 extract scheduled (code changed (v1 → v2))": ev(state.EventLiftScheduled, `{"seq":2,"name":"extract","run_reason":"code changed (v1 → v2)"}`),
+		"haul …ABCDEFGHIJ: lift 1 attempt 2 → py-3":                           ev(state.EventLiftAttemptDispatched, `{"seq":1,"number":2,"worker":"py-3"}`),
 		"haul …ABCDEFGHIJ: lift 1 reused pallet p1":                           ev(state.EventLiftReused, `{"seq":1,"pallet":"p1"}`),
 		"build b1 registered (2 lifts)":                                       {Type: state.EventBuildRegistered, Payload: []byte(`{"id":"b1","lifts":{"a":"v1","b":"v1"}}`)},
 		"":                                                                    ev(state.EventLiftFinished, `{"seq":1,"status":"completed","reused":true}`),

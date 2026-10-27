@@ -11,8 +11,9 @@ import (
 )
 
 // Follow calls fn with a one-line description of every notable event after
-// afterSeq (hauls started, stuck and finished; lifts finished, reused and
-// retried; builds registered), polling the event log until ctx ends.
+// afterSeq (hauls started, stuck and finished; lift attempts dispatched;
+// lifts finished, reused and retried; builds registered), polling the event
+// log until ctx ends.
 // `hubwagen dev` prints these.
 func (e *Engine) Follow(ctx context.Context, afterSeq int64, fn func(string)) {
 	t := time.NewTicker(250 * time.Millisecond)
@@ -70,6 +71,8 @@ func Describe(ev state.Event) string {
 		return fmt.Sprintf("haul %s: lift %d %s scheduled (%s)", haul, num("seq"), str("name"), str("run_reason"))
 	case state.EventLiftReused:
 		return fmt.Sprintf("haul %s: lift %d reused pallet %s", haul, num("seq"), str("pallet"))
+	case state.EventLiftAttemptDispatched:
+		return fmt.Sprintf("haul %s: lift %d attempt %d → %s", haul, num("seq"), num("number"), str("worker"))
 	case state.EventLiftRetryScheduled:
 		return fmt.Sprintf("haul %s: lift %d will retry (attempt %d)", haul, num("seq"), num("next_attempt"))
 	case state.EventLiftFinished:

@@ -41,17 +41,12 @@ Requires Go 1.26+ and Python 3.12+.
 
 ```bash
 go build -o hubwagen .
-./hubwagen dev                                  # server; API on 127.0.0.1:7070, data in .hubwagen/
+# the server plus three workers, as pipelines/examples/revenue/hubwagen.yaml says
+./hubwagen dev --config pipelines/examples/revenue/hubwagen.yaml
 ```
 
 ```bash
-# in another terminal: a worker for the example project
-cd pipelines/examples/revenue
-PYTHONPATH=../../../sdk/python/src python3 -m hubwagen.worker revenue.hauls
-```
-
-```bash
-# in a third
+# in another terminal
 ./hubwagen replay daily --param day=2026-10-01..2026-10-03
 ./hubwagen replay daily --param day=2026-10-01..2026-10-03   # again: what's unchanged is reused
 ./hubwagen start daily --param day=2026-10-04 --wait
@@ -67,6 +62,8 @@ PYTHONPATH=../../../sdk/python/src python3 -m hubwagen.worker revenue.hauls
 3 completed
 ```
 
+Each lift dispatch shows in dev's output with the worker that took it
+(`lift 2 attempt 1 → py-3`). The config file: [docs/config.md](docs/config.md).
 Writing hauls and lifts: [sdk/python/README.md](sdk/python/README.md).
 The example: [pipelines/examples/revenue](pipelines/examples/revenue).
 
