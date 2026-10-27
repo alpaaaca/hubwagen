@@ -1,0 +1,16 @@
+# hubwagen dev reads this: one server and three worker processes.
+#   ./hubwagen dev --config pipelines/examples/revenue/hubwagen.yaml
+# Relative paths are relative to this file.
+apiVersion: hubwagen.dev/v1alpha1
+kind: Config
+
+data_dir: .hubwagen
+server:
+  listen: 127.0.0.1:7070
+
+workers:
+  - name: py
+    replicas: 3
+    command: [python3, -m, hubwagen.worker, revenue.hauls, --lifts, "2"]
+    env:
+      PYTHONPATH: ../../../sdk/python/src   # an installed SDK needs none

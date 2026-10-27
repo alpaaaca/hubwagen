@@ -1,153 +1,112 @@
 # Instance configuration
 
-> **To be revised for v2.** Written for v1's M3 (agents, pools, profiles).
-> Server, dock and worker settings change with v2; see
-> [v2-migration.md](v2-migration.md).
-
-How a hubwagen instance (leader, agents, dev mode) is configured: one YAML
-file, `hubwagen.yaml`, plus environment variables and flags on top.
-
-> **Status:** design, not implemented. Today every setting is a flag
-> (`--data-dir`, `--slots`, `--pools`, `--log-level`). The loader lands with M3,
-> when `hubwagen server` and `hubwagen agent` need settings; the `standalone`
-> sections follow in M3b. See [roadmap.md](roadmap.md).
+How a hubwagen instance is configured: one YAML file, `hubwagen.yaml`, with
+flags on top. Code: `internal/config`.
 
 ## What belongs here
 
-The config file describes the **instance**: where state and data live, which
-profile is active, what the server listens on, how agents and logins
-authenticate, what agents serve, retention. It never describes what a pipeline
-does. Anything that changes a run's behaviour belongs in the pipeline spec,
-which is versioned and hashed; the config file is neither. When a setting
-could live in both (a default timeout, say), the spec wins and the config only
-supplies limits the server enforces (a maximum timeout).
+The config file describes the **instance**: where the server keeps its data,
+what it listens on and, in dev, which worker processes to start next to it.
+It never describes what a haul does; that is code, versioned by builds.
 
-## Format
-
-YAML, decoded strictly like pipelines: unknown fields, wrong types and
-duplicate keys are errors, and every error names its location
-(`hubwagen.yaml: agent.slotz: unknown field`). All problems are reported at
-once.
-
-Why YAML rather than INI (Airflow's `airflow.cfg`) or TOML: pipelines are
-already YAML, so are Kubernetes ConfigMaps and Helm values, and
-`gopkg.in/yaml.v3` with `KnownFields` is already how `internal/spec` decodes.
-INI has no types or nesting (lists of pools and tenants get awkward); TOML
-would be a second format and dependency for little gain.
-
-The file carries an `apiVersion` and `kind`, like a pipeline, so the format
-can change later without guessing what a file is:
+## Today
 
 ```yaml
 apiVersion: hubwagen.dev/v1alpha1
 kind: Config
 
-profile: standalone              # dev | standalone | kubernetes
-data_dir: /var/lib/hubwagen      # SQLite state, lock file, local bucket in dev
-bucket: s3://hubwagen-data       # file:///… for dev and single-host standalone
-
+data_dir: .hubwagen              # state.db, bucket/, lock; default .hubwagen
 server:
-  listen: 127.0.0.1:7480
-  auth:
-    tokens_file: /etc/hubwagen/tokens       # hashed static tokens (standalone)
+  listen: 127.0.0.1:7070         # the API; default 127.0.0.1:7070
 
-agent:
-  server: https://hubwagen.internal:7480    # remote agents; empty = embedded
-  token_file: /etc/hubwagen/agent-token
-  pools: [local]
-  slots: 4
-
-scheduler:
-  max_task_timeout: 48h
-  history_retention: 2160h       # 90 days; Go durations, as in pipelines
-
-replication:                     # Litestream (M3b/M4)
-  target: file:///mnt/backup/hubwagen
-
-secrets:
-  provider: file                 # env | file | k8s
-  dir: /etc/hubwagen/secrets
-
-log:
-  level: info                    # debug | info | warn | error
-  format: text                   # text | json
+workers:                         # started by hubwagen dev and hubwagen workers
+  - name: py                     # IDs are <name>-<n>: py-1, py-2, py-3
+    replicas: 3                  # default 1; 0 turns the group off
+    command: [python3, -m, hubwagen.worker, app.hauls, --lifts, "2"]
+    dir: .                       # working directory; default the file's
+    env:                         # added to hubwagen's own environment
+      PYTHONPATH: src
 ```
 
-The field list above is a sketch; each milestone adds the sections it needs.
-Every field has a default, so an empty file (or none) is a valid dev-mode
-config.
+- **Relative paths** (`data_dir`, `workers[].dir`) are relative to the
+  config file, so a project's `hubwagen.yaml` works from any directory.
+- **Where the file comes from**: `--config <path>`, else `$HUBWAGEN_CONFIG`,
+  else `./hubwagen.yaml` if it exists, else the defaults. A file named by
+  `--config` or `$HUBWAGEN_CONFIG` must exist.
+- **Flags win**: `hubwagen dev --data-dir … --listen …` override the file,
+  but only when passed.
+- **Strict**: unknown fields, wrong types and duplicate keys are errors.
+  Every problem is reported at once, with its location:
+  `hubwagen.yaml: workers[1].replicas: must be 0 or more`.
 
-## Where settings come from
+### Workers
 
-Later sources override earlier ones, field by field:
+A worker is any process that speaks the worker API; hubwagen doesn't care
+what language it is in. Every process gets three variables, which its `env`
+can't set:
 
-1. Built-in defaults (per profile: `dev` defaults to `data_dir: .hubwagen`,
-   `bucket: file://<data_dir>/bucket`, `server.listen: 127.0.0.1:…`).
-2. The config file.
-3. Environment variables.
-4. Command-line flags (`--data-dir`, `--slots`, … keep working).
-
-The file is found at `--config <path>`, else `$HUBWAGEN_CONFIG`, else
-`./hubwagen.yaml`, else `/etc/hubwagen/hubwagen.yaml`. If `--config` or
-`$HUBWAGEN_CONFIG` names a file that doesn't exist, that is an error; the two
-default paths are optional.
-
-Settings are read once at start-up. Changing them needs a restart; there is no
-hot reload (pipeline files are what `dev` watches, not the config).
-
-## Environment variables
-
-Only settings that are listed explicitly get a variable; there is no generic
-mapping of every field. The variables share the `HUBWAGEN_` prefix with the
-task contract (v1, removed in M3c; in git history) (`HUBWAGEN_RUN_ID`, `HUBWAGEN_SECRET_…`, …),
-so a test checks that no config variable collides with a name or prefix the
-task contract reserves. The task wrapper already strips every `HUBWAGEN_*`
-variable from a task's environment, so instance settings never leak into
-tasks.
-
-| Variable | Field |
+| Variable | Value |
 |---|---|
-| `HUBWAGEN_CONFIG` | path of the config file |
-| `HUBWAGEN_PROFILE` | `profile` |
-| `HUBWAGEN_DATA_DIR` | `data_dir` |
-| `HUBWAGEN_BUCKET` | `bucket` |
-| `HUBWAGEN_LOG_LEVEL` | `log.level` |
+| `HUBWAGEN_SERVER` | the API's URL, e.g. `http://127.0.0.1:7070` (an unspecified listen host such as `0.0.0.0` becomes `127.0.0.1`) |
+| `HUBWAGEN_WORKER_ID` | `<name>-<n>`; the logbook records it on every dispatch |
+| `HUBWAGEN_SUPERVISOR_PID` | the hubwagen process that started it; a worker stops once its parent is no longer this process |
 
-## Secrets
+The Python worker (`python -m hubwagen.worker`) reads all three. The last
+one covers a supervisor that dies without stopping its workers (`kill -9`, a
+crash). The workers run in their own process groups, so nothing else would
+stop them, and the next `hubwagen dev` would start a second set. The Python
+worker checks every second and then stops as on Ctrl-C: running lifts
+finish and report.
 
-The file never contains secret values, so it can be committed or shipped as a
-ConfigMap. It points to where they are instead: `*_file` fields for tokens and
-keys, the secret provider for task secrets, and the platform's own mechanisms
-for bucket credentials (`AWS_*` variables, workload identity).
+`hubwagen dev` starts the workers after the API is up. It prefixes their
+output with their ID (`py-2 | …`) and restarts one that exits, with backoff
+from 1s doubling to 30s. On Ctrl-C it sends the workers SIGTERM and waits:
+running lifts finish, and a poll in flight ends within its wait (20s by
+default). Then it stops the server. A second Ctrl-C kills the workers at
+once. Each worker runs in its own process group, so the terminal's Ctrl-C
+reaches only hubwagen.
 
-## Profiles
+- `hubwagen dev --no-workers` starts the server alone.
+- `hubwagen workers` starts the same workers without a server. They connect
+  to `--server` (default: from `server.listen`). Use it to restart the
+  server while the workers keep running.
 
-`profile` is read only by `internal/profile`, which turns the loaded config
-into the concrete implementations (store, bucket, elector, replicator,
-runtimes, secret provider). No other package looks at the profile or at the
-raw config. Fields that make no sense for the active profile (`replication`
-in `dev`, `server.auth.tokens_file` in `kubernetes`) are errors, not silently
-ignored.
+This doesn't break "the control plane never runs user code". The leader
+still runs none: workers are separate processes, and dev's supervisor is a
+convenience for one machine. In `standalone` and `kubernetes`, workers are
+started by whatever runs services there (systemd, a Deployment), and the
+`workers:` section doesn't apply.
 
-| Profile | Typical source |
-|---|---|
-| `dev` | no file, flags only |
-| `standalone` | `/etc/hubwagen/hubwagen.yaml`, installed with the systemd units |
-| `kubernetes` | a ConfigMap mounted as a file, rendered by the Helm chart |
+### Trying failures locally
 
-## Commands
+With one leader and three workers from one file:
 
-- `hubwagen config check [path]` validates a file (CI, before a deploy) and
-  exits non-zero on errors.
-- `hubwagen config show` prints the effective configuration and, per field,
-  where it came from (default, file, env, flag). Paths of secret files are
-  shown; their contents never are.
+- **A worker dies**: `kill -9` one (dev prints PIDs). It is restarted.
+  After the heartbeat timeout (a minute in dev), its running lift attempt is
+  `lost` and retried elsewhere if the lift has a retry policy.
+- **The leader restarts**: run `hubwagen dev --no-workers` and
+  `hubwagen workers` in two terminals, then Ctrl-C and restart dev. Workers
+  retry until it's back. A lift that finishes while the leader is down keeps
+  its result, and its attempt keeps sending heartbeats, until the new leader
+  takes the result. It isn't rerun.
 
-## Implementation notes
+## Later
 
-- Package `internal/config`: `Config` struct, `Load(path, env, flags)`,
-  defaults per profile, validation. Pure; tested with table tests and no I/O
-  beyond reading the file.
-- Flags stay the cobra flags they are today; the loader takes the set of flags
-  the user actually passed (`Flags().Changed`) so unset flags don't override
-  the file.
+Sketched for later milestones, not implemented:
+
+- **`profile`**: `dev | standalone | kubernetes`. It is read only by
+  `internal/profile`, which turns the config into concrete implementations.
+- **`bucket`**: `s3://…`; today the bucket is always `file://<data_dir>/bucket`.
+- **Sections**: `server.auth` (tokens for workers and users), `replication`
+  (Litestream), `secrets`, `log`, and limits the server enforces (maximum lift
+  timeout, retention).
+- **Environment variables**: an explicit list (`HUBWAGEN_DATA_DIR`,
+  `HUBWAGEN_LOG_LEVEL`, …), not a generic mapping of every field.
+- **Commands**: `hubwagen config check` and `hubwagen config show`, which
+  shows where each value came from.
+- **Secrets**: the file never holds secret values, only `*_file` paths to
+  them, so it can be committed or shipped as a ConfigMap.
+
+Why YAML: Kubernetes ConfigMaps and Helm values are YAML, and
+`gopkg.in/yaml.v3` with `KnownFields` gives strict decoding. INI has no
+types or nesting, and TOML would add a second format for little gain.

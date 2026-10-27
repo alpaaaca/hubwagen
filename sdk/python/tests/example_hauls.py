@@ -1,5 +1,6 @@
 """Hauls the integration tests run on a real worker."""
 
+import time
 from pathlib import Path
 
 import hubwagen as hw
@@ -76,6 +77,20 @@ def flaky(marker: str) -> str:
 @hw.haul
 def retried(ctx, marker: str):
     return ctx.lift(flaky, marker)
+
+
+@hw.lift
+def gated(started: str, release: str) -> str:
+    """Signals that it runs, then waits for the release file."""
+    Path(started).touch()
+    while not Path(release).exists():
+        time.sleep(0.02)
+    return "released"
+
+
+@hw.haul
+def wait_for_release(ctx, started: str, release: str):
+    return ctx.lift(gated, started, release)
 
 
 @hw.lift(retry=3)
