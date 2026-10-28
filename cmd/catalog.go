@@ -66,6 +66,27 @@ from, and everything built from it.`,
 	},
 }
 
+var staleCmd = &cobra.Command{
+	Use:   "stale [dataset]",
+	Short: "List the partitions whose latest pallet is out of date",
+	Long: `Stale lists the partitions whose latest pallet is out of date, and why: one of
+its inputs' partitions has a newer pallet with other content, or the newest
+build has another code version of the lift that built it. Then it prints
+the hauls to start again: their unchanged lifts are reused.
+
+  hubwagen stale
+  hubwagen stale mart.daily_revenue`,
+	Args:         cobra.MaximumNArgs(1),
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		dataset := ""
+		if len(args) == 1 {
+			dataset = args[0]
+		}
+		return serverError(catalogcli.NewClient(haulServer).Stale(cmd.Context(), os.Stdout, catalogTenant, dataset))
+	},
+}
+
 var (
 	invalidateReason string
 	invalidateDryRun bool
@@ -114,7 +135,7 @@ func init() {
 	invalidateCmd.Flags().BoolVarP(&invalidateYes, "yes", "y", false, "don't ask")
 	palletCmd.AddCommand(invalidateCmd)
 
-	for _, c := range []*cobra.Command{datasetsCmd, palletsCmd, palletCmd} {
+	for _, c := range []*cobra.Command{datasetsCmd, palletsCmd, palletCmd, staleCmd} {
 		c.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev serves it)")
 		if c != palletCmd {
 			c.Flags().StringVar(&catalogTenant, "tenant", "default", "tenant")

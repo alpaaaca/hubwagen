@@ -50,8 +50,7 @@ func (s *CatalogServer) InvalidatePallet(ctx context.Context, req *connect.Reque
 		out.Pallets = append(out.Pallets, palletMessage(p))
 	}
 	for _, h := range res.Hauls {
-		hm := haulMessage(h)
-		out.Hauls = append(out.Hauls, &hubwagenv1.HaulRef{Id: h.ID, Name: h.Name, ParamsJson: hm.ParamsJson, Tenant: h.Tenant})
+		out.Hauls = append(out.Hauls, haulRef(h))
 	}
 	return connect.NewResponse(out), nil
 }
@@ -159,6 +158,26 @@ func (s *CatalogServer) GetPallet(ctx context.Context, req *connect.Request[hubw
 	}
 	out.Upstream, out.Downstream = lineageMessage(up), lineageMessage(down)
 	return connect.NewResponse(out), nil
+}
+
+func (s *CatalogServer) ListStale(ctx context.Context, req *connect.Request[hubwagenv1.ListStaleRequest]) (*connect.Response[hubwagenv1.ListStaleResponse], error) {
+	stale, err := s.store.StalePartitions(ctx, tenantOr(req.Msg.Tenant), req.Msg.Dataset)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	out := &hubwagenv1.ListStaleResponse{}
+	for _, st := range stale {
+		v := &hubwagenv1.StalePallet{Pallet: palletMessage(st.Pallet), Lift: st.Lift, Reasons: st.Reasons}
+		if h, err := s.store.GetHaul(ctx, st.Pallet.HaulID); err == nil {
+			v.Haul = haulRef(h)
+		}
+		out.Stale = append(out.Stale, v)
+	}
+	return connect.NewResponse(out), nil
+}
+
+func haulRef(h state.Haul) *hubwagenv1.HaulRef {
+	return &hubwagenv1.HaulRef{Id: h.ID, Name: h.Name, ParamsJson: haulMessage(h).ParamsJson, Tenant: h.Tenant}
 }
 
 func palletMessage(p state.Pallet) *hubwagenv1.Pallet {

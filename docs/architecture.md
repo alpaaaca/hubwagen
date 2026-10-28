@@ -509,9 +509,14 @@ It subscribes to upstream datasets, asks the catalog for stale partitions and
 starts the builder for them. Over-triggering is cheap when the builder's
 lifts are memoized.
 
-A pallet is **stale** when a newer pallet exists for one of its inputs'
-datasets and partitions, or when its lift's current code version differs from
-the one that built it.
+A pallet is **stale** when a newer pallet with other content exists for one
+of its inputs' datasets and partitions, or when its lift's current code
+version (in the newest registered build that defines the lift) differs from
+the one that built it. `hubwagen stale [dataset]` lists the stale latest
+pallets with their reasons and the `hubwagen start` that refreshes each;
+memoization reuses the rest. Staleness is reported where it starts: a
+pallet built from a stale one isn't listed until its input is rebuilt,
+since the start that refreshes the input rebuilds it too.
 
 ## Deploys and versioning
 
