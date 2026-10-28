@@ -170,8 +170,11 @@ written. Steps, in order; each is one PR:
    cursor per schedule and starts what is due (`skip`, `latest`, `all`). ([#60](https://github.com/alpaaaca/hubwagen/issues/60))
 6. ✅ **Dataset subscriptions**: start a haul when a pallet is committed to a
    dataset or partition, with debounce and batching. ([#61](https://github.com/alpaaaca/hubwagen/issues/61))
-7. **`hubwagen lint`**: AST checks for clock, randomness, set iteration and
-   I/O in haul code, and for SQL table references that bypass `input()`. ([#63](https://github.com/alpaaaca/hubwagen/issues/63))
+7. ✅ **`hubwagen lint`**: AST checks for clock, randomness, set iteration,
+   I/O and environment variables, `except:`/`except BaseException`, and lifts
+   called directly in haul code. It is `python -m hubwagen.lint`, in the
+   SDK, since it reads Python. Checking SQL table references that bypass
+   `input()` waits for SQL lifts. ([#63](https://github.com/alpaaaca/hubwagen/issues/63))
 8. **`hubwagen test`**: a fake ctx that scripts lift results and signals,
    and `--replay <logbook>` to replay recorded logbooks against new code. ([#64](https://github.com/alpaaaca/hubwagen/issues/64))
 

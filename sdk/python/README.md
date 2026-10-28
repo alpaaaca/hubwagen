@@ -46,6 +46,10 @@ calls in the same order every time:
   the haul becomes **stuck** (fix the code; the new build resumes it).
   Libraries that read the clock, such as `logging`, are left alone, and so
   are lifts. Network and files aren't guarded: keep them in lifts.
+- `python -m hubwagen.lint` checks haul code for all of this before it
+  runs (the clock, randomness, set iteration, I/O, `except:`, lifts called
+  directly), from the source, for the modules in `pyproject.toml` or the
+  paths given. `# noqa: HW003` silences one line.
 - **Don't swallow `hubwagen.Blocked`.** It is a `BaseException`, so
   `except Exception:` is safe; a bare `except:` is not.
 - `ctx.state` is a dict rebuilt by every replay; it holds what the haul
