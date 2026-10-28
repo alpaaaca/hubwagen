@@ -41,7 +41,7 @@ one static binary — so most of the engine is reused, not rewritten.
 | `internal/devmode` | **Rewritten** (M3c) | Same role (one process, data-dir lock); it serves the API instead of loading YAML |
 | `internal/tui` | **Removed** (M3c) | Its views were all v1. M5 builds a dashboard for hauls, logbooks and the catalog on the API; `hubwagen dev` prints events meanwhile |
 | `internal/spec` | **Removed** (M3c) | The compiler, YAML format and spec hash go away. The template allow-list may be reused for SQL lifts, image digest resolution for code versions of pod lifts |
-| `cmd/compile` | **Removed** (M3c) | Replaced by `hubwagen lint` and worker registration |
+| `cmd/compile` | **Removed** (M3c) | Replaced by the SDK's lint (`python -m hubwagen.lint`) and worker registration |
 | `cmd/dev`, `cmd/run` | **Rewritten / removed** (M3c) | `dev` serves the API; `run` is replaced by `start`/`replay` |
 | `pipelines/examples/` | **Replaced** (M3c) | `revenue/`, a Python project |
 | `tests/` | **Kept** | The v1 engine test is gone; the leader-restart test covers hauls |

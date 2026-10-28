@@ -254,7 +254,11 @@ it continue.
   ([spike S1](spikes/s1-python-replay.md)).
 - The worker runs with a fixed `PYTHONHASHSEED`, so iterating a set gives
   the same order in every replay.
-- `hubwagen lint`: an AST check for the same calls and for iteration over sets.
+- Lint (`python -m hubwagen.lint`, part of the Python SDK since it reads
+  Python): an AST check of haul code, without importing it, for the same
+  calls plus iteration over sets, I/O and environment variables,
+  `except:`/`except BaseException` (which swallow the replay's control
+  flow), and lifts called directly instead of through `ctx.lift`.
 - `hubwagen test --replay`: replay recent production logbooks against the new
   code in CI, without running lifts.
 
@@ -358,7 +362,7 @@ rerun, never correctness.
   or `ttl:<duration>`; the SDK passes pallets as inputs rather than inside
   the arguments, so the fingerprint sees their content hashes.
 - **SQL lifts** (`lift.sql`) default to `memo=True`: hubwagen resolves every
-  `{{ input(...) }}` itself, so it knows all inputs. `hubwagen lint` flags
+  `{{ input(...) }}` itself, so it knows all inputs. lint (later, with SQL lifts) flags
   table references that bypass `input()`, since those are hidden inputs.
 
 `hubwagen replay` names lifts that ran only because they are not memoized,

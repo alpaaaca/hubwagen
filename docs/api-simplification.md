@@ -170,9 +170,9 @@ a wrong reuse, not a needless rerun. The mitigations:
   the ones at the edges.
 - **The run decides too.** `hubwagen start` and `replay` take
   `--reuse=auto|none`, `none` for a run that must recompute everything.
-- **Lint and guards.** `hubwagen lint` flags lifts that open connections or
-  call HTTP clients without `live=`; the runtime guards from #25 can do the
-  same while a lift runs, as a warning.
+- **Lint and guards.** Lint (`python -m hubwagen.lint`) would flag lifts
+  that open connections or call HTTP clients without `live=`; the runtime
+  guards from #25 can do the same while a lift runs, as a warning.
 - **Reports.** Every reuse is in the logbook and the replay report, and
   `hubwagen replay --dry-run` shows what would be reused before anything
   runs.
