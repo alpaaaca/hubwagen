@@ -160,7 +160,7 @@ written. Steps, in order; each is one PR:
    haul waits are kept, and each is delivered to one wait, oldest first. ([#56](https://github.com/alpaaaca/hubwagen/issues/56))
 2. ✅ **Version markers**: `ctx.version(name, max=)`, recorded the first time,
    so old logbooks replay the old branch and new hauls take the new one. ([#57](https://github.com/alpaaaca/hubwagen/issues/57))
-3. **Fan-out limits**: `gather(..., max_parallel=)` and a per-haul limit on
+3. ✅ **Fan-out limits**: `gather(..., max_parallel=)` and a per-haul limit on
    running lifts, held by the server. ([#58](https://github.com/alpaaaca/hubwagen/issues/58))
 4. **Child hauls and `continue_as_new`**: `ctx.haul(...)` (start and wait
    for the result), `ctx.start_haul(...)` (fire and forget), and

@@ -152,6 +152,15 @@ message LiftCommand {
   repeated InputRef inputs = 7;
   // "" or "never", "fingerprint", or "ttl:<duration>".
   string memo = 8;
+  // Fan-out limits: the server starts this lift only while each group has
+  // fewer than max of the haul's lifts queued or running.
+  repeated ParallelLimit limits = 9;
+}
+
+message ParallelLimit {
+  // Per haul, e.g. "haul" or "gather:12".
+  string group = 1;
+  int32 max = 2;
 }
 
 message SleepCommand {

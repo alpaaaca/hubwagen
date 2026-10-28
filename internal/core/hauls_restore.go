@@ -63,7 +63,7 @@ func (c *Core) loadHauls(ctx context.Context) (*restoredHauls, error) {
 	}
 	out := &restoredHauls{ActiveHauls: act, pending: map[string]*promotion{}}
 	for _, rec := range act.Hauls {
-		h := &haulState{rec: rec, lifts: map[int]*liftState{}, timers: map[int]*haulTimer{}, waits: map[int]*signalWait{}, markers: map[string]int{}}
+		h := &haulState{rec: rec, lifts: map[int]*liftState{}, timers: map[int]*haulTimer{}, waits: map[int]*signalWait{}, markers: map[string]int{}, slots: map[string]int{}}
 		evs, err := c.cfg.Store.HaulEvents(ctx, rec.ID)
 		if err != nil {
 			return nil, err
@@ -140,7 +140,7 @@ func (c *Core) settleHauls(act *restoredHauls) error {
 			attempts[fmt.Sprintf("%s/%d", a.HaulID, a.Seq)] = a
 		}
 	}
-	var restored []*liftState
+	var restored, toStart []*liftState
 	for _, rec := range act.Lifts {
 		h := c.hauls[rec.HaulID]
 		l := &liftState{rec: rec, haul: h}
@@ -154,6 +154,9 @@ func (c *Core) settleHauls(act *restoredHauls) error {
 					return fmt.Errorf("lift %s/%d: %s: %w", rec.HaulID, rec.Seq, f.what, err)
 				}
 			}
+		}
+		if rec.Seq >= 1 && rec.Seq <= len(h.cmds) {
+			l.limits = h.cmds[rec.Seq-1].Limits
 		}
 		h.lifts[rec.Seq] = l
 		restored = append(restored, l)
@@ -171,9 +174,10 @@ func (c *Core) settleHauls(act *restoredHauls) error {
 		case state.LiftDispatched, state.LiftRunning:
 			ar, ok := attempts[fmt.Sprintf("%s/%d", rec.HaulID, rec.Seq)]
 			if !ok {
-				c.queueLiftAttempt(l) // no attempt on record: start a new one
+				toStart = append(toStart, l) // no attempt on record: start a new one
 				continue
 			}
+			c.takeSlotBack(l)
 			a := &liftAttemptState{rec: ar, lift: l}
 			l.attempt = a
 			c.liftAttempts[ar.ID] = a
@@ -183,8 +187,13 @@ func (c *Core) settleHauls(act *restoredHauls) error {
 			}
 			c.armLiftLease(a) // a fresh lease: heartbeats weren't persisted
 		default: // scheduled: the queued attempt was never recorded
-			c.queueLiftAttempt(l)
+			toStart = append(toStart, l)
 		}
+	}
+	// Dispatched attempts took their slots back above; the rest start in
+	// command order, or wait for a slot.
+	for _, l := range toStart {
+		c.startAttempt(l)
 	}
 	c.restoreFlights(restored)
 

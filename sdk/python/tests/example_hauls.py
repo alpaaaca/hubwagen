@@ -160,3 +160,17 @@ def approval(ctx, timeout: float | None = None):
     except hw.SignalTimeout:
         return "timed out"
     return {"decision": decision, "sum": ctx.lift(add, decision["n"], 1)}
+
+
+@hw.lift
+def timed(marker_dir: str, i: int) -> int:
+    """Records when it ran, for checking how many ran at once."""
+    start = time.monotonic()
+    time.sleep(0.3)
+    Path(marker_dir, f"{i}.txt").write_text(f"{start} {time.monotonic()}")
+    return i
+
+
+@hw.haul
+def limited_fanout(ctx, marker_dir: str, n: int, limit: int):
+    return ctx.gather([ctx.lift_async(timed, marker_dir, i) for i in range(n)], max_parallel=limit)
