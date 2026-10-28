@@ -220,23 +220,33 @@ each is one PR:
    and `hubwagen gc` expire the rest as events (`PalletExpired`, then the
    files go), never a pallet an open haul reads or the latest of a
    partition; expired pallets stay in the catalog as lineage records. ([#77](https://github.com/alpaaaca/hubwagen/issues/77))
-6. **Dashboard: hauls**: `hubwagen ui`, a terminal UI on the API (a
-   `tui.Source` over `HaulService`, so it works against any server): hauls
-   with their status, a haul's lifts and logbook, live updates. ([#78](https://github.com/alpaaaca/hubwagen/issues/78))
-7. **Dashboard: catalog**: datasets, partitions and pallets with stale and
-   invalid marked, lineage up and down, and invalidating from the UI. ([#79](https://github.com/alpaaaca/hubwagen/issues/79))
+6. **Web UI: hauls**: a web UI in TypeScript (React + Vite) under `ui/`,
+   calling the Connect services from the browser with clients generated
+   from `proto/` (`@connectrpc/connect-web`, through the same
+   `buf generate`). `hubwagen dev` serves it on the API's port, embedded
+   in the binary (`go:embed`), so there is still one binary and nothing
+   else to run; during UI work, Vite's dev server proxies to a running
+   `hubwagen dev`. This step: the scaffolding (build, embed, generated
+   clients, tests) and the hauls views: hauls with their status and
+   filters, a haul's lifts, logbook and children, live updates by polling,
+   and starting, signalling and cancelling hauls. ([#78](https://github.com/alpaaaca/hubwagen/issues/78))
+7. **Web UI: catalog**: datasets, partitions and pallets with stale and
+   invalid marked, lineage up and down as a graph, a pallet's files, and
+   invalidating from the UI (with the same dry run first);
+   schedules and subscriptions. ([#79](https://github.com/alpaaaca/hubwagen/issues/79))
 
 Done when: in the revenue example, invalidating a `raw.orders` pallet
-marks the downstream pallets invalid, `hubwagen stale` and the dashboard
+marks the downstream pallets invalid, `hubwagen stale` and the web UI
 show what to recompute, the replay it suggests recomputes exactly that,
 and retention removes old versions while keeping the latest and anything
 in use.
 
 Open questions, to settle in the step that needs them:
 
-- Dashboard: a terminal UI first (v1 had one; pure Go, nothing to serve),
-  or a web UI served by `hubwagen dev`. Proposed: terminal first, on the
-  API, so a web UI can follow on the same calls.
+- Dashboard: decided, a web UI in TypeScript, not a terminal UI. Still to
+  settle in step 6: whether the built UI (`ui/dist`) is committed, so
+  `go install` gets it, or built in release CI only (`go build` without it
+  serves a page saying how to build it).
 - Retention: declared in code (`hw.Dataset(keep=...)`, versioned with the
   build) or in `hubwagen.yaml` (an operator's choice). Proposed: code, with
   a config override later.
