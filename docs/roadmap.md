@@ -204,7 +204,7 @@ each is one PR:
    (`PalletInvalidated` events with the cause), after showing what it will
    mark (`--dry-run`). Invalid pallets are never reused, so a replay of the
    affected hauls, which the command prints, recomputes exactly that set. ([#74](https://github.com/alpaaaca/hubwagen/issues/74))
-3. **Staleness**: a partition's latest pallet is stale when one of its
+3. ✅ **Staleness**: a partition's latest pallet is stale when one of its
    inputs' datasets has a newer pallet for that partition, or when the
    newest build's code version of the lift that built it differs. The
    catalog API answers it per dataset and partition with the reason, and

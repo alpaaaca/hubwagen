@@ -29,7 +29,7 @@ var t0 = time.Date(2026, 10, 24, 3, 0, 0, 0, time.UTC)
 
 // A small catalog: raw.orders (two days) feeds mart.revenue, which with
 // raw.orders again (a diamond) feeds reports.revenue.
-func serve(t *testing.T) *Client {
+func serve(t *testing.T) (*Client, *state.Store) {
 	t.Helper()
 	dir := t.TempDir()
 	st, err := state.Open(filepath.Join(dir, "state.db"))
@@ -102,7 +102,7 @@ func serve(t *testing.T) *Client {
 	mux.Handle(path, h)
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
-	return NewClient(srv.URL)
+	return NewClient(srv.URL), st
 }
 
 func ptr[T any](v T) *T { return &v }
@@ -116,7 +116,7 @@ func lines(s string) []string {
 }
 
 func TestDatasets(t *testing.T) {
-	c := serve(t)
+	c, _ := serve(t)
 	var out bytes.Buffer
 	require.NoError(t, c.Datasets(ctx, &out, "default"))
 	got := lines(out.String())
@@ -125,7 +125,7 @@ func TestDatasets(t *testing.T) {
 }
 
 func TestPallets(t *testing.T) {
-	c := serve(t)
+	c, _ := serve(t)
 	var out bytes.Buffer
 	require.NoError(t, c.Pallets(ctx, &out, PalletsQuery{Tenant: "default", Dataset: "raw.orders"}))
 	assert.Equal(t, []string{"PARTITION LATEST PALLET COMMITTED VERSIONS",
@@ -141,7 +141,7 @@ func TestPallets(t *testing.T) {
 }
 
 func TestPalletShowsFilesAndLineage(t *testing.T) {
-	c := serve(t)
+	c, _ := serve(t)
 	var out bytes.Buffer
 	require.NoError(t, c.Pallet(ctx, &out, "o3"))
 	s := out.String()
@@ -159,7 +159,7 @@ func TestPalletShowsFilesAndLineage(t *testing.T) {
 }
 
 func TestInvalidate(t *testing.T) {
-	c := serve(t)
+	c, _ := serve(t)
 	var out bytes.Buffer
 	asked := 0
 	no := func(n int) bool { asked = n; return false }
@@ -176,7 +176,7 @@ func TestInvalidate(t *testing.T) {
 	out.Reset()
 	require.NoError(t, c.Invalidate(ctx, &out, InvalidateQuery{ID: "m1", Reason: "bad", By: "ana", Confirm: func(int) bool { return true }}))
 	assert.Contains(t, out.String(), "marked 2 pallets invalid")
-	assert.Contains(t, out.String(), "these recompute them (only the invalid lifts run again):")
+	assert.Contains(t, out.String(), "these recompute them (memoized lifts whose code and inputs didn't change are reused):")
 
 	out.Reset()
 	require.NoError(t, c.Pallet(ctx, &out, "r1"))
@@ -185,4 +185,30 @@ func TestInvalidate(t *testing.T) {
 	out.Reset()
 	require.NoError(t, c.Invalidate(ctx, &out, InvalidateQuery{ID: "m1", Reason: "again"}))
 	assert.Contains(t, out.String(), "nothing to mark")
+}
+
+func TestStale(t *testing.T) {
+	c, st := serve(t)
+	var out bytes.Buffer
+	require.NoError(t, c.Stale(ctx, &out, "default", ""))
+	assert.Equal(t, "nothing is stale\n", out.String())
+
+	// New orders for 2026-10-24 arrive: what was built from the old ones is stale.
+	p := state.Pallet{ID: "o4", Tenant: "default", Dataset: "raw.orders", Partition: "2026-10-24", Location: "x",
+		ContentHash: "sha256:new", State: state.PalletCommitted, CreatedAt: t0, CommittedAt: ptr(t0.Add(5 * time.Hour))}
+	_, err := st.Append(ctx, st.Term(), nil, func(tx *state.Tx) error { return tx.PutPallet(p) })
+	require.NoError(t, err)
+
+	out.Reset()
+	require.NoError(t, c.Stale(ctx, &out, "default", ""))
+	got := lines(out.String())
+	assert.Equal(t, "DATASET PARTITION LATEST PALLET WHY", got[0])
+	assert.Contains(t, got, "mart.revenue 2026-10-24 m1 input raw.orders 2026-10-24 has a newer pallet o4")
+	assert.Contains(t, got, "reports.revenue 2026-10-24 r1 input raw.orders 2026-10-24 has a newer pallet o4")
+	assert.Contains(t, out.String(), "these refresh them (memoized lifts whose code and inputs didn't change are reused):\n  hubwagen start daily --param day=2026-10-24 --param 'label=Q4 revenue'\n")
+	assert.Equal(t, 1, strings.Count(out.String(), "hubwagen start"), "one start for hauls with the same params")
+
+	out.Reset()
+	require.NoError(t, c.Stale(ctx, &out, "default", "reports.revenue"))
+	assert.NotContains(t, out.String(), "mart.revenue")
 }

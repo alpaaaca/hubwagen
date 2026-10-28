@@ -22,6 +22,174 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type ListStaleRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Default: "default".
+	Tenant string `protobuf:"bytes,1,opt,name=tenant,proto3" json:"tenant,omitempty"`
+	// Empty: every dataset.
+	Dataset       string `protobuf:"bytes,2,opt,name=dataset,proto3" json:"dataset,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListStaleRequest) Reset() {
+	*x = ListStaleRequest{}
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListStaleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListStaleRequest) ProtoMessage() {}
+
+func (x *ListStaleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListStaleRequest.ProtoReflect.Descriptor instead.
+func (*ListStaleRequest) Descriptor() ([]byte, []int) {
+	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ListStaleRequest) GetTenant() string {
+	if x != nil {
+		return x.Tenant
+	}
+	return ""
+}
+
+func (x *ListStaleRequest) GetDataset() string {
+	if x != nil {
+		return x.Dataset
+	}
+	return ""
+}
+
+type StalePallet struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The partition's latest pallet.
+	Pallet  *Pallet  `protobuf:"bytes,1,opt,name=pallet,proto3" json:"pallet,omitempty"`
+	Lift    string   `protobuf:"bytes,2,opt,name=lift,proto3" json:"lift,omitempty"`
+	Reasons []string `protobuf:"bytes,3,rep,name=reasons,proto3" json:"reasons,omitempty"`
+	// The haul that built it: starting it again with its params refreshes it.
+	Haul          *HaulRef `protobuf:"bytes,4,opt,name=haul,proto3" json:"haul,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StalePallet) Reset() {
+	*x = StalePallet{}
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StalePallet) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StalePallet) ProtoMessage() {}
+
+func (x *StalePallet) ProtoReflect() protoreflect.Message {
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StalePallet.ProtoReflect.Descriptor instead.
+func (*StalePallet) Descriptor() ([]byte, []int) {
+	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *StalePallet) GetPallet() *Pallet {
+	if x != nil {
+		return x.Pallet
+	}
+	return nil
+}
+
+func (x *StalePallet) GetLift() string {
+	if x != nil {
+		return x.Lift
+	}
+	return ""
+}
+
+func (x *StalePallet) GetReasons() []string {
+	if x != nil {
+		return x.Reasons
+	}
+	return nil
+}
+
+func (x *StalePallet) GetHaul() *HaulRef {
+	if x != nil {
+		return x.Haul
+	}
+	return nil
+}
+
+type ListStaleResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Stale         []*StalePallet         `protobuf:"bytes,1,rep,name=stale,proto3" json:"stale,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListStaleResponse) Reset() {
+	*x = ListStaleResponse{}
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListStaleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListStaleResponse) ProtoMessage() {}
+
+func (x *ListStaleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListStaleResponse.ProtoReflect.Descriptor instead.
+func (*ListStaleResponse) Descriptor() ([]byte, []int) {
+	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ListStaleResponse) GetStale() []*StalePallet {
+	if x != nil {
+		return x.Stale
+	}
+	return nil
+}
+
 type InvalidatePalletRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -36,7 +204,7 @@ type InvalidatePalletRequest struct {
 
 func (x *InvalidatePalletRequest) Reset() {
 	*x = InvalidatePalletRequest{}
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[0]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -48,7 +216,7 @@ func (x *InvalidatePalletRequest) String() string {
 func (*InvalidatePalletRequest) ProtoMessage() {}
 
 func (x *InvalidatePalletRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[0]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -61,7 +229,7 @@ func (x *InvalidatePalletRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvalidatePalletRequest.ProtoReflect.Descriptor instead.
 func (*InvalidatePalletRequest) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{0}
+	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *InvalidatePalletRequest) GetId() string {
@@ -106,7 +274,7 @@ type HaulRef struct {
 
 func (x *HaulRef) Reset() {
 	*x = HaulRef{}
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[1]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -118,7 +286,7 @@ func (x *HaulRef) String() string {
 func (*HaulRef) ProtoMessage() {}
 
 func (x *HaulRef) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[1]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -131,7 +299,7 @@ func (x *HaulRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HaulRef.ProtoReflect.Descriptor instead.
 func (*HaulRef) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{1}
+	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *HaulRef) GetId() string {
@@ -173,7 +341,7 @@ type InvalidatePalletResponse struct {
 
 func (x *InvalidatePalletResponse) Reset() {
 	*x = InvalidatePalletResponse{}
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[2]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -185,7 +353,7 @@ func (x *InvalidatePalletResponse) String() string {
 func (*InvalidatePalletResponse) ProtoMessage() {}
 
 func (x *InvalidatePalletResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[2]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -198,7 +366,7 @@ func (x *InvalidatePalletResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvalidatePalletResponse.ProtoReflect.Descriptor instead.
 func (*InvalidatePalletResponse) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{2}
+	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *InvalidatePalletResponse) GetPallets() []*Pallet {
@@ -228,7 +396,7 @@ type Dataset struct {
 
 func (x *Dataset) Reset() {
 	*x = Dataset{}
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[3]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -240,7 +408,7 @@ func (x *Dataset) String() string {
 func (*Dataset) ProtoMessage() {}
 
 func (x *Dataset) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[3]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -253,7 +421,7 @@ func (x *Dataset) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Dataset.ProtoReflect.Descriptor instead.
 func (*Dataset) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{3}
+	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Dataset) GetTenant() string {
@@ -312,7 +480,7 @@ type Pallet struct {
 
 func (x *Pallet) Reset() {
 	*x = Pallet{}
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[4]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -324,7 +492,7 @@ func (x *Pallet) String() string {
 func (*Pallet) ProtoMessage() {}
 
 func (x *Pallet) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[4]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -337,7 +505,7 @@ func (x *Pallet) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Pallet.ProtoReflect.Descriptor instead.
 func (*Pallet) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{4}
+	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Pallet) GetId() string {
@@ -462,7 +630,7 @@ type ListDatasetsRequest struct {
 
 func (x *ListDatasetsRequest) Reset() {
 	*x = ListDatasetsRequest{}
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[5]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -474,7 +642,7 @@ func (x *ListDatasetsRequest) String() string {
 func (*ListDatasetsRequest) ProtoMessage() {}
 
 func (x *ListDatasetsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[5]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -487,7 +655,7 @@ func (x *ListDatasetsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDatasetsRequest.ProtoReflect.Descriptor instead.
 func (*ListDatasetsRequest) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{5}
+	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ListDatasetsRequest) GetTenant() string {
@@ -506,7 +674,7 @@ type ListDatasetsResponse struct {
 
 func (x *ListDatasetsResponse) Reset() {
 	*x = ListDatasetsResponse{}
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[6]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -518,7 +686,7 @@ func (x *ListDatasetsResponse) String() string {
 func (*ListDatasetsResponse) ProtoMessage() {}
 
 func (x *ListDatasetsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[6]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -531,7 +699,7 @@ func (x *ListDatasetsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDatasetsResponse.ProtoReflect.Descriptor instead.
 func (*ListDatasetsResponse) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{6}
+	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListDatasetsResponse) GetDatasets() []*Dataset {
@@ -556,7 +724,7 @@ type ListPartitionsRequest struct {
 
 func (x *ListPartitionsRequest) Reset() {
 	*x = ListPartitionsRequest{}
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[7]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -568,7 +736,7 @@ func (x *ListPartitionsRequest) String() string {
 func (*ListPartitionsRequest) ProtoMessage() {}
 
 func (x *ListPartitionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[7]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -581,7 +749,7 @@ func (x *ListPartitionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPartitionsRequest.ProtoReflect.Descriptor instead.
 func (*ListPartitionsRequest) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{7}
+	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ListPartitionsRequest) GetTenant() string {
@@ -624,7 +792,7 @@ type Partition struct {
 
 func (x *Partition) Reset() {
 	*x = Partition{}
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[8]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -636,7 +804,7 @@ func (x *Partition) String() string {
 func (*Partition) ProtoMessage() {}
 
 func (x *Partition) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[8]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -649,7 +817,7 @@ func (x *Partition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Partition.ProtoReflect.Descriptor instead.
 func (*Partition) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{8}
+	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Partition) GetPartition() string {
@@ -682,7 +850,7 @@ type ListPartitionsResponse struct {
 
 func (x *ListPartitionsResponse) Reset() {
 	*x = ListPartitionsResponse{}
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[9]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -694,7 +862,7 @@ func (x *ListPartitionsResponse) String() string {
 func (*ListPartitionsResponse) ProtoMessage() {}
 
 func (x *ListPartitionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[9]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -707,7 +875,7 @@ func (x *ListPartitionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPartitionsResponse.ProtoReflect.Descriptor instead.
 func (*ListPartitionsResponse) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{9}
+	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListPartitionsResponse) GetPartitions() []*Partition {
@@ -736,7 +904,7 @@ type ListPalletsRequest struct {
 
 func (x *ListPalletsRequest) Reset() {
 	*x = ListPalletsRequest{}
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[10]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -748,7 +916,7 @@ func (x *ListPalletsRequest) String() string {
 func (*ListPalletsRequest) ProtoMessage() {}
 
 func (x *ListPalletsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[10]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -761,7 +929,7 @@ func (x *ListPalletsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPalletsRequest.ProtoReflect.Descriptor instead.
 func (*ListPalletsRequest) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{10}
+	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ListPalletsRequest) GetTenant() string {
@@ -815,7 +983,7 @@ type ListPalletsResponse struct {
 
 func (x *ListPalletsResponse) Reset() {
 	*x = ListPalletsResponse{}
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[11]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -827,7 +995,7 @@ func (x *ListPalletsResponse) String() string {
 func (*ListPalletsResponse) ProtoMessage() {}
 
 func (x *ListPalletsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[11]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -840,7 +1008,7 @@ func (x *ListPalletsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPalletsResponse.ProtoReflect.Descriptor instead.
 func (*ListPalletsResponse) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{11}
+	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListPalletsResponse) GetPallets() []*Pallet {
@@ -859,7 +1027,7 @@ type GetPalletRequest struct {
 
 func (x *GetPalletRequest) Reset() {
 	*x = GetPalletRequest{}
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[12]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -871,7 +1039,7 @@ func (x *GetPalletRequest) String() string {
 func (*GetPalletRequest) ProtoMessage() {}
 
 func (x *GetPalletRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[12]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -884,7 +1052,7 @@ func (x *GetPalletRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPalletRequest.ProtoReflect.Descriptor instead.
 func (*GetPalletRequest) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{12}
+	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetPalletRequest) GetId() string {
@@ -905,7 +1073,7 @@ type ManifestFile struct {
 
 func (x *ManifestFile) Reset() {
 	*x = ManifestFile{}
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[13]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -917,7 +1085,7 @@ func (x *ManifestFile) String() string {
 func (*ManifestFile) ProtoMessage() {}
 
 func (x *ManifestFile) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[13]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -930,7 +1098,7 @@ func (x *ManifestFile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManifestFile.ProtoReflect.Descriptor instead.
 func (*ManifestFile) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{13}
+	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ManifestFile) GetPath() string {
@@ -967,7 +1135,7 @@ type Manifest struct {
 
 func (x *Manifest) Reset() {
 	*x = Manifest{}
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[14]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -979,7 +1147,7 @@ func (x *Manifest) String() string {
 func (*Manifest) ProtoMessage() {}
 
 func (x *Manifest) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[14]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -992,7 +1160,7 @@ func (x *Manifest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Manifest.ProtoReflect.Descriptor instead.
 func (*Manifest) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{14}
+	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *Manifest) GetData() string {
@@ -1028,7 +1196,7 @@ type LineageEdge struct {
 
 func (x *LineageEdge) Reset() {
 	*x = LineageEdge{}
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[15]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1040,7 +1208,7 @@ func (x *LineageEdge) String() string {
 func (*LineageEdge) ProtoMessage() {}
 
 func (x *LineageEdge) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[15]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1053,7 +1221,7 @@ func (x *LineageEdge) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LineageEdge.ProtoReflect.Descriptor instead.
 func (*LineageEdge) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{15}
+	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *LineageEdge) GetPalletId() string {
@@ -1088,7 +1256,7 @@ type Lineage struct {
 
 func (x *Lineage) Reset() {
 	*x = Lineage{}
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[16]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1100,7 +1268,7 @@ func (x *Lineage) String() string {
 func (*Lineage) ProtoMessage() {}
 
 func (x *Lineage) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[16]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1113,7 +1281,7 @@ func (x *Lineage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Lineage.ProtoReflect.Descriptor instead.
 func (*Lineage) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{16}
+	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *Lineage) GetPallets() []*Pallet {
@@ -1146,7 +1314,7 @@ type GetPalletResponse struct {
 
 func (x *GetPalletResponse) Reset() {
 	*x = GetPalletResponse{}
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[17]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1158,7 +1326,7 @@ func (x *GetPalletResponse) String() string {
 func (*GetPalletResponse) ProtoMessage() {}
 
 func (x *GetPalletResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_catalog_proto_msgTypes[17]
+	mi := &file_hubwagen_v1_catalog_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1171,7 +1339,7 @@ func (x *GetPalletResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPalletResponse.ProtoReflect.Descriptor instead.
 func (*GetPalletResponse) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{17}
+	return file_hubwagen_v1_catalog_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GetPalletResponse) GetPallet() *Pallet {
@@ -1220,7 +1388,17 @@ var File_hubwagen_v1_catalog_proto protoreflect.FileDescriptor
 
 const file_hubwagen_v1_catalog_proto_rawDesc = "" +
 	"\n" +
-	"\x19hubwagen/v1/catalog.proto\x12\vhubwagen.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"j\n" +
+	"\x19hubwagen/v1/catalog.proto\x12\vhubwagen.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"D\n" +
+	"\x10ListStaleRequest\x12\x16\n" +
+	"\x06tenant\x18\x01 \x01(\tR\x06tenant\x12\x18\n" +
+	"\adataset\x18\x02 \x01(\tR\adataset\"\x92\x01\n" +
+	"\vStalePallet\x12+\n" +
+	"\x06pallet\x18\x01 \x01(\v2\x13.hubwagen.v1.PalletR\x06pallet\x12\x12\n" +
+	"\x04lift\x18\x02 \x01(\tR\x04lift\x12\x18\n" +
+	"\areasons\x18\x03 \x03(\tR\areasons\x12(\n" +
+	"\x04haul\x18\x04 \x01(\v2\x14.hubwagen.v1.HaulRefR\x04haul\"C\n" +
+	"\x11ListStaleResponse\x12.\n" +
+	"\x05stale\x18\x01 \x03(\v2\x18.hubwagen.v1.StalePalletR\x05stale\"j\n" +
 	"\x17InvalidatePalletRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\x12\x0e\n" +
@@ -1316,13 +1494,14 @@ const file_hubwagen_v1_catalog_proto_rawDesc = "" +
 	"\bupstream\x18\x05 \x01(\v2\x14.hubwagen.v1.LineageR\bupstream\x124\n" +
 	"\n" +
 	"downstream\x18\x06 \x01(\v2\x14.hubwagen.v1.LineageR\n" +
-	"downstream2\xbf\x03\n" +
+	"downstream2\x8b\x04\n" +
 	"\x0eCatalogService\x12S\n" +
 	"\fListDatasets\x12 .hubwagen.v1.ListDatasetsRequest\x1a!.hubwagen.v1.ListDatasetsResponse\x12Y\n" +
 	"\x0eListPartitions\x12\".hubwagen.v1.ListPartitionsRequest\x1a#.hubwagen.v1.ListPartitionsResponse\x12P\n" +
 	"\vListPallets\x12\x1f.hubwagen.v1.ListPalletsRequest\x1a .hubwagen.v1.ListPalletsResponse\x12J\n" +
 	"\tGetPallet\x12\x1d.hubwagen.v1.GetPalletRequest\x1a\x1e.hubwagen.v1.GetPalletResponse\x12_\n" +
-	"\x10InvalidatePallet\x12$.hubwagen.v1.InvalidatePalletRequest\x1a%.hubwagen.v1.InvalidatePalletResponseBCZAgithub.com/alper/hubwagen/internal/api/gen/hubwagen/v1;hubwagenv1b\x06proto3"
+	"\x10InvalidatePallet\x12$.hubwagen.v1.InvalidatePalletRequest\x1a%.hubwagen.v1.InvalidatePalletResponse\x12J\n" +
+	"\tListStale\x12\x1d.hubwagen.v1.ListStaleRequest\x1a\x1e.hubwagen.v1.ListStaleResponseBCZAgithub.com/alper/hubwagen/internal/api/gen/hubwagen/v1;hubwagenv1b\x06proto3"
 
 var (
 	file_hubwagen_v1_catalog_proto_rawDescOnce sync.Once
@@ -1336,61 +1515,69 @@ func file_hubwagen_v1_catalog_proto_rawDescGZIP() []byte {
 	return file_hubwagen_v1_catalog_proto_rawDescData
 }
 
-var file_hubwagen_v1_catalog_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_hubwagen_v1_catalog_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_hubwagen_v1_catalog_proto_goTypes = []any{
-	(*InvalidatePalletRequest)(nil),  // 0: hubwagen.v1.InvalidatePalletRequest
-	(*HaulRef)(nil),                  // 1: hubwagen.v1.HaulRef
-	(*InvalidatePalletResponse)(nil), // 2: hubwagen.v1.InvalidatePalletResponse
-	(*Dataset)(nil),                  // 3: hubwagen.v1.Dataset
-	(*Pallet)(nil),                   // 4: hubwagen.v1.Pallet
-	(*ListDatasetsRequest)(nil),      // 5: hubwagen.v1.ListDatasetsRequest
-	(*ListDatasetsResponse)(nil),     // 6: hubwagen.v1.ListDatasetsResponse
-	(*ListPartitionsRequest)(nil),    // 7: hubwagen.v1.ListPartitionsRequest
-	(*Partition)(nil),                // 8: hubwagen.v1.Partition
-	(*ListPartitionsResponse)(nil),   // 9: hubwagen.v1.ListPartitionsResponse
-	(*ListPalletsRequest)(nil),       // 10: hubwagen.v1.ListPalletsRequest
-	(*ListPalletsResponse)(nil),      // 11: hubwagen.v1.ListPalletsResponse
-	(*GetPalletRequest)(nil),         // 12: hubwagen.v1.GetPalletRequest
-	(*ManifestFile)(nil),             // 13: hubwagen.v1.ManifestFile
-	(*Manifest)(nil),                 // 14: hubwagen.v1.Manifest
-	(*LineageEdge)(nil),              // 15: hubwagen.v1.LineageEdge
-	(*Lineage)(nil),                  // 16: hubwagen.v1.Lineage
-	(*GetPalletResponse)(nil),        // 17: hubwagen.v1.GetPalletResponse
-	(*timestamppb.Timestamp)(nil),    // 18: google.protobuf.Timestamp
+	(*ListStaleRequest)(nil),         // 0: hubwagen.v1.ListStaleRequest
+	(*StalePallet)(nil),              // 1: hubwagen.v1.StalePallet
+	(*ListStaleResponse)(nil),        // 2: hubwagen.v1.ListStaleResponse
+	(*InvalidatePalletRequest)(nil),  // 3: hubwagen.v1.InvalidatePalletRequest
+	(*HaulRef)(nil),                  // 4: hubwagen.v1.HaulRef
+	(*InvalidatePalletResponse)(nil), // 5: hubwagen.v1.InvalidatePalletResponse
+	(*Dataset)(nil),                  // 6: hubwagen.v1.Dataset
+	(*Pallet)(nil),                   // 7: hubwagen.v1.Pallet
+	(*ListDatasetsRequest)(nil),      // 8: hubwagen.v1.ListDatasetsRequest
+	(*ListDatasetsResponse)(nil),     // 9: hubwagen.v1.ListDatasetsResponse
+	(*ListPartitionsRequest)(nil),    // 10: hubwagen.v1.ListPartitionsRequest
+	(*Partition)(nil),                // 11: hubwagen.v1.Partition
+	(*ListPartitionsResponse)(nil),   // 12: hubwagen.v1.ListPartitionsResponse
+	(*ListPalletsRequest)(nil),       // 13: hubwagen.v1.ListPalletsRequest
+	(*ListPalletsResponse)(nil),      // 14: hubwagen.v1.ListPalletsResponse
+	(*GetPalletRequest)(nil),         // 15: hubwagen.v1.GetPalletRequest
+	(*ManifestFile)(nil),             // 16: hubwagen.v1.ManifestFile
+	(*Manifest)(nil),                 // 17: hubwagen.v1.Manifest
+	(*LineageEdge)(nil),              // 18: hubwagen.v1.LineageEdge
+	(*Lineage)(nil),                  // 19: hubwagen.v1.Lineage
+	(*GetPalletResponse)(nil),        // 20: hubwagen.v1.GetPalletResponse
+	(*timestamppb.Timestamp)(nil),    // 21: google.protobuf.Timestamp
 }
 var file_hubwagen_v1_catalog_proto_depIdxs = []int32{
-	4,  // 0: hubwagen.v1.InvalidatePalletResponse.pallets:type_name -> hubwagen.v1.Pallet
-	1,  // 1: hubwagen.v1.InvalidatePalletResponse.hauls:type_name -> hubwagen.v1.HaulRef
-	18, // 2: hubwagen.v1.Dataset.created_at:type_name -> google.protobuf.Timestamp
-	18, // 3: hubwagen.v1.Pallet.created_at:type_name -> google.protobuf.Timestamp
-	18, // 4: hubwagen.v1.Pallet.committed_at:type_name -> google.protobuf.Timestamp
-	18, // 5: hubwagen.v1.Pallet.retired_at:type_name -> google.protobuf.Timestamp
-	3,  // 6: hubwagen.v1.ListDatasetsResponse.datasets:type_name -> hubwagen.v1.Dataset
-	4,  // 7: hubwagen.v1.Partition.latest:type_name -> hubwagen.v1.Pallet
-	8,  // 8: hubwagen.v1.ListPartitionsResponse.partitions:type_name -> hubwagen.v1.Partition
-	4,  // 9: hubwagen.v1.ListPalletsResponse.pallets:type_name -> hubwagen.v1.Pallet
-	13, // 10: hubwagen.v1.Manifest.files:type_name -> hubwagen.v1.ManifestFile
-	4,  // 11: hubwagen.v1.Lineage.pallets:type_name -> hubwagen.v1.Pallet
-	15, // 12: hubwagen.v1.Lineage.edges:type_name -> hubwagen.v1.LineageEdge
-	4,  // 13: hubwagen.v1.GetPalletResponse.pallet:type_name -> hubwagen.v1.Pallet
-	14, // 14: hubwagen.v1.GetPalletResponse.manifest:type_name -> hubwagen.v1.Manifest
-	16, // 15: hubwagen.v1.GetPalletResponse.upstream:type_name -> hubwagen.v1.Lineage
-	16, // 16: hubwagen.v1.GetPalletResponse.downstream:type_name -> hubwagen.v1.Lineage
-	5,  // 17: hubwagen.v1.CatalogService.ListDatasets:input_type -> hubwagen.v1.ListDatasetsRequest
-	7,  // 18: hubwagen.v1.CatalogService.ListPartitions:input_type -> hubwagen.v1.ListPartitionsRequest
-	10, // 19: hubwagen.v1.CatalogService.ListPallets:input_type -> hubwagen.v1.ListPalletsRequest
-	12, // 20: hubwagen.v1.CatalogService.GetPallet:input_type -> hubwagen.v1.GetPalletRequest
-	0,  // 21: hubwagen.v1.CatalogService.InvalidatePallet:input_type -> hubwagen.v1.InvalidatePalletRequest
-	6,  // 22: hubwagen.v1.CatalogService.ListDatasets:output_type -> hubwagen.v1.ListDatasetsResponse
-	9,  // 23: hubwagen.v1.CatalogService.ListPartitions:output_type -> hubwagen.v1.ListPartitionsResponse
-	11, // 24: hubwagen.v1.CatalogService.ListPallets:output_type -> hubwagen.v1.ListPalletsResponse
-	17, // 25: hubwagen.v1.CatalogService.GetPallet:output_type -> hubwagen.v1.GetPalletResponse
-	2,  // 26: hubwagen.v1.CatalogService.InvalidatePallet:output_type -> hubwagen.v1.InvalidatePalletResponse
-	22, // [22:27] is the sub-list for method output_type
-	17, // [17:22] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	7,  // 0: hubwagen.v1.StalePallet.pallet:type_name -> hubwagen.v1.Pallet
+	4,  // 1: hubwagen.v1.StalePallet.haul:type_name -> hubwagen.v1.HaulRef
+	1,  // 2: hubwagen.v1.ListStaleResponse.stale:type_name -> hubwagen.v1.StalePallet
+	7,  // 3: hubwagen.v1.InvalidatePalletResponse.pallets:type_name -> hubwagen.v1.Pallet
+	4,  // 4: hubwagen.v1.InvalidatePalletResponse.hauls:type_name -> hubwagen.v1.HaulRef
+	21, // 5: hubwagen.v1.Dataset.created_at:type_name -> google.protobuf.Timestamp
+	21, // 6: hubwagen.v1.Pallet.created_at:type_name -> google.protobuf.Timestamp
+	21, // 7: hubwagen.v1.Pallet.committed_at:type_name -> google.protobuf.Timestamp
+	21, // 8: hubwagen.v1.Pallet.retired_at:type_name -> google.protobuf.Timestamp
+	6,  // 9: hubwagen.v1.ListDatasetsResponse.datasets:type_name -> hubwagen.v1.Dataset
+	7,  // 10: hubwagen.v1.Partition.latest:type_name -> hubwagen.v1.Pallet
+	11, // 11: hubwagen.v1.ListPartitionsResponse.partitions:type_name -> hubwagen.v1.Partition
+	7,  // 12: hubwagen.v1.ListPalletsResponse.pallets:type_name -> hubwagen.v1.Pallet
+	16, // 13: hubwagen.v1.Manifest.files:type_name -> hubwagen.v1.ManifestFile
+	7,  // 14: hubwagen.v1.Lineage.pallets:type_name -> hubwagen.v1.Pallet
+	18, // 15: hubwagen.v1.Lineage.edges:type_name -> hubwagen.v1.LineageEdge
+	7,  // 16: hubwagen.v1.GetPalletResponse.pallet:type_name -> hubwagen.v1.Pallet
+	17, // 17: hubwagen.v1.GetPalletResponse.manifest:type_name -> hubwagen.v1.Manifest
+	19, // 18: hubwagen.v1.GetPalletResponse.upstream:type_name -> hubwagen.v1.Lineage
+	19, // 19: hubwagen.v1.GetPalletResponse.downstream:type_name -> hubwagen.v1.Lineage
+	8,  // 20: hubwagen.v1.CatalogService.ListDatasets:input_type -> hubwagen.v1.ListDatasetsRequest
+	10, // 21: hubwagen.v1.CatalogService.ListPartitions:input_type -> hubwagen.v1.ListPartitionsRequest
+	13, // 22: hubwagen.v1.CatalogService.ListPallets:input_type -> hubwagen.v1.ListPalletsRequest
+	15, // 23: hubwagen.v1.CatalogService.GetPallet:input_type -> hubwagen.v1.GetPalletRequest
+	3,  // 24: hubwagen.v1.CatalogService.InvalidatePallet:input_type -> hubwagen.v1.InvalidatePalletRequest
+	0,  // 25: hubwagen.v1.CatalogService.ListStale:input_type -> hubwagen.v1.ListStaleRequest
+	9,  // 26: hubwagen.v1.CatalogService.ListDatasets:output_type -> hubwagen.v1.ListDatasetsResponse
+	12, // 27: hubwagen.v1.CatalogService.ListPartitions:output_type -> hubwagen.v1.ListPartitionsResponse
+	14, // 28: hubwagen.v1.CatalogService.ListPallets:output_type -> hubwagen.v1.ListPalletsResponse
+	20, // 29: hubwagen.v1.CatalogService.GetPallet:output_type -> hubwagen.v1.GetPalletResponse
+	5,  // 30: hubwagen.v1.CatalogService.InvalidatePallet:output_type -> hubwagen.v1.InvalidatePalletResponse
+	2,  // 31: hubwagen.v1.CatalogService.ListStale:output_type -> hubwagen.v1.ListStaleResponse
+	26, // [26:32] is the sub-list for method output_type
+	20, // [20:26] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_hubwagen_v1_catalog_proto_init() }
@@ -1398,14 +1585,14 @@ func file_hubwagen_v1_catalog_proto_init() {
 	if File_hubwagen_v1_catalog_proto != nil {
 		return
 	}
-	file_hubwagen_v1_catalog_proto_msgTypes[10].OneofWrappers = []any{}
+	file_hubwagen_v1_catalog_proto_msgTypes[13].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hubwagen_v1_catalog_proto_rawDesc), len(file_hubwagen_v1_catalog_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

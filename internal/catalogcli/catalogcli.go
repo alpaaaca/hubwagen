@@ -225,13 +225,38 @@ func (c *Client) Invalidate(ctx context.Context, w io.Writer, q InvalidateQuery)
 	return replayHint(w, res.Msg.Hauls, "recompute them")
 }
 
-// replayHint prints a start per haul that built invalidated pallets:
-// memoization reuses everything else, so those recompute exactly the set.
+// Stale writes the partitions whose latest pallet is out of date, why, and
+// the starts that refresh them.
+func (c *Client) Stale(ctx context.Context, w io.Writer, tenant, dataset string) error {
+	res, err := c.catalog.ListStale(ctx, connect.NewRequest(&hubwagenv1.ListStaleRequest{Tenant: tenant, Dataset: dataset}))
+	if err != nil {
+		return err
+	}
+	if len(res.Msg.Stale) == 0 {
+		_, err := fmt.Fprintln(w, "nothing is stale")
+		return err
+	}
+	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
+	fmt.Fprintln(tw, "DATASET\tPARTITION\tLATEST PALLET\tWHY")
+	var hauls []*hubwagenv1.HaulRef
+	for _, st := range res.Msg.Stale {
+		p := st.Pallet
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", p.Dataset, describePartition(p.Partition), p.Id, strings.Join(st.Reasons, "; "))
+		if st.Haul != nil {
+			hauls = append(hauls, st.Haul)
+		}
+	}
+	tw.Flush()
+	return replayHint(w, hauls, "refresh them")
+}
+
+// replayHint prints a start per haul that built the pallets: memoization
+// reuses what is still good, so those recompute only what isn't.
 func replayHint(w io.Writer, hauls []*hubwagenv1.HaulRef, what string) error {
 	if len(hauls) == 0 {
 		return nil
 	}
-	fmt.Fprintf(w, "\nthese %s (only the invalid lifts run again):\n", what)
+	fmt.Fprintf(w, "\nthese %s (memoized lifts whose code and inputs didn't change are reused):\n", what)
 	printed := map[string]bool{}
 	for _, h := range hauls {
 		var params map[string]json.RawMessage

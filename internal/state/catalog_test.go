@@ -313,3 +313,45 @@ func TestListPartitions(t *testing.T) {
 	require.Len(t, unpartitioned, 1)
 	assert.Equal(t, "c1", unpartitioned[0].Latest.ID)
 }
+
+func TestStalePartitions(t *testing.T) {
+	s, _ := openFile(t)
+	const orders, rev = "raw.orders", "mart.revenue"
+	same := pallet("o3", orders, "2026-10-02", 3*time.Hour)
+	same.ContentHash = "sha256:b"
+	o2 := pallet("o2", orders, "2026-10-02", time.Hour)
+	o2.ContentHash = "sha256:b"
+	// r1 and r2 were built by lift "build" (command 1 of haul h1) at code v1;
+	// the orders have no lift.
+	r1, r2 := pallet("r1", rev, "2026-10-01", time.Hour), pallet("r2", rev, "2026-10-02", 2*time.Hour)
+	r1.HaulID, r1.LiftSeq, r2.HaulID, r2.LiftSeq = "h1", 1, "h1", 1
+	putCatalog(t, s, []Dataset{dataset(orders, "day"), dataset(rev, "day")}, []Pallet{
+		pallet("o1", orders, "2026-10-01", 0),
+		pallet("o1b", orders, "2026-10-01", 2*time.Hour), // newer orders for 10-01
+		o2, same, // newer orders for 10-02, but the same content
+		r1, r2,
+	}, PalletInput{PalletID: "r1", InputID: "o1", Name: "orders"}, PalletInput{PalletID: "r2", InputID: "o2", Name: "orders"})
+	l := lift("h1", 1, LiftCompleted)
+	l.Name, l.FPInputs = "build", json.RawMessage(`{"code_version":"v1"}`)
+	put(t, s, nil, func(tx *Tx) error { return tx.PutHaul(haul("h1", HaulCompleted)) }, func(tx *Tx) error { return tx.PutLift(l) },
+		func(tx *Tx) error {
+			return tx.PutBuild(Build{ID: "b1", Lifts: map[string]string{"build": "v1"}, RegisteredAt: t0})
+		})
+
+	stale, err := s.StalePartitions(ctx, "t", rev)
+	require.NoError(t, err)
+	require.Len(t, stale, 1)
+	assert.Equal(t, "r1", stale[0].Pallet.ID)
+	assert.Equal(t, "build", stale[0].Lift)
+	assert.Equal(t, []string{"input raw.orders 2026-10-01 has a newer pallet o1b"}, stale[0].Reasons)
+
+	// A newer build changes the lift's code: both are stale now.
+	put(t, s, nil, func(tx *Tx) error {
+		return tx.PutBuild(Build{ID: "b2", Lifts: map[string]string{"build": "v2"}, RegisteredAt: t0.Add(time.Hour)})
+	})
+	stale, err = s.StalePartitions(ctx, "t", "")
+	require.NoError(t, err)
+	require.Len(t, stale, 2, "only mart.revenue's pallets have a lift and inputs")
+	assert.Equal(t, []string{"input raw.orders 2026-10-01 has a newer pallet o1b", "lift build: code changed (v1 → v2)"}, stale[0].Reasons)
+	assert.Equal(t, []string{"lift build: code changed (v1 → v2)"}, stale[1].Reasons)
+}

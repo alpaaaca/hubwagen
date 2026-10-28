@@ -25,6 +25,30 @@ service CatalogService {
   // returns what it marked (or, dry_run, would mark) and the hauls that
   // built those pallets, whose replay recomputes them.
   rpc InvalidatePallet(InvalidatePalletRequest) returns (InvalidatePalletResponse);
+  // ListStale returns the partitions whose latest pallet is out of date:
+  // an input's partition has a newer pallet with other content, or the
+  // newest build has another code version of the lift that built it.
+  rpc ListStale(ListStaleRequest) returns (ListStaleResponse);
+}
+
+message ListStaleRequest {
+  // Default: "default".
+  string tenant = 1;
+  // Empty: every dataset.
+  string dataset = 2;
+}
+
+message StalePallet {
+  // The partition's latest pallet.
+  Pallet pallet = 1;
+  string lift = 2;
+  repeated string reasons = 3;
+  // The haul that built it: starting it again with its params refreshes it.
+  HaulRef haul = 4;
+}
+
+message ListStaleResponse {
+  repeated StalePallet stale = 1;
 }
 
 message InvalidatePalletRequest {
