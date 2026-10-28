@@ -210,7 +210,7 @@ each is one PR:
    catalog API answers it per dataset and partition with the reason, and
    `hubwagen stale [dataset]` lists them with the replay that refreshes
    them. ([#75](https://github.com/alpaaaca/hubwagen/issues/75))
-4. **Bucket layout by dataset**: a lift with an output stages under
+4. ✅ **Bucket layout by dataset**: a lift with an output stages under
    `data/<tenant>/<dataset>/<partition>/<attempt>/` instead of the haul's
    ID, so the bucket reads like the catalog; existing pallets keep their
    paths (manifests point at them). ([#76](https://github.com/alpaaaca/hubwagen/issues/76))
