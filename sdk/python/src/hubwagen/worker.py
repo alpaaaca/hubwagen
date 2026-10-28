@@ -108,6 +108,8 @@ class Worker:
                 body["error"] = {"reason": "nondeterminism", "message": r.mismatch}
             else:
                 body["commands"] = r.commands
+                if r.markers:
+                    body["markers"] = r.markers
                 if r.outcome:
                     body["outcome"] = r.outcome
             if r.mismatch:

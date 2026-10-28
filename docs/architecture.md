@@ -473,8 +473,15 @@ under a **build id**.
       report = ctx.lift(check_quality, orders)
   ```
 
-  Old logbooks replay the old branch; new executions take the new one.
-  `hubwagen versions` lists markers still in use.
+  Old logbooks replay the old branch; new executions take the new one. A
+  marker is recorded by name, outside the command sequence, so adding one
+  doesn't contradict a running haul's logbook: a haul whose recorded
+  commands go past the marker started on the old code and gets `min`
+  (default 1); a haul reaching it for the first time at the end of its
+  history gets `max`. The decision is recorded with the haul task, every
+  replay gets the same, and a replay deciding differently makes the haul
+  stuck. Raising `min` drops the old branch; a haul still on it becomes
+  stuck. (Later: `hubwagen versions` lists markers still in use.)
 - **Drain**: most data hauls finish within hours, so rolling out new workers
   after running hauls finish (or reach a marker) covers most deploys.
 - **Replay test** (`hubwagen test --replay`) in CI replays recent logbooks

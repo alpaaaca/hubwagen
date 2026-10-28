@@ -35,6 +35,7 @@ type haulTaskCompletedPayload struct {
 	Number   int          `json:"number"`
 	BuildID  string       `json:"build_id,omitempty"`
 	Commands []Command    `json:"commands,omitempty"` // only the new ones
+	Markers  []Marker     `json:"markers,omitempty"`  // only the new ones
 	Outcome  *HaulOutcome `json:"outcome,omitempty"`
 }
 

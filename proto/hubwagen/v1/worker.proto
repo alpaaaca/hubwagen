@@ -94,9 +94,21 @@ message CompleteHaulTaskRequest {
   // "nondeterminism" when the haul code read the clock or randomness: then
   // the haul becomes stuck instead of failed, and a new build resumes it.
   TaskError error = 5;
+  // Every version marker the replay decided (ctx.version), including those
+  // already in the logbook. One decided differently from the logbook makes
+  // the haul stuck.
+  repeated VersionMarker markers = 6;
 }
 
 message CompleteHaulTaskResponse {}
+
+// VersionMarker is which version of a change a haul takes. Markers are kept
+// by name, outside the command sequence, so adding one to the code doesn't
+// contradict running hauls' logbooks.
+message VersionMarker {
+  string name = 1;
+  int32 version = 2;
+}
 
 message Command {
   int32 seq = 1;

@@ -25,6 +25,7 @@ import (
 //     replays are still checked against it;
 //   - a lift whose pallet was recorded but not promoted gets the promote
 //     again, from the manifest in the logbook. Promotes are idempotent;
+//   - version markers are rebuilt from the logbook like the commands;
 //   - signal waits and signals no wait took yet are rebuilt from the
 //     logbook; a wait's timeout is a timer like any other;
 //   - single-flight is rebuilt: unfinished lifts with a fingerprint own their
@@ -62,7 +63,7 @@ func (c *Core) loadHauls(ctx context.Context) (*restoredHauls, error) {
 	}
 	out := &restoredHauls{ActiveHauls: act, pending: map[string]*promotion{}}
 	for _, rec := range act.Hauls {
-		h := &haulState{rec: rec, lifts: map[int]*liftState{}, timers: map[int]*haulTimer{}, waits: map[int]*signalWait{}}
+		h := &haulState{rec: rec, lifts: map[int]*liftState{}, timers: map[int]*haulTimer{}, waits: map[int]*signalWait{}, markers: map[string]int{}}
 		evs, err := c.cfg.Store.HaulEvents(ctx, rec.ID)
 		if err != nil {
 			return nil, err
@@ -84,6 +85,9 @@ func (c *Core) loadHauls(ctx context.Context) (*restoredHauls, error) {
 					return nil, fmt.Errorf("haul %s: event %d: %w", rec.ID, e.Seq, err)
 				}
 				h.cmds = append(h.cmds, p.Commands...)
+				for _, m := range p.Markers {
+					h.markers[m.Name] = m.Version
+				}
 			}
 		}
 		if len(h.cmds) != rec.Commands {

@@ -267,3 +267,47 @@ def test_wait_signal_timeout_raises():
     assert "timeout" not in run(lambda ctx: ctx.wait_signal("x"), []).commands[0]["waitSignal"]
     bad = run(lambda ctx: ctx.wait_signal("x", timeout=0), []).outcome
     assert (bad["reason"], bad["message"]) == ("ValueError", "wait_signal('x'): timeout must be positive")
+
+
+def completed(commands, markers=None):
+    return ev("HaulTaskCompleted", {"number": 1, "commands": commands, **({"markers": markers} if markers else {})})
+
+
+def test_version_new_haul_takes_max():
+    def h(ctx):
+        return ctx.version("gate", max=2)
+
+    r = run(h, [])
+    assert json.loads(r.outcome["resultJson"]) == 2
+    assert r.markers == [{"name": "gate", "version": 2}]
+
+
+def test_version_inside_recorded_history_takes_min():
+    """A haul that ran before the marker existed keeps the old branch."""
+    def h(ctx):
+        if ctx.version("gate", max=2) >= 2:
+            return ctx.lift(add, 10, 10)
+        return ctx.lift(add, 1, 1)
+
+    old = completed([{"seq": 1, "kind": "lift", "name": "add"}])
+    r = run(h, [old, finished(1, 2)])
+    assert json.loads(r.outcome["resultJson"]) == 2
+    assert r.markers == [{"name": "gate", "version": 1}]
+
+
+def test_version_recorded_is_kept_and_checked():
+    def h(ctx):
+        return [ctx.version("gate", max=3), ctx.version("gate", max=3)]
+
+    r = run(h, [completed([], [{"name": "gate", "version": 2}])])
+    assert json.loads(r.outcome["resultJson"]) == [2, 2], "the recorded decision, every time"
+
+    def dropped_old(ctx):
+        return ctx.version("gate", min=3, max=3)
+
+    r = run(dropped_old, [completed([], [{"name": "gate", "version": 2}])])
+    assert r.nondeterministic, "a haul on a version the code no longer has is stuck"
+    assert "took version 2, the code supports 3 to 3" in r.mismatch
+
+    bad = run(lambda ctx: ctx.version("gate", min=2, max=1), []).outcome
+    assert bad["reason"] == "ValueError"
