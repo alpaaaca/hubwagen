@@ -30,7 +30,7 @@ that only matters at scale waits.
 | M3b: Pallets, catalog, memoization | **Done** |
 | M3c: Worker API + minimal Python SDK | **Done** |
 | M4: Full haul surface (fan-out, signals, triggers, testing) | **Done** |
-| M5: Catalog in the UI, invalidation, staleness | — |
+| M5: Catalog in the UI, invalidation, staleness | **Planned** |
 | Later | — |
 
 M3a → M3b → M3c are sequential; the end of M3c is the first demo. M4 and M5
@@ -189,10 +189,70 @@ tested with a fake clock in the core) and `test_testing.py`.
 
 ## M5: Catalog in the UI, invalidation, staleness
 
-The dashboard on top of the API (through `tui.Source`): hauls, logbooks,
-datasets, pallets and lineage. `hubwagen pallet invalidate` with transitive
-marking; staleness per dataset and partition; retention and expiry of
-pallets as events.
+Goal: the catalog is something people use, not just a table: they can see
+what exists and what it was built from, mark bad data, see what is out of
+date and why, and old versions go away on their own. Steps, in order;
+each is one PR:
+
+1. **Catalog API and CLI**: a `CatalogService` (datasets, a dataset's
+   partitions with their latest pallets, a pallet with its manifest, its
+   inputs and what was built from it) and `hubwagen datasets`,
+   `hubwagen pallets <dataset>`, `hubwagen pallet <id>` (lineage up and
+   down). Everything after this reads through it. ([#73](https://github.com/alpaaaca/hubwagen/issues/73))
+2. **Invalidation**: `hubwagen pallet invalidate <id> --reason …` marks the
+   pallet and everything built from it, transitively, invalid
+   (`PalletInvalidated` events with the cause), after showing what it will
+   mark (`--dry-run`). Invalid pallets are never reused, so a replay of the
+   affected hauls, which the command prints, recomputes exactly that set. ([#74](https://github.com/alpaaaca/hubwagen/issues/74))
+3. **Staleness**: a partition's latest pallet is stale when one of its
+   inputs' datasets has a newer pallet for that partition, or when the
+   newest build's code version of the lift that built it differs. The
+   catalog API answers it per dataset and partition with the reason, and
+   `hubwagen stale [dataset]` lists them with the replay that refreshes
+   them. ([#75](https://github.com/alpaaaca/hubwagen/issues/75))
+4. **Bucket layout by dataset**: a lift with an output stages under
+   `data/<tenant>/<dataset>/<partition>/<attempt>/` instead of the haul's
+   ID, so the bucket reads like the catalog; existing pallets keep their
+   paths (manifests point at them). ([#76](https://github.com/alpaaaca/hubwagen/issues/76))
+5. **Retention and expiry**: per dataset, keep the latest pallet of each
+   partition plus those younger than an age or among the newest N
+   (`hw.Dataset(..., keep=...)`, registered with the build). A leader timer
+   and `hubwagen gc` expire the rest as events (`PalletExpired`, then the
+   files go), never a pallet an open haul reads or the latest of a
+   partition; expired pallets stay in the catalog as lineage records. ([#77](https://github.com/alpaaaca/hubwagen/issues/77))
+6. **Web UI: hauls**: a web UI in TypeScript (React + Vite) under `ui/`,
+   calling the Connect services from the browser with clients generated
+   from `proto/` (`@connectrpc/connect-web`, through the same
+   `buf generate`). `hubwagen dev` serves it on the API's port, embedded
+   in the binary (`go:embed`), so there is still one binary and nothing
+   else to run; during UI work, Vite's dev server proxies to a running
+   `hubwagen dev`. This step: the scaffolding (build, embed, generated
+   clients, tests) and the hauls views: hauls with their status and
+   filters, a haul's lifts, logbook and children, live updates by polling,
+   and starting, signalling and cancelling hauls. ([#78](https://github.com/alpaaaca/hubwagen/issues/78))
+7. **Web UI: catalog**: datasets, partitions and pallets with stale and
+   invalid marked, lineage up and down as a graph, a pallet's files, and
+   invalidating from the UI (with the same dry run first);
+   schedules and subscriptions. ([#79](https://github.com/alpaaaca/hubwagen/issues/79))
+
+Done when: in the revenue example, invalidating a `raw.orders` pallet
+marks the downstream pallets invalid, `hubwagen stale` and the web UI
+show what to recompute, the replay it suggests recomputes exactly that,
+and retention removes old versions while keeping the latest and anything
+in use.
+
+Open questions, to settle in the step that needs them:
+
+- Dashboard: decided, a web UI in TypeScript, not a terminal UI. Still to
+  settle in step 6: whether the built UI (`ui/dist`) is committed, so
+  `go install` gets it, or built in release CI only (`go build` without it
+  serves a page saying how to build it).
+- Retention: declared in code (`hw.Dataset(keep=...)`, versioned with the
+  build) or in `hubwagen.yaml` (an operator's choice). Proposed: code, with
+  a config override later.
+- Staleness by code version: "current" is the newest build that defines
+  the lift; a stale pallet from an old build may still be what an older
+  worker would produce.
 
 ## Later
 

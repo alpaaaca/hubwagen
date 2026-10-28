@@ -39,7 +39,7 @@ one static binary — so most of the engine is reused, not rewritten.
 | `internal/taskexec` | **Removed** (M3c) | Its commit-marker ideas became `internal/pallet`. The process wrapper and task contract come back from git history for pod lifts (later) |
 | `internal/runtime/localrt` | **Removed** (M3c) | Comes back from git history as the local pod-lift launcher |
 | `internal/devmode` | **Rewritten** (M3c) | Same role (one process, data-dir lock); it serves the API instead of loading YAML |
-| `internal/tui` | **Removed** (M3c) | Its views were all v1. M5 builds a dashboard for hauls, logbooks and the catalog on the API; `hubwagen dev` prints events meanwhile |
+| `internal/tui` | **Removed** (M3c) | Its views were all v1. M5 builds a web UI in TypeScript (`ui/`, served by `hubwagen dev`) for hauls, logbooks and the catalog on the API; `hubwagen dev` prints events meanwhile |
 | `internal/spec` | **Removed** (M3c) | The compiler, YAML format and spec hash go away. The template allow-list may be reused for SQL lifts, image digest resolution for code versions of pod lifts |
 | `cmd/compile` | **Removed** (M3c) | Replaced by the SDK's lint (`python -m hubwagen.lint`) and worker registration |
 | `cmd/dev`, `cmd/run` | **Rewritten / removed** (M3c) | `dev` serves the API; `run` is replaced by `start`/`replay` |
