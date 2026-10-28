@@ -45,16 +45,21 @@ func (e *Engine) LastSeq(ctx context.Context) int64 {
 	return n
 }
 
+// short abbreviates a haul ID to its last characters.
+func short(id string) string {
+	if len(id) > 10 {
+		return "…" + id[len(id)-10:]
+	}
+	return id
+}
+
 // Describe renders an event for humans, or "" for events not worth a line.
 func Describe(ev state.Event) string {
 	var p map[string]any
 	_ = json.Unmarshal(ev.Payload, &p)
 	str := func(k string) string { s, _ := p[k].(string); return s }
 	num := func(k string) int { f, _ := p[k].(float64); return int(f) }
-	haul := ev.HaulID
-	if len(haul) > 10 {
-		haul = "…" + haul[len(haul)-10:]
-	}
+	haul := short(ev.HaulID)
 	why := strings.TrimSpace(str("reason") + " " + str("message"))
 	switch ev.Type {
 	case state.EventHaulStarted:
@@ -69,6 +74,13 @@ func Describe(ev state.Event) string {
 		return fmt.Sprintf("haul %s stuck: %s", haul, str("message"))
 	case state.EventLiftScheduled:
 		return fmt.Sprintf("haul %s: lift %d %s scheduled (%s)", haul, num("seq"), str("name"), str("run_reason"))
+	case state.EventChildStarted:
+		return fmt.Sprintf("haul %s: started child haul %s %s", haul, short(str("haul")), str("name"))
+	case state.EventChildFinished:
+		if str("haul") == "" {
+			return fmt.Sprintf("haul %s: child haul %s couldn't start: %s", haul, str("name"), str("message"))
+		}
+		return fmt.Sprintf("haul %s: child haul %s %s", haul, short(str("haul")), str("status"))
 	case state.EventSignalReceived:
 		return fmt.Sprintf("haul %s: signal %s received", haul, str("name"))
 	case state.EventSignalDelivered:

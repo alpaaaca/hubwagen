@@ -38,7 +38,8 @@ var startCmd = &cobra.Command{
 	Short: "Start a haul on a running server",
 	Long: `Start starts one haul on the server (hubwagen dev by default) and prints its ID.
 Workers registered with the server run it. With --wait it waits for the haul
-to end, prints what each lift did, and exits non-zero unless it completed.
+to end (following continue_as_new to the last haul), prints what each lift
+did, and exits non-zero unless it completed.
 
   hubwagen start daily_revenue --param day=2026-10-24 --wait`,
 	Args:         cobra.ExactArgs(1),

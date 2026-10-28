@@ -91,6 +91,29 @@ def test_gather_max_parallel(client, tmp_path):
     assert most_at_once(6) > 2, "without a tight limit the worker's 4 lift threads run more at once"
 
 
+def test_child_hauls(client):
+    h = wait(client, client.start_haul("family", {"n": 41}), timeout=30)
+    assert h["status"] == "completed", h
+    r = json.loads(h["resultJson"])
+    assert r["total"] == 42
+    assert r["failed"] == ["failed", "ValueError", "no such day"]
+    assert r["chain"] == "liftoff", "the result of the last haul in the chain"
+    side = wait(client, r["side"])
+    assert side["status"] == "completed" and side["parentId"] == h["id"]
+
+
+def test_continue_as_new_chain(client):
+    hid, chain = client.start_haul("countdown", {"n": 3}), []
+    while True:
+        h = wait(client, hid)
+        chain.append(h)
+        if h["status"] != "continued":
+            break
+        hid = h["continuedAs"]
+    assert [json.loads(h["paramsJson"])["n"] for h in chain] == [3, 2, 1, 0]
+    assert json.loads(chain[-1]["resultJson"]) == "liftoff"
+
+
 def test_cursor_from_the_catalog(client):
     cursors = [json.loads(wait(client, client.start_haul("ingest"))["resultJson"]) for _ in range(3)]
     assert cursors == [1, 2, 3]

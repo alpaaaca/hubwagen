@@ -90,6 +90,8 @@ var replayEvents = map[state.EventType]bool{
 	state.EventTimerFired:        true,
 	state.EventQueryAnswered:     true,
 	state.EventSignalDelivered:   true,
+	state.EventChildStarted:      true,
+	state.EventChildFinished:     true,
 	state.EventHaulTaskCompleted: true,
 }
 
@@ -114,8 +116,13 @@ func (s *WorkerServer) CompleteHaulTask(ctx context.Context, req *connect.Reques
 			res.Outcome.Status = state.HaulCompleted
 		case hubwagenv1.HaulOutcome_STATUS_FAILED:
 			res.Outcome.Status = state.HaulFailed
+		case hubwagenv1.HaulOutcome_STATUS_CONTINUED:
+			res.Outcome.Status = state.HaulContinued
+			if res.Outcome.Params, err = jsonObject("outcome.params_json", o.ParamsJson); err != nil {
+				return nil, err
+			}
 		default:
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("outcome.status must be COMPLETED or FAILED"))
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("outcome.status must be COMPLETED, FAILED or CONTINUED"))
 		}
 	}
 	if e := m.Error; e != nil {
@@ -168,13 +175,20 @@ func command(c *hubwagenv1.Command) (core.Command, error) {
 		}
 	case *hubwagenv1.Command_LatestPallet:
 		cmd.Kind, cmd.Dataset, cmd.Partition = core.CommandLatestPallet, k.LatestPallet.Dataset, k.LatestPallet.Partition
+	case *hubwagenv1.Command_StartHaul:
+		sh := k.StartHaul
+		params, err := rawJSON("start_haul.params_json", sh.ParamsJson)
+		if err != nil {
+			return cmd, err
+		}
+		cmd.Kind, cmd.Name, cmd.Args, cmd.Wait, cmd.Dock = core.CommandStartHaul, sh.Name, params, sh.Wait, sh.Dock
 	case *hubwagenv1.Command_WaitSignal:
 		cmd.Kind, cmd.Name = core.CommandWaitSignal, k.WaitSignal.Name
 		if k.WaitSignal.Timeout != nil {
 			cmd.Duration = k.WaitSignal.Timeout.AsDuration()
 		}
 	default:
-		return cmd, errors.New("a command is a lift, a sleep, a latest_pallet or a wait_signal")
+		return cmd, errors.New("a command is a lift, a sleep, a latest_pallet, a wait_signal or a start_haul")
 	}
 	return cmd, nil
 }

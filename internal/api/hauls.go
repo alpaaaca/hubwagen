@@ -88,6 +88,7 @@ func (s *HaulServer) GetHaul(ctx context.Context, req *connect.Request[hubwagenv
 	out := &hubwagenv1.Haul{
 		Id: h.ID, Tenant: h.Tenant, Name: h.Name, Status: h.Status, Reason: h.Reason, Message: h.Message,
 		ResultJson: string(h.Result), CreatedAt: timestamppb.New(h.CreatedAt),
+		ParentId: h.ParentID, ContinuedAs: h.ContinuedAs,
 	}
 	if len(h.Params) > 0 {
 		b, err := json.Marshal(h.Params)

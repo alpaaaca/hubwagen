@@ -15,8 +15,8 @@ objects its function refers to, not by parsing import statements:
   the server);
 - the types its parameters and return are annotated with, which decide
   how inputs are loaded (`pd.DataFrame`, `pl.LazyFrame`);
-- for a haul, the lifts it calls by name only: their code has versions of
-  their own;
+- for a haul, the lifts and child hauls it calls by name only: their code
+  has versions of their own;
 - files named by `deps=`, by content.
 
 Walking the live objects instead of the import statements resolves
@@ -112,6 +112,10 @@ class _Walker:
         lift = getattr(f, "__hubwagen_lift__", None)
         if lift is not None and self.lifts_by_name and not root:
             self.code[f"{f.__module__}:{f.__qualname__}"] = "lift " + lift.name
+            return
+        child = getattr(f, "__hubwagen_haul__", None)
+        if child is not None and self.lifts_by_name and not root:  # ctx.haul(other): its own version
+            self.code[f"{f.__module__}:{f.__qualname__}"] = "haul " + child.name
             return
         self.code[f"{f.__module__}:{f.__qualname__}"] = _source_hash(f, strip_decorators=root)
         names = _names(f.__code__)

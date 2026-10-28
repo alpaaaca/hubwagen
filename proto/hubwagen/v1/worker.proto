@@ -119,7 +119,22 @@ message Command {
     SleepCommand sleep = 4;
     LatestPalletCommand latest_pallet = 5;
     WaitSignalCommand wait_signal = 6;
+    StartHaulCommand start_haul = 7;
   }
+}
+
+// StartHaulCommand starts another haul (a child) at once. The logbook
+// answers it with ChildStarted (the child's ID) and, if wait is set, with
+// ChildFinished once the child ends (or at once if it couldn't start).
+message StartHaulCommand {
+  string name = 1;
+  // A JSON object.
+  string params_json = 2;
+  // The haul waits for the child's result (ctx.haul); ending the haul
+  // cancels it.
+  bool wait = 3;
+  // Default: the starting haul's dock.
+  string dock = 4;
 }
 
 // WaitSignalCommand waits for a signal by name. The logbook answers it with
@@ -194,11 +209,16 @@ message HaulOutcome {
     STATUS_UNSPECIFIED = 0;
     STATUS_COMPLETED = 1;
     STATUS_FAILED = 2;
+    // continue_as_new: the haul ends and a new one of the same name starts
+    // with params_json and a fresh logbook.
+    STATUS_CONTINUED = 3;
   }
   Status status = 1;
   string result_json = 2;
   string reason = 3;
   string message = 4;
+  // STATUS_CONTINUED: the next haul's params, a JSON object.
+  string params_json = 5;
 }
 
 message TaskError {

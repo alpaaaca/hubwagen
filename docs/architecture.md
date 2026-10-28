@@ -270,9 +270,26 @@ if it fires first, the wait raises `SignalTimeout` in the haul. Deliveries
 and timeouts are recorded (`SignalDelivered`), so replays see the same
 answer, and a new leader rebuilds waits and kept signals from the logbook.
 
+### Child hauls and continue_as_new
+
+`ctx.haul(other, **params)` starts another haul and waits for its result;
+`ctx.start_haul(other, **params)` starts one and returns its ID. A child
+has its own logbook and haul tasks; the parent's logbook records only that
+it started (`ChildStarted`) and, for a waited-for child, how it ended
+(`ChildFinished`, raised as `ChildFailed` unless it completed). Ending or
+cancelling a parent cancels the children it waits for; others carry on.
+The parent link is on the child's haul record, so restarts need nothing
+else.
+
+`ctx.continue_as_new(**params)` ends a haul as `continued` and starts a new
+haul of the same name with those params and a fresh logbook, keeping its
+parent link: a waiting parent gets the result of the last haul in the
+chain, and `hubwagen start --wait` follows the chain. Hauls that loop use
+it to keep their logbooks, and so their replays, short.
+
 ### Haul states
 
-`running → completed | failed | cancelled`, with `waiting` (blocked on a
+`running → completed | failed | cancelled | continued`, with `waiting` (blocked on a
 timer or signal; no worker involved) and `stuck` (non-determinism; needs a
 deploy) as sub-states of running.
 

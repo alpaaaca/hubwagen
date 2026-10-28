@@ -20,6 +20,7 @@ const (
 	HaulCompleted = "completed"
 	HaulFailed    = "failed"
 	HaulCancelled = "cancelled"
+	HaulContinued = "continued" // continue_as_new: Haul.ContinuedAs carries on
 )
 
 // Haul task statuses.
@@ -79,6 +80,12 @@ type Haul struct {
 	Result     json.RawMessage
 	CreatedAt  time.Time
 	FinishedAt *time.Time
+	// A child haul: the haul and start_haul command that started it, and
+	// whether that haul waits for its result.
+	ParentID    string
+	ParentSeq   int
+	ParentWaits bool
+	ContinuedAs string // status continued: the haul that carries on
 }
 
 type HaulTask struct {
@@ -153,14 +160,15 @@ func (t *Tx) PutHaul(v Haul) error {
 	}
 	return t.exec(`
 		INSERT INTO hauls (id, tenant, name, dock, trigger, params_json, commands, build_id, status,
-			reason, message, result_json, created_at, finished_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			reason, message, result_json, created_at, finished_at, parent_id, parent_seq, parent_waits, continued_as)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (id) DO UPDATE SET
 			commands = excluded.commands, build_id = excluded.build_id, status = excluded.status,
 			reason = excluded.reason, message = excluded.message, result_json = excluded.result_json,
-			finished_at = excluded.finished_at`,
+			finished_at = excluded.finished_at, continued_as = excluded.continued_as`,
 		v.ID, v.Tenant, v.Name, v.Dock, v.Trigger, params, v.Commands, v.BuildID, v.Status,
-		v.Reason, v.Message, string(v.Result), formatTime(v.CreatedAt), formatTimePtr(v.FinishedAt))
+		v.Reason, v.Message, string(v.Result), formatTime(v.CreatedAt), formatTimePtr(v.FinishedAt),
+		v.ParentID, v.ParentSeq, v.ParentWaits, v.ContinuedAs)
 }
 
 func (t *Tx) PutHaulTask(v HaulTask) error {
@@ -332,7 +340,7 @@ func (s *Store) ListTimers(ctx context.Context, haulID string) ([]Timer, error) 
 }
 
 const haulColumns = `id, tenant, name, dock, trigger, params_json, commands, build_id, status,
-	reason, message, result_json, created_at, finished_at`
+	reason, message, result_json, created_at, finished_at, parent_id, parent_seq, parent_waits, continued_as`
 
 func scanHaul(sc interface{ Scan(...any) error }) (Haul, error) {
 	var (
@@ -342,7 +350,8 @@ func scanHaul(sc interface{ Scan(...any) error }) (Haul, error) {
 		err                     error
 	)
 	if err = sc.Scan(&v.ID, &v.Tenant, &v.Name, &v.Dock, &v.Trigger, &params, &v.Commands, &v.BuildID,
-		&v.Status, &v.Reason, &v.Message, &result, &created, &finished); err != nil {
+		&v.Status, &v.Reason, &v.Message, &result, &created, &finished,
+		&v.ParentID, &v.ParentSeq, &v.ParentWaits, &v.ContinuedAs); err != nil {
 		return v, err
 	}
 	v.Result = rawOrNil(result)

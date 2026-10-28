@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -149,8 +150,11 @@ func (c *Client) Signal(ctx context.Context, haulID, name, payload string) (stri
 }
 
 // Wait polls until no haul is running any more (stuck counts as settled: it
-// needs a fix and a new build) and returns them in the order given.
+// needs a fix and a new build) and returns them in the order given. A haul
+// that continued as new is followed to the end of its chain: what is
+// returned is the last haul.
 func (c *Client) Wait(ctx context.Context, ids []string, every time.Duration) ([]*hubwagenv1.Haul, error) {
+	ids = slices.Clone(ids)
 	got := make([]*hubwagenv1.Haul, len(ids))
 	for {
 		pending := 0
@@ -163,6 +167,9 @@ func (c *Client) Wait(ctx context.Context, ids []string, every time.Duration) ([
 				return got, err
 			}
 			got[i] = res.Msg.Haul
+			if got[i].Status == "continued" && got[i].ContinuedAs != "" {
+				ids[i], got[i].Status = got[i].ContinuedAs, "running" // follow the chain
+			}
 			if got[i].Status == "running" {
 				pending++
 			}
