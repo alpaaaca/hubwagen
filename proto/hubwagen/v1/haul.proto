@@ -18,6 +18,28 @@ service HaulService {
   // waiting for yet is kept until it waits; each goes to one wait. NOT_FOUND
   // for an unknown haul, FAILED_PRECONDITION for a finished one.
   rpc SignalHaul(SignalHaulRequest) returns (SignalHaulResponse);
+  // ListSchedules returns the current haul schedules and their next runs.
+  rpc ListSchedules(ListSchedulesRequest) returns (ListSchedulesResponse);
+}
+
+message ListSchedulesRequest {}
+
+message ListSchedulesResponse {
+  repeated Schedule schedules = 1;
+}
+
+message Schedule {
+  string haul = 1;
+  string cron = 2;
+  string timezone = 3;
+  string interval = 4;
+  string catch_up = 5;
+  // The build whose code declared it.
+  string build_id = 6;
+  // Everything before this is handled (cron interval: the last tick).
+  google.protobuf.Timestamp cursor = 7;
+  // The next tick.
+  google.protobuf.Timestamp next_run = 8;
 }
 
 message SignalHaulRequest {

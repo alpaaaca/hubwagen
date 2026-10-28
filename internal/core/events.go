@@ -27,6 +27,33 @@ type haulStartedPayload struct {
 	Parent  string         `json:"parent,omitempty"` // a child haul: the haul that started it
 }
 
+type scheduleSetPayload struct {
+	Haul     string    `json:"haul"`
+	Cron     string    `json:"cron"`
+	Timezone string    `json:"timezone,omitempty"`
+	Interval string    `json:"interval"`
+	CatchUp  string    `json:"catch_up"`
+	Build    string    `json:"build"`
+	Cursor   time.Time `json:"cursor"`
+}
+
+type scheduleRemovedPayload struct {
+	Haul  string `json:"haul"`
+	Build string `json:"build"` // the build that defines the haul without a schedule
+}
+
+// scheduleFiredPayload is one due interval: the haul it started, or why
+// none was (Skipped, Error).
+type scheduleFiredPayload struct {
+	Haul    string    `json:"haul"`
+	Tick    time.Time `json:"tick"`
+	Start   time.Time `json:"start"`
+	End     time.Time `json:"end"`
+	HaulID  string    `json:"haul_id,omitempty"`
+	Skipped string    `json:"skipped,omitempty"`
+	Error   string    `json:"error,omitempty"`
+}
+
 type childStartedPayload struct {
 	Seq  int    `json:"seq"`
 	Name string `json:"name"`

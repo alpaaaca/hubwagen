@@ -1,5 +1,6 @@
 """The SDK against a real `hubwagen dev` and a real worker process."""
 
+import datetime as dt
 import json
 
 import pytest
@@ -112,6 +113,23 @@ def test_continue_as_new_chain(client):
         hid = h["continuedAs"]
     assert [json.loads(h["paramsJson"])["n"] for h in chain] == [3, 2, 1, 0]
     assert json.loads(chain[-1]["resultJson"]) == "liftoff"
+
+
+def test_schedules_are_registered(client):
+    got = client.call("HaulService", "ListSchedules", {})["schedules"]
+    nightly = next(s for s in got if s["haul"] == "nightly")
+    assert (nightly["cron"], nightly["timezone"], nightly["interval"], nightly["catchUp"]) == \
+        ("0 3 * * *", "Europe/Berlin", "daily", "all")
+    assert nightly["nextRun"] > nightly["cursor"]
+
+
+def test_a_scheduled_haul_runs_with_an_interval(client):
+    """What the server starts on schedule, started by hand with the same param."""
+    params = {"interval": hw.Interval(dt.datetime(2026, 10, 24, tzinfo=dt.timezone.utc),
+                                      dt.datetime(2026, 10, 25, tzinfo=dt.timezone.utc))}
+    h = wait(client, client.start_haul("nightly", params))
+    assert h["status"] == "completed", h
+    assert json.loads(h["resultJson"]) == 24
 
 
 def test_cursor_from_the_catalog(client):

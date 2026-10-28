@@ -28,5 +28,10 @@ func (c *Core) restore(ctx context.Context) error {
 	if err := c.settleHauls(hauls); err != nil {
 		return err
 	}
+	scheds, err := c.cfg.Store.ListSchedules(ctx)
+	if err != nil {
+		return err
+	}
+	c.restoreSchedules(scheds)
 	return c.commit(ctx)
 }

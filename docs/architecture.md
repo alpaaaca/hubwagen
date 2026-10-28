@@ -100,10 +100,11 @@ returns a pallet or a small value. Examples use the Python SDK.
 ### A daily batch with a quality gate
 
 ```python
-from hubwagen import haul, lift, Dataset, Pallet
+from hubwagen import haul, lift, Dataset, Interval, Pallet, Schedule
 
-@haul(schedule="0 3 * * *", params=lambda t: {"day": t.date() - timedelta(days=1)})
-def daily_revenue(ctx, day: date):
+@haul(schedule=Schedule("0 3 * * *", interval="daily", timezone="Europe/Berlin"))
+def daily_revenue(ctx, interval: Interval):   # yesterday, midnight to midnight in Berlin
+    day = interval.start.date()
     orders = ctx.lift(extract_orders, day=day)
     report = ctx.lift(check_quality, orders)
     if report.failed:
@@ -458,9 +459,17 @@ Hauls start from a schedule, a new pallet in a dataset, a signal from outside
 (`hubwagen start partner_files --day 2026-10-24`, or HTTP), or another haul
 (`ctx.start_haul(...)`).
 
-- **Schedule**: cron with an explicit catch-up policy after downtime (`skip`,
-  `latest`, `all`). The v1 cron implementation (persisted cursors, DST-safe
-  intervals) carries over.
+- **Schedule**: cron in a timezone, with the data interval each run covers
+  (`hourly`, `daily`, `weekly`, `monthly`: the previous full period,
+  DST-correct; or `cron`: previous tick to this one) and a catch-up policy
+  for runs missed while no leader ran (`skip`, `latest`, `all`). A schedule
+  is declared in code (`@haul(schedule=...)`) and registered with the build;
+  the newest build that defines a haul decides its schedule. The leader
+  keeps a cursor per schedule (`internal/schedule`) and starts one haul per
+  due interval, passing it as the `interval` parameter, in the same batch
+  that moves the cursor. The server can't run a params function, so the
+  haul derives what it needs (`interval.start.date()`) itself.
+  `hubwagen schedules` lists them with their next runs.
 - **Dataset subscription**: starts when a pallet is committed to a dataset or
   partition, with debounce and batching.
 

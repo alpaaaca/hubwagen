@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -13,6 +14,7 @@ import (
 	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
 	"github.com/alper/hubwagen/internal/api/gen/hubwagen/v1/hubwagenv1connect"
 	"github.com/alper/hubwagen/internal/core"
+	"github.com/alper/hubwagen/internal/schedule"
 	"github.com/alper/hubwagen/internal/state"
 )
 
@@ -50,6 +52,23 @@ func (s *HaulServer) SignalHaul(ctx context.Context, req *connect.Request[hubwag
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&hubwagenv1.SignalHaulResponse{SignalId: id}), nil
+}
+
+func (s *HaulServer) ListSchedules(ctx context.Context, _ *connect.Request[hubwagenv1.ListSchedulesRequest]) (*connect.Response[hubwagenv1.ListSchedulesResponse], error) {
+	scheds, err := s.store.ListSchedules(ctx)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	out := &hubwagenv1.ListSchedulesResponse{}
+	for _, sc := range scheds {
+		v := &hubwagenv1.Schedule{Haul: sc.Haul, Cron: sc.Cron, Timezone: sc.Timezone, Interval: sc.Interval,
+			CatchUp: sc.CatchUp, BuildId: sc.BuildID, Cursor: timestamppb.New(sc.Cursor)}
+		if cal, err := schedule.NewCalendar(schedule.Schedule{Cron: sc.Cron, Timezone: sc.Timezone, Interval: sc.Interval}); err == nil {
+			v.NextRun = timestamppb.New(cal.Next(time.Now()))
+		}
+		out.Schedules = append(out.Schedules, v)
+	}
+	return connect.NewResponse(out), nil
 }
 
 func (s *HaulServer) GetHaul(ctx context.Context, req *connect.Request[hubwagenv1.GetHaulRequest]) (*connect.Response[hubwagenv1.GetHaulResponse], error) {

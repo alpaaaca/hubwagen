@@ -40,7 +40,12 @@ func NewWorkerHandler(c *core.Core, maxWait time.Duration) (string, http.Handler
 var _ hubwagenv1connect.WorkerServiceHandler = (*WorkerServer)(nil)
 
 func (s *WorkerServer) RegisterBuild(ctx context.Context, req *connect.Request[hubwagenv1.RegisterBuildRequest]) (*connect.Response[hubwagenv1.RegisterBuildResponse], error) {
-	err := s.core.RegisterBuild(ctx, core.BuildRequest{ID: req.Msg.BuildId, Hauls: req.Msg.Hauls, Lifts: req.Msg.LiftVersions})
+	b := core.BuildRequest{ID: req.Msg.BuildId, Hauls: req.Msg.Hauls, Lifts: req.Msg.LiftVersions}
+	for _, sc := range req.Msg.Schedules {
+		b.Schedules = append(b.Schedules, core.ScheduleSpec{
+			Haul: sc.Haul, Cron: sc.Cron, Timezone: sc.Timezone, Interval: sc.Interval, CatchUp: sc.CatchUp})
+	}
+	err := s.core.RegisterBuild(ctx, b)
 	if err != nil {
 		return nil, connectError(err)
 	}
