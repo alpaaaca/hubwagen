@@ -33,6 +33,41 @@ class Dataset:
     partition: str | None = None
 
 
+@dataclass(frozen=True)
+class Schedule:
+    """When a haul runs on its own, and which data interval each run covers.
+
+    cron is a standard 5-field cron in timezone (IANA; default UTC). interval
+    is the data a run covers: "hourly", "daily", "weekly", "monthly" (the
+    previous full period, in the timezone; DST-correct) or "cron" (from the
+    previous tick to this one). catch_up decides what happens to runs that
+    came due while no server ran: "latest" starts the newest, "all" starts
+    every one, oldest first, "skip" starts none.
+    """
+
+    cron: str
+    interval: str = "cron"
+    timezone: str = ""
+    catch_up: str = "latest"
+
+    def __post_init__(self):
+        if self.interval not in ("hourly", "daily", "weekly", "monthly", "cron"):
+            raise ValueError(f"Schedule: interval {self.interval!r} must be hourly, daily, weekly, monthly or cron")
+        if self.catch_up not in ("skip", "latest", "all"):
+            raise ValueError(f"Schedule: catch_up {self.catch_up!r} must be skip, latest or all")
+        if len(self.cron.split()) != 5:
+            raise ValueError(f"Schedule: cron {self.cron!r} must have 5 fields (minute hour day month weekday)")
+
+
+@dataclass(frozen=True)
+class Interval:
+    """The data interval a scheduled run covers: [start, end), in the
+    schedule's timezone."""
+
+    start: _dt.datetime
+    end: _dt.datetime
+
+
 @dataclass
 class Pallet:
     """A committed version of data. It points to data; it never holds it."""
@@ -109,6 +144,7 @@ class HaulDef:
     fn: Callable
     dock: str | None
     max_parallel: int | None = None  # lifts of one haul queued or running at once
+    schedule: Schedule | None = None
 
     @functools.cached_property
     def _computed_version(self) -> str:
@@ -160,15 +196,22 @@ def _register(registry: dict, d) -> None:
 
 
 def haul(fn: Callable | None = None, *, name: str | None = None, dock: str | None = None,
-         max_parallel: int | None = None):
+         max_parallel: int | None = None, schedule: Schedule | str | None = None):
     """Mark a function as a haul: deterministic orchestration code, called
     as fn(ctx, **params) and replayed against its logbook. max_parallel caps
-    how many of one haul's lifts are queued or running at once."""
+    how many of one haul's lifts are queued or running at once. With
+    schedule (a Schedule, or a cron string), the server starts it on its own,
+    once per data interval: the function takes an `interval` parameter, a
+    hubwagen.Interval."""
     if max_parallel is not None and (not isinstance(max_parallel, int) or max_parallel < 1):
         raise ValueError(f"haul: max_parallel must be a positive integer, got {max_parallel!r}")
+    if isinstance(schedule, str):
+        schedule = Schedule(schedule)
 
     def wrap(f: Callable) -> Callable:
-        d = HaulDef(name=name or f.__name__, fn=f, dock=dock, max_parallel=max_parallel)
+        d = HaulDef(name=name or f.__name__, fn=f, dock=dock, max_parallel=max_parallel, schedule=schedule)
+        if schedule is not None and "interval" not in inspect.signature(f).parameters:
+            raise ValueError(f"haul {d.name}: a scheduled haul takes an `interval` parameter (a hubwagen.Interval)")
         _register(HAULS, d)
         f.__hubwagen_haul__ = d
         return f
@@ -236,6 +279,8 @@ def encode(v: Any) -> Any:
                         "and pass the lift's handle on")
     if isinstance(v, Pallet):
         return {"$pallet": v.id, "dataset": v.dataset, "partition": v.partition}
+    if isinstance(v, Interval):
+        return {"$interval": {"start": v.start.isoformat(), "end": v.end.isoformat()}}
     if isinstance(v, _dt.datetime):
         return {"$datetime": v.isoformat()}
     if isinstance(v, _dt.date):
@@ -249,12 +294,19 @@ def encode(v: Any) -> Any:
     return v
 
 
+def _parse_time(s: str) -> _dt.datetime:
+    return _dt.datetime.fromisoformat(s.replace("Z", "+00:00"))
+
+
 def decode(v: Any, pallets: dict[str, Pallet] | None = None) -> Any:
     if isinstance(v, dict):
         if "$date" in v and len(v) == 1:
             return _dt.date.fromisoformat(v["$date"])
         if "$datetime" in v and len(v) == 1:
             return _dt.datetime.fromisoformat(v["$datetime"])
+        if "$interval" in v and len(v) == 1:
+            iv = v["$interval"]
+            return Interval(_parse_time(iv["start"]), _parse_time(iv["end"]))
         if "$input" in v and len(v) == 1 and pallets is not None:
             return pallets[v["$input"]]
         if "$pallet" in v:

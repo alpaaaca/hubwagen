@@ -39,6 +39,9 @@ const (
 	HaulServiceGetHaulProcedure = "/hubwagen.v1.HaulService/GetHaul"
 	// HaulServiceSignalHaulProcedure is the fully-qualified name of the HaulService's SignalHaul RPC.
 	HaulServiceSignalHaulProcedure = "/hubwagen.v1.HaulService/SignalHaul"
+	// HaulServiceListSchedulesProcedure is the fully-qualified name of the HaulService's ListSchedules
+	// RPC.
+	HaulServiceListSchedulesProcedure = "/hubwagen.v1.HaulService/ListSchedules"
 )
 
 // HaulServiceClient is a client for the hubwagen.v1.HaulService service.
@@ -52,6 +55,8 @@ type HaulServiceClient interface {
 	// waiting for yet is kept until it waits; each goes to one wait. NOT_FOUND
 	// for an unknown haul, FAILED_PRECONDITION for a finished one.
 	SignalHaul(context.Context, *connect.Request[v1.SignalHaulRequest]) (*connect.Response[v1.SignalHaulResponse], error)
+	// ListSchedules returns the current haul schedules and their next runs.
+	ListSchedules(context.Context, *connect.Request[v1.ListSchedulesRequest]) (*connect.Response[v1.ListSchedulesResponse], error)
 }
 
 // NewHaulServiceClient constructs a client for the hubwagen.v1.HaulService service. By default, it
@@ -83,14 +88,21 @@ func NewHaulServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(haulServiceMethods.ByName("SignalHaul")),
 			connect.WithClientOptions(opts...),
 		),
+		listSchedules: connect.NewClient[v1.ListSchedulesRequest, v1.ListSchedulesResponse](
+			httpClient,
+			baseURL+HaulServiceListSchedulesProcedure,
+			connect.WithSchema(haulServiceMethods.ByName("ListSchedules")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // haulServiceClient implements HaulServiceClient.
 type haulServiceClient struct {
-	startHaul  *connect.Client[v1.StartHaulRequest, v1.StartHaulResponse]
-	getHaul    *connect.Client[v1.GetHaulRequest, v1.GetHaulResponse]
-	signalHaul *connect.Client[v1.SignalHaulRequest, v1.SignalHaulResponse]
+	startHaul     *connect.Client[v1.StartHaulRequest, v1.StartHaulResponse]
+	getHaul       *connect.Client[v1.GetHaulRequest, v1.GetHaulResponse]
+	signalHaul    *connect.Client[v1.SignalHaulRequest, v1.SignalHaulResponse]
+	listSchedules *connect.Client[v1.ListSchedulesRequest, v1.ListSchedulesResponse]
 }
 
 // StartHaul calls hubwagen.v1.HaulService.StartHaul.
@@ -108,6 +120,11 @@ func (c *haulServiceClient) SignalHaul(ctx context.Context, req *connect.Request
 	return c.signalHaul.CallUnary(ctx, req)
 }
 
+// ListSchedules calls hubwagen.v1.HaulService.ListSchedules.
+func (c *haulServiceClient) ListSchedules(ctx context.Context, req *connect.Request[v1.ListSchedulesRequest]) (*connect.Response[v1.ListSchedulesResponse], error) {
+	return c.listSchedules.CallUnary(ctx, req)
+}
+
 // HaulServiceHandler is an implementation of the hubwagen.v1.HaulService service.
 type HaulServiceHandler interface {
 	// StartHaul starts a haul and queues its first replay. A haul no
@@ -119,6 +136,8 @@ type HaulServiceHandler interface {
 	// waiting for yet is kept until it waits; each goes to one wait. NOT_FOUND
 	// for an unknown haul, FAILED_PRECONDITION for a finished one.
 	SignalHaul(context.Context, *connect.Request[v1.SignalHaulRequest]) (*connect.Response[v1.SignalHaulResponse], error)
+	// ListSchedules returns the current haul schedules and their next runs.
+	ListSchedules(context.Context, *connect.Request[v1.ListSchedulesRequest]) (*connect.Response[v1.ListSchedulesResponse], error)
 }
 
 // NewHaulServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -146,6 +165,12 @@ func NewHaulServiceHandler(svc HaulServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(haulServiceMethods.ByName("SignalHaul")),
 		connect.WithHandlerOptions(opts...),
 	)
+	haulServiceListSchedulesHandler := connect.NewUnaryHandler(
+		HaulServiceListSchedulesProcedure,
+		svc.ListSchedules,
+		connect.WithSchema(haulServiceMethods.ByName("ListSchedules")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/hubwagen.v1.HaulService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case HaulServiceStartHaulProcedure:
@@ -154,6 +179,8 @@ func NewHaulServiceHandler(svc HaulServiceHandler, opts ...connect.HandlerOption
 			haulServiceGetHaulHandler.ServeHTTP(w, r)
 		case HaulServiceSignalHaulProcedure:
 			haulServiceSignalHaulHandler.ServeHTTP(w, r)
+		case HaulServiceListSchedulesProcedure:
+			haulServiceListSchedulesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -173,4 +200,8 @@ func (UnimplementedHaulServiceHandler) GetHaul(context.Context, *connect.Request
 
 func (UnimplementedHaulServiceHandler) SignalHaul(context.Context, *connect.Request[v1.SignalHaulRequest]) (*connect.Response[v1.SignalHaulResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("hubwagen.v1.HaulService.SignalHaul is not implemented"))
+}
+
+func (UnimplementedHaulServiceHandler) ListSchedules(context.Context, *connect.Request[v1.ListSchedulesRequest]) (*connect.Response[v1.ListSchedulesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("hubwagen.v1.HaulService.ListSchedules is not implemented"))
 }

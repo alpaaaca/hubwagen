@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
@@ -72,4 +73,27 @@ func TestSignalHaul(t *testing.T) {
 	require.NoError(t, s.core.CancelHaul(ctx, id, "test"))
 	_, err = c.SignalHaul(ctx, connect.NewRequest(&hubwagenv1.SignalHaulRequest{HaulId: id, Name: "approve"}))
 	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err), "the haul is finished")
+}
+
+func TestSchedulesOverTheAPI(t *testing.T) {
+	s := start(t)
+	mux := http.NewServeMux()
+	path, h := NewHaulHandler(s.core, s.store)
+	mux.Handle(path, h)
+	hauls := hubwagenv1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
+
+	_, err := s.client.RegisterBuild(ctx, connect.NewRequest(&hubwagenv1.RegisterBuildRequest{BuildId: "b1", Hauls: []string{"daily"},
+		Schedules: []*hubwagenv1.HaulSchedule{{Haul: "daily", Cron: "0 3 * * *", Timezone: "Europe/Berlin", Interval: "daily", CatchUp: "all"}}}))
+	require.NoError(t, err)
+	got, err := hauls.ListSchedules(ctx, connect.NewRequest(&hubwagenv1.ListSchedulesRequest{}))
+	require.NoError(t, err)
+	require.Len(t, got.Msg.Schedules, 1)
+	sc := got.Msg.Schedules[0]
+	assert.Equal(t, []string{"daily", "0 3 * * *", "Europe/Berlin", "daily", "all", "b1"},
+		[]string{sc.Haul, sc.Cron, sc.Timezone, sc.Interval, sc.CatchUp, sc.BuildId})
+	assert.True(t, sc.NextRun.AsTime().After(time.Now()))
+
+	_, err = s.client.RegisterBuild(ctx, connect.NewRequest(&hubwagenv1.RegisterBuildRequest{BuildId: "b2", Hauls: []string{"daily"},
+		Schedules: []*hubwagenv1.HaulSchedule{{Haul: "daily", Cron: "nope"}}}))
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }

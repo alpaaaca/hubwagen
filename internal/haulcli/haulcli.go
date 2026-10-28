@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"slices"
 	"sort"
@@ -147,6 +148,36 @@ func (c *Client) Signal(ctx context.Context, haulID, name, payload string) (stri
 		return "", err
 	}
 	return res.Msg.SignalId, nil
+}
+
+// Schedules writes the server's haul schedules as a table, next run first.
+func (c *Client) Schedules(ctx context.Context, w io.Writer) error {
+	res, err := c.hauls.ListSchedules(ctx, connect.NewRequest(&hubwagenv1.ListSchedulesRequest{}))
+	if err != nil {
+		return err
+	}
+	scheds := res.Msg.Schedules
+	if len(scheds) == 0 {
+		_, err := fmt.Fprintln(w, "no schedules (a haul gets one with @hw.haul(schedule=...))")
+		return err
+	}
+	sort.SliceStable(scheds, func(i, j int) bool { return scheds[i].NextRun.AsTime().Before(scheds[j].NextRun.AsTime()) })
+	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
+	fmt.Fprintln(tw, "HAUL\tCRON\tTIMEZONE\tINTERVAL\tCATCH-UP\tNEXT RUN")
+	for _, s := range scheds {
+		tz := s.Timezone
+		if tz == "" {
+			tz = "UTC"
+		}
+		next := "-"
+		if s.NextRun != nil {
+			if loc, err := time.LoadLocation(tz); err == nil {
+				next = s.NextRun.AsTime().In(loc).Format("2006-01-02 15:04 MST")
+			}
+		}
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n", s.Haul, s.Cron, tz, s.Interval, s.CatchUp, next)
+	}
+	return tw.Flush()
 }
 
 // Wait polls until no haul is running any more (stuck counts as settled: it

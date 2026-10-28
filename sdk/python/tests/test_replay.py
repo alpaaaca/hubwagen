@@ -401,3 +401,22 @@ def test_continue_as_new():
 
     r = run(looping, [], params={"cursor": 5})
     assert r.outcome == {"status": "STATUS_CONTINUED", "paramsJson": '{"cursor": 15}'}
+
+
+def test_scheduled_haul_gets_its_interval():
+    with pytest.raises(ValueError, match="takes an `interval` parameter"):
+        hw.haul(lambda ctx, day: 1, name="no_interval", schedule="0 3 * * *")
+    with pytest.raises(ValueError, match="catch_up"):
+        hw.Schedule("0 3 * * *", catch_up="sometimes")
+    with pytest.raises(ValueError, match="5 fields"):
+        hw.Schedule("daily")
+
+    def daily(ctx, interval: hw.Interval):
+        return [interval.start.date(), (interval.end - interval.start).total_seconds()]
+
+    params = {"interval": {"$interval": {"start": "2026-10-24T00:00:00+02:00", "end": "2026-10-25T00:00:00+01:00"}}}
+    r = run(daily, [], params=params)
+    assert json.loads(r.outcome["resultJson"])[0] == {"$date": "2026-10-24"}
+    iv = _model.decode(params)["interval"]
+    assert iv.end - iv.start == dt.timedelta(hours=25), "the day the clocks go back"
+    assert _model.decode(_model.encode(iv)) == iv

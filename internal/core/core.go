@@ -69,6 +69,7 @@ type Core struct {
 	haulNames    map[string]bool              // hauls some build defines; StartHaul accepts only these
 	promotions   map[string]*promotion        // by pallet ID, while its promote runs
 	flights      map[string]*flight           // running memoized lifts, by tenant\x00fingerprint
+	schedules    map[string]*scheduleState    // by haul name (ScheduleTenant)
 	bg           sync.WaitGroup               // background bucket I/O
 	pollers      []*poller                    // waiting, oldest first
 	b            *batch
@@ -101,6 +102,7 @@ func New(cfg Config) *Core {
 		haulNames:    map[string]bool{},
 		promotions:   map[string]*promotion{},
 		flights:      map[string]*flight{},
+		schedules:    map[string]*scheduleState{},
 	}
 }
 

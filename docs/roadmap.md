@@ -165,7 +165,7 @@ written. Steps, in order; each is one PR:
 4. ✅ **Child hauls and `continue_as_new`**: `ctx.haul(...)` (start and wait
    for the result), `ctx.start_haul(...)` (fire and forget), and
    `ctx.continue_as_new(**params)` for hauls that loop. ([#59](https://github.com/alpaaaca/hubwagen/issues/59))
-5. **Schedules**: `@hw.haul(schedule="0 3 * * *", catch_up="latest")` on
+5. ✅ **Schedules**: `@hw.haul(schedule="0 3 * * *", catch_up="latest")` on
    `internal/schedule`; builds register schedules, the leader keeps a
    cursor per schedule and starts what is due (`skip`, `latest`, `all`). ([#60](https://github.com/alpaaaca/hubwagen/issues/60))
 6. **Dataset subscriptions**: start a haul when a pallet is committed to a

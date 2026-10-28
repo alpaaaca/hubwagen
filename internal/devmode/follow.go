@@ -74,6 +74,18 @@ func Describe(ev state.Event) string {
 		return fmt.Sprintf("haul %s stuck: %s", haul, str("message"))
 	case state.EventLiftScheduled:
 		return fmt.Sprintf("haul %s: lift %d %s scheduled (%s)", haul, num("seq"), str("name"), str("run_reason"))
+	case state.EventScheduleSet:
+		return fmt.Sprintf("schedule %s: %s (%s, catch-up %s)", str("haul"), str("cron"), str("interval"), str("catch_up"))
+	case state.EventScheduleRemoved:
+		return fmt.Sprintf("schedule %s removed", str("haul"))
+	case state.EventScheduleFired:
+		switch {
+		case str("skipped") != "":
+			return fmt.Sprintf("schedule %s: skipped %s..%s (%s)", str("haul"), str("start"), str("end"), str("skipped"))
+		case str("error") != "":
+			return fmt.Sprintf("schedule %s: couldn't start: %s", str("haul"), str("error"))
+		}
+		return fmt.Sprintf("schedule %s: started haul %s for %s..%s", str("haul"), short(str("haul_id")), str("start"), str("end"))
 	case state.EventChildStarted:
 		return fmt.Sprintf("haul %s: started child haul %s %s", haul, short(str("haul")), str("name"))
 	case state.EventChildFinished:

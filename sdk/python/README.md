@@ -88,6 +88,25 @@ A signal sent before the haul waits for it is kept; each signal answers one
 wait. The wait is held by the server, like a sleep: no worker is busy while
 the haul waits, and it survives restarts and deploys.
 
+### Schedules
+
+```python
+@hw.haul(schedule=hw.Schedule("0 3 * * *", interval="daily", timezone="Europe/Berlin", catch_up="all"))
+def daily_revenue(ctx, interval: hw.Interval):
+    day = interval.start.date()          # yesterday in Berlin; interval.end is today 00:00
+    ...
+```
+
+The server starts a scheduled haul once per data interval and passes it as
+`interval` (`start`, `end`, timezone-aware). `interval` is `hourly`,
+`daily`, `weekly` or `monthly` (the previous full period, DST-correct) or
+`cron` (previous tick to this one; the default, and what a plain cron
+string, `schedule="*/15 * * * *"`, gets). `catch_up` decides what happens
+to runs that came due while no server ran: `latest` (default) starts the
+newest, `all` every one, `skip` none. The schedule is part of the build: a
+new build with another schedule, or none, replaces it.
+`hubwagen schedules` lists them.
+
 ### Changing haul code while hauls run
 
 A running haul replays its logbook on whatever code the workers have now.

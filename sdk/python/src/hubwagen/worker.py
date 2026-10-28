@@ -67,7 +67,8 @@ def build_id() -> str:
     """A build is identified by its hauls' and lifts' code versions."""
     h = hashlib.sha256()
     for name in sorted(_model.HAULS):
-        h.update(f"haul {name} {_model.HAULS[name].code_version()}\n".encode())
+        d = _model.HAULS[name]
+        h.update(f"haul {name} {d.code_version()} {d.schedule!r}\n".encode())
     for name in sorted(_model.LIFTS):
         h.update(f"lift {name} {_model.LIFTS[name].code_version()}\n".encode())
     return "b-" + h.hexdigest()[:12]
@@ -89,8 +90,12 @@ class Worker:
 
     def register(self) -> None:
         versions = {name: d.code_version() for name, d in _model.LIFTS.items()}
+        schedules = [{"haul": name, "cron": d.schedule.cron, "timezone": d.schedule.timezone,
+                      "interval": d.schedule.interval, "catchUp": d.schedule.catch_up}
+                     for name, d in sorted(_model.HAULS.items()) if d.schedule]
         self.client.call("WorkerService", "RegisterBuild",
-                         {"buildId": self.build, "hauls": sorted(_model.HAULS), "liftVersions": versions})
+                         {"buildId": self.build, "hauls": sorted(_model.HAULS), "liftVersions": versions,
+                          "schedules": schedules})
         log.info("registered build %s: %d hauls, %d lifts", self.build, len(_model.HAULS), len(_model.LIFTS))
 
     # --- hauls ---

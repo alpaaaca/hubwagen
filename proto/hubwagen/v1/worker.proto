@@ -41,6 +41,23 @@ message RegisterBuildRequest {
   // The hauls this build defines. Workers that poll with this build get only
   // these hauls' tasks, and only lifts in lift_versions.
   repeated string hauls = 3;
+  // Schedules of hauls this build defines. The newest build that defines a
+  // haul decides its schedule; one that defines it without a schedule
+  // removes it.
+  repeated HaulSchedule schedules = 4;
+}
+
+message HaulSchedule {
+  string haul = 1;
+  // Standard 5-field cron.
+  string cron = 2;
+  // IANA name; empty is UTC.
+  string timezone = 3;
+  // The data interval each run covers: hourly, daily, weekly, monthly, or
+  // cron (previous tick to this one, the default).
+  string interval = 4;
+  // After downtime: skip, latest (default) or all.
+  string catch_up = 5;
 }
 
 message RegisterBuildResponse {}

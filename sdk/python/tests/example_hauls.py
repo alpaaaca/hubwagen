@@ -205,3 +205,8 @@ def family(ctx, n: int):
     side = ctx.start_haul(child_sum, a=0, b=0)
     chain = ctx.haul(countdown, n=2)
     return {"total": total, "failed": failed, "side": side, "chain": chain}
+
+
+@hw.haul(schedule=hw.Schedule("0 3 * * *", interval="daily", timezone="Europe/Berlin", catch_up="all"))
+def nightly(ctx, interval: hw.Interval):
+    return ctx.lift(add, interval.start.day, 0)
