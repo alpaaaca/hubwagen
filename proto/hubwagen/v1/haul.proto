@@ -19,9 +19,44 @@ service HaulService {
   // waiting for yet is kept until it waits; each goes to one wait. NOT_FOUND
   // for an unknown haul, FAILED_PRECONDITION for a finished one.
   rpc SignalHaul(SignalHaulRequest) returns (SignalHaulResponse);
+  // ListHauls returns hauls newest first (without their lifts).
+  rpc ListHauls(ListHaulsRequest) returns (ListHaulsResponse);
+  // GetLogbook returns the events a replay of the haul reads, for replaying
+  // it against other code (hubwagen.testing --replay).
+  rpc GetLogbook(GetLogbookRequest) returns (GetLogbookResponse);
   // ListSchedules returns the current haul schedules and their next runs,
   // and the dataset subscriptions.
   rpc ListSchedules(ListSchedulesRequest) returns (ListSchedulesResponse);
+}
+
+message ListHaulsRequest {
+  // Empty: any.
+  string tenant = 1;
+  string name = 2;
+  repeated string statuses = 3;
+  // Default 50, at most 1000.
+  int32 limit = 4;
+}
+
+message ListHaulsResponse {
+  repeated Haul hauls = 1;
+}
+
+message GetLogbookRequest {
+  string haul_id = 1;
+}
+
+message GetLogbookResponse {
+  Haul haul = 1;
+  // As PollHaulTask sends them.
+  repeated LogbookEvent logbook = 2;
+}
+
+message LogbookEvent {
+  int64 seq = 1;
+  string type = 2;
+  google.protobuf.Timestamp time = 3;
+  string payload_json = 4;
 }
 
 message ListSchedulesRequest {}

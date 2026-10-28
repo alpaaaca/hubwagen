@@ -97,3 +97,38 @@ func TestSchedulesOverTheAPI(t *testing.T) {
 		Schedules: []*hubwagenv1.HaulSchedule{{Haul: "daily", Cron: "nope"}}}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
+
+func TestListHaulsAndLogbook(t *testing.T) {
+	s := start(t)
+	mux := http.NewServeMux()
+	path, h := NewHaulHandler(s.core, s.store)
+	mux.Handle(path, h)
+	c := hubwagenv1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
+	require.NoError(t, s.core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Hauls: []string{"daily", "x"}}))
+	var ids []string
+	for _, name := range []string{"daily", "x", "daily"} {
+		res, err := c.StartHaul(ctx, connect.NewRequest(&hubwagenv1.StartHaulRequest{Tenant: "t", Name: name, ParamsJson: `{"n":1}`}))
+		require.NoError(t, err)
+		ids = append(ids, res.Msg.HaulId)
+	}
+	got, err := c.ListHauls(ctx, connect.NewRequest(&hubwagenv1.ListHaulsRequest{Name: "daily"}))
+	require.NoError(t, err)
+	require.Len(t, got.Msg.Hauls, 2)
+	assert.Equal(t, []string{ids[2], ids[0]}, []string{got.Msg.Hauls[0].Id, got.Msg.Hauls[1].Id}, "newest first")
+	got, err = c.ListHauls(ctx, connect.NewRequest(&hubwagenv1.ListHaulsRequest{Statuses: []string{"completed"}}))
+	require.NoError(t, err)
+	assert.Empty(t, got.Msg.Hauls)
+	_, err = c.ListHauls(ctx, connect.NewRequest(&hubwagenv1.ListHaulsRequest{Limit: 5000}))
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+
+	lb, err := c.GetLogbook(ctx, connect.NewRequest(&hubwagenv1.GetLogbookRequest{HaulId: ids[0]}))
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"n":1}`, lb.Msg.Haul.ParamsJson)
+	require.NotEmpty(t, lb.Msg.Logbook)
+	assert.Equal(t, string(state.EventHaulStarted), lb.Msg.Logbook[0].Type)
+	for _, e := range lb.Msg.Logbook {
+		assert.NotEqual(t, string(state.EventHaulTaskQueued), e.Type, "only what a replay reads")
+	}
+	_, err = c.GetLogbook(ctx, connect.NewRequest(&hubwagenv1.GetLogbookRequest{HaulId: "nope"}))
+	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+}

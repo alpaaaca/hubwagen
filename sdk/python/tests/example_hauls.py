@@ -241,3 +241,26 @@ def feed_consumer(ctx, pallets: list):
 def feed_latest(ctx):
     p = ctx.latest_pallet("feed.summary")
     return p.meta["pallets"] if p else None
+
+
+@hw.lift
+def m4_quality(day: str) -> dict:
+    return {"failed": True, "day": day}
+
+
+@hw.lift
+def m4_region(day: str, region: str) -> int:
+    return len(region)
+
+
+@hw.haul(schedule=hw.Schedule("0 3 * * *", interval="daily", timezone="Europe/Berlin"), max_parallel=4)
+def m4_daily(ctx, interval: hw.Interval):
+    """The architecture's daily batch: a quality gate that waits for approval,
+    then a fan-out with a limit."""
+    day = interval.start.date().isoformat()
+    approval = {"by": None}
+    if ctx.lift(m4_quality, day)["failed"]:
+        approval = ctx.wait_signal("approve", timeout=3600)
+    regions = ["eu", "us", "apac", "latam", "mena"]
+    sizes = ctx.gather([ctx.lift_async(m4_region, day, r) for r in regions], max_parallel=2)
+    return {"day": day, "approved_by": approval["by"], "total": sum(sizes)}

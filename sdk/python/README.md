@@ -252,6 +252,34 @@ the worker also stops that way when that process is gone
 (`$HUBWAGEN_SUPERVISOR_PID`). `--worker-id` (or `$HUBWAGEN_WORKER_ID`) names
 the worker in the logbook; the default is `<hostname>-<pid>`.
 
+## Testing hauls
+
+```python
+from hubwagen import testing
+
+def test_gate():
+    r = testing.run(daily, {"day": "2026-10-24"},
+                    lifts={"check_quality": {"failed": True}, "build": 42},   # or functions, or exceptions
+                    signals={"approve": {"by": "ana"}})
+    assert (r.status, r.result) == ("completed", 42)
+    assert [c.name for c in r.lifts] == ["check_quality", "build"]
+```
+
+`testing.run` plays the server in memory: it replays the haul, answers
+each command from the script (`lifts`, `signals`, `pallets` for
+`latest_pallet`, `children` for child hauls; `run_lifts=True` calls the
+real lifts), sleeps on a clock that only moves when the haul waits, and
+fails if the haul isn't deterministic.
+
+Before deploying, replay what the server recorded against the new code:
+
+```bash
+python -m hubwagen.testing --replay-recent 50 --server http://hubwagen:7070   # or --replay <haul-id>, --haul <name>
+```
+
+A haul whose logbook the new code contradicts would be stuck after the
+deploy; it is reported and the command exits 1.
+
 ## Tests
 
 ```bash
