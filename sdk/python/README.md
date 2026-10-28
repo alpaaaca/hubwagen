@@ -55,7 +55,7 @@ calls in the same order every time:
   Deploying fixed code (a new build) resumes it.
 
 `ctx` offers `lift`, `lift_async` + `gather` (fan-out), `sleep` (durable,
-held by the server), `wait_signal` (below), `latest_pallet` (the newest
+held by the server), `wait_signal` and `version` (below), `latest_pallet` (the newest
 committed pallet of a dataset partition, recorded so every replay sees the
 same one), `now`, `random` and `state`. A failed lift raises
 `hubwagen.LiftFailed` in the haul.
@@ -79,6 +79,24 @@ hubwagen signal <haul-id> approve --data '{"by": "ana"}'   # or Client.signal_ha
 A signal sent before the haul waits for it is kept; each signal answers one
 wait. The wait is held by the server, like a sleep: no worker is busy while
 the haul waits, and it survives restarts and deploys.
+
+### Changing haul code while hauls run
+
+A running haul replays its logbook on whatever code the workers have now.
+To change what a haul does without breaking the ones already running, put
+the change behind a version marker:
+
+```python
+if ctx.version("quality-gate", max=2) >= 2:
+    report = ctx.lift(check_quality, orders)     # new hauls
+# hauls that started before the marker existed skip it, as they did
+```
+
+A haul that started on the old code gets `min` (default 1), one that
+reaches the marker fresh gets `max`; the choice is recorded and kept. To
+change it again, raise `max` (`max=3`, and branch on `>= 3`). Once no
+running haul is on an old version, raise `min` and delete its branch; a
+haul still on it becomes stuck rather than taking the wrong path.
 
 ## Lifts
 

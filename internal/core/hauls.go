@@ -42,6 +42,7 @@ type haulState struct {
 	replay  bool                // a result arrived while task was dispatched: replay again after it
 	tasks   int                 // haul tasks created so far
 	cmds    []Command           // commands recorded in the logbook, in order
+	markers map[string]int      // version markers decided so far, by name
 	lifts   map[int]*liftState  // unfinished lifts by seq
 	timers  map[int]*haulTimer  // pending timers by seq
 	waits   map[int]*signalWait // wait_signal commands not answered yet, by seq
@@ -131,9 +132,10 @@ func (c *Core) startHaul(req StartHaulRequest) (StartHaulResult, error) {
 			ID: c.cfg.NewID(), Tenant: req.Tenant, Name: req.Name, Dock: req.Dock, Trigger: req.Trigger,
 			Params: req.Params, Status: state.HaulRunning, CreatedAt: c.now(),
 		},
-		lifts:  map[int]*liftState{},
-		timers: map[int]*haulTimer{},
-		waits:  map[int]*signalWait{},
+		lifts:   map[int]*liftState{},
+		timers:  map[int]*haulTimer{},
+		waits:   map[int]*signalWait{},
+		markers: map[string]int{},
 	}
 	c.hauls[h.rec.ID] = h
 	c.dirtyHaul(h)
@@ -242,8 +244,21 @@ type HaulTaskResult struct {
 	// Commands is every command the replay issued, in order, starting at
 	// seq 1 — including those already in the logbook.
 	Commands []Command
-	Outcome  *HaulOutcome // the haul function ended
-	Error    *TaskError   // the replay itself failed
+	// Markers is every version marker the replay decided (ctx.version),
+	// including those already recorded.
+	Markers []Marker
+	Outcome *HaulOutcome // the haul function ended
+	Error   *TaskError   // the replay itself failed
+}
+
+// Marker is a version marker's decision: which version of a change a haul
+// takes. Markers are recorded by name, outside the command sequence, so
+// adding one to code doesn't contradict the logbooks of running hauls; the
+// SDK decides (the old version inside recorded history, the newest at its
+// frontier) and the server keeps the first decision per name.
+type Marker struct {
+	Name    string `json:"name"`
+	Version int    `json:"version"`
 }
 
 // CompleteHaulTask applies a haul task's result. It returns once the result
@@ -404,20 +419,34 @@ func (c *Core) completeHaulTask(res HaulTaskResult) error {
 			c.markStuck(h, ReasonNondeterminism, msg, seq)
 			return nil // the worker did its job; the haul code is at fault
 		}
+		if msg := checkMarkers(h.markers, res.Markers); msg != "" {
+			c.failHaulTask(t, ReasonNondeterminism, msg)
+			c.markStuck(h, ReasonNondeterminism, msg, 0)
+			return nil
+		}
 	}
 
 	var fresh []Command
 	if len(res.Commands) > h.rec.Commands {
 		fresh = res.Commands[h.rec.Commands:]
 	}
+	var freshMarkers []Marker
+	for _, m := range res.Markers {
+		if _, ok := h.markers[m.Name]; !ok {
+			freshMarkers = append(freshMarkers, m)
+		}
+	}
 	t.rec.Status = state.HaulTaskCompleted
-	c.emitH(state.EventHaulTaskCompleted, h, t.rec.ID,
-		haulTaskCompletedPayload{Number: t.rec.Number, BuildID: res.BuildID, Commands: fresh, Outcome: res.Outcome})
+	c.emitH(state.EventHaulTaskCompleted, h, t.rec.ID, haulTaskCompletedPayload{
+		Number: t.rec.Number, BuildID: res.BuildID, Commands: fresh, Markers: freshMarkers, Outcome: res.Outcome})
 	if !state.HaulOpen(h.rec.Status) {
 		return nil // finished while the replay ran; nothing to apply
 	}
 
 	h.rec.BuildID = res.BuildID
+	for _, m := range freshMarkers {
+		h.markers[m.Name] = m.Version
+	}
 	if h.rec.Status == state.HaulStuck {
 		h.rec.Status, h.rec.Reason, h.rec.Message = state.HaulRunning, "", ""
 	}
@@ -464,6 +493,17 @@ func checkReplay(logged, replayed []Command) (int, string) {
 	return 0, ""
 }
 
+// checkMarkers compares a replay's version markers with those recorded: a
+// marker decided differently means the replay took another branch.
+func checkMarkers(recorded map[string]int, replayed []Marker) string {
+	for _, m := range replayed {
+		if v, ok := recorded[m.Name]; ok && v != m.Version {
+			return fmt.Sprintf("version marker %q: replay took version %d, the logbook has %d", m.Name, m.Version, v)
+		}
+	}
+	return ""
+}
+
 func describeCommand(cmd Command) string {
 	s := string(cmd.Kind)
 	switch cmd.Kind {
@@ -483,6 +523,18 @@ func describeCommand(cmd Command) string {
 func validateHaulTaskResult(res HaulTaskResult) error {
 	if res.Outcome != nil && res.Error != nil {
 		return errors.New("a result has an outcome or an error, not both")
+	}
+	seen := map[string]int{}
+	for i, m := range res.Markers {
+		switch v, ok := seen[m.Name]; {
+		case m.Name == "":
+			return fmt.Errorf("markers[%d]: a version marker needs a name", i)
+		case m.Version < 0:
+			return fmt.Errorf("markers[%d]: version must not be negative", i)
+		case ok && v != m.Version:
+			return fmt.Errorf("markers[%d]: %q decided twice, as %d and %d", i, m.Name, v, m.Version)
+		}
+		seen[m.Name] = m.Version
 	}
 	if o := res.Outcome; o != nil && o.Status != state.HaulCompleted && o.Status != state.HaulFailed {
 		return fmt.Errorf("outcome status %q is not %q or %q", o.Status, state.HaulCompleted, state.HaulFailed)

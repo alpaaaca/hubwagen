@@ -121,6 +121,9 @@ func (s *WorkerServer) CompleteHaulTask(ctx context.Context, req *connect.Reques
 	if e := m.Error; e != nil {
 		res.Error = &core.TaskError{Reason: e.Reason, Message: e.Message}
 	}
+	for _, mk := range m.Markers {
+		res.Markers = append(res.Markers, core.Marker{Name: mk.Name, Version: int(mk.Version)})
+	}
 	if err := s.core.CompleteHaulTask(ctx, res); err != nil {
 		return nil, connectError(err)
 	}

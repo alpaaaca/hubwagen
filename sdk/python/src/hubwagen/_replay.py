@@ -76,6 +76,8 @@ class ReplayResult:
     # clock or randomness (nondeterministic); the haul will be stuck.
     mismatch: str | None = None
     nondeterministic: bool = False
+    # Every version marker the replay decided: [{"name", "version"}].
+    markers: list[dict] = field(default_factory=list)
 
 
 class Ctx:
@@ -91,6 +93,8 @@ class Ctx:
         self._results: dict[int, _Result] = {}
         self._recorded: list[dict] = []
         self._now: _dt.datetime | None = None
+        self._markers: dict[str, int] = {}  # recorded version markers
+        self.markers: dict[str, int] = {}  # decided by this replay
         for e in logbook:
             payload = json.loads(e.get("payloadJson") or "{}")
             t = _time(e["time"]) if e.get("time") else None
@@ -101,6 +105,8 @@ class Ctx:
                     self._results[payload["seq"]] = _Result(payload, t)
                 case "HaulTaskCompleted":
                     self._recorded.extend(payload.get("commands") or [])
+                    for m in payload.get("markers") or []:
+                        self._markers.setdefault(m["name"], m["version"])
 
     # --- commands ---------------------------------------------------------
 
@@ -207,6 +213,33 @@ class Ctx:
         if self._consume(seq) is None:
             raise Blocked()
 
+    def version(self, name: str, max: int, min: int = 1) -> int:  # noqa: A002 - the names read best
+        """Which version of a change this haul takes, for changing haul code
+        while hauls are running:
+
+            if ctx.version("quality-gate", max=2) >= 2:
+                report = ctx.lift(check_quality, orders)
+
+        A haul that started before the marker existed gets `min` (the old
+        code path, so its logbook still replays); a haul that reaches the
+        marker for the first time gets `max`. The decision is recorded, so
+        every later replay gets the same. Raise `min` once no running haul
+        takes the old version any more; a haul still on it becomes stuck.
+        """
+        if not (isinstance(min, int) and isinstance(max, int)) or not 0 <= min <= max:
+            raise ValueError(f"version({name!r}): want integers 0 <= min <= max, got min={min!r}, max={max!r}")
+        v = self._markers.get(name)
+        if v is None:
+            # Inside the recorded history (commands after this point are in the
+            # logbook): this haul ran the code from before the marker.
+            v = min if self._seq < len(self._recorded) else max
+            self._markers[name] = v
+        elif not min <= v <= max:
+            raise NondeterminismError(f"version marker {name!r}: this haul took version {v}, the code supports "
+                                      f"{min} to {max}; keep the old branch until such hauls finish")
+        self.markers[name] = v
+        return v
+
     def wait_signal(self, name: str, timeout: float | _dt.timedelta | None = None) -> Any:
         """Wait for a signal named name (`hubwagen signal <haul> <name>`, or
         SignalHaul) and return its payload. A signal sent before the haul
@@ -266,9 +299,15 @@ def replay(d: HaulDef, haul_id: str, params: dict, logbook: list[dict]) -> Repla
         with guarded():
             result = d.fn(ctx, **decode(params))
     except Blocked:
-        return ReplayResult(ctx.commands, None, ctx.mismatch)
+        return ReplayResult(ctx.commands, None, ctx.mismatch, markers=_markers(ctx))
     except NondeterminismError as e:
         return ReplayResult(ctx.commands, None, str(e), nondeterministic=True)
     except Exception as e:  # noqa: BLE001 - the haul function raised: it failed
-        return ReplayResult(ctx.commands, {"status": "STATUS_FAILED", "reason": type(e).__name__, "message": str(e)})
-    return ReplayResult(ctx.commands, {"status": "STATUS_COMPLETED", "resultJson": json.dumps(encode(result))})
+        return ReplayResult(ctx.commands, {"status": "STATUS_FAILED", "reason": type(e).__name__, "message": str(e)},
+                            markers=_markers(ctx))
+    return ReplayResult(ctx.commands, {"status": "STATUS_COMPLETED", "resultJson": json.dumps(encode(result))},
+                        markers=_markers(ctx))
+
+
+def _markers(ctx: Ctx) -> list[dict]:
+    return [{"name": n, "version": v} for n, v in sorted(ctx.markers.items())]
