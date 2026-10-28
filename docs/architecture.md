@@ -442,6 +442,22 @@ v1 has one adapter, `file://` with pallet manifests: atomic, and every version
 stays readable until retention removes it. Warehouse and table-format adapters
 come later; their capabilities are documented with each adapter.
 
+### Retention
+
+A dataset's retention is declared in code with its outputs,
+`Dataset("mart.revenue", partition="day", keep=Keep(versions=3, age=30d))`,
+and registered with the build; the newest build that declares the dataset
+decides, and one that declares it without `keep` removes it (everything
+stays, the default). Per partition the latest committed pallet always stays,
+and so do those among the newest `versions` or younger than `age`; the rest
+expire, except what something running may read: pallets built by open
+hauls, pallets open hauls got as lift results or from `latest_pallet`,
+inputs of unfinished lifts and pallets waiting in a subscription batch. The
+leader expires every hour and on `hubwagen gc` (`--dry-run` shows): first
+a `PalletExpired` event records the pallet as expired, then its data is
+deleted off the loop. Its manifest and lineage stay; expired pallets are
+never reused or read, so a replay that needs one reruns its lift.
+
 ## Backfills, replays and invalidation
 
 A backfill starts hauls for a range of parameters; memoization makes it cheap.

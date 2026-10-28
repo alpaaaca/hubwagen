@@ -51,6 +51,9 @@ const (
 	// CatalogServiceListStaleProcedure is the fully-qualified name of the CatalogService's ListStale
 	// RPC.
 	CatalogServiceListStaleProcedure = "/hubwagen.v1.CatalogService/ListStale"
+	// CatalogServiceExpirePalletsProcedure is the fully-qualified name of the CatalogService's
+	// ExpirePallets RPC.
+	CatalogServiceExpirePalletsProcedure = "/hubwagen.v1.CatalogService/ExpirePallets"
 )
 
 // CatalogServiceClient is a client for the hubwagen.v1.CatalogService service.
@@ -74,6 +77,10 @@ type CatalogServiceClient interface {
 	// an input's partition has a newer pallet with other content, or the
 	// newest build has another code version of the lift that built it.
 	ListStale(context.Context, *connect.Request[v1.ListStaleRequest]) (*connect.Response[v1.ListStaleResponse], error)
+	// ExpirePallets expires now what retention no longer keeps (the leader
+	// also does on a timer): the pallets are recorded as expired, then their
+	// data is deleted; manifests and lineage stay.
+	ExpirePallets(context.Context, *connect.Request[v1.ExpirePalletsRequest]) (*connect.Response[v1.ExpirePalletsResponse], error)
 }
 
 // NewCatalogServiceClient constructs a client for the hubwagen.v1.CatalogService service. By
@@ -123,6 +130,12 @@ func NewCatalogServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(catalogServiceMethods.ByName("ListStale")),
 			connect.WithClientOptions(opts...),
 		),
+		expirePallets: connect.NewClient[v1.ExpirePalletsRequest, v1.ExpirePalletsResponse](
+			httpClient,
+			baseURL+CatalogServiceExpirePalletsProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("ExpirePallets")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -134,6 +147,7 @@ type catalogServiceClient struct {
 	getPallet        *connect.Client[v1.GetPalletRequest, v1.GetPalletResponse]
 	invalidatePallet *connect.Client[v1.InvalidatePalletRequest, v1.InvalidatePalletResponse]
 	listStale        *connect.Client[v1.ListStaleRequest, v1.ListStaleResponse]
+	expirePallets    *connect.Client[v1.ExpirePalletsRequest, v1.ExpirePalletsResponse]
 }
 
 // ListDatasets calls hubwagen.v1.CatalogService.ListDatasets.
@@ -166,6 +180,11 @@ func (c *catalogServiceClient) ListStale(ctx context.Context, req *connect.Reque
 	return c.listStale.CallUnary(ctx, req)
 }
 
+// ExpirePallets calls hubwagen.v1.CatalogService.ExpirePallets.
+func (c *catalogServiceClient) ExpirePallets(ctx context.Context, req *connect.Request[v1.ExpirePalletsRequest]) (*connect.Response[v1.ExpirePalletsResponse], error) {
+	return c.expirePallets.CallUnary(ctx, req)
+}
+
 // CatalogServiceHandler is an implementation of the hubwagen.v1.CatalogService service.
 type CatalogServiceHandler interface {
 	ListDatasets(context.Context, *connect.Request[v1.ListDatasetsRequest]) (*connect.Response[v1.ListDatasetsResponse], error)
@@ -187,6 +206,10 @@ type CatalogServiceHandler interface {
 	// an input's partition has a newer pallet with other content, or the
 	// newest build has another code version of the lift that built it.
 	ListStale(context.Context, *connect.Request[v1.ListStaleRequest]) (*connect.Response[v1.ListStaleResponse], error)
+	// ExpirePallets expires now what retention no longer keeps (the leader
+	// also does on a timer): the pallets are recorded as expired, then their
+	// data is deleted; manifests and lineage stay.
+	ExpirePallets(context.Context, *connect.Request[v1.ExpirePalletsRequest]) (*connect.Response[v1.ExpirePalletsResponse], error)
 }
 
 // NewCatalogServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -232,6 +255,12 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 		connect.WithSchema(catalogServiceMethods.ByName("ListStale")),
 		connect.WithHandlerOptions(opts...),
 	)
+	catalogServiceExpirePalletsHandler := connect.NewUnaryHandler(
+		CatalogServiceExpirePalletsProcedure,
+		svc.ExpirePallets,
+		connect.WithSchema(catalogServiceMethods.ByName("ExpirePallets")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/hubwagen.v1.CatalogService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case CatalogServiceListDatasetsProcedure:
@@ -246,6 +275,8 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 			catalogServiceInvalidatePalletHandler.ServeHTTP(w, r)
 		case CatalogServiceListStaleProcedure:
 			catalogServiceListStaleHandler.ServeHTTP(w, r)
+		case CatalogServiceExpirePalletsProcedure:
+			catalogServiceExpirePalletsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -277,4 +308,8 @@ func (UnimplementedCatalogServiceHandler) InvalidatePallet(context.Context, *con
 
 func (UnimplementedCatalogServiceHandler) ListStale(context.Context, *connect.Request[v1.ListStaleRequest]) (*connect.Response[v1.ListStaleResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("hubwagen.v1.CatalogService.ListStale is not implemented"))
+}
+
+func (UnimplementedCatalogServiceHandler) ExpirePallets(context.Context, *connect.Request[v1.ExpirePalletsRequest]) (*connect.Response[v1.ExpirePalletsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("hubwagen.v1.CatalogService.ExpirePallets is not implemented"))
 }

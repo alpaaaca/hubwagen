@@ -48,6 +48,19 @@ message RegisterBuildRequest {
   // Dataset subscriptions of hauls this build defines, decided like
   // schedules.
   repeated HaulSubscription subscriptions = 5;
+  // Retention of datasets this build's lifts write. The newest build that
+  // declares a dataset decides; declaring it without keep removes it.
+  repeated DatasetRetention datasets = 6;
+}
+
+// DatasetRetention keeps, per partition, the latest pallet and those among
+// the newest keep_versions or younger than keep_for; the rest expire.
+message DatasetRetention {
+  string name = 1;
+  // Unset (0): no versions rule.
+  int32 keep_versions = 2;
+  // Unset: no age rule.
+  google.protobuf.Duration keep_for = 3;
 }
 
 // HaulSubscription starts a haul with the pallets committed to its

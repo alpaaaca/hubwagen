@@ -264,3 +264,14 @@ def m4_daily(ctx, interval: hw.Interval):
     regions = ["eu", "us", "apac", "latam", "mena"]
     sizes = ctx.gather([ctx.lift_async(m4_region, day, r) for r in regions], max_parallel=2)
     return {"day": day, "approved_by": approval["by"], "total": sum(sizes)}
+
+
+@hw.lift(output=hw.Dataset("keep.events", keep=hw.Keep(versions=1)))
+def keep_event(n: int) -> int:
+    (hw.output().path / "event.txt").write_text(str(n))
+    return n
+
+
+@hw.haul
+def keep_producer(ctx, n: int):
+    return ctx.lift(keep_event, n).id

@@ -37,6 +37,7 @@ type BuildRequest struct {
 	Lifts         map[string]string  // lift name → code version
 	Schedules     []ScheduleSpec     // for hauls it defines; see schedules.go
 	Subscriptions []SubscriptionSpec // for hauls it defines; see subscriptions.go
+	Datasets      []DatasetSpec      // retention of datasets its lifts write; see retention.go
 }
 
 // RegisterBuild records a build. Registering the same build again is a
@@ -76,6 +77,9 @@ func (c *Core) RegisterBuild(ctx context.Context, req BuildRequest) error {
 		if err != nil {
 			return struct{}{}, fmt.Errorf("build %s: %w", req.ID, err)
 		}
+		if err := validateDatasets(req.Datasets); err != nil {
+			return struct{}{}, fmt.Errorf("build %s: %w", req.ID, err)
+		}
 		lifts := map[string]string{}
 		for k, v := range req.Lifts {
 			if k == "" || v == "" {
@@ -89,6 +93,7 @@ func (c *Core) RegisterBuild(ctx context.Context, req BuildRequest) error {
 		c.emit(state.EventBuildRegistered, "", buildRegisteredPayload{ID: req.ID, Hauls: hauls, Lifts: lifts})
 		c.applySchedules(req.ID, hauls, schedules)
 		c.applySubscriptions(req.ID, hauls, subs)
+		c.applyRetention(req.ID, req.Datasets)
 		c.resumeStuckHauls()
 		return struct{}{}, nil
 	})

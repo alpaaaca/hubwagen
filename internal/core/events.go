@@ -253,6 +253,20 @@ type palletRecordedPayload struct {
 	Location string          `json:"location"`
 }
 
+type retentionSetPayload struct {
+	Dataset  string        `json:"dataset"`
+	Versions int           `json:"versions,omitempty"`
+	Age      time.Duration `json:"age,omitempty"`
+	Build    string        `json:"build"`
+}
+
+type palletExpiredPayload struct {
+	Pallet    string `json:"pallet"`
+	Dataset   string `json:"dataset"`
+	Partition string `json:"partition,omitempty"`
+	Reason    string `json:"reason"`
+}
+
 // palletInvalidatedPayload: InvalidatePallet marked Pallet invalid, because
 // of Cause (itself, or a pallet it was built from).
 type palletInvalidatedPayload struct {

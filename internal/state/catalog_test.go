@@ -2,6 +2,7 @@ package state
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -354,4 +355,41 @@ func TestStalePartitions(t *testing.T) {
 	require.Len(t, stale, 2, "only mart.revenue's pallets have a lift and inputs")
 	assert.Equal(t, []string{"input raw.orders 2026-10-01 has a newer pallet o1b", "lift build: code changed (v1 → v2)"}, stale[0].Reasons)
 	assert.Equal(t, []string{"lift build: code changed (v1 → v2)"}, stale[1].Reasons)
+}
+
+func TestExpiryCandidates(t *testing.T) {
+	s, _ := openFile(t)
+	const ds = "raw.orders"
+	// Partition 10-01: p1 (oldest) … p5 (latest), an hour apart; 10-02: q1, q2.
+	var ps []Pallet
+	for i := 1; i <= 5; i++ {
+		ps = append(ps, pallet(fmt.Sprintf("p%d", i), ds, "2026-10-01", time.Duration(i)*time.Hour))
+	}
+	ps = append(ps, pallet("q1", ds, "2026-10-02", time.Hour), pallet("q2", ds, "2026-10-02", 2*time.Hour))
+	invalid := pallet("p0", ds, "2026-10-01", 0)
+	invalid.State = PalletInvalid
+	ps = append(ps, invalid)
+	ps[1].HaulID = "h-open" // p2: built by a haul that will be running
+	putCatalog(t, s, []Dataset{dataset(ds, "day")}, ps)
+	now := t0.Add(6 * time.Hour)
+
+	got := func(r Retention) []string {
+		t.Helper()
+		r.Dataset = ds
+		c, err := s.ExpiryCandidates(ctx, r, now, 100)
+		require.NoError(t, err)
+		return ids(c)
+	}
+	assert.Equal(t, []string{"p1", "p2", "p3"}, got(Retention{Versions: 2}), "the newest two per partition stay")
+	assert.Equal(t, []string{"p1", "q1", "p2", "p3", "p4"}, got(Retention{Versions: 1}), "only the latest, oldest first")
+	assert.Equal(t, []string{"p1", "q1", "p2", "p3"}, got(Retention{Age: 150 * time.Minute}), "younger than 2.5 hours stays; q2 is the latest")
+	assert.Equal(t, []string{"p1"}, got(Retention{Versions: 2, Age: 270 * time.Minute}), "kept by either rule")
+
+	// p2 was built by a running haul, p1 is an input of an unfinished lift
+	// and q1 a lift result in a running haul: all in use.
+	l := lift("h-open", 1, LiftRunning)
+	l.Inputs = json.RawMessage(`[{"name":"orders","pallet":"p1"}]`)
+	put(t, s, []Event{{Type: "LiftFinished", HaulID: "h-open", Tenant: "t", Payload: json.RawMessage(`{"seq":2,"pallet":"q1"}`)}},
+		func(tx *Tx) error { return tx.PutHaul(haul("h-open", HaulRunning)) }, func(tx *Tx) error { return tx.PutLift(l) })
+	assert.Equal(t, []string{"p3", "p4"}, got(Retention{Versions: 1}), "p1, p2 and q1 are in use")
 }

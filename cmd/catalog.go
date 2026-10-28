@@ -87,6 +87,22 @@ the hauls to start again: their unchanged lifts are reused.
 	},
 }
 
+var gcDryRun bool
+
+var gcCmd = &cobra.Command{
+	Use:   "gc",
+	Short: "Expire pallets that retention no longer keeps",
+	Long: `GC expires, now, what the leader otherwise expires every hour: per dataset with
+a retention (hw.Dataset(keep=...)), the pallets beyond what it keeps, never a
+partition's latest or anything a running haul may read. They are recorded as
+expired, then their data is deleted; their manifests and lineage stay.`,
+	Args:         cobra.NoArgs,
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		return serverError(catalogcli.NewClient(haulServer).GC(cmd.Context(), os.Stdout, gcDryRun))
+	},
+}
+
 var (
 	invalidateReason string
 	invalidateDryRun bool
@@ -134,6 +150,9 @@ func init() {
 	invalidateCmd.Flags().BoolVar(&invalidateDryRun, "dry-run", false, "only show what would be marked")
 	invalidateCmd.Flags().BoolVarP(&invalidateYes, "yes", "y", false, "don't ask")
 	palletCmd.AddCommand(invalidateCmd)
+	gcCmd.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev serves it)")
+	gcCmd.Flags().BoolVar(&gcDryRun, "dry-run", false, "only show what would expire")
+	rootCmd.AddCommand(gcCmd)
 
 	for _, c := range []*cobra.Command{datasetsCmd, palletsCmd, palletCmd, staleCmd} {
 		c.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev serves it)")

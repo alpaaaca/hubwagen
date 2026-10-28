@@ -148,6 +148,18 @@ def test_subscription_starts_a_haul_with_new_pallets(client):
     assert feed["datasets"] == ["feed.orders"] and not feed.get("waiting")
 
 
+def test_retention_expires_old_versions(client):
+    ids = [json.loads(wait(client, client.start_haul("keep_producer", {"n": n}))["resultJson"]) for n in (1, 2, 3)]
+    datasets = {d["name"]: d for d in client.call("CatalogService", "ListDatasets", {})["datasets"]}
+    assert datasets["keep.events"]["keepVersions"] == 1
+    expired = client.call("CatalogService", "ExpirePallets", {})["expired"]
+    assert sorted(e["pallet"]["id"] for e in expired if e["pallet"]["dataset"] == "keep.events") == sorted(ids[:2])
+    latest = client.call("CatalogService", "GetPallet", {"id": ids[2]})
+    assert latest["pallet"]["state"] == "committed"
+    old = client.call("CatalogService", "GetPallet", {"id": ids[0]})
+    assert old["pallet"]["state"] == "expired" and "manifest" not in old
+
+
 def test_cursor_from_the_catalog(client):
     cursors = [json.loads(wait(client, client.start_haul("ingest"))["resultJson"]) for _ in range(3)]
     assert cursors == [1, 2, 3]

@@ -44,5 +44,13 @@ func (c *Core) restore(ctx context.Context) error {
 	if err := c.restoreSubscriptions(subs, waiting); err != nil {
 		return err
 	}
+	keep, err := c.cfg.Store.ListRetention(ctx)
+	if err != nil {
+		return err
+	}
+	for _, r := range keep {
+		c.retention[r.Dataset] = r
+	}
+	c.armRetention(0)
 	return c.commit(ctx)
 }

@@ -11,6 +11,9 @@ const (
 	EventScheduleSet     EventType = "ScheduleSet"
 	EventScheduleRemoved EventType = "ScheduleRemoved"
 	EventScheduleFired   EventType = "ScheduleFired"
+	// EventRetentionSet: a build declared (or, keep unset, removed) a
+	// dataset's retention.
+	EventRetentionSet EventType = "RetentionSet"
 )
 
 // Schedule is a haul's schedule and its cursor.

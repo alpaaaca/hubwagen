@@ -104,7 +104,9 @@ Sketched for later milestones, not implemented:
 - **`bucket`**: `s3://…`; today the bucket is always `file://<data_dir>/bucket`.
 - **Sections**: `server.auth` (tokens for workers and users), `replication`
   (Litestream), `secrets`, `log`, and limits the server enforces (maximum lift
-  timeout, retention).
+  timeout). Retention is declared per dataset in code
+  (`hw.Dataset(keep=...)`); the expiry interval is the core's
+  `RetentionEvery` (an hour), a config field later.
 - **Environment variables**: an explicit list (`HUBWAGEN_DATA_DIR`,
   `HUBWAGEN_LOG_LEVEL`, …), not a generic mapping of every field.
 - **Commands**: `hubwagen config check` and `hubwagen config show`, which

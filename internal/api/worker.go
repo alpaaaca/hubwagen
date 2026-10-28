@@ -49,6 +49,9 @@ func (s *WorkerServer) RegisterBuild(ctx context.Context, req *connect.Request[h
 		b.Subscriptions = append(b.Subscriptions, core.SubscriptionSpec{Haul: sub.Haul, Datasets: sub.Datasets,
 			Debounce: sub.Debounce.AsDuration(), MaxWait: sub.MaxWait.AsDuration(), MaxBatch: int(sub.MaxBatch)})
 	}
+	for _, d := range req.Msg.Datasets {
+		b.Datasets = append(b.Datasets, core.DatasetSpec{Name: d.Name, Versions: int(d.KeepVersions), Age: d.KeepFor.AsDuration()})
+	}
 	err := s.core.RegisterBuild(ctx, b)
 	if err != nil {
 		return nil, connectError(err)

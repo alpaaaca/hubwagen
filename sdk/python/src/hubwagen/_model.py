@@ -22,15 +22,38 @@ def local_path(uri: str) -> Path:
 
 
 @dataclass(frozen=True)
+class Keep:
+    """A dataset's retention: per partition, the latest pallet always stays,
+    and so do the newest `versions` and those younger than `age` (seconds
+    or a timedelta); the rest expire (their data is deleted, their record
+    stays). Keep(versions=3), Keep(age=timedelta(days=30)), or both."""
+
+    versions: int | None = None
+    age: float | None = None
+
+    def __init__(self, versions: int | None = None, age: float | _dt.timedelta | None = None):
+        if isinstance(age, _dt.timedelta):
+            age = age.total_seconds()
+        if versions is None and age is None:
+            raise ValueError("Keep: give versions, age or both")
+        if (versions is not None and (not isinstance(versions, int) or versions < 1)) or (age is not None and age <= 0):
+            raise ValueError(f"Keep: want versions >= 1 and age > 0, got versions={versions!r}, age={age!r}")
+        object.__setattr__(self, "versions", versions)
+        object.__setattr__(self, "age", None if age is None else float(age))
+
+
+@dataclass(frozen=True)
 class Dataset:
     """A named, optionally partitioned stream of pallets.
 
     `partition` names the lift argument whose value is the partition, e.g.
-    Dataset("marketing.daily_revenue", partition="day").
+    Dataset("marketing.daily_revenue", partition="day"). `keep` is its
+    retention (hubwagen.Keep); without one, every version stays.
     """
 
     name: str
     partition: str | None = None
+    keep: Keep | None = None
 
 
 @dataclass(frozen=True)

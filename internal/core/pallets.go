@@ -68,6 +68,7 @@ type LiftOutput struct {
 type PalletStore interface {
 	Promote(ctx context.Context, m pallet.Manifest) (string, error)
 	Discard(ctx context.Context, prefix string) error
+	Read(ctx context.Context, uri string) (pallet.Manifest, error)
 }
 
 // promoteRetryDelay is how long to wait before retrying a promote that

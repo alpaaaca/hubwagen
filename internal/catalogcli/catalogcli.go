@@ -45,7 +45,7 @@ func (c *Client) Datasets(ctx context.Context, w io.Writer, tenant string) error
 		return err
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
-	fmt.Fprintln(tw, "DATASET\tPARTITIONED BY\tPARTITIONS\tLATEST")
+	fmt.Fprintln(tw, "DATASET\tPARTITIONED BY\tPARTITIONS\tLATEST\tKEEP")
 	for _, d := range res.Msg.Datasets {
 		parts, err := c.catalog.ListPartitions(ctx, connect.NewRequest(&hubwagenv1.ListPartitionsRequest{
 			Tenant: d.Tenant, Dataset: d.Name, Limit: maxPartitions}))
@@ -69,7 +69,45 @@ func (c *Client) Datasets(ctx context.Context, w io.Writer, tenant string) error
 		if len(parts.Msg.Partitions) == maxPartitions {
 			count += "+"
 		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", d.Name, key, count, latest)
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", d.Name, key, count, latest, describeKeep(d))
+	}
+	return tw.Flush()
+}
+
+func describeKeep(d *hubwagenv1.Dataset) string {
+	var keep []string
+	if d.KeepVersions > 0 {
+		keep = append(keep, fmt.Sprintf("%d version%s", d.KeepVersions, plural(int(d.KeepVersions))))
+	}
+	if d.KeepFor != nil {
+		keep = append(keep, d.KeepFor.AsDuration().String())
+	}
+	if len(keep) == 0 {
+		return "all"
+	}
+	return strings.Join(keep, " or ")
+}
+
+// GC expires what retention no longer keeps, or with dryRun shows it.
+func (c *Client) GC(ctx context.Context, w io.Writer, dryRun bool) error {
+	res, err := c.catalog.ExpirePallets(ctx, connect.NewRequest(&hubwagenv1.ExpirePalletsRequest{DryRun: dryRun}))
+	if err != nil {
+		return err
+	}
+	ex := res.Msg.Expired
+	if len(ex) == 0 {
+		_, err := fmt.Fprintln(w, "nothing to expire")
+		return err
+	}
+	verb := "expired"
+	if dryRun {
+		verb = "would expire"
+	}
+	fmt.Fprintf(w, "%s %d pallet%s:\n", verb, len(ex), plural(len(ex)))
+	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
+	for _, e := range ex {
+		p := e.Pallet
+		fmt.Fprintf(tw, "  %s\t%s\t%s\tcommitted %s\n", p.Id, p.Dataset, describePartition(p.Partition), when(p.CommittedAt.AsTime()))
 	}
 	return tw.Flush()
 }
