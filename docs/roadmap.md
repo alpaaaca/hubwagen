@@ -30,7 +30,7 @@ that only matters at scale waits.
 | M3b: Pallets, catalog, memoization | **Done** |
 | M3c: Worker API + minimal Python SDK | **Done** |
 | M4: Full haul surface (fan-out, signals, triggers, testing) | **Done** |
-| M5: Catalog in the UI, invalidation, staleness | **Planned** |
+| M5: Catalog in the UI, invalidation, staleness | **In progress** |
 | Later | — |
 
 M3a → M3b → M3c are sequential; the end of M3c is the first demo. M4 and M5
@@ -194,7 +194,7 @@ what exists and what it was built from, mark bad data, see what is out of
 date and why, and old versions go away on their own. Steps, in order;
 each is one PR:
 
-1. **Catalog API and CLI**: a `CatalogService` (datasets, a dataset's
+1. ✅ **Catalog API and CLI**: a `CatalogService` (datasets, a dataset's
    partitions with their latest pallets, a pallet with its manifest, its
    inputs and what was built from it) and `hubwagen datasets`,
    `hubwagen pallets <dataset>`, `hubwagen pallet <id>` (lineage up and

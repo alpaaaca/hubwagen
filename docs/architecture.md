@@ -71,7 +71,9 @@ of truth and runs are derived.
 **Data state is a projection.** "What is the latest version of
 `marketing.daily_revenue` for 2026-10-24?", "what was it built from?" and
 "what is stale?" are answered from the catalog, a projection of the logbooks
-of all hauls. Nobody writes to it directly.
+of all hauls. Nobody writes to it directly. `CatalogService` reads it
+(`hubwagen datasets`, `hubwagen pallets <dataset>`, and `hubwagen pallet <id>`
+with its files and its lineage both ways).
 
 ## Core concepts
 

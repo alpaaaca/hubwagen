@@ -225,6 +225,42 @@ func (s *Store) ListPallets(ctx context.Context, f PalletFilter) ([]Pallet, erro
 	return queryAll(ctx, s.r, scanPallet, q, args...)
 }
 
+// Partition is one partition of a dataset: its newest committed pallet and
+// how many committed pallets it has.
+type Partition struct {
+	Partition string
+	Latest    Pallet
+	Pallets   int
+}
+
+// ListPartitions returns a dataset's partitions that have a committed
+// pallet, in partition order, at most limit (default 100) starting after
+// the partition `after`.
+func (s *Store) ListPartitions(ctx context.Context, tenant, dataset, after string, limit int) ([]Partition, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	return queryAll(ctx, s.r, func(sc interface{ Scan(...any) error }) (Partition, error) {
+		var v Partition
+		var err error
+		v.Latest, err = scanPallet(withExtra{sc, []any{&v.Pallets}})
+		v.Partition = v.Latest.Partition
+		return v, err
+	}, `SELECT `+palletColumns+`, n FROM (
+			SELECT *, ROW_NUMBER() OVER w AS rn, COUNT(*) OVER (PARTITION BY partition) AS n
+			FROM pallets WHERE tenant = ? AND dataset = ? AND state = 'committed' AND (? = '' OR partition > ?)
+			WINDOW w AS (PARTITION BY partition ORDER BY committed_at DESC, id DESC))
+		WHERE rn = 1 ORDER BY partition LIMIT ?`, tenant, dataset, after, after, limit)
+}
+
+// withExtra scans more columns after the ones its wrapped scanner asks for.
+type withExtra struct {
+	sc    interface{ Scan(...any) error }
+	extra []any
+}
+
+func (w withExtra) Scan(dest ...any) error { return w.sc.Scan(append(dest, w.extra...)...) }
+
 // Lineage is a pallet's graph in one direction: the pallets reached and the
 // edges between them, including the pallet itself.
 type Lineage struct {

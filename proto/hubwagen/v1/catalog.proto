@@ -1,0 +1,144 @@
+syntax = "proto3";
+
+package hubwagen.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1;hubwagenv1";
+
+// CatalogService reads the catalog: datasets, their partitions and pallets,
+// and what each pallet was built from and into. It is a projection of the
+// logbooks; nothing here writes.
+service CatalogService {
+  rpc ListDatasets(ListDatasetsRequest) returns (ListDatasetsResponse);
+  // ListPartitions returns a dataset's partitions with a committed pallet,
+  // each with its newest one, in partition order.
+  rpc ListPartitions(ListPartitionsRequest) returns (ListPartitionsResponse);
+  // ListPallets returns pallets newest first.
+  rpc ListPallets(ListPalletsRequest) returns (ListPalletsResponse);
+  // GetPallet returns a pallet, its manifest if it can be read, and its
+  // lineage: everything it was built from (upstream) and everything built
+  // from it (downstream), transitively.
+  rpc GetPallet(GetPalletRequest) returns (GetPalletResponse);
+}
+
+message Dataset {
+  string tenant = 1;
+  string name = 2;
+  // Empty: unpartitioned.
+  string partition_key = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message Pallet {
+  string id = 1;
+  string tenant = 2;
+  string dataset = 3;
+  string partition = 4;
+  // The manifest's URI.
+  string location = 5;
+  string content_hash = 6;
+  string fingerprint = 7;
+  string stats_json = 8;
+  string meta_json = 9;
+  // Who built it: a haul and its lift command.
+  string haul_id = 10;
+  int32 lift_seq = 11;
+  // pending, committed, invalid or expired.
+  string state = 12;
+  // Why it is invalid or expired.
+  string reason = 13;
+  google.protobuf.Timestamp created_at = 14;
+  google.protobuf.Timestamp committed_at = 15;
+  google.protobuf.Timestamp retired_at = 16;
+}
+
+message ListDatasetsRequest {
+  // Empty: every tenant.
+  string tenant = 1;
+}
+
+message ListDatasetsResponse {
+  repeated Dataset datasets = 1;
+}
+
+message ListPartitionsRequest {
+  // Default: "default".
+  string tenant = 1;
+  string dataset = 2;
+  // Only partitions after this one (paging).
+  string after = 3;
+  // Default 100, at most 1000.
+  int32 limit = 4;
+}
+
+message Partition {
+  string partition = 1;
+  Pallet latest = 2;
+  // Committed pallets of the partition.
+  int32 pallets = 3;
+}
+
+message ListPartitionsResponse {
+  repeated Partition partitions = 1;
+}
+
+message ListPalletsRequest {
+  // Default: "default".
+  string tenant = 1;
+  string dataset = 2;
+  // Only this partition, when set.
+  optional string partition = 3;
+  // Empty: any.
+  repeated string states = 4;
+  // Only pallets older than this one (paging).
+  string before_id = 5;
+  // Default 50, at most 1000.
+  int32 limit = 6;
+}
+
+message ListPalletsResponse {
+  repeated Pallet pallets = 1;
+}
+
+message GetPalletRequest {
+  string id = 1;
+}
+
+message ManifestFile {
+  string path = 1;
+  int64 size = 2;
+  string sha256 = 3;
+}
+
+message Manifest {
+  // The prefix its files are under.
+  string data = 1;
+  repeated ManifestFile files = 2;
+  // What the lift returned, if not null.
+  string result_json = 3;
+}
+
+// LineageEdge: pallet_id was built from input_id, passed as name.
+message LineageEdge {
+  string pallet_id = 1;
+  string input_id = 2;
+  string name = 3;
+}
+
+message Lineage {
+  // Including the pallet itself.
+  repeated Pallet pallets = 1;
+  repeated LineageEdge edges = 2;
+}
+
+message GetPalletResponse {
+  Pallet pallet = 1;
+  // The lift that built it.
+  string lift = 2;
+  // Unset when it can't be read (expired, or the bucket isn't reachable).
+  Manifest manifest = 3;
+  string manifest_error = 4;
+  Lineage upstream = 5;
+  Lineage downstream = 6;
+}
