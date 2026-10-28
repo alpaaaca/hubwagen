@@ -211,6 +211,7 @@ func (c *Core) promoted(id string, err error) {
 		p.rec.State, p.rec.CommittedAt = state.PalletCommitted, ptr(c.now())
 		c.putPallet(p.rec)
 		c.emitH(state.EventPalletCommitted, h, "", payload)
+		c.palletCommitted(p.rec, h.rec.Name)
 		if l.rec.Status == state.LiftCommitting { // not cancelled meanwhile
 			l.pallet = id
 			c.finishLift(l, state.LiftCompleted, l.rec.Result, "", "")

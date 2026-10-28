@@ -32,10 +32,11 @@ import (
 // BuildRequest registers a worker build: the hauls it defines and the code
 // version of each lift.
 type BuildRequest struct {
-	ID        string
-	Hauls     []string
-	Lifts     map[string]string // lift name → code version
-	Schedules []ScheduleSpec    // for hauls it defines; see schedules.go
+	ID            string
+	Hauls         []string
+	Lifts         map[string]string  // lift name → code version
+	Schedules     []ScheduleSpec     // for hauls it defines; see schedules.go
+	Subscriptions []SubscriptionSpec // for hauls it defines; see subscriptions.go
 }
 
 // RegisterBuild records a build. Registering the same build again is a
@@ -71,6 +72,10 @@ func (c *Core) RegisterBuild(ctx context.Context, req BuildRequest) error {
 		if err != nil {
 			return struct{}{}, fmt.Errorf("build %s: %w", req.ID, err)
 		}
+		subs, err := validateSubscriptions(hauls, req.Subscriptions)
+		if err != nil {
+			return struct{}{}, fmt.Errorf("build %s: %w", req.ID, err)
+		}
 		lifts := map[string]string{}
 		for k, v := range req.Lifts {
 			if k == "" || v == "" {
@@ -83,6 +88,7 @@ func (c *Core) RegisterBuild(ctx context.Context, req BuildRequest) error {
 		c.b.catalog = append(c.b.catalog, func(tx *state.Tx) error { return tx.PutBuild(b) })
 		c.emit(state.EventBuildRegistered, "", buildRegisteredPayload{ID: req.ID, Hauls: hauls, Lifts: lifts})
 		c.applySchedules(req.ID, hauls, schedules)
+		c.applySubscriptions(req.ID, hauls, subs)
 		c.resumeStuckHauls()
 		return struct{}{}, nil
 	})

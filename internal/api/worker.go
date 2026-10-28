@@ -45,6 +45,10 @@ func (s *WorkerServer) RegisterBuild(ctx context.Context, req *connect.Request[h
 		b.Schedules = append(b.Schedules, core.ScheduleSpec{
 			Haul: sc.Haul, Cron: sc.Cron, Timezone: sc.Timezone, Interval: sc.Interval, CatchUp: sc.CatchUp})
 	}
+	for _, sub := range req.Msg.Subscriptions {
+		b.Subscriptions = append(b.Subscriptions, core.SubscriptionSpec{Haul: sub.Haul, Datasets: sub.Datasets,
+			Debounce: sub.Debounce.AsDuration(), MaxWait: sub.MaxWait.AsDuration(), MaxBatch: int(sub.MaxBatch)})
+	}
 	err := s.core.RegisterBuild(ctx, b)
 	if err != nil {
 		return nil, connectError(err)

@@ -33,5 +33,16 @@ func (c *Core) restore(ctx context.Context) error {
 		return err
 	}
 	c.restoreSchedules(scheds)
+	subs, err := c.cfg.Store.ListSubscriptions(ctx)
+	if err != nil {
+		return err
+	}
+	waiting, err := c.cfg.Store.ListSubscriptionPallets(ctx)
+	if err != nil {
+		return err
+	}
+	if err := c.restoreSubscriptions(subs, waiting); err != nil {
+		return err
+	}
 	return c.commit(ctx)
 }

@@ -55,7 +55,8 @@ type HaulServiceClient interface {
 	// waiting for yet is kept until it waits; each goes to one wait. NOT_FOUND
 	// for an unknown haul, FAILED_PRECONDITION for a finished one.
 	SignalHaul(context.Context, *connect.Request[v1.SignalHaulRequest]) (*connect.Response[v1.SignalHaulResponse], error)
-	// ListSchedules returns the current haul schedules and their next runs.
+	// ListSchedules returns the current haul schedules and their next runs,
+	// and the dataset subscriptions.
 	ListSchedules(context.Context, *connect.Request[v1.ListSchedulesRequest]) (*connect.Response[v1.ListSchedulesResponse], error)
 }
 
@@ -136,7 +137,8 @@ type HaulServiceHandler interface {
 	// waiting for yet is kept until it waits; each goes to one wait. NOT_FOUND
 	// for an unknown haul, FAILED_PRECONDITION for a finished one.
 	SignalHaul(context.Context, *connect.Request[v1.SignalHaulRequest]) (*connect.Response[v1.SignalHaulResponse], error)
-	// ListSchedules returns the current haul schedules and their next runs.
+	// ListSchedules returns the current haul schedules and their next runs,
+	// and the dataset subscriptions.
 	ListSchedules(context.Context, *connect.Request[v1.ListSchedulesRequest]) (*connect.Response[v1.ListSchedulesResponse], error)
 }
 

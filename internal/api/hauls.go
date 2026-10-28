@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
@@ -67,6 +68,23 @@ func (s *HaulServer) ListSchedules(ctx context.Context, _ *connect.Request[hubwa
 			v.NextRun = timestamppb.New(cal.Next(time.Now()))
 		}
 		out.Schedules = append(out.Schedules, v)
+	}
+	subs, err := s.store.ListSubscriptions(ctx)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	waiting, err := s.store.ListSubscriptionPallets(ctx)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	count := map[string]int32{}
+	for _, w := range waiting {
+		count[w.Haul]++
+	}
+	for _, sub := range subs {
+		out.Subscriptions = append(out.Subscriptions, &hubwagenv1.Subscription{
+			Haul: sub.Haul, Datasets: sub.Datasets, Debounce: durationpb.New(sub.Debounce), MaxWait: durationpb.New(sub.MaxWait),
+			MaxBatch: int32(sub.MaxBatch), BuildId: sub.BuildID, Waiting: count[sub.Haul]})
 	}
 	return connect.NewResponse(out), nil
 }

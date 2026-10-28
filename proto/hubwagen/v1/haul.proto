@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package hubwagen.v1;
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1;hubwagenv1";
@@ -18,7 +19,8 @@ service HaulService {
   // waiting for yet is kept until it waits; each goes to one wait. NOT_FOUND
   // for an unknown haul, FAILED_PRECONDITION for a finished one.
   rpc SignalHaul(SignalHaulRequest) returns (SignalHaulResponse);
-  // ListSchedules returns the current haul schedules and their next runs.
+  // ListSchedules returns the current haul schedules and their next runs,
+  // and the dataset subscriptions.
   rpc ListSchedules(ListSchedulesRequest) returns (ListSchedulesResponse);
 }
 
@@ -26,6 +28,18 @@ message ListSchedulesRequest {}
 
 message ListSchedulesResponse {
   repeated Schedule schedules = 1;
+  repeated Subscription subscriptions = 2;
+}
+
+message Subscription {
+  string haul = 1;
+  repeated string datasets = 2;
+  google.protobuf.Duration debounce = 3;
+  google.protobuf.Duration max_wait = 4;
+  int32 max_batch = 5;
+  string build_id = 6;
+  // Pallets waiting for the haul to start.
+  int32 waiting = 7;
 }
 
 message Schedule {

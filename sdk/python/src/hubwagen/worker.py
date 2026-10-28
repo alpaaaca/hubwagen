@@ -68,7 +68,7 @@ def build_id() -> str:
     h = hashlib.sha256()
     for name in sorted(_model.HAULS):
         d = _model.HAULS[name]
-        h.update(f"haul {name} {d.code_version()} {d.schedule!r}\n".encode())
+        h.update(f"haul {name} {d.code_version()} {d.schedule!r} {d.subscribe!r}\n".encode())
     for name in sorted(_model.LIFTS):
         h.update(f"lift {name} {_model.LIFTS[name].code_version()}\n".encode())
     return "b-" + h.hexdigest()[:12]
@@ -93,9 +93,17 @@ class Worker:
         schedules = [{"haul": name, "cron": d.schedule.cron, "timezone": d.schedule.timezone,
                       "interval": d.schedule.interval, "catchUp": d.schedule.catch_up}
                      for name, d in sorted(_model.HAULS.items()) if d.schedule]
+        subscriptions = []
+        for name, d in sorted(_model.HAULS.items()):
+            if s := d.subscribe:
+                sub = {"haul": name, "datasets": list(s.datasets), "debounce": _replay._duration(s.debounce),
+                       "maxBatch": s.max_batch}
+                if s.max_wait is not None:
+                    sub["maxWait"] = _replay._duration(s.max_wait)
+                subscriptions.append(sub)
         self.client.call("WorkerService", "RegisterBuild",
                          {"buildId": self.build, "hauls": sorted(_model.HAULS), "liftVersions": versions,
-                          "schedules": schedules})
+                          "schedules": schedules, "subscriptions": subscriptions})
         log.info("registered build %s: %d hauls, %d lifts", self.build, len(_model.HAULS), len(_model.LIFTS))
 
     # --- hauls ---

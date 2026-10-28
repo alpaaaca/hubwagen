@@ -210,3 +210,34 @@ def family(ctx, n: int):
 @hw.haul(schedule=hw.Schedule("0 3 * * *", interval="daily", timezone="Europe/Berlin", catch_up="all"))
 def nightly(ctx, interval: hw.Interval):
     return ctx.lift(add, interval.start.day, 0)
+
+
+@hw.lift(output=hw.Dataset("feed.orders"))
+def feed_extract(n: int) -> int:
+    (hw.output().path / "orders.csv").write_text(f"order {n}\n")
+    return n
+
+
+@hw.haul
+def feed_producer(ctx, n: int):
+    return ctx.lift(feed_extract, n).id
+
+
+@hw.lift(output=hw.Dataset("feed.summary"))
+def feed_summarize(pallet_ids: list) -> int:
+    out = hw.output()
+    (out.path / "summary.txt").write_text(",".join(pallet_ids))
+    out.meta["pallets"] = pallet_ids
+    return len(pallet_ids)
+
+
+@hw.haul(subscribe=hw.Subscription("feed.orders", debounce=1))
+def feed_consumer(ctx, pallets: list):
+    """Started by new feed.orders pallets, a second's quiet after the last."""
+    return ctx.lift(feed_summarize, [p.id for p in pallets]).id
+
+
+@hw.haul
+def feed_latest(ctx):
+    p = ctx.latest_pallet("feed.summary")
+    return p.meta["pallets"] if p else None

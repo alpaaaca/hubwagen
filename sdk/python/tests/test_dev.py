@@ -2,6 +2,7 @@
 
 import datetime as dt
 import json
+import time
 
 import pytest
 
@@ -130,6 +131,21 @@ def test_a_scheduled_haul_runs_with_an_interval(client):
     h = wait(client, client.start_haul("nightly", params))
     assert h["status"] == "completed", h
     assert json.loads(h["resultJson"]) == 24
+
+
+def test_subscription_starts_a_haul_with_new_pallets(client):
+    produced = [wait(client, client.start_haul("feed_producer", {"n": n})) for n in (1, 2)]
+    pallets = [json.loads(h["resultJson"]) for h in produced]
+    deadline = time.time() + 15
+    while time.time() < deadline:
+        got = json.loads(wait(client, client.start_haul("feed_latest"))["resultJson"])
+        if got:
+            break
+        time.sleep(0.2)
+    assert got == pallets, "one haul, started with both pallets after the debounce"
+    subs = client.call("HaulService", "ListSchedules", {})["subscriptions"]
+    feed = next(s for s in subs if s["haul"] == "feed_consumer")
+    assert feed["datasets"] == ["feed.orders"] and not feed.get("waiting")
 
 
 def test_cursor_from_the_catalog(client):

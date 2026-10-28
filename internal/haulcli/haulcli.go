@@ -156,10 +156,24 @@ func (c *Client) Schedules(ctx context.Context, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	scheds := res.Msg.Schedules
-	if len(scheds) == 0 {
-		_, err := fmt.Fprintln(w, "no schedules (a haul gets one with @hw.haul(schedule=...))")
+	scheds, subs := res.Msg.Schedules, res.Msg.Subscriptions
+	if len(scheds) == 0 && len(subs) == 0 {
+		_, err := fmt.Fprintln(w, "no schedules or subscriptions (a haul gets one with @hw.haul(schedule=...) or subscribe=...)")
 		return err
+	}
+	if len(subs) > 0 {
+		defer func() {
+			tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
+			fmt.Fprintln(tw, "\nHAUL\tON DATASETS\tDEBOUNCE\tMAX WAIT\tMAX BATCH\tWAITING")
+			for _, s := range subs {
+				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%d\t%d\n", s.Haul, strings.Join(s.Datasets, ", "),
+					s.Debounce.AsDuration(), s.MaxWait.AsDuration(), s.MaxBatch, s.Waiting)
+			}
+			tw.Flush()
+		}()
+	}
+	if len(scheds) == 0 {
+		return nil
 	}
 	sort.SliceStable(scheds, func(i, j int) bool { return scheds[i].NextRun.AsTime().Before(scheds[j].NextRun.AsTime()) })
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
