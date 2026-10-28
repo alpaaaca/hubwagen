@@ -217,6 +217,11 @@ type HaulOutcome struct {
 	Message string          `json:"message,omitempty"`
 }
 
+// ReasonNondeterminism: the haul's replay contradicted its logbook, or (as
+// a TaskError reason) the haul code read the clock or randomness. Either
+// makes the haul stuck until a new build resumes it.
+const ReasonNondeterminism = "nondeterminism"
+
 // TaskError is a failure of the worker rather than of user code, such as a
 // haul function that can't be imported.
 type TaskError struct {
@@ -376,6 +381,12 @@ func (c *Core) completeHaulTask(res HaulTaskResult) error {
 	}
 	if res.Error != nil {
 		c.failHaulTask(t, res.Error.Reason, res.Error.Message)
+		if res.Error.Reason == ReasonNondeterminism {
+			if state.HaulOpen(h.rec.Status) {
+				c.markStuck(h, ReasonNondeterminism, res.Error.Message, 0)
+			}
+			return nil
+		}
 		if state.HaulOpen(h.rec.Status) {
 			c.finishHaul(h, state.HaulFailed, "haul_task_failed", res.Error.Message, nil)
 		}
@@ -383,8 +394,8 @@ func (c *Core) completeHaulTask(res HaulTaskResult) error {
 	}
 	if state.HaulOpen(h.rec.Status) {
 		if seq, msg := checkReplay(h.cmds, res.Commands); msg != "" {
-			c.failHaulTask(t, "nondeterminism", msg)
-			c.markStuck(h, "nondeterminism", msg, seq)
+			c.failHaulTask(t, ReasonNondeterminism, msg)
+			c.markStuck(h, ReasonNondeterminism, msg, seq)
 			return nil // the worker did its job; the haul code is at fault
 		}
 	}

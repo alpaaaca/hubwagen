@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import datetime as _dt
-import hashlib
+import functools
 import inspect
 import json
 import urllib.parse
@@ -109,6 +109,18 @@ class HaulDef:
     fn: Callable
     dock: str | None
 
+    @functools.cached_property
+    def _computed_version(self) -> str:
+        from . import _codeversion
+
+        return _codeversion.code_version(self.fn, name=self.name, haul=True)
+
+    def code_version(self) -> str:
+        """The haul's code version, computed like a lift's. It goes into the
+        build ID, so fixed haul code is a new build (which resumes stuck
+        hauls)."""
+        return self._computed_version
+
 
 @dataclass
 class LiftDef:
@@ -122,16 +134,17 @@ class LiftDef:
     retry: Retry | None
     dock: str | None
 
+    @functools.cached_property
+    def _computed_version(self) -> str:
+        from . import _codeversion
+
+        return _codeversion.code_version(self.fn, self.deps, self.name)
+
     def code_version(self) -> str:
-        """The lift's code version: `version=` if given, else a hash of its
-        source. (Imports and the lockfile join in with #25.)"""
-        if self.version:
-            return self.version
-        try:
-            src = inspect.getsource(self.fn)
-        except (OSError, TypeError):
-            src = self.fn.__qualname__
-        return "src-" + hashlib.sha256(src.encode()).hexdigest()[:12]
+        """The lift's code version: `version=` if given, else a hash of the
+        code it can run, the packages it uses and its `deps=` files (see
+        _codeversion). Computed once per process."""
+        return self.version or self._computed_version
 
 
 HAULS: dict[str, HaulDef] = {}

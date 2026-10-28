@@ -17,6 +17,7 @@ import sys
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
+from ._guards import NondeterminismError, guarded
 from ._model import Dataset, HaulDef, LiftDef, LiftFailed, Pallet, decode, encode, lift_def
 
 
@@ -62,8 +63,10 @@ class ReplayResult:
     commands: list[dict]
     # Set when the haul function ended: {"status": "STATUS_COMPLETED", ...}.
     outcome: dict | None
-    # Set when a command contradicted the logbook (the haul will be stuck).
+    # Set when a command contradicted the logbook, or haul code read the
+    # clock or randomness (nondeterministic); the haul will be stuck.
     mismatch: str | None = None
+    nondeterministic: bool = False
 
 
 class Ctx:
@@ -230,9 +233,12 @@ def replay(d: HaulDef, haul_id: str, params: dict, logbook: list[dict]) -> Repla
     """Run the haul function until it blocks or ends."""
     ctx = Ctx(haul_id, logbook)
     try:
-        result = d.fn(ctx, **decode(params))
+        with guarded():
+            result = d.fn(ctx, **decode(params))
     except Blocked:
         return ReplayResult(ctx.commands, None, ctx.mismatch)
+    except NondeterminismError as e:
+        return ReplayResult(ctx.commands, None, str(e), nondeterministic=True)
     except Exception as e:  # noqa: BLE001 - the haul function raised: it failed
         return ReplayResult(ctx.commands, {"status": "STATUS_FAILED", "reason": type(e).__name__, "message": str(e)})
     return ReplayResult(ctx.commands, {"status": "STATUS_COMPLETED", "resultJson": json.dumps(encode(result))})

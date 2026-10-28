@@ -503,7 +503,9 @@ type CompleteHaulTaskRequest struct {
 	Commands []*Command `protobuf:"bytes,3,rep,name=commands,proto3" json:"commands,omitempty"`
 	// Set when the haul function returned or raised.
 	Outcome *HaulOutcome `protobuf:"bytes,4,opt,name=outcome,proto3" json:"outcome,omitempty"`
-	// Set when the replay itself failed (not the haul code).
+	// Set when the replay itself failed (not the haul code), or with reason
+	// "nondeterminism" when the haul code read the clock or randomness: then
+	// the haul becomes stuck instead of failed, and a new build resumes it.
 	Error         *TaskError `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

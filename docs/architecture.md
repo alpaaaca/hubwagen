@@ -279,18 +279,26 @@ fingerprint = hash(
 )
 ```
 
-- **Code version** defaults to a hash of the lift's source, the project
-  modules it imports (resolved through the AST), and the worker's lockfile.
+- **Code version** defaults to a hash of the code the lift can run, found by
+  walking the live objects its function refers to: its own AST and that of
+  every project function, class and constant it reaches, in any module;
+  the versions of the installed distributions that code uses (with their
+  requirements); the Python version. Comments, docstrings and the lift's
+  decorator don't count. There is no lockfile term: a dev-tool bump would
+  rerun everything ([spike S2](spikes/s2-code-version.md)).
   `@lift(deps=["sql/macros/"])` adds non-Python files. `@lift(version="3")`
-  replaces the computed value when the user knows better.
+  replaces the computed value when the user knows better. Hauls get code
+  versions the same way (lifts count by name), and a build ID covers both.
 - **Input keys** are the pallet's content hash when its storage adapter can
   provide one cheaply (a `file://` manifest hashes its file checksums and the
-  lift's result, unless that is null), and the pallet id otherwise. With content hashes, an upstream rebuild that produces
-  identical data does not ripple downstream.
+  lift's result, unless that is null), and the pallet id otherwise. With
+  content hashes, an upstream rebuild that produces identical data does not
+  ripple downstream.
 - **Bias: strict.** A needless rerun costs money; a wrong reuse silently
   serves stale data. Every rerun reports its reason (`code changed`,
-  `lockfile changed`, `input changed`, `params changed`), so over-strictness
-  is visible and can be relaxed per lift with `version=`.
+  `input changed`, `params changed`), so over-strictness is visible and can
+  be relaxed per lift with `version=`; `python -m hubwagen.worker
+  --versions` shows what a code version covers.
 
 ### Which lifts are memoized
 
@@ -622,8 +630,8 @@ building versioning, lineage and idempotent writes themselves.
 
 - **Wrong reuse.** A code version that misses a dependency, or a hidden input
   in a lift marked `memo=True`, reuses an outdated pallet. Mitigations:
-  memoization is opt-in, strict default hashing with the lockfile, rerun
-  reasons, the hidden-inputs pattern, lint for SQL table references, and
+  memoization is opt-in, code versions that follow everything a lift's code
+  reaches (with the versions of the packages it uses), rerun reasons, the hidden-inputs pattern, lint for SQL table references, and
   later `hubwagen verify` (recompute a sample of reused lifts and compare).
 - **Determinism burden.** Users will write non-deterministic hauls.
   Mitigations: sequence checks with line numbers, runtime guards, lint,

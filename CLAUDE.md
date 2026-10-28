@@ -9,12 +9,13 @@ catalog derived from the event history. One Go server that never runs user
 code, single leader on SQLite (Litestream later); workers in the user's
 environment, Python SDK first.
 
-**Today (M3c, except #25):** `hubwagen dev` serves the API; Python workers
-(`sdk/python`) run hauls and lifts; `hubwagen start`/`replay` start them and
-report reuse. The v1 engine (compiled YAML pipelines) was removed in M3c; it
-is in git history up to commit 33ca1ba. **Next:** #25 (runtime guards,
-code versions from imports), then M4 (fan-out limits, signals, schedules,
-testing).
+**Today (M3c done):** `hubwagen dev` serves the API; Python workers
+(`sdk/python`) run hauls and lifts, with code versions from what a lift's
+code reaches and runtime guards in haul code; `hubwagen start`/`replay`
+start them and report reuse. The v1 engine (compiled YAML pipelines) was
+removed in M3c; it is in git history up to commit 33ca1ba. **Next:** M4
+(fan-out limits, signals, schedules, testing); the reuse-by-default
+decision in docs/api-simplification.md.
 
 Read before larger changes:
 
@@ -23,7 +24,7 @@ Read before larger changes:
 - [docs/v2-migration.md](docs/v2-migration.md) — what happened to each v1 package
 - [docs/failover.md](docs/failover.md) — design: nodes, leader election and state handoff (not built)
 - [docs/api-simplification.md](docs/api-simplification.md) — design: lifts return values and dataframes, reuse by default (steps 1–2 built)
-- [docs/spikes/](docs/spikes/) — spike findings (S1: Python replay)
+- [docs/spikes/](docs/spikes/) — spike findings (S1: Python replay, S2: code versions)
 - [sdk/python/README.md](sdk/python/README.md) — writing hauls and lifts, the worker
 - [docs/config.md](docs/config.md) — instance configuration (`hubwagen.yaml`)
 

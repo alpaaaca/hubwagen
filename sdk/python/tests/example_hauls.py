@@ -144,3 +144,9 @@ def copy_orders(orders: hw.Pallet) -> dict:
 def reads_inputs(ctx, day: str):
     orders = ctx.lift(extract, day)
     return ctx.lift(copy_orders, orders).result
+
+
+@hw.haul
+def reads_clock(ctx):
+    """Reads the clock in haul code: the guard makes the haul stuck."""
+    return ctx.lift(add, int(time.time()) % 2, 0)
