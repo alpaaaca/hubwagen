@@ -41,14 +41,15 @@ spec-kit.
 | `internal/core` | The core: one event loop; hauls (replay until blocked, sequence check, stuck), lifts (retries, timeouts, leases), timers, docks (long-poll), commits, memoization, single-flight, restore |
 | `internal/state` | Store: event log + projections (hauls, lifts, timers, catalog, builds), term fencing, leader-start loader |
 | `internal/pallet` | Storage adapter for pallets as files: manifests, content hash, idempotent promote, discard |
-| `internal/api` | Connect services over HTTP (`WorkerService`, `HaulService`); generated code in `gen/` from `proto/` |
+| `internal/api` | Connect services over HTTP (`WorkerService`, `HaulService`, `CatalogService`); generated code in `gen/` from `proto/` |
 | `internal/devmode` | Wires store, bucket, core and API for one process; data-dir lock; event descriptions for `hubwagen dev` |
 | `internal/haulcli` | What `start` and `replay` do: `--param` ranges, starting and waiting over `HaulService`, the replay report |
+| `internal/catalogcli` | What `datasets`, `pallets` and `pallet` print, over `CatalogService` (lineage trees) |
 | `internal/schedule` | Calendar and cron math (DST-correct intervals, what is due since a cursor); the core's haul schedules use it |
 | `internal/clock`, `internal/layout`, `internal/blob` | Real/fake clock; bucket paths (lift staging, pallet manifests); bucket access with atomic create-if-absent |
 | `internal/config` | `hubwagen.yaml`: data dir, listen address, worker processes |
 | `internal/supervise` | Runs and restarts worker processes for `dev` and `workers` (prefixed output, SIGTERM then kill) |
-| `cmd/` | `dev`, `workers`, `start`, `replay`, `signal`, `schedules`, `version` |
+| `cmd/` | `dev`, `workers`, `start`, `replay`, `signal`, `schedules`, `datasets`, `pallets`, `pallet`, `version` |
 | `sdk/python/` | Python SDK (stdlib only, Python ≥ 3.12): `@haul`, `@lift`, replay engine, worker; pytest runs it against a real `hubwagen dev` |
 | `pipelines/examples/revenue/` | Example Python project; `sdk/python/tests/test_example.py` is its demo |
 | `tests/` | Cross-package end-to-end tests (leader restarts) |

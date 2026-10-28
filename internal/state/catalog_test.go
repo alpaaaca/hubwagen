@@ -278,3 +278,38 @@ func TestGetLift(t *testing.T) {
 	_, err = s.GetLift(ctx, "h1", 1)
 	assert.ErrorIs(t, err, ErrNotFound)
 }
+
+func TestListPartitions(t *testing.T) {
+	s, _ := openFile(t)
+	const ds = "raw.orders"
+	invalid := pallet("p9", ds, "2026-10-24", 9*time.Hour)
+	invalid.State = PalletInvalid
+	putCatalog(t, s, []Dataset{dataset(ds, "day"), dataset("cfg", "")}, []Pallet{
+		pallet("p1", ds, "2026-10-23", time.Hour),
+		pallet("p2", ds, "2026-10-24", time.Hour),
+		pallet("p3", ds, "2026-10-24", 2*time.Hour),
+		pallet("p4", ds, "2026-10-25", time.Hour),
+		invalid, // newer, but not committed
+		pallet("c1", "cfg", "", time.Hour),
+	})
+	parts, err := s.ListPartitions(ctx, "t", ds, "", 0)
+	require.NoError(t, err)
+	got := map[string][2]any{}
+	var order []string
+	for _, p := range parts {
+		order = append(order, p.Partition)
+		got[p.Partition] = [2]any{p.Latest.ID, p.Pallets}
+	}
+	assert.Equal(t, []string{"2026-10-23", "2026-10-24", "2026-10-25"}, order)
+	assert.Equal(t, [2]any{"p3", 2}, got["2026-10-24"], "the newest committed, of two")
+
+	page, err := s.ListPartitions(ctx, "t", ds, "2026-10-23", 1)
+	require.NoError(t, err)
+	require.Len(t, page, 1)
+	assert.Equal(t, "2026-10-24", page[0].Partition, "after a partition, one at a time")
+
+	unpartitioned, err := s.ListPartitions(ctx, "t", "cfg", "", 0)
+	require.NoError(t, err)
+	require.Len(t, unpartitioned, 1)
+	assert.Equal(t, "c1", unpartitioned[0].Latest.ID)
+}
