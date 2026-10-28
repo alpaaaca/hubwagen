@@ -214,7 +214,7 @@ each is one PR:
    `data/<tenant>/<dataset>/<partition>/<attempt>/` instead of the haul's
    ID, so the bucket reads like the catalog; existing pallets keep their
    paths (manifests point at them). ([#76](https://github.com/alpaaaca/hubwagen/issues/76))
-5. **Retention and expiry**: per dataset, keep the latest pallet of each
+5. ✅ **Retention and expiry**: per dataset, keep the latest pallet of each
    partition plus those younger than an age or among the newest N
    (`hw.Dataset(..., keep=...)`, registered with the build). A leader timer
    and `hubwagen gc` expire the rest as events (`PalletExpired`, then the
@@ -247,9 +247,8 @@ Open questions, to settle in the step that needs them:
   settle in step 6: whether the built UI (`ui/dist`) is committed, so
   `go install` gets it, or built in release CI only (`go build` without it
   serves a page saying how to build it).
-- Retention: declared in code (`hw.Dataset(keep=...)`, versioned with the
-  build) or in `hubwagen.yaml` (an operator's choice). Proposed: code, with
-  a config override later.
+- Retention: decided, in code (`hw.Dataset(keep=hw.Keep(...))`, versioned
+  with the build); a config override can come later.
 - Staleness by code version: "current" is the newest build that defines
   the lift; a stale pallet from an old build may still be what an older
   worker would produce.

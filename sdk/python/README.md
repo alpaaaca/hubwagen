@@ -148,7 +148,10 @@ haul still on it becomes stuck rather than taking the wrong path.
 
 `@hw.lift(...)` options: `memo=True` or `memo="ttl:1h"` (reuse what an
 earlier run produced when code, inputs and arguments are unchanged: its
-pallet, or for a lift without an output, its result), `output=hw.Dataset(name, partition="arg")`, `version=` (pin the
+pallet, or for a lift without an output, its result),
+`output=hw.Dataset(name, partition="arg", keep=hw.Keep(versions=3, age=timedelta(days=30)))`
+(`keep`: retention; per partition the latest and those kept by either rule
+stay, the rest expire; without it every version stays), `version=` (pin the
 code version), `timeout=` (seconds), `retry=hw.Retry(limit, backoff,
 initial, max)` or an int, `dock=`. Pass pallets as arguments: they travel
 as inputs (lineage, and content hashes in the fingerprint), not inside the

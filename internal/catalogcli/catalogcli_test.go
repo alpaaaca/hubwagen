@@ -29,7 +29,14 @@ var t0 = time.Date(2026, 10, 24, 3, 0, 0, 0, time.UTC)
 
 // A small catalog: raw.orders (two days) feeds mart.revenue, which with
 // raw.orders again (a diamond) feeds reports.revenue.
-func serve(t *testing.T) (*Client, *state.Store) {
+// fixture is a catalog served over HTTP, and what serves it.
+type fixture struct {
+	c    *Client
+	st   *state.Store
+	core *core.Core
+}
+
+func serve(t *testing.T) fixture {
 	t.Helper()
 	dir := t.TempDir()
 	st, err := state.Open(filepath.Join(dir, "state.db"))
@@ -102,7 +109,7 @@ func serve(t *testing.T) (*Client, *state.Store) {
 	mux.Handle(path, h)
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
-	return NewClient(srv.URL), st
+	return fixture{NewClient(srv.URL), st, c}
 }
 
 func ptr[T any](v T) *T { return &v }
@@ -116,16 +123,16 @@ func lines(s string) []string {
 }
 
 func TestDatasets(t *testing.T) {
-	c, _ := serve(t)
+	c := serve(t).c
 	var out bytes.Buffer
 	require.NoError(t, c.Datasets(ctx, &out, "default"))
 	got := lines(out.String())
-	assert.Equal(t, "DATASET PARTITIONED BY PARTITIONS LATEST", got[0])
-	assert.Contains(t, got, "raw.orders day 2 2026-10-24 "+when(t0.Add(2*time.Hour)))
+	assert.Equal(t, "DATASET PARTITIONED BY PARTITIONS LATEST KEEP", got[0])
+	assert.Contains(t, got, "raw.orders day 2 2026-10-24 "+when(t0.Add(2*time.Hour))+" all")
 }
 
 func TestPallets(t *testing.T) {
-	c, _ := serve(t)
+	c := serve(t).c
 	var out bytes.Buffer
 	require.NoError(t, c.Pallets(ctx, &out, PalletsQuery{Tenant: "default", Dataset: "raw.orders"}))
 	assert.Equal(t, []string{"PARTITION LATEST PALLET COMMITTED VERSIONS",
@@ -141,7 +148,7 @@ func TestPallets(t *testing.T) {
 }
 
 func TestPalletShowsFilesAndLineage(t *testing.T) {
-	c, _ := serve(t)
+	c := serve(t).c
 	var out bytes.Buffer
 	require.NoError(t, c.Pallet(ctx, &out, "o3"))
 	s := out.String()
@@ -159,7 +166,7 @@ func TestPalletShowsFilesAndLineage(t *testing.T) {
 }
 
 func TestInvalidate(t *testing.T) {
-	c, _ := serve(t)
+	c := serve(t).c
 	var out bytes.Buffer
 	asked := 0
 	no := func(n int) bool { asked = n; return false }
@@ -188,7 +195,8 @@ func TestInvalidate(t *testing.T) {
 }
 
 func TestStale(t *testing.T) {
-	c, st := serve(t)
+	f := serve(t)
+	c, st := f.c, f.st
 	var out bytes.Buffer
 	require.NoError(t, c.Stale(ctx, &out, "default", ""))
 	assert.Equal(t, "nothing is stale\n", out.String())
@@ -211,4 +219,29 @@ func TestStale(t *testing.T) {
 	out.Reset()
 	require.NoError(t, c.Stale(ctx, &out, "default", "reports.revenue"))
 	assert.NotContains(t, out.String(), "mart.revenue")
+}
+
+func TestGC(t *testing.T) {
+	f := serve(t)
+	var out bytes.Buffer
+	require.NoError(t, f.c.GC(ctx, &out, true))
+	assert.Equal(t, "nothing to expire\n", out.String(), "no retention: everything stays")
+
+	require.NoError(t, f.core.RegisterBuild(ctx, core.BuildRequest{ID: "b1",
+		Datasets: []core.DatasetSpec{{Name: "raw.orders", Versions: 1}}}))
+	out.Reset()
+	require.NoError(t, f.c.Datasets(ctx, &out, "default"))
+	assert.Contains(t, lines(out.String()), "raw.orders day 2 2026-10-24 "+when(t0.Add(2*time.Hour))+" 1 version")
+
+	out.Reset()
+	require.NoError(t, f.c.GC(ctx, &out, true))
+	assert.Equal(t, []string{"would expire 1 pallet:", "o2 raw.orders 2026-10-24 committed " + when(t0.Add(time.Hour))}, lines(out.String()),
+		"o3 is the latest of 10-24; o1 the only one of 10-23")
+	out.Reset()
+	require.NoError(t, f.c.GC(ctx, &out, false))
+	assert.True(t, strings.HasPrefix(out.String(), "expired 1 pallet:"))
+	out.Reset()
+	require.NoError(t, f.c.Pallet(ctx, &out, "o2"))
+	assert.Contains(t, out.String(), "pallet o2, expired\n  reason     retention: raw.orders keeps each partition's latest and the newest 1")
+	assert.Contains(t, out.String(), "files      can't be read: expired: its data was removed")
 }

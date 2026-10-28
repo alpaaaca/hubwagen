@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
@@ -78,10 +79,24 @@ func (s *CatalogServer) ListDatasets(ctx context.Context, req *connect.Request[h
 	if err != nil {
 		return nil, connectError(err)
 	}
+	keep, err := s.store.ListRetention(ctx)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	byName := map[string]state.Retention{}
+	for _, r := range keep {
+		byName[r.Dataset] = r
+	}
 	out := &hubwagenv1.ListDatasetsResponse{}
 	for _, d := range dss {
-		out.Datasets = append(out.Datasets, &hubwagenv1.Dataset{Tenant: d.Tenant, Name: d.Name,
-			PartitionKey: d.PartitionKey, CreatedAt: timestamppb.New(d.CreatedAt)})
+		v := &hubwagenv1.Dataset{Tenant: d.Tenant, Name: d.Name, PartitionKey: d.PartitionKey, CreatedAt: timestamppb.New(d.CreatedAt)}
+		if r, ok := byName[d.Name]; ok {
+			v.KeepVersions = int32(r.Versions)
+			if r.Age > 0 {
+				v.KeepFor = durationpb.New(r.Age)
+			}
+		}
+		out.Datasets = append(out.Datasets, v)
 	}
 	return connect.NewResponse(out), nil
 }
@@ -157,6 +172,21 @@ func (s *CatalogServer) GetPallet(ctx context.Context, req *connect.Request[hubw
 		return nil, connectError(err)
 	}
 	out.Upstream, out.Downstream = lineageMessage(up), lineageMessage(down)
+	return connect.NewResponse(out), nil
+}
+
+func (s *CatalogServer) ExpirePallets(ctx context.Context, req *connect.Request[hubwagenv1.ExpirePalletsRequest]) (*connect.Response[hubwagenv1.ExpirePalletsResponse], error) {
+	if s.core == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("this server only reads the catalog"))
+	}
+	expired, err := s.core.Expire(ctx, req.Msg.DryRun)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	out := &hubwagenv1.ExpirePalletsResponse{}
+	for _, e := range expired {
+		out.Expired = append(out.Expired, &hubwagenv1.ExpiredPallet{Pallet: palletMessage(e.Pallet), Reason: e.Reason})
+	}
 	return connect.NewResponse(out), nil
 }
 

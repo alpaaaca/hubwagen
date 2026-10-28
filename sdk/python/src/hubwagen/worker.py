@@ -63,9 +63,30 @@ def load_inputs(fn: Any, kwargs: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def datasets() -> dict[str, _model.Keep | None]:
+    """The datasets this build's lifts write, with their retention. Lifts
+    writing one dataset that declare keep must agree; one without keep
+    takes the others'."""
+    out: dict[str, _model.Keep | None] = {}
+    who: dict[str, str] = {}
+    for name, d in sorted(_model.LIFTS.items()):
+        if d.output is None:
+            continue
+        ds = d.output.name
+        keep = d.output.keep
+        if out.get(ds) is not None and keep is not None and out[ds] != keep:
+            raise SystemExit(f"dataset {ds}: lifts {who[ds]} and {name} declare different keep "
+                             f"({out[ds]} and {keep}); declare it once, the same everywhere")
+        if out.get(ds) is None:  # a lift without keep defers to one with it
+            out[ds], who[ds] = keep, name
+    return out
+
+
 def build_id() -> str:
     """A build is identified by its hauls' and lifts' code versions."""
     h = hashlib.sha256()
+    for ds, keep in sorted(datasets().items()):
+        h.update(f"dataset {ds} {keep!r}\n".encode())
     for name in sorted(_model.HAULS):
         d = _model.HAULS[name]
         h.update(f"haul {name} {d.code_version()} {d.schedule!r} {d.subscribe!r}\n".encode())
@@ -101,9 +122,17 @@ class Worker:
                 if s.max_wait is not None:
                     sub["maxWait"] = _replay._duration(s.max_wait)
                 subscriptions.append(sub)
+        retention = []
+        for ds, keep in sorted(datasets().items()):
+            r: dict[str, Any] = {"name": ds}
+            if keep and keep.versions:
+                r["keepVersions"] = keep.versions
+            if keep and keep.age:
+                r["keepFor"] = _replay._duration(keep.age)
+            retention.append(r)
         self.client.call("WorkerService", "RegisterBuild",
                          {"buildId": self.build, "hauls": sorted(_model.HAULS), "liftVersions": versions,
-                          "schedules": schedules, "subscriptions": subscriptions})
+                          "schedules": schedules, "subscriptions": subscriptions, "datasets": retention})
         log.info("registered build %s: %d hauls, %d lifts", self.build, len(_model.HAULS), len(_model.LIFTS))
 
     # --- hauls ---

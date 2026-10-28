@@ -49,7 +49,7 @@ spec-kit.
 | `internal/clock`, `internal/layout`, `internal/blob` | Real/fake clock; bucket paths (lift staging under dataset and partition, pallet manifests); bucket access with atomic create-if-absent |
 | `internal/config` | `hubwagen.yaml`: data dir, listen address, worker processes |
 | `internal/supervise` | Runs and restarts worker processes for `dev` and `workers` (prefixed output, SIGTERM then kill) |
-| `cmd/` | `dev`, `workers`, `start`, `replay`, `signal`, `schedules`, `datasets`, `pallets`, `pallet` (and `pallet invalidate`), `stale`, `version` |
+| `cmd/` | `dev`, `workers`, `start`, `replay`, `signal`, `schedules`, `datasets`, `pallets`, `pallet` (and `pallet invalidate`), `stale`, `gc`, `version` |
 | `sdk/python/` | Python SDK (stdlib only, Python ≥ 3.12): `@haul`, `@lift`, replay engine, worker; pytest runs it against a real `hubwagen dev` |
 | `pipelines/examples/revenue/` | Example Python project; `sdk/python/tests/test_example.py` is its demo |
 | `tests/` | Cross-package end-to-end tests (leader restarts) |

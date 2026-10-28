@@ -47,6 +47,9 @@ type Config struct {
 	// HeartbeatTimeout, if set, is how long a dispatched lift attempt or haul
 	// task survives without a heartbeat from its worker (see leases.go).
 	HeartbeatTimeout time.Duration
+	// RetentionEvery is how often the leader expires what retention no
+	// longer keeps: 0 is DefaultRetentionEvery, negative is never.
+	RetentionEvery time.Duration
 	// Docks limits docks by name; a dock not listed has no limits.
 	Docks  map[string]DockConfig
 	NewID  func() string // default: ULID
@@ -71,6 +74,7 @@ type Core struct {
 	flights       map[string]*flight            // running memoized lifts, by tenant\x00fingerprint
 	schedules     map[string]*scheduleState     // by haul name (ScheduleTenant)
 	subscriptions map[string]*subscriptionState // by haul name
+	retention     map[string]state.Retention    // by dataset name
 	bg            sync.WaitGroup                // background bucket I/O
 	pollers       []*poller                     // waiting, oldest first
 	b             *batch
@@ -105,6 +109,7 @@ func New(cfg Config) *Core {
 		flights:       map[string]*flight{},
 		schedules:     map[string]*scheduleState{},
 		subscriptions: map[string]*subscriptionState{},
+		retention:     map[string]state.Retention{},
 	}
 }
 

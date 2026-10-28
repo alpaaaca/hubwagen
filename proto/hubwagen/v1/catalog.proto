@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package hubwagen.v1;
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1;hubwagenv1";
@@ -29,6 +30,23 @@ service CatalogService {
   // an input's partition has a newer pallet with other content, or the
   // newest build has another code version of the lift that built it.
   rpc ListStale(ListStaleRequest) returns (ListStaleResponse);
+  // ExpirePallets expires now what retention no longer keeps (the leader
+  // also does on a timer): the pallets are recorded as expired, then their
+  // data is deleted; manifests and lineage stay.
+  rpc ExpirePallets(ExpirePalletsRequest) returns (ExpirePalletsResponse);
+}
+
+message ExpirePalletsRequest {
+  bool dry_run = 1;
+}
+
+message ExpiredPallet {
+  Pallet pallet = 1;
+  string reason = 2;
+}
+
+message ExpirePalletsResponse {
+  repeated ExpiredPallet expired = 1;
 }
 
 message ListStaleRequest {
@@ -81,6 +99,10 @@ message Dataset {
   // Empty: unpartitioned.
   string partition_key = 3;
   google.protobuf.Timestamp created_at = 4;
+  // Retention, if any: per partition the latest stays, and those among the
+  // newest keep_versions or younger than keep_for.
+  int32 keep_versions = 5;
+  google.protobuf.Duration keep_for = 6;
 }
 
 message Pallet {

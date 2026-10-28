@@ -435,3 +435,28 @@ def test_subscription_declaration():
 
     r = run(on_orders, [], params={"pallets": [{"$pallet": "p1", "dataset": "raw.a", "partition": ""}]})
     assert json.loads(r.outcome["resultJson"]) == ["p1"]
+
+
+def test_keep():
+    assert hw.Keep(versions=3).versions == 3
+    assert hw.Keep(age=dt.timedelta(days=1)).age == 86400.0
+    for bad in ({}, {"versions": 0}, {"age": -1}):
+        with pytest.raises(ValueError, match="Keep"):
+            hw.Keep(**bad)
+    assert hw.Dataset("a", keep=hw.Keep(versions=1)) == hw.Dataset("a", keep=hw.Keep(versions=1))
+
+
+def test_lifts_must_agree_on_a_datasets_keep():
+    from hubwagen import worker
+
+    saved = dict(_model.LIFTS)
+    try:
+        hw.lift(lambda: 1, name="k1", output=hw.Dataset("k.ds", keep=hw.Keep(versions=2)))
+        hw.lift(lambda: 1, name="k2", output=hw.Dataset("k.ds"))  # no keep: takes the other's
+        assert worker.datasets()["k.ds"] == hw.Keep(versions=2)
+        hw.lift(lambda: 1, name="k3", output=hw.Dataset("k.ds", keep=hw.Keep(versions=5)))
+        with pytest.raises(SystemExit, match="dataset k.ds: lifts k1 and k3 declare different keep"):
+            worker.datasets()
+    finally:
+        _model.LIFTS.clear()
+        _model.LIFTS.update(saved)
