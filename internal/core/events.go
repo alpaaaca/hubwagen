@@ -253,6 +253,17 @@ type palletRecordedPayload struct {
 	Location string          `json:"location"`
 }
 
+// palletInvalidatedPayload: InvalidatePallet marked Pallet invalid, because
+// of Cause (itself, or a pallet it was built from).
+type palletInvalidatedPayload struct {
+	Pallet    string `json:"pallet"`
+	Dataset   string `json:"dataset"`
+	Partition string `json:"partition,omitempty"`
+	Reason    string `json:"reason"`
+	Cause     string `json:"cause"`
+	By        string `json:"by,omitempty"`
+}
+
 type palletPayload struct {
 	Pallet  string `json:"pallet"`
 	Seq     int    `json:"seq"`

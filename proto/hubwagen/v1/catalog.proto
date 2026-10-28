@@ -8,7 +8,7 @@ option go_package = "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1;hubw
 
 // CatalogService reads the catalog: datasets, their partitions and pallets,
 // and what each pallet was built from and into. It is a projection of the
-// logbooks; nothing here writes.
+// logbooks; the one write is marking bad data invalid.
 service CatalogService {
   rpc ListDatasets(ListDatasetsRequest) returns (ListDatasetsResponse);
   // ListPartitions returns a dataset's partitions with a committed pallet,
@@ -20,6 +20,35 @@ service CatalogService {
   // lineage: everything it was built from (upstream) and everything built
   // from it (downstream), transitively.
   rpc GetPallet(GetPalletRequest) returns (GetPalletResponse);
+  // InvalidatePallet marks a pallet and everything built from it,
+  // transitively, invalid: never reused, never a dataset's latest. It
+  // returns what it marked (or, dry_run, would mark) and the hauls that
+  // built those pallets, whose replay recomputes them.
+  rpc InvalidatePallet(InvalidatePalletRequest) returns (InvalidatePalletResponse);
+}
+
+message InvalidatePalletRequest {
+  string id = 1;
+  // Required; recorded with every pallet marked.
+  string reason = 2;
+  // Who asked, for the record.
+  string by = 3;
+  bool dry_run = 4;
+}
+
+// HaulRef is a haul that built an invalidated pallet: replaying it with the
+// same params recomputes what was invalidated.
+message HaulRef {
+  string id = 1;
+  string name = 2;
+  string params_json = 3;
+  string tenant = 4;
+}
+
+message InvalidatePalletResponse {
+  // The pallet itself first.
+  repeated Pallet pallets = 1;
+  repeated HaulRef hauls = 2;
 }
 
 message Dataset {

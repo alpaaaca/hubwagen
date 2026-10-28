@@ -12,6 +12,7 @@ import (
 
 	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
 	"github.com/alper/hubwagen/internal/api/gen/hubwagen/v1/hubwagenv1connect"
+	"github.com/alper/hubwagen/internal/core"
 	"github.com/alper/hubwagen/internal/pallet"
 	"github.com/alper/hubwagen/internal/state"
 )
@@ -24,13 +25,35 @@ type ManifestReader interface {
 
 // CatalogServer implements CatalogService from the store's projections.
 type CatalogServer struct {
+	core      *core.Core // writes (invalidation); nil: read only
 	store     *state.Store
 	manifests ManifestReader // nil: manifests aren't read
 }
 
-// NewCatalogHandler returns the path and handler to mount CatalogService at.
-func NewCatalogHandler(st *state.Store, manifests ManifestReader) (string, http.Handler) {
-	return hubwagenv1connect.NewCatalogServiceHandler(&CatalogServer{store: st, manifests: manifests})
+// NewCatalogHandler returns the path and handler to mount CatalogService
+// at. Without a core, InvalidatePallet is unavailable.
+func NewCatalogHandler(c *core.Core, st *state.Store, manifests ManifestReader) (string, http.Handler) {
+	return hubwagenv1connect.NewCatalogServiceHandler(&CatalogServer{core: c, store: st, manifests: manifests})
+}
+
+func (s *CatalogServer) InvalidatePallet(ctx context.Context, req *connect.Request[hubwagenv1.InvalidatePalletRequest]) (*connect.Response[hubwagenv1.InvalidatePalletResponse], error) {
+	if s.core == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("this server only reads the catalog"))
+	}
+	m := req.Msg
+	res, err := s.core.InvalidatePallet(ctx, core.InvalidateRequest{PalletID: m.Id, Reason: m.Reason, By: m.By, DryRun: m.DryRun})
+	if err != nil {
+		return nil, connectError(err)
+	}
+	out := &hubwagenv1.InvalidatePalletResponse{}
+	for _, p := range res.Pallets {
+		out.Pallets = append(out.Pallets, palletMessage(p))
+	}
+	for _, h := range res.Hauls {
+		hm := haulMessage(h)
+		out.Hauls = append(out.Hauls, &hubwagenv1.HaulRef{Id: h.ID, Name: h.Name, ParamsJson: hm.ParamsJson, Tenant: h.Tenant})
+	}
+	return connect.NewResponse(out), nil
 }
 
 var _ hubwagenv1connect.CatalogServiceHandler = (*CatalogServer)(nil)

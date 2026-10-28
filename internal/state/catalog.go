@@ -147,6 +147,20 @@ func (s *Store) LatestPallet(ctx context.Context, tenant, dataset, partition str
 	return v, err
 }
 
+// InvalidatedPallet returns the newest pallet of a tenant built with
+// fingerprint that was invalidated (not one whose promote failed), so a
+// rerun can say why the earlier one wasn't reused. ErrNotFound if none.
+func (s *Store) InvalidatedPallet(ctx context.Context, tenant, fingerprint string) (Pallet, error) {
+	v, err := scanPallet(s.r.QueryRowContext(ctx, `
+		SELECT `+palletColumns+` FROM pallets
+		WHERE tenant = ? AND fingerprint = ? AND state = 'invalid' AND reason <> 'promote_failed'
+		ORDER BY created_at DESC, id DESC LIMIT 1`, tenant, fingerprint))
+	if errors.Is(err, sql.ErrNoRows) {
+		return v, ErrNotFound
+	}
+	return v, err
+}
+
 // MemoPallet returns the newest committed pallet of a tenant built with
 // fingerprint, committed at or after since (zero: any time). It is what
 // memoization reuses. ErrNotFound if there is none.

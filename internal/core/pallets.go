@@ -78,6 +78,9 @@ type promotion struct {
 	lift     *liftState
 	rec      state.Pallet
 	manifest pallet.Manifest
+	// invalidated: InvalidatePallet marked it while its promote ran; it is
+	// recorded as invalid with this reason once promoted.
+	invalidated string
 }
 
 func datasetKey(tenant, name string) string { return tenant + "\x00" + name }
@@ -209,9 +212,14 @@ func (c *Core) promoted(id string, err error) {
 	switch {
 	case err == nil:
 		p.rec.State, p.rec.CommittedAt = state.PalletCommitted, ptr(c.now())
+		if p.invalidated != "" {
+			p.rec.State, p.rec.Reason, p.rec.RetiredAt = state.PalletInvalid, p.invalidated, p.rec.CommittedAt
+		}
 		c.putPallet(p.rec)
 		c.emitH(state.EventPalletCommitted, h, "", payload)
-		c.palletCommitted(p.rec, h.rec.Name)
+		if p.invalidated == "" {
+			c.palletCommitted(p.rec, h.rec.Name)
+		}
 		if l.rec.Status == state.LiftCommitting { // not cancelled meanwhile
 			l.pallet = id
 			c.finishLift(l, state.LiftCompleted, l.rec.Result, "", "")

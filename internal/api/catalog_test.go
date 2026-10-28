@@ -24,7 +24,7 @@ func TestCatalogService(t *testing.T) {
 	assert.Equal(t, []string{"extract", "build"}, s.work(t, res.HaulID))
 
 	mux := http.NewServeMux()
-	path, h := NewCatalogHandler(s.store, pallet.NewStore(s.bucket, layout.New(s.bucket.Base())))
+	path, h := NewCatalogHandler(s.core, s.store, pallet.NewStore(s.bucket, layout.New(s.bucket.Base())))
 	mux.Handle(path, h)
 	c := hubwagenv1connect.NewCatalogServiceClient(http.DefaultClient, httptestServer(t, mux))
 
@@ -70,11 +70,29 @@ func TestCatalogService(t *testing.T) {
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 
 	noManifests := http.NewServeMux()
-	path, h = NewCatalogHandler(s.store, nil)
+	path, h = NewCatalogHandler(nil, s.store, nil)
 	noManifests.Handle(path, h)
 	got, err = hubwagenv1connect.NewCatalogServiceClient(http.DefaultClient, httptestServer(t, noManifests)).
 		GetPallet(ctx, connect.NewRequest(&hubwagenv1.GetPalletRequest{Id: built.Id}))
 	require.NoError(t, err)
 	assert.Nil(t, got.Msg.Manifest)
 	assert.NotEmpty(t, got.Msg.ManifestError)
+	_, err = hubwagenv1connect.NewCatalogServiceClient(http.DefaultClient, httptestServer(t, noManifests)).
+		InvalidatePallet(ctx, connect.NewRequest(&hubwagenv1.InvalidatePalletRequest{Id: built.Id, Reason: "x"}))
+	assert.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err), "read only")
+
+	// Invalidating the raw pallet reaches what was built from it.
+	dry, err := c.InvalidatePallet(ctx, connect.NewRequest(&hubwagenv1.InvalidatePalletRequest{Id: raw, Reason: "bad", DryRun: true}))
+	require.NoError(t, err)
+	assert.Len(t, dry.Msg.Pallets, 2)
+	inv, err := c.InvalidatePallet(ctx, connect.NewRequest(&hubwagenv1.InvalidatePalletRequest{Id: raw, Reason: "bad", By: "test"}))
+	require.NoError(t, err)
+	require.Len(t, inv.Msg.Hauls, 1)
+	assert.Equal(t, res.HaulID, inv.Msg.Hauls[0].Id)
+	assert.JSONEq(t, `{"day":"2026-10-24"}`, inv.Msg.Hauls[0].ParamsJson)
+	ps, err = c.ListPallets(ctx, connect.NewRequest(&hubwagenv1.ListPalletsRequest{Dataset: "mart.revenue", States: []string{"invalid"}}))
+	require.NoError(t, err)
+	assert.Len(t, ps.Msg.Pallets, 1)
+	_, err = c.InvalidatePallet(ctx, connect.NewRequest(&hubwagenv1.InvalidatePalletRequest{Id: raw}))
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "a reason is required")
 }

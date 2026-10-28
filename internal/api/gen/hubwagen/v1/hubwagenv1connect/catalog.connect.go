@@ -45,6 +45,9 @@ const (
 	// CatalogServiceGetPalletProcedure is the fully-qualified name of the CatalogService's GetPallet
 	// RPC.
 	CatalogServiceGetPalletProcedure = "/hubwagen.v1.CatalogService/GetPallet"
+	// CatalogServiceInvalidatePalletProcedure is the fully-qualified name of the CatalogService's
+	// InvalidatePallet RPC.
+	CatalogServiceInvalidatePalletProcedure = "/hubwagen.v1.CatalogService/InvalidatePallet"
 )
 
 // CatalogServiceClient is a client for the hubwagen.v1.CatalogService service.
@@ -59,6 +62,11 @@ type CatalogServiceClient interface {
 	// lineage: everything it was built from (upstream) and everything built
 	// from it (downstream), transitively.
 	GetPallet(context.Context, *connect.Request[v1.GetPalletRequest]) (*connect.Response[v1.GetPalletResponse], error)
+	// InvalidatePallet marks a pallet and everything built from it,
+	// transitively, invalid: never reused, never a dataset's latest. It
+	// returns what it marked (or, dry_run, would mark) and the hauls that
+	// built those pallets, whose replay recomputes them.
+	InvalidatePallet(context.Context, *connect.Request[v1.InvalidatePalletRequest]) (*connect.Response[v1.InvalidatePalletResponse], error)
 }
 
 // NewCatalogServiceClient constructs a client for the hubwagen.v1.CatalogService service. By
@@ -96,15 +104,22 @@ func NewCatalogServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(catalogServiceMethods.ByName("GetPallet")),
 			connect.WithClientOptions(opts...),
 		),
+		invalidatePallet: connect.NewClient[v1.InvalidatePalletRequest, v1.InvalidatePalletResponse](
+			httpClient,
+			baseURL+CatalogServiceInvalidatePalletProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("InvalidatePallet")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // catalogServiceClient implements CatalogServiceClient.
 type catalogServiceClient struct {
-	listDatasets   *connect.Client[v1.ListDatasetsRequest, v1.ListDatasetsResponse]
-	listPartitions *connect.Client[v1.ListPartitionsRequest, v1.ListPartitionsResponse]
-	listPallets    *connect.Client[v1.ListPalletsRequest, v1.ListPalletsResponse]
-	getPallet      *connect.Client[v1.GetPalletRequest, v1.GetPalletResponse]
+	listDatasets     *connect.Client[v1.ListDatasetsRequest, v1.ListDatasetsResponse]
+	listPartitions   *connect.Client[v1.ListPartitionsRequest, v1.ListPartitionsResponse]
+	listPallets      *connect.Client[v1.ListPalletsRequest, v1.ListPalletsResponse]
+	getPallet        *connect.Client[v1.GetPalletRequest, v1.GetPalletResponse]
+	invalidatePallet *connect.Client[v1.InvalidatePalletRequest, v1.InvalidatePalletResponse]
 }
 
 // ListDatasets calls hubwagen.v1.CatalogService.ListDatasets.
@@ -127,6 +142,11 @@ func (c *catalogServiceClient) GetPallet(ctx context.Context, req *connect.Reque
 	return c.getPallet.CallUnary(ctx, req)
 }
 
+// InvalidatePallet calls hubwagen.v1.CatalogService.InvalidatePallet.
+func (c *catalogServiceClient) InvalidatePallet(ctx context.Context, req *connect.Request[v1.InvalidatePalletRequest]) (*connect.Response[v1.InvalidatePalletResponse], error) {
+	return c.invalidatePallet.CallUnary(ctx, req)
+}
+
 // CatalogServiceHandler is an implementation of the hubwagen.v1.CatalogService service.
 type CatalogServiceHandler interface {
 	ListDatasets(context.Context, *connect.Request[v1.ListDatasetsRequest]) (*connect.Response[v1.ListDatasetsResponse], error)
@@ -139,6 +159,11 @@ type CatalogServiceHandler interface {
 	// lineage: everything it was built from (upstream) and everything built
 	// from it (downstream), transitively.
 	GetPallet(context.Context, *connect.Request[v1.GetPalletRequest]) (*connect.Response[v1.GetPalletResponse], error)
+	// InvalidatePallet marks a pallet and everything built from it,
+	// transitively, invalid: never reused, never a dataset's latest. It
+	// returns what it marked (or, dry_run, would mark) and the hauls that
+	// built those pallets, whose replay recomputes them.
+	InvalidatePallet(context.Context, *connect.Request[v1.InvalidatePalletRequest]) (*connect.Response[v1.InvalidatePalletResponse], error)
 }
 
 // NewCatalogServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -172,6 +197,12 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 		connect.WithSchema(catalogServiceMethods.ByName("GetPallet")),
 		connect.WithHandlerOptions(opts...),
 	)
+	catalogServiceInvalidatePalletHandler := connect.NewUnaryHandler(
+		CatalogServiceInvalidatePalletProcedure,
+		svc.InvalidatePallet,
+		connect.WithSchema(catalogServiceMethods.ByName("InvalidatePallet")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/hubwagen.v1.CatalogService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case CatalogServiceListDatasetsProcedure:
@@ -182,6 +213,8 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 			catalogServiceListPalletsHandler.ServeHTTP(w, r)
 		case CatalogServiceGetPalletProcedure:
 			catalogServiceGetPalletHandler.ServeHTTP(w, r)
+		case CatalogServiceInvalidatePalletProcedure:
+			catalogServiceInvalidatePalletHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -205,4 +238,8 @@ func (UnimplementedCatalogServiceHandler) ListPallets(context.Context, *connect.
 
 func (UnimplementedCatalogServiceHandler) GetPallet(context.Context, *connect.Request[v1.GetPalletRequest]) (*connect.Response[v1.GetPalletResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("hubwagen.v1.CatalogService.GetPallet is not implemented"))
+}
+
+func (UnimplementedCatalogServiceHandler) InvalidatePallet(context.Context, *connect.Request[v1.InvalidatePalletRequest]) (*connect.Response[v1.InvalidatePalletResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("hubwagen.v1.CatalogService.InvalidatePallet is not implemented"))
 }

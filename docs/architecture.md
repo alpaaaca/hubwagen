@@ -457,7 +457,14 @@ on the server.
 
 `hubwagen pallet invalidate <id> --reason …` marks a pallet and everything
 built from it, directly or transitively, invalid. Invalid pallets are never
-reused, so a replay recomputes exactly that set.
+reused, never a dataset's latest and never a lift's input, so a replay
+recomputes exactly that set; the command shows what it will mark, asks,
+and prints the `hubwagen start` per haul that built them (the rerun says
+`earlier pallet invalidated`). Each pallet gets a `PalletInvalidated`
+event with the cause and who asked; the events belong to the tenant, not
+to a haul's logbook, so no replay changes. A pallet still being promoted is
+marked too, and its promote records it as invalid, also across a leader
+restart.
 
 ## Triggers and freshness
 
