@@ -29,7 +29,7 @@ that only matters at scale waits.
 | M3a: Haul engine in the core | **Done** |
 | M3b: Pallets, catalog, memoization | **Done** |
 | M3c: Worker API + minimal Python SDK | **Done** |
-| M4: Full haul surface (fan-out, signals, triggers, testing) | **In progress** |
+| M4: Full haul surface (fan-out, signals, triggers, testing) | **Done** |
 | M5: Catalog in the UI, invalidation, staleness | — |
 | Later | — |
 
@@ -175,13 +175,17 @@ written. Steps, in order; each is one PR:
    called directly in haul code. It is `python -m hubwagen.lint`, in the
    SDK, since it reads Python. Checking SQL table references that bypass
    `input()` waits for SQL lifts. ([#63](https://github.com/alpaaaca/hubwagen/issues/63))
-8. **`hubwagen test`**: a fake ctx that scripts lift results and signals,
-   and `--replay <logbook>` to replay recorded logbooks against new code. ([#64](https://github.com/alpaaaca/hubwagen/issues/64))
+8. ✅ **`hubwagen test`**: `hubwagen.testing.run(haul, params, lifts=...,
+   signals=..., children=...)` plays the server in memory against scripted
+   results; `python -m hubwagen.testing --replay ID` or `--replay-recent N`
+   replays recorded logbooks (`GetLogbook`, `ListHauls`) against the local
+   code. Both in the SDK, since they run Python. ([#64](https://github.com/alpaaaca/hubwagen/issues/64))
 
 Done when: the architecture's daily-revenue haul (schedule, quality gate
 with an approval signal, fan-out with a limit) runs end to end on
 `hubwagen dev`, and `hubwagen test --replay` catches a non-deterministic
-change to it.
+change to it. ✅ `sdk/python/tests/test_m4.py` (the schedule's firing is
+tested with a fake clock in the core) and `test_testing.py`.
 
 ## M5: Catalog in the UI, invalidation, staleness
 

@@ -259,7 +259,7 @@ it continue.
   calls plus iteration over sets, I/O and environment variables,
   `except:`/`except BaseException` (which swallow the replay's control
   flow), and lifts called directly instead of through `ctx.lift`.
-- `hubwagen test --replay`: replay recent production logbooks against the new
+- `python -m hubwagen.testing --replay-recent N`: replay recent production logbooks against the new
   code in CI, without running lifts.
 
 The guideline for users: keep hauls thin, put real work in lifts.
@@ -529,7 +529,7 @@ under a **build id**.
   stuck. (Later: `hubwagen versions` lists markers still in use.)
 - **Drain**: most data hauls finish within hours, so rolling out new workers
   after running hauls finish (or reach a marker) covers most deploys.
-- **Replay test** (`hubwagen test --replay`) in CI replays recent logbooks
+- **Replay test** (`python -m hubwagen.testing --replay-recent N`) in CI replays recent logbooks
   against the new code and catches non-determinism before it ships.
 - **Build pinning** (old builds kept running until their hauls drain) is a
   later option for teams with long-running hauls.
@@ -632,13 +632,15 @@ leader gives restored attempts fresh ones.
 $ hubwagen dev                                # server + UI, SQLite in .hubwagen/
 $ python -m hubwagen.worker                   # local worker; modules from pyproject.toml
 $ hubwagen start daily_revenue --day 2026-10-24
-$ hubwagen test                               # hauls against a fake ctx, lifts with fake pallets
+$ pytest                                      # hauls against scripted results: hubwagen.testing.run
 ```
 
 Single-node mode is also a supported production setup. Because hauls are
 deterministic, a test scripts lift results and signals and asserts on the
-lifts called and their order; `hubwagen test --replay <logbook>` turns a
-production incident into a local test.
+lifts called and their order (`hubwagen.testing.run`, which plays the
+server in memory); `python -m hubwagen.testing --replay <haul-id>` replays
+a production haul's logbook against local code, so an incident becomes a
+local test.
 
 Data modes (later): `--data=prod-readonly` resolves inputs from the
 production catalog read-only and commits to a personal namespace;

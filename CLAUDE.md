@@ -9,13 +9,15 @@ catalog derived from the event history. One Go server that never runs user
 code, single leader on SQLite (Litestream later); workers in the user's
 environment, Python SDK first.
 
-**Today (M3c done):** `hubwagen dev` serves the API; Python workers
+**Today (M4 done):** `hubwagen dev` serves the API; Python workers
 (`sdk/python`) run hauls and lifts, with code versions from what a lift's
-code reaches and runtime guards in haul code; `hubwagen start`/`replay`
-start them and report reuse. The v1 engine (compiled YAML pipelines) was
-removed in M3c; it is in git history up to commit 33ca1ba. **Next:** M4
-(fan-out limits, signals, schedules, testing); the reuse-by-default
-decision in docs/api-simplification.md.
+code reaches and runtime guards in haul code; hauls have signals, version
+markers, fan-out limits, child hauls, continue_as_new, schedules and
+dataset subscriptions; `hubwagen start`/`replay` start them and report
+reuse; the SDK has a linter and testing tools. The v1 engine (compiled YAML pipelines) was
+removed in M3c; it is in git history up to commit 33ca1ba. **Next:** M5
+(catalog UI, invalidation, staleness); the reuse-by-default decision in
+docs/api-simplification.md.
 
 Read before larger changes:
 

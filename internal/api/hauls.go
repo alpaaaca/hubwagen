@@ -55,6 +55,45 @@ func (s *HaulServer) SignalHaul(ctx context.Context, req *connect.Request[hubwag
 	return connect.NewResponse(&hubwagenv1.SignalHaulResponse{SignalId: id}), nil
 }
 
+func (s *HaulServer) ListHauls(ctx context.Context, req *connect.Request[hubwagenv1.ListHaulsRequest]) (*connect.Response[hubwagenv1.ListHaulsResponse], error) {
+	m := req.Msg
+	limit := int(m.Limit)
+	if limit > 1000 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("limit %d: at most 1000", limit))
+	}
+	hauls, err := s.store.ListHauls(ctx, state.HaulFilter{Tenant: m.Tenant, Name: m.Name, Statuses: m.Statuses, Limit: limit})
+	if err != nil {
+		return nil, connectError(err)
+	}
+	out := &hubwagenv1.ListHaulsResponse{}
+	for _, h := range hauls {
+		out.Hauls = append(out.Hauls, haulMessage(h))
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (s *HaulServer) GetLogbook(ctx context.Context, req *connect.Request[hubwagenv1.GetLogbookRequest]) (*connect.Response[hubwagenv1.GetLogbookResponse], error) {
+	h, err := s.store.GetHaul(ctx, req.Msg.HaulId)
+	if errors.Is(err, state.ErrNotFound) {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("haul %s not found", req.Msg.HaulId))
+	}
+	if err != nil {
+		return nil, connectError(err)
+	}
+	evs, err := s.store.HaulEvents(ctx, h.ID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	out := &hubwagenv1.GetLogbookResponse{Haul: haulMessage(h)}
+	for _, e := range evs {
+		if replayEvents[e.Type] {
+			out.Logbook = append(out.Logbook, &hubwagenv1.LogbookEvent{
+				Seq: e.Seq, Type: string(e.Type), Time: timestamppb.New(e.Time), PayloadJson: string(e.Payload)})
+		}
+	}
+	return connect.NewResponse(out), nil
+}
+
 func (s *HaulServer) ListSchedules(ctx context.Context, _ *connect.Request[hubwagenv1.ListSchedulesRequest]) (*connect.Response[hubwagenv1.ListSchedulesResponse], error) {
 	scheds, err := s.store.ListSchedules(ctx)
 	if err != nil {
@@ -122,21 +161,7 @@ func (s *HaulServer) GetHaul(ctx context.Context, req *connect.Request[hubwagenv
 		}
 	}
 
-	out := &hubwagenv1.Haul{
-		Id: h.ID, Tenant: h.Tenant, Name: h.Name, Status: h.Status, Reason: h.Reason, Message: h.Message,
-		ResultJson: string(h.Result), CreatedAt: timestamppb.New(h.CreatedAt),
-		ParentId: h.ParentID, ContinuedAs: h.ContinuedAs,
-	}
-	if len(h.Params) > 0 {
-		b, err := json.Marshal(h.Params)
-		if err != nil {
-			return nil, connectError(err)
-		}
-		out.ParamsJson = string(b)
-	}
-	if h.FinishedAt != nil {
-		out.FinishedAt = timestamppb.New(*h.FinishedAt)
-	}
+	out := haulMessage(h)
 	for _, l := range lifts {
 		f := results[int32(l.Seq)]
 		out.Lifts = append(out.Lifts, &hubwagenv1.Lift{
@@ -145,4 +170,22 @@ func (s *HaulServer) GetHaul(ctx context.Context, req *connect.Request[hubwagenv
 		})
 	}
 	return connect.NewResponse(&hubwagenv1.GetHaulResponse{Haul: out}), nil
+}
+
+// haulMessage is a haul without its lifts.
+func haulMessage(h state.Haul) *hubwagenv1.Haul {
+	out := &hubwagenv1.Haul{
+		Id: h.ID, Tenant: h.Tenant, Name: h.Name, Status: h.Status, Reason: h.Reason, Message: h.Message,
+		ResultJson: string(h.Result), CreatedAt: timestamppb.New(h.CreatedAt),
+		ParentId: h.ParentID, ContinuedAs: h.ContinuedAs,
+	}
+	if len(h.Params) > 0 {
+		if b, err := json.Marshal(h.Params); err == nil { // a JSON object read from the store
+			out.ParamsJson = string(b)
+		}
+	}
+	if h.FinishedAt != nil {
+		out.FinishedAt = timestamppb.New(*h.FinishedAt)
+	}
+	return out
 }

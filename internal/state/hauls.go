@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 )
 
@@ -273,6 +274,42 @@ func (s *Store) LoadHauls(ctx context.Context) (*ActiveHauls, error) {
 		return nil, err
 	}
 	return a, nil
+}
+
+// HaulFilter selects hauls for ListHauls. Empty fields don't filter.
+type HaulFilter struct {
+	Tenant   string
+	Name     string
+	Statuses []string
+	Limit    int // default 50
+}
+
+// ListHauls returns hauls newest first.
+func (s *Store) ListHauls(ctx context.Context, f HaulFilter) ([]Haul, error) {
+	var (
+		where []string
+		args  []any
+	)
+	if f.Tenant != "" {
+		where, args = append(where, "tenant = ?"), append(args, f.Tenant)
+	}
+	if f.Name != "" {
+		where, args = append(where, "name = ?"), append(args, f.Name)
+	}
+	if len(f.Statuses) > 0 {
+		where = append(where, "status IN (?"+strings.Repeat(", ?", len(f.Statuses)-1)+")")
+		for _, st := range f.Statuses {
+			args = append(args, st)
+		}
+	}
+	if f.Limit <= 0 {
+		f.Limit = 50
+	}
+	q := `SELECT ` + haulColumns + ` FROM hauls`
+	if len(where) > 0 {
+		q += " WHERE " + strings.Join(where, " AND ")
+	}
+	return queryAll(ctx, s.r, scanHaul, q+` ORDER BY id DESC LIMIT ?`, append(args, f.Limit)...)
 }
 
 func (s *Store) GetHaul(ctx context.Context, id string) (Haul, error) {

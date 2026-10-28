@@ -23,6 +23,285 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type ListHaulsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Empty: any.
+	Tenant   string   `protobuf:"bytes,1,opt,name=tenant,proto3" json:"tenant,omitempty"`
+	Name     string   `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Statuses []string `protobuf:"bytes,3,rep,name=statuses,proto3" json:"statuses,omitempty"`
+	// Default 50, at most 1000.
+	Limit         int32 `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListHaulsRequest) Reset() {
+	*x = ListHaulsRequest{}
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListHaulsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListHaulsRequest) ProtoMessage() {}
+
+func (x *ListHaulsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListHaulsRequest.ProtoReflect.Descriptor instead.
+func (*ListHaulsRequest) Descriptor() ([]byte, []int) {
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ListHaulsRequest) GetTenant() string {
+	if x != nil {
+		return x.Tenant
+	}
+	return ""
+}
+
+func (x *ListHaulsRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ListHaulsRequest) GetStatuses() []string {
+	if x != nil {
+		return x.Statuses
+	}
+	return nil
+}
+
+func (x *ListHaulsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type ListHaulsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Hauls         []*Haul                `protobuf:"bytes,1,rep,name=hauls,proto3" json:"hauls,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListHaulsResponse) Reset() {
+	*x = ListHaulsResponse{}
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListHaulsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListHaulsResponse) ProtoMessage() {}
+
+func (x *ListHaulsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListHaulsResponse.ProtoReflect.Descriptor instead.
+func (*ListHaulsResponse) Descriptor() ([]byte, []int) {
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ListHaulsResponse) GetHauls() []*Haul {
+	if x != nil {
+		return x.Hauls
+	}
+	return nil
+}
+
+type GetLogbookRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	HaulId        string                 `protobuf:"bytes,1,opt,name=haul_id,json=haulId,proto3" json:"haul_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetLogbookRequest) Reset() {
+	*x = GetLogbookRequest{}
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLogbookRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLogbookRequest) ProtoMessage() {}
+
+func (x *GetLogbookRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLogbookRequest.ProtoReflect.Descriptor instead.
+func (*GetLogbookRequest) Descriptor() ([]byte, []int) {
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *GetLogbookRequest) GetHaulId() string {
+	if x != nil {
+		return x.HaulId
+	}
+	return ""
+}
+
+type GetLogbookResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Haul  *Haul                  `protobuf:"bytes,1,opt,name=haul,proto3" json:"haul,omitempty"`
+	// As PollHaulTask sends them.
+	Logbook       []*LogbookEvent `protobuf:"bytes,2,rep,name=logbook,proto3" json:"logbook,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetLogbookResponse) Reset() {
+	*x = GetLogbookResponse{}
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLogbookResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLogbookResponse) ProtoMessage() {}
+
+func (x *GetLogbookResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLogbookResponse.ProtoReflect.Descriptor instead.
+func (*GetLogbookResponse) Descriptor() ([]byte, []int) {
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GetLogbookResponse) GetHaul() *Haul {
+	if x != nil {
+		return x.Haul
+	}
+	return nil
+}
+
+func (x *GetLogbookResponse) GetLogbook() []*LogbookEvent {
+	if x != nil {
+		return x.Logbook
+	}
+	return nil
+}
+
+type LogbookEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Seq           int64                  `protobuf:"varint,1,opt,name=seq,proto3" json:"seq,omitempty"`
+	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Time          *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=time,proto3" json:"time,omitempty"`
+	PayloadJson   string                 `protobuf:"bytes,4,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogbookEvent) Reset() {
+	*x = LogbookEvent{}
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogbookEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogbookEvent) ProtoMessage() {}
+
+func (x *LogbookEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogbookEvent.ProtoReflect.Descriptor instead.
+func (*LogbookEvent) Descriptor() ([]byte, []int) {
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *LogbookEvent) GetSeq() int64 {
+	if x != nil {
+		return x.Seq
+	}
+	return 0
+}
+
+func (x *LogbookEvent) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *LogbookEvent) GetTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Time
+	}
+	return nil
+}
+
+func (x *LogbookEvent) GetPayloadJson() string {
+	if x != nil {
+		return x.PayloadJson
+	}
+	return ""
+}
+
 type ListSchedulesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -31,7 +310,7 @@ type ListSchedulesRequest struct {
 
 func (x *ListSchedulesRequest) Reset() {
 	*x = ListSchedulesRequest{}
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[0]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43,7 +322,7 @@ func (x *ListSchedulesRequest) String() string {
 func (*ListSchedulesRequest) ProtoMessage() {}
 
 func (x *ListSchedulesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[0]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -56,7 +335,7 @@ func (x *ListSchedulesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSchedulesRequest.ProtoReflect.Descriptor instead.
 func (*ListSchedulesRequest) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{0}
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{5}
 }
 
 type ListSchedulesResponse struct {
@@ -69,7 +348,7 @@ type ListSchedulesResponse struct {
 
 func (x *ListSchedulesResponse) Reset() {
 	*x = ListSchedulesResponse{}
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[1]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -81,7 +360,7 @@ func (x *ListSchedulesResponse) String() string {
 func (*ListSchedulesResponse) ProtoMessage() {}
 
 func (x *ListSchedulesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[1]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -94,7 +373,7 @@ func (x *ListSchedulesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSchedulesResponse.ProtoReflect.Descriptor instead.
 func (*ListSchedulesResponse) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{1}
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListSchedulesResponse) GetSchedules() []*Schedule {
@@ -127,7 +406,7 @@ type Subscription struct {
 
 func (x *Subscription) Reset() {
 	*x = Subscription{}
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[2]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -139,7 +418,7 @@ func (x *Subscription) String() string {
 func (*Subscription) ProtoMessage() {}
 
 func (x *Subscription) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[2]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -152,7 +431,7 @@ func (x *Subscription) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Subscription.ProtoReflect.Descriptor instead.
 func (*Subscription) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{2}
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Subscription) GetHaul() string {
@@ -223,7 +502,7 @@ type Schedule struct {
 
 func (x *Schedule) Reset() {
 	*x = Schedule{}
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[3]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -235,7 +514,7 @@ func (x *Schedule) String() string {
 func (*Schedule) ProtoMessage() {}
 
 func (x *Schedule) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[3]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -248,7 +527,7 @@ func (x *Schedule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Schedule.ProtoReflect.Descriptor instead.
 func (*Schedule) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{3}
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Schedule) GetHaul() string {
@@ -320,7 +599,7 @@ type SignalHaulRequest struct {
 
 func (x *SignalHaulRequest) Reset() {
 	*x = SignalHaulRequest{}
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[4]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -332,7 +611,7 @@ func (x *SignalHaulRequest) String() string {
 func (*SignalHaulRequest) ProtoMessage() {}
 
 func (x *SignalHaulRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[4]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -345,7 +624,7 @@ func (x *SignalHaulRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignalHaulRequest.ProtoReflect.Descriptor instead.
 func (*SignalHaulRequest) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{4}
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *SignalHaulRequest) GetHaulId() string {
@@ -378,7 +657,7 @@ type SignalHaulResponse struct {
 
 func (x *SignalHaulResponse) Reset() {
 	*x = SignalHaulResponse{}
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[5]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -390,7 +669,7 @@ func (x *SignalHaulResponse) String() string {
 func (*SignalHaulResponse) ProtoMessage() {}
 
 func (x *SignalHaulResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[5]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -403,7 +682,7 @@ func (x *SignalHaulResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignalHaulResponse.ProtoReflect.Descriptor instead.
 func (*SignalHaulResponse) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{5}
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SignalHaulResponse) GetSignalId() string {
@@ -430,7 +709,7 @@ type StartHaulRequest struct {
 
 func (x *StartHaulRequest) Reset() {
 	*x = StartHaulRequest{}
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[6]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -442,7 +721,7 @@ func (x *StartHaulRequest) String() string {
 func (*StartHaulRequest) ProtoMessage() {}
 
 func (x *StartHaulRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[6]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -455,7 +734,7 @@ func (x *StartHaulRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartHaulRequest.ProtoReflect.Descriptor instead.
 func (*StartHaulRequest) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{6}
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *StartHaulRequest) GetTenant() string {
@@ -502,7 +781,7 @@ type StartHaulResponse struct {
 
 func (x *StartHaulResponse) Reset() {
 	*x = StartHaulResponse{}
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[7]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -514,7 +793,7 @@ func (x *StartHaulResponse) String() string {
 func (*StartHaulResponse) ProtoMessage() {}
 
 func (x *StartHaulResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[7]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -527,7 +806,7 @@ func (x *StartHaulResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartHaulResponse.ProtoReflect.Descriptor instead.
 func (*StartHaulResponse) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{7}
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *StartHaulResponse) GetHaulId() string {
@@ -546,7 +825,7 @@ type GetHaulRequest struct {
 
 func (x *GetHaulRequest) Reset() {
 	*x = GetHaulRequest{}
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[8]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -558,7 +837,7 @@ func (x *GetHaulRequest) String() string {
 func (*GetHaulRequest) ProtoMessage() {}
 
 func (x *GetHaulRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[8]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -571,7 +850,7 @@ func (x *GetHaulRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHaulRequest.ProtoReflect.Descriptor instead.
 func (*GetHaulRequest) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{8}
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetHaulRequest) GetHaulId() string {
@@ -590,7 +869,7 @@ type GetHaulResponse struct {
 
 func (x *GetHaulResponse) Reset() {
 	*x = GetHaulResponse{}
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[9]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -602,7 +881,7 @@ func (x *GetHaulResponse) String() string {
 func (*GetHaulResponse) ProtoMessage() {}
 
 func (x *GetHaulResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[9]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -615,7 +894,7 @@ func (x *GetHaulResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHaulResponse.ProtoReflect.Descriptor instead.
 func (*GetHaulResponse) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{9}
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetHaulResponse) GetHaul() *Haul {
@@ -650,7 +929,7 @@ type Haul struct {
 
 func (x *Haul) Reset() {
 	*x = Haul{}
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[10]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -662,7 +941,7 @@ func (x *Haul) String() string {
 func (*Haul) ProtoMessage() {}
 
 func (x *Haul) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[10]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -675,7 +954,7 @@ func (x *Haul) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Haul.ProtoReflect.Descriptor instead.
 func (*Haul) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{10}
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Haul) GetId() string {
@@ -793,7 +1072,7 @@ type Lift struct {
 
 func (x *Lift) Reset() {
 	*x = Lift{}
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[11]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -805,7 +1084,7 @@ func (x *Lift) String() string {
 func (*Lift) ProtoMessage() {}
 
 func (x *Lift) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[11]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -818,7 +1097,7 @@ func (x *Lift) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Lift.ProtoReflect.Descriptor instead.
 func (*Lift) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{11}
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *Lift) GetSeq() int32 {
@@ -888,7 +1167,24 @@ var File_hubwagen_v1_haul_proto protoreflect.FileDescriptor
 
 const file_hubwagen_v1_haul_proto_rawDesc = "" +
 	"\n" +
-	"\x16hubwagen/v1/haul.proto\x12\vhubwagen.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x16\n" +
+	"\x16hubwagen/v1/haul.proto\x12\vhubwagen.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"p\n" +
+	"\x10ListHaulsRequest\x12\x16\n" +
+	"\x06tenant\x18\x01 \x01(\tR\x06tenant\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
+	"\bstatuses\x18\x03 \x03(\tR\bstatuses\x12\x14\n" +
+	"\x05limit\x18\x04 \x01(\x05R\x05limit\"<\n" +
+	"\x11ListHaulsResponse\x12'\n" +
+	"\x05hauls\x18\x01 \x03(\v2\x11.hubwagen.v1.HaulR\x05hauls\",\n" +
+	"\x11GetLogbookRequest\x12\x17\n" +
+	"\ahaul_id\x18\x01 \x01(\tR\x06haulId\"p\n" +
+	"\x12GetLogbookResponse\x12%\n" +
+	"\x04haul\x18\x01 \x01(\v2\x11.hubwagen.v1.HaulR\x04haul\x123\n" +
+	"\alogbook\x18\x02 \x03(\v2\x19.hubwagen.v1.LogbookEventR\alogbook\"\x87\x01\n" +
+	"\fLogbookEvent\x12\x10\n" +
+	"\x03seq\x18\x01 \x01(\x03R\x03seq\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12.\n" +
+	"\x04time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x04time\x12!\n" +
+	"\fpayload_json\x18\x04 \x01(\tR\vpayloadJson\"\x16\n" +
 	"\x14ListSchedulesRequest\"\x8d\x01\n" +
 	"\x15ListSchedulesResponse\x123\n" +
 	"\tschedules\x18\x01 \x03(\v2\x15.hubwagen.v1.ScheduleR\tschedules\x12?\n" +
@@ -958,12 +1254,15 @@ const file_hubwagen_v1_haul_proto_rawDesc = "" +
 	"\battempts\x18\x06 \x01(\x05R\battempts\x12\x16\n" +
 	"\x06pallet\x18\a \x01(\tR\x06pallet\x12\x16\n" +
 	"\x06reason\x18\b \x01(\tR\x06reason\x12\x18\n" +
-	"\amessage\x18\t \x01(\tR\amessage2\xc6\x02\n" +
+	"\amessage\x18\t \x01(\tR\amessage2\xe1\x03\n" +
 	"\vHaulService\x12J\n" +
 	"\tStartHaul\x12\x1d.hubwagen.v1.StartHaulRequest\x1a\x1e.hubwagen.v1.StartHaulResponse\x12D\n" +
 	"\aGetHaul\x12\x1b.hubwagen.v1.GetHaulRequest\x1a\x1c.hubwagen.v1.GetHaulResponse\x12M\n" +
 	"\n" +
-	"SignalHaul\x12\x1e.hubwagen.v1.SignalHaulRequest\x1a\x1f.hubwagen.v1.SignalHaulResponse\x12V\n" +
+	"SignalHaul\x12\x1e.hubwagen.v1.SignalHaulRequest\x1a\x1f.hubwagen.v1.SignalHaulResponse\x12J\n" +
+	"\tListHauls\x12\x1d.hubwagen.v1.ListHaulsRequest\x1a\x1e.hubwagen.v1.ListHaulsResponse\x12M\n" +
+	"\n" +
+	"GetLogbook\x12\x1e.hubwagen.v1.GetLogbookRequest\x1a\x1f.hubwagen.v1.GetLogbookResponse\x12V\n" +
 	"\rListSchedules\x12!.hubwagen.v1.ListSchedulesRequest\x1a\".hubwagen.v1.ListSchedulesResponseBCZAgithub.com/alper/hubwagen/internal/api/gen/hubwagen/v1;hubwagenv1b\x06proto3"
 
 var (
@@ -978,47 +1277,60 @@ func file_hubwagen_v1_haul_proto_rawDescGZIP() []byte {
 	return file_hubwagen_v1_haul_proto_rawDescData
 }
 
-var file_hubwagen_v1_haul_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_hubwagen_v1_haul_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_hubwagen_v1_haul_proto_goTypes = []any{
-	(*ListSchedulesRequest)(nil),  // 0: hubwagen.v1.ListSchedulesRequest
-	(*ListSchedulesResponse)(nil), // 1: hubwagen.v1.ListSchedulesResponse
-	(*Subscription)(nil),          // 2: hubwagen.v1.Subscription
-	(*Schedule)(nil),              // 3: hubwagen.v1.Schedule
-	(*SignalHaulRequest)(nil),     // 4: hubwagen.v1.SignalHaulRequest
-	(*SignalHaulResponse)(nil),    // 5: hubwagen.v1.SignalHaulResponse
-	(*StartHaulRequest)(nil),      // 6: hubwagen.v1.StartHaulRequest
-	(*StartHaulResponse)(nil),     // 7: hubwagen.v1.StartHaulResponse
-	(*GetHaulRequest)(nil),        // 8: hubwagen.v1.GetHaulRequest
-	(*GetHaulResponse)(nil),       // 9: hubwagen.v1.GetHaulResponse
-	(*Haul)(nil),                  // 10: hubwagen.v1.Haul
-	(*Lift)(nil),                  // 11: hubwagen.v1.Lift
-	(*durationpb.Duration)(nil),   // 12: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil), // 13: google.protobuf.Timestamp
+	(*ListHaulsRequest)(nil),      // 0: hubwagen.v1.ListHaulsRequest
+	(*ListHaulsResponse)(nil),     // 1: hubwagen.v1.ListHaulsResponse
+	(*GetLogbookRequest)(nil),     // 2: hubwagen.v1.GetLogbookRequest
+	(*GetLogbookResponse)(nil),    // 3: hubwagen.v1.GetLogbookResponse
+	(*LogbookEvent)(nil),          // 4: hubwagen.v1.LogbookEvent
+	(*ListSchedulesRequest)(nil),  // 5: hubwagen.v1.ListSchedulesRequest
+	(*ListSchedulesResponse)(nil), // 6: hubwagen.v1.ListSchedulesResponse
+	(*Subscription)(nil),          // 7: hubwagen.v1.Subscription
+	(*Schedule)(nil),              // 8: hubwagen.v1.Schedule
+	(*SignalHaulRequest)(nil),     // 9: hubwagen.v1.SignalHaulRequest
+	(*SignalHaulResponse)(nil),    // 10: hubwagen.v1.SignalHaulResponse
+	(*StartHaulRequest)(nil),      // 11: hubwagen.v1.StartHaulRequest
+	(*StartHaulResponse)(nil),     // 12: hubwagen.v1.StartHaulResponse
+	(*GetHaulRequest)(nil),        // 13: hubwagen.v1.GetHaulRequest
+	(*GetHaulResponse)(nil),       // 14: hubwagen.v1.GetHaulResponse
+	(*Haul)(nil),                  // 15: hubwagen.v1.Haul
+	(*Lift)(nil),                  // 16: hubwagen.v1.Lift
+	(*timestamppb.Timestamp)(nil), // 17: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),   // 18: google.protobuf.Duration
 }
 var file_hubwagen_v1_haul_proto_depIdxs = []int32{
-	3,  // 0: hubwagen.v1.ListSchedulesResponse.schedules:type_name -> hubwagen.v1.Schedule
-	2,  // 1: hubwagen.v1.ListSchedulesResponse.subscriptions:type_name -> hubwagen.v1.Subscription
-	12, // 2: hubwagen.v1.Subscription.debounce:type_name -> google.protobuf.Duration
-	12, // 3: hubwagen.v1.Subscription.max_wait:type_name -> google.protobuf.Duration
-	13, // 4: hubwagen.v1.Schedule.cursor:type_name -> google.protobuf.Timestamp
-	13, // 5: hubwagen.v1.Schedule.next_run:type_name -> google.protobuf.Timestamp
-	10, // 6: hubwagen.v1.GetHaulResponse.haul:type_name -> hubwagen.v1.Haul
-	13, // 7: hubwagen.v1.Haul.created_at:type_name -> google.protobuf.Timestamp
-	13, // 8: hubwagen.v1.Haul.finished_at:type_name -> google.protobuf.Timestamp
-	11, // 9: hubwagen.v1.Haul.lifts:type_name -> hubwagen.v1.Lift
-	6,  // 10: hubwagen.v1.HaulService.StartHaul:input_type -> hubwagen.v1.StartHaulRequest
-	8,  // 11: hubwagen.v1.HaulService.GetHaul:input_type -> hubwagen.v1.GetHaulRequest
-	4,  // 12: hubwagen.v1.HaulService.SignalHaul:input_type -> hubwagen.v1.SignalHaulRequest
-	0,  // 13: hubwagen.v1.HaulService.ListSchedules:input_type -> hubwagen.v1.ListSchedulesRequest
-	7,  // 14: hubwagen.v1.HaulService.StartHaul:output_type -> hubwagen.v1.StartHaulResponse
-	9,  // 15: hubwagen.v1.HaulService.GetHaul:output_type -> hubwagen.v1.GetHaulResponse
-	5,  // 16: hubwagen.v1.HaulService.SignalHaul:output_type -> hubwagen.v1.SignalHaulResponse
-	1,  // 17: hubwagen.v1.HaulService.ListSchedules:output_type -> hubwagen.v1.ListSchedulesResponse
-	14, // [14:18] is the sub-list for method output_type
-	10, // [10:14] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	15, // 0: hubwagen.v1.ListHaulsResponse.hauls:type_name -> hubwagen.v1.Haul
+	15, // 1: hubwagen.v1.GetLogbookResponse.haul:type_name -> hubwagen.v1.Haul
+	4,  // 2: hubwagen.v1.GetLogbookResponse.logbook:type_name -> hubwagen.v1.LogbookEvent
+	17, // 3: hubwagen.v1.LogbookEvent.time:type_name -> google.protobuf.Timestamp
+	8,  // 4: hubwagen.v1.ListSchedulesResponse.schedules:type_name -> hubwagen.v1.Schedule
+	7,  // 5: hubwagen.v1.ListSchedulesResponse.subscriptions:type_name -> hubwagen.v1.Subscription
+	18, // 6: hubwagen.v1.Subscription.debounce:type_name -> google.protobuf.Duration
+	18, // 7: hubwagen.v1.Subscription.max_wait:type_name -> google.protobuf.Duration
+	17, // 8: hubwagen.v1.Schedule.cursor:type_name -> google.protobuf.Timestamp
+	17, // 9: hubwagen.v1.Schedule.next_run:type_name -> google.protobuf.Timestamp
+	15, // 10: hubwagen.v1.GetHaulResponse.haul:type_name -> hubwagen.v1.Haul
+	17, // 11: hubwagen.v1.Haul.created_at:type_name -> google.protobuf.Timestamp
+	17, // 12: hubwagen.v1.Haul.finished_at:type_name -> google.protobuf.Timestamp
+	16, // 13: hubwagen.v1.Haul.lifts:type_name -> hubwagen.v1.Lift
+	11, // 14: hubwagen.v1.HaulService.StartHaul:input_type -> hubwagen.v1.StartHaulRequest
+	13, // 15: hubwagen.v1.HaulService.GetHaul:input_type -> hubwagen.v1.GetHaulRequest
+	9,  // 16: hubwagen.v1.HaulService.SignalHaul:input_type -> hubwagen.v1.SignalHaulRequest
+	0,  // 17: hubwagen.v1.HaulService.ListHauls:input_type -> hubwagen.v1.ListHaulsRequest
+	2,  // 18: hubwagen.v1.HaulService.GetLogbook:input_type -> hubwagen.v1.GetLogbookRequest
+	5,  // 19: hubwagen.v1.HaulService.ListSchedules:input_type -> hubwagen.v1.ListSchedulesRequest
+	12, // 20: hubwagen.v1.HaulService.StartHaul:output_type -> hubwagen.v1.StartHaulResponse
+	14, // 21: hubwagen.v1.HaulService.GetHaul:output_type -> hubwagen.v1.GetHaulResponse
+	10, // 22: hubwagen.v1.HaulService.SignalHaul:output_type -> hubwagen.v1.SignalHaulResponse
+	1,  // 23: hubwagen.v1.HaulService.ListHauls:output_type -> hubwagen.v1.ListHaulsResponse
+	3,  // 24: hubwagen.v1.HaulService.GetLogbook:output_type -> hubwagen.v1.GetLogbookResponse
+	6,  // 25: hubwagen.v1.HaulService.ListSchedules:output_type -> hubwagen.v1.ListSchedulesResponse
+	20, // [20:26] is the sub-list for method output_type
+	14, // [14:20] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_hubwagen_v1_haul_proto_init() }
@@ -1032,7 +1344,7 @@ func file_hubwagen_v1_haul_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hubwagen_v1_haul_proto_rawDesc), len(file_hubwagen_v1_haul_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
