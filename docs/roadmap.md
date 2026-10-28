@@ -199,7 +199,7 @@ each is one PR:
    inputs and what was built from it) and `hubwagen datasets`,
    `hubwagen pallets <dataset>`, `hubwagen pallet <id>` (lineage up and
    down). Everything after this reads through it. ([#73](https://github.com/alpaaaca/hubwagen/issues/73))
-2. **Invalidation**: `hubwagen pallet invalidate <id> --reason …` marks the
+2. ✅ **Invalidation**: `hubwagen pallet invalidate <id> --reason …` marks the
    pallet and everything built from it, transitively, invalid
    (`PalletInvalidated` events with the cause), after showing what it will
    mark (`--dry-run`). Invalid pallets are never reused, so a replay of the

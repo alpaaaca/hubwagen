@@ -96,16 +96,32 @@ func (c *Core) loadHauls(ctx context.Context) (*restoredHauls, error) {
 		if err := restoreSignals(h, evs); err != nil {
 			return nil, err
 		}
-		pending, err := c.cfg.Store.ListPallets(ctx, state.PalletFilter{HaulID: rec.ID, States: []string{state.PalletPending}, Limit: 1 << 20})
+		// Pallets whose promote hadn't finished: pending ones, and ones
+		// invalidated meanwhile (never committed). A failed promote's pallet
+		// is invalid too, but its lift isn't committing any more. Newest
+		// first: a lift's current pallet comes before an older one's.
+		pending, err := c.cfg.Store.ListPallets(ctx, state.PalletFilter{HaulID: rec.ID,
+			States: []string{state.PalletPending, state.PalletInvalid}, Limit: 1 << 20})
 		if err != nil {
 			return nil, err
 		}
 		for _, p := range pending {
+			key := fmt.Sprintf("%s/%d", rec.ID, p.LiftSeq)
+			pr := &promotion{rec: p}
+			if p.State == state.PalletInvalid {
+				if p.CommittedAt != nil || out.pending[key] != nil {
+					continue
+				}
+				pr.rec.State, pr.invalidated = state.PalletPending, p.Reason
+			}
 			rp, ok := manifests[p.ID]
 			if !ok {
 				return nil, fmt.Errorf("haul %s: pending pallet %s has no PalletRecorded event", rec.ID, p.ID)
 			}
-			out.pending[fmt.Sprintf("%s/%d", rec.ID, p.LiftSeq)] = &promotion{rec: p, manifest: rp.Manifest}
+			pr.manifest = rp.Manifest
+			if out.pending[key] == nil {
+				out.pending[key] = pr
+			}
 		}
 		c.hauls[rec.ID] = h
 	}

@@ -1,7 +1,11 @@
 package cmd
 
 import (
+	"bufio"
+	"errors"
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -62,7 +66,54 @@ from, and everything built from it.`,
 	},
 }
 
+var (
+	invalidateReason string
+	invalidateDryRun bool
+	invalidateYes    bool
+)
+
+var invalidateCmd = &cobra.Command{
+	Use:   "invalidate <pallet-id>",
+	Short: "Mark a pallet and everything built from it invalid",
+	Long: `Invalidate marks a pallet and every pallet built from it, transitively,
+invalid: bad data that must not be reused or read. It shows what it will
+mark and asks first (--yes skips the question, --dry-run only shows), then
+prints the hauls to start again: their memoized lifts are reused, so only
+the invalid ones run.
+
+  hubwagen pallet invalidate 01M6... --reason "orders export was truncated"`,
+	Args:         cobra.ExactArgs(1),
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if invalidateReason == "" {
+			return errors.New("--reason is required: it is recorded with every pallet marked")
+		}
+		q := catalogcli.InvalidateQuery{ID: args[0], Reason: invalidateReason, By: os.Getenv("USER"), DryRun: invalidateDryRun}
+		if !invalidateYes {
+			if fi, err := os.Stdin.Stat(); err != nil || fi.Mode()&os.ModeCharDevice == 0 {
+				q.Confirm = func(int) bool {
+					fmt.Fprintln(os.Stderr, "not a terminal: pass --yes to invalidate")
+					return false
+				}
+			} else {
+				q.Confirm = func(n int) bool {
+					fmt.Printf("mark these %d invalid? [y/N] ", n)
+					answer, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+					return strings.EqualFold(strings.TrimSpace(answer), "y")
+				}
+			}
+		}
+		return serverError(catalogcli.NewClient(haulServer).Invalidate(cmd.Context(), os.Stdout, q))
+	},
+}
+
 func init() {
+	invalidateCmd.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev serves it)")
+	invalidateCmd.Flags().StringVar(&invalidateReason, "reason", "", "why the data is bad (required)")
+	invalidateCmd.Flags().BoolVar(&invalidateDryRun, "dry-run", false, "only show what would be marked")
+	invalidateCmd.Flags().BoolVarP(&invalidateYes, "yes", "y", false, "don't ask")
+	palletCmd.AddCommand(invalidateCmd)
+
 	for _, c := range []*cobra.Command{datasetsCmd, palletsCmd, palletCmd} {
 		c.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev serves it)")
 		if c != palletCmd {

@@ -128,7 +128,7 @@ func (e *Engine) serveAPI(addr string, log *slog.Logger) error {
 	mux.Handle(path, h)
 	path, h = api.NewHaulHandler(e.Core, e.Store)
 	mux.Handle(path, h)
-	path, h = api.NewCatalogHandler(e.Store, pallet.NewStore(e.Bucket, layout.New(e.Bucket.Base())))
+	path, h = api.NewCatalogHandler(e.Core, e.Store, pallet.NewStore(e.Bucket, layout.New(e.Bucket.Base())))
 	mux.Handle(path, h)
 	e.api = &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	e.APIAddr = ln.Addr().String()

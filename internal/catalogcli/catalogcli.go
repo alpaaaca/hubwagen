@@ -5,9 +5,12 @@ package catalogcli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -173,6 +176,100 @@ func (c *Client) Pallet(ctx context.Context, w io.Writer, id string) error {
 	fmt.Fprintln(w, "\nbuilt into:")
 	tree(w, p.Id, m.Downstream, func(e *hubwagenv1.LineageEdge) (string, string) { return e.InputId, e.PalletId })
 	return nil
+}
+
+// InvalidateQuery is what `hubwagen pallet invalidate` does. Confirm is
+// asked, after the dry run is shown, before anything is marked.
+type InvalidateQuery struct {
+	ID, Reason, By string
+	DryRun         bool
+	Confirm        func(n int) bool
+}
+
+// Invalidate shows what invalidating a pallet marks, marks it unless
+// DryRun (or Confirm says no), and prints the starts that recompute it.
+func (c *Client) Invalidate(ctx context.Context, w io.Writer, q InvalidateQuery) error {
+	req := &hubwagenv1.InvalidatePalletRequest{Id: q.ID, Reason: q.Reason, By: q.By, DryRun: true}
+	res, err := c.catalog.InvalidatePallet(ctx, connect.NewRequest(req))
+	if err != nil {
+		return err
+	}
+	ps := res.Msg.Pallets
+	if len(ps) == 0 {
+		_, err := fmt.Fprintf(w, "nothing to mark: %s and what was built from it are already invalid or expired\n", q.ID)
+		return err
+	}
+	verb := "marks"
+	if q.DryRun {
+		verb = "would mark"
+	}
+	fmt.Fprintf(w, "invalidating %s %s %d pallet%s invalid:\n", q.ID, verb, len(ps), plural(len(ps)))
+	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
+	for _, p := range ps {
+		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\n", p.Id, p.Dataset, describePartition(p.Partition), p.State)
+	}
+	tw.Flush()
+	if q.DryRun {
+		return replayHint(w, res.Msg.Hauls, "would recompute them")
+	}
+	if q.Confirm != nil && !q.Confirm(len(ps)) {
+		_, err := fmt.Fprintln(w, "nothing changed")
+		return err
+	}
+	req.DryRun = false
+	res, err = c.catalog.InvalidatePallet(ctx, connect.NewRequest(req))
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(w, "marked %d pallet%s invalid\n", len(res.Msg.Pallets), plural(len(res.Msg.Pallets)))
+	return replayHint(w, res.Msg.Hauls, "recompute them")
+}
+
+// replayHint prints a start per haul that built invalidated pallets:
+// memoization reuses everything else, so those recompute exactly the set.
+func replayHint(w io.Writer, hauls []*hubwagenv1.HaulRef, what string) error {
+	if len(hauls) == 0 {
+		return nil
+	}
+	fmt.Fprintf(w, "\nthese %s (only the invalid lifts run again):\n", what)
+	printed := map[string]bool{}
+	for _, h := range hauls {
+		var params map[string]json.RawMessage
+		_ = json.Unmarshal([]byte(h.ParamsJson), &params)
+		line := "  hubwagen start " + h.Name
+		if h.Tenant != "" && h.Tenant != "default" {
+			line += " --tenant " + h.Tenant
+		}
+		for _, k := range slices.Sorted(maps.Keys(params)) {
+			v := string(params[k])
+			var str string
+			if json.Unmarshal(params[k], &str) == nil && !json.Valid([]byte(str)) {
+				v = str // a plain string: --param takes it as is
+			}
+			line += " --param " + shellQuote(k+"="+v)
+		}
+		if !printed[line] { // hauls with the same params: one start does
+			printed[line] = true
+			fmt.Fprintln(w, line)
+		}
+	}
+	return nil
+}
+
+func shellQuote(s string) string {
+	if strings.IndexFunc(s, func(r rune) bool {
+		return !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || strings.ContainsRune("-_.=:/,+@", r))
+	}) < 0 {
+		return s
+	}
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+func plural(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
 }
 
 // tree prints a lineage from root, following edges as from → to.

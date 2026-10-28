@@ -274,6 +274,12 @@ func (c *Core) memoize(l *liftState, inputs []state.Pallet) *memoMatch {
 		l.rec.RunReason = "memo lookup failed"
 		return nil
 	}
+	if l.output != nil {
+		if _, err := c.cfg.Store.InvalidatedPallet(c.ctx, h.rec.Tenant, l.rec.Fingerprint); err == nil {
+			l.rec.RunReason = "earlier pallet invalidated"
+			return nil
+		}
+	}
 	l.rec.RunReason = c.rerunReason(h.rec.Tenant, fpi, l.memo.ttl)
 	return nil
 }

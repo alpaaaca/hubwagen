@@ -17,6 +17,7 @@ import (
 
 	"github.com/alper/hubwagen/internal/api"
 	"github.com/alper/hubwagen/internal/blob"
+	"github.com/alper/hubwagen/internal/core"
 	"github.com/alper/hubwagen/internal/layout"
 	"github.com/alper/hubwagen/internal/pallet"
 	"github.com/alper/hubwagen/internal/state"
@@ -67,6 +68,13 @@ func serve(t *testing.T) *Client {
 				return err
 			}
 		}
+		for _, id := range []string{"o1", "o2", "o3", "m1", "r1"} {
+			params := map[string]any{"day": "2026-10-24", "label": "Q4 revenue"}
+			if err := tx.PutHaul(state.Haul{ID: "h-" + id, Tenant: "default", Name: "daily", Dock: "default",
+				Trigger: "manual", Params: params, Status: state.HaulCompleted, CreatedAt: t0}); err != nil {
+				return err
+			}
+		}
 		for _, p := range pallets {
 			if err := tx.PutPallet(p); err != nil {
 				return err
@@ -82,8 +90,15 @@ func serve(t *testing.T) *Client {
 	})
 	require.NoError(t, err)
 
+	c := core.New(core.Config{Store: st, Term: st.Term(), Layout: lay, Pallets: ps})
+	runCtx, cancel := context.WithCancel(ctx)
+	done := make(chan error, 1)
+	go func() { done <- c.Run(runCtx) }()
+	require.NoError(t, c.Barrier(ctx))
+	t.Cleanup(func() { cancel(); require.NoError(t, <-done) })
+
 	mux := http.NewServeMux()
-	path, h := api.NewCatalogHandler(st, ps)
+	path, h := api.NewCatalogHandler(c, st, ps)
 	mux.Handle(path, h)
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
@@ -141,4 +156,33 @@ func TestPalletShowsFilesAndLineage(t *testing.T) {
 	assert.Contains(t, out.String(), "built into:\n  nothing")
 
 	assert.Error(t, c.Pallet(ctx, &out, "nope"))
+}
+
+func TestInvalidate(t *testing.T) {
+	c := serve(t)
+	var out bytes.Buffer
+	asked := 0
+	no := func(n int) bool { asked = n; return false }
+	require.NoError(t, c.Invalidate(ctx, &out, InvalidateQuery{ID: "m1", Reason: "bad", Confirm: no}))
+	assert.Equal(t, 2, asked)
+	assert.Equal(t, []string{"invalidating m1 marks 2 pallets invalid:", "m1 mart.revenue 2026-10-24 committed",
+		"r1 reports.revenue 2026-10-24 committed", "nothing changed"}, lines(out.String()))
+
+	out.Reset()
+	require.NoError(t, c.Invalidate(ctx, &out, InvalidateQuery{ID: "m1", Reason: "bad", DryRun: true}))
+	assert.Contains(t, out.String(), "m1 would mark 2 pallets")
+	assert.Contains(t, out.String(), "hubwagen start daily --param day=2026-10-24 --param 'label=Q4 revenue'")
+
+	out.Reset()
+	require.NoError(t, c.Invalidate(ctx, &out, InvalidateQuery{ID: "m1", Reason: "bad", By: "ana", Confirm: func(int) bool { return true }}))
+	assert.Contains(t, out.String(), "marked 2 pallets invalid")
+	assert.Contains(t, out.String(), "these recompute them (only the invalid lifts run again):")
+
+	out.Reset()
+	require.NoError(t, c.Pallet(ctx, &out, "r1"))
+	assert.Contains(t, out.String(), "pallet r1, invalid\n  reason     built from invalidated pallet m1: bad")
+
+	out.Reset()
+	require.NoError(t, c.Invalidate(ctx, &out, InvalidateQuery{ID: "m1", Reason: "again"}))
+	assert.Contains(t, out.String(), "nothing to mark")
 }
