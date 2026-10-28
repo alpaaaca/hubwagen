@@ -60,7 +60,8 @@ message Haul {
   string id = 1;
   string tenant = 2;
   string name = 3;
-  // running, stuck, completed, failed or cancelled.
+  // running, stuck, completed, failed, cancelled or continued
+  // (continue_as_new: continued_as carries on).
   string status = 4;
   string reason = 5;
   string message = 6;
@@ -69,6 +70,10 @@ message Haul {
   google.protobuf.Timestamp created_at = 9;
   google.protobuf.Timestamp finished_at = 10;
   repeated Lift lifts = 11;
+  // A child haul: the haul that started it.
+  string parent_id = 12;
+  // Status continued: the haul that carries on.
+  string continued_as = 13;
 }
 
 message Lift {

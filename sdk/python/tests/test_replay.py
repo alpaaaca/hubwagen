@@ -340,3 +340,64 @@ def test_haul_max_parallel_limits_every_lift():
     assert r.commands[1]["lift"]["limits"] == [{"group": "haul", "max": 3}, {"group": "gather:2", "max": 1}]
     with pytest.raises(ValueError, match="max_parallel"):
         hw.haul(lambda ctx: 1, name="bad_limit", max_parallel=0)
+
+
+@hw.haul(name="replay_child")
+def replay_child(ctx, day: str, n: int = 1):
+    return n
+
+
+def test_child_haul_waits_for_its_result():
+    def parent(ctx):
+        return ctx.haul(replay_child, day="2026-10-24", n=2)
+
+    r = run(parent, [])
+    assert r.commands[0]["startHaul"] == {"name": "replay_child", "paramsJson": '{"day": "2026-10-24", "n": 2}', "wait": True}
+    assert r.outcome is None
+
+    started = ev("ChildStarted", {"seq": 1, "name": "replay_child", "haul": "c1"})
+    assert run(parent, [started]).outcome is None, "started, not finished: still waiting"
+    done = ev("ChildFinished", {"seq": 1, "name": "replay_child", "haul": "c1", "status": "completed", "result": 2})
+    assert json.loads(run(parent, [started, done]).outcome["resultJson"]) == 2
+
+
+def test_child_failure_raises():
+    def parent(ctx):
+        try:
+            return ctx.haul("replay_child", day="x")
+        except hw.ChildFailed as e:
+            return [e.status, e.reason, e.message, e.haul_id]
+
+    failed = ev("ChildFinished", {"seq": 1, "name": "replay_child", "haul": "c1", "status": "failed",
+                                  "reason": "ValueError", "message": "bad day"})
+    assert json.loads(run(parent, [failed]).outcome["resultJson"]) == ["failed", "ValueError", "bad day", "c1"]
+
+
+def test_start_haul_returns_the_child_id():
+    def parent(ctx):
+        return ctx.start_haul(replay_child, day="x")
+
+    r = run(parent, [])
+    assert "wait" not in r.commands[0]["startHaul"]
+    started = ev("ChildStarted", {"seq": 1, "name": "replay_child", "haul": "c1"})
+    assert json.loads(run(parent, [started]).outcome["resultJson"]) == "c1"
+    cant = ev("ChildFinished", {"seq": 1, "name": "replay_child", "status": "failed", "reason": "start_failed",
+                                "message": "no registered build defines haul"})
+    assert run(parent, [cant]).outcome["reason"] == "ChildFailed"
+
+
+def test_child_params_are_checked_against_its_signature():
+    r = run(lambda ctx: ctx.haul(replay_child, nope=1), [])
+    assert r.outcome["reason"] == "TypeError"
+    assert r.commands == [], "nothing was started"
+
+
+def test_continue_as_new():
+    def looping(ctx, cursor: int = 0):
+        try:
+            ctx.continue_as_new(cursor=cursor + 10)
+        except Exception:  # noqa: BLE001 - must not catch it
+            return "swallowed"
+
+    r = run(looping, [], params={"cursor": 5})
+    assert r.outcome == {"status": "STATUS_CONTINUED", "paramsJson": '{"cursor": 15}'}

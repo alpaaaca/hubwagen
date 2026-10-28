@@ -24,6 +24,25 @@ type haulStartedPayload struct {
 	Dock    string         `json:"dock"`
 	Trigger string         `json:"trigger"`
 	Params  map[string]any `json:"params,omitempty"`
+	Parent  string         `json:"parent,omitempty"` // a child haul: the haul that started it
+}
+
+type childStartedPayload struct {
+	Seq  int    `json:"seq"`
+	Name string `json:"name"`
+	Haul string `json:"haul"`
+}
+
+// childFinishedPayload answers a start_haul command Seq: the waited-for
+// child ended with Status, or (Haul empty) it couldn't start.
+type childFinishedPayload struct {
+	Seq     int             `json:"seq"`
+	Name    string          `json:"name"`
+	Haul    string          `json:"haul,omitempty"`
+	Status  string          `json:"status"`
+	Result  json.RawMessage `json:"result,omitempty"`
+	Reason  string          `json:"reason,omitempty"`
+	Message string          `json:"message,omitempty"`
 }
 
 type haulTaskPayload struct {

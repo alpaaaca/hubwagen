@@ -174,3 +174,34 @@ def timed(marker_dir: str, i: int) -> int:
 @hw.haul
 def limited_fanout(ctx, marker_dir: str, n: int, limit: int):
     return ctx.gather([ctx.lift_async(timed, marker_dir, i) for i in range(n)], max_parallel=limit)
+
+
+@hw.haul
+def child_sum(ctx, a: int, b: int):
+    return ctx.lift(add, a, b)
+
+
+@hw.haul
+def child_fails(ctx):
+    raise ValueError("no such day")
+
+
+@hw.haul
+def countdown(ctx, n: int):
+    """Continues as new until n reaches 0."""
+    if n > 0:
+        ctx.continue_as_new(n=n - 1)
+    return "liftoff"
+
+
+@hw.haul
+def family(ctx, n: int):
+    total = ctx.haul(child_sum, a=n, b=1)
+    try:
+        ctx.haul(child_fails)
+        failed = None
+    except hw.ChildFailed as e:
+        failed = [e.status, e.reason, e.message]
+    side = ctx.start_haul(child_sum, a=0, b=0)
+    chain = ctx.haul(countdown, n=2)
+    return {"total": total, "failed": failed, "side": side, "chain": chain}

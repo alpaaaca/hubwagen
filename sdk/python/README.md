@@ -62,6 +62,12 @@ committed pallet of a dataset partition, recorded so every replay sees the
 same one), `now`, `random` and `state`. A failed lift raises
 `hubwagen.LiftFailed` in the haul.
 
+Hauls can start hauls: `ctx.haul(other, **params)` waits for the child's
+result (raising `hubwagen.ChildFailed` if it fails), `ctx.start_haul(other,
+**params)` starts it and returns its ID. Ending a haul cancels the children
+it waits for. `ctx.continue_as_new(**params)` ends the haul and starts it
+again with new params and a fresh logbook, for hauls that loop.
+
 ```python
 @hw.haul
 def daily(ctx, day: str):

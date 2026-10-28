@@ -40,6 +40,8 @@ const (
 	EventTimerCancelled        EventType = "TimerCancelled"
 	EventSignalReceived        EventType = "SignalReceived"  // a signal sent to the haul
 	EventSignalDelivered       EventType = "SignalDelivered" // a wait_signal got a signal or timed out
+	EventChildStarted          EventType = "ChildStarted"    // a start_haul started its child
+	EventChildFinished         EventType = "ChildFinished"   // a waited-for child ended, or couldn't start
 )
 
 // Event is one immutable record in the log. Seq and Term are assigned by

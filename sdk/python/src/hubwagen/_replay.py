@@ -15,10 +15,28 @@ import json
 import random as _random
 import sys
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any, Callable, NoReturn
 
 from ._guards import NondeterminismError, guarded
 from ._model import Dataset, HaulDef, LiftDef, LiftFailed, Pallet, decode, encode, lift_def
+
+
+class ChildFailed(Exception):
+    """A child haul started with ctx.haul failed, was cancelled, or couldn't
+    start (status "failed", reason "start_failed"). Haul code may catch it."""
+
+    def __init__(self, name: str, haul_id: str, status: str, reason: str, message: str):
+        what = f"child haul {name}" + (f" ({haul_id})" if haul_id else "")
+        super().__init__(f"{what} {status}: {reason}" + (f": {message}" if message else ""))
+        self.name, self.haul_id, self.status, self.reason, self.message = name, haul_id, status, reason, message
+
+
+class _ContinueAsNew(BaseException):
+    """Raised by ctx.continue_as_new to end the replay; never seen by haul
+    code that catches Exception."""
+
+    def __init__(self, params: dict):
+        self.params = params
 
 
 class SignalTimeout(Exception):
@@ -102,7 +120,9 @@ class Ctx:
             match e.get("type"):
                 case "HaulStarted":
                     self._now = t
-                case "LiftFinished" | "TimerFired" | "QueryAnswered" | "SignalDelivered":
+                case "LiftFinished" | "TimerFired" | "QueryAnswered" | "SignalDelivered" | "ChildStarted" | "ChildFinished":
+                    # A waited-for child's ChildFinished comes after its
+                    # ChildStarted and replaces it.
                     self._results[payload["seq"]] = _Result(payload, t)
                 case "HaulTaskCompleted":
                     self._recorded.extend(payload.get("commands") or [])
@@ -256,6 +276,51 @@ class Ctx:
         self.markers[name] = v
         return v
 
+    def haul(self, f: Callable | str, **params: Any) -> Any:
+        """Start another haul (a child) and wait for its result. Raises
+        ChildFailed if it fails, is cancelled or can't start. The child runs
+        on its own logbook; cancelling or ending this haul cancels it."""
+        seq, name = self._start_haul_command(f, params, wait=True)
+        r = self._consume(seq)
+        if r is None or "status" not in r:  # not started yet, or started and running
+            raise Blocked()
+        if r["status"] != "completed":
+            raise ChildFailed(name, r.get("haul", ""), r["status"], r.get("reason", ""), r.get("message", ""))
+        return decode(r.get("result"))
+
+    def start_haul(self, f: Callable | str, **params: Any) -> str:
+        """Start another haul without waiting for it; returns its ID. It
+        carries on whatever this haul does. Raises ChildFailed if it can't
+        start."""
+        seq, name = self._start_haul_command(f, params, wait=False)
+        r = self._consume(seq)
+        if r is None:
+            raise Blocked()
+        if "status" in r:
+            raise ChildFailed(name, "", r["status"], r.get("reason", ""), r.get("message", ""))
+        return r["haul"]
+
+    def continue_as_new(self, **params: Any) -> NoReturn:
+        """End this haul and start it again with params and a fresh logbook,
+        for hauls that loop (a cursor, a poll): the logbook, and so every
+        replay, stays short. A haul waiting for this one gets the result of
+        the last haul in the chain. Signals not yet taken don't carry over."""
+        raise _ContinueAsNew(params)
+
+    def _start_haul_command(self, f: Callable | str, params: dict, wait: bool) -> tuple[int, str]:
+        if isinstance(f, str):
+            name = f
+        else:
+            d = getattr(f, "__hubwagen_haul__", None)
+            if d is None:
+                raise TypeError(f"{f!r} is not a haul (decorate it with @hubwagen.haul)")
+            name = d.name
+            inspect.signature(d.fn).bind(None, **params)  # a TypeError here, not in the child
+        body = {"name": name, "paramsJson": json.dumps(encode(params), sort_keys=True)}
+        if wait:
+            body["wait"] = True
+        return self._command("start_haul", {"startHaul": body}, name), name
+
     def wait_signal(self, name: str, timeout: float | _dt.timedelta | None = None) -> Any:
         """Wait for a signal named name (`hubwagen signal <haul> <name>`, or
         SignalHaul) and return its payload. A signal sent before the haul
@@ -318,6 +383,9 @@ def replay(d: HaulDef, haul_id: str, params: dict, logbook: list[dict]) -> Repla
         return ReplayResult(ctx.commands, None, ctx.mismatch, markers=_markers(ctx))
     except NondeterminismError as e:
         return ReplayResult(ctx.commands, None, str(e), nondeterministic=True)
+    except _ContinueAsNew as c:
+        return ReplayResult(ctx.commands, {"status": "STATUS_CONTINUED", "paramsJson": json.dumps(encode(c.params))},
+                            markers=_markers(ctx))
     except Exception as e:  # noqa: BLE001 - the haul function raised: it failed
         return ReplayResult(ctx.commands, {"status": "STATUS_FAILED", "reason": type(e).__name__, "message": str(e)},
                             markers=_markers(ctx))

@@ -51,6 +51,7 @@ type haulState struct {
 	// one, in the order they asked. See limits.go.
 	slots     map[string]int
 	throttled []*liftState
+	finishing bool // finishHaul is ending it: children ending meanwhile don't report to it
 }
 
 type haulTaskState struct {
@@ -103,6 +104,7 @@ func (c *Core) emitH(typ state.EventType, h *haulState, attemptID string, payloa
 // --- API ---
 
 type StartHaulRequest struct {
+	parent  *parentLink // set for child hauls and continue_as_new; see children.go
 	Tenant  string
 	Name    string // registered haul function
 	Dock    string // default DefaultDock
@@ -144,9 +146,13 @@ func (c *Core) startHaul(req StartHaulRequest) (StartHaulResult, error) {
 		markers: map[string]int{},
 		slots:   map[string]int{},
 	}
+	if p := req.parent; p != nil {
+		h.rec.ParentID, h.rec.ParentSeq, h.rec.ParentWaits = p.id, p.seq, p.waits
+	}
 	c.hauls[h.rec.ID] = h
 	c.dirtyHaul(h)
-	c.emitH(state.EventHaulStarted, h, "", haulStartedPayload{Name: req.Name, Dock: req.Dock, Trigger: req.Trigger, Params: req.Params})
+	c.emitH(state.EventHaulStarted, h, "", haulStartedPayload{
+		Name: req.Name, Dock: req.Dock, Trigger: req.Trigger, Params: req.Params, Parent: h.rec.ParentID})
 	c.queueHaulTask(h)
 	return StartHaulResult{HaulID: h.rec.ID}, nil
 }
@@ -164,6 +170,10 @@ const (
 	// CommandWaitSignal waits for a signal named Name; Duration, if set, is
 	// its timeout. See signals.go.
 	CommandWaitSignal CommandKind = "wait_signal"
+	// CommandStartHaul starts the haul Name with Args as its params, on Dock
+	// (default: this haul's); with Wait, this haul waits for its result. See
+	// children.go.
+	CommandStartHaul CommandKind = "start_haul"
 )
 
 // Command is one step a haul's replay issued, numbered from 1 in the order
@@ -180,6 +190,8 @@ type Command struct {
 	Output  *OutputSpec     `json:"output,omitempty"`  // the lift produces a pallet here
 	Inputs  []InputRef      `json:"inputs,omitempty"`  // pallets passed to the lift
 	Limits  []ParallelLimit `json:"limits,omitempty"`  // fan-out limits; see limits.go
+	// Start haul.
+	Wait bool `json:"wait,omitempty"`
 	// Memo: "" or "never" (default), "fingerprint", or "ttl:<duration>". A
 	// lift with an output reuses a pallet; one without reuses a result.
 	Memo string `json:"memo,omitempty"`
@@ -227,8 +239,9 @@ func (r RetryPolicy) delay(n int) time.Duration {
 // HaulOutcome is how the haul function ended: it returned (completed) or
 // raised (failed).
 type HaulOutcome struct {
-	Status  string          `json:"status"` // state.HaulCompleted or state.HaulFailed
+	Status  string          `json:"status"` // state.HaulCompleted, state.HaulFailed or state.HaulContinued
 	Result  json.RawMessage `json:"result,omitempty"`
+	Params  map[string]any  `json:"params,omitempty"` // continued: the next haul's params
 	Reason  string          `json:"reason,omitempty"`
 	Message string          `json:"message,omitempty"`
 }
@@ -471,7 +484,13 @@ func (c *Core) completeHaulTask(res HaulTaskResult) error {
 			c.answerLatestPallet(h, cmd)
 		case CommandWaitSignal:
 			c.waitSignal(h, cmd)
+		case CommandStartHaul:
+			c.startChild(h, cmd)
 		}
+	}
+	if o := res.Outcome; o != nil && o.Status == state.HaulContinued {
+		c.continueAsNew(h, o.Params)
+		return nil
 	}
 	if o := res.Outcome; o != nil {
 		c.finishHaul(h, o.Status, o.Reason, o.Message, o.Result)
@@ -519,7 +538,7 @@ func describeCommand(cmd Command) string {
 		s += " " + strconv.Quote(cmd.Name)
 	case CommandLatestPallet:
 		s += " " + strconv.Quote(cmd.Dataset)
-	case CommandWaitSignal:
+	case CommandWaitSignal, CommandStartHaul:
 		s += " " + strconv.Quote(cmd.Name)
 	}
 	if cmd.Source != "" {
@@ -544,8 +563,8 @@ func validateHaulTaskResult(res HaulTaskResult) error {
 		}
 		seen[m.Name] = m.Version
 	}
-	if o := res.Outcome; o != nil && o.Status != state.HaulCompleted && o.Status != state.HaulFailed {
-		return fmt.Errorf("outcome status %q is not %q or %q", o.Status, state.HaulCompleted, state.HaulFailed)
+	if o := res.Outcome; o != nil && o.Status != state.HaulCompleted && o.Status != state.HaulFailed && o.Status != state.HaulContinued {
+		return fmt.Errorf("outcome status %q is not %q, %q or %q", o.Status, state.HaulCompleted, state.HaulFailed, state.HaulContinued)
 	}
 	for i, cmd := range res.Commands {
 		if cmd.Seq != i+1 {
@@ -588,6 +607,13 @@ func validateHaulTaskResult(res HaulTaskResult) error {
 			if cmd.Dataset == "" {
 				return fmt.Errorf("commands[%d]: latest_pallet needs a dataset", i)
 			}
+		case CommandStartHaul:
+			if cmd.Name == "" {
+				return fmt.Errorf("commands[%d]: start_haul needs a haul name", i)
+			}
+			if _, err := decodeParams(cmd.Args); err != nil {
+				return fmt.Errorf("commands[%d]: %v", i, err)
+			}
 		case CommandWaitSignal:
 			if cmd.Name == "" {
 				return fmt.Errorf("commands[%d]: wait_signal needs a signal name", i)
@@ -625,6 +651,8 @@ func (c *Core) markStuck(h *haulState, reason, message string, seq int) {
 // haul task is withdrawn. A dispatched haul task stays known so its result
 // is still accepted (and ignored).
 func (c *Core) finishHaul(h *haulState, status, reason, message string, result json.RawMessage) {
+	h.finishing = true
+	c.cancelChildren(h, status)
 	h.throttled = nil // cancelled below; slots freed meanwhile must not start them
 	for _, seq := range sortedKeys(h.lifts) {
 		c.cancelLift(h.lifts[seq], "haul "+status)
@@ -643,6 +671,7 @@ func (c *Core) finishHaul(h *haulState, status, reason, message string, result j
 	c.dirtyHaul(h)
 	c.emitH(state.EventHaulFinished, h, "", haulFinishedPayload{Status: status, Reason: reason, Message: message, Result: result})
 	delete(c.hauls, h.rec.ID)
+	c.childEnded(h)
 }
 
 // --- lifts ---

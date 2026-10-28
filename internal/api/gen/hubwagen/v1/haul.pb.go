@@ -345,15 +345,20 @@ type Haul struct {
 	Id     string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Tenant string                 `protobuf:"bytes,2,opt,name=tenant,proto3" json:"tenant,omitempty"`
 	Name   string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	// running, stuck, completed, failed or cancelled.
-	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
-	Reason        string                 `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
-	Message       string                 `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
-	ParamsJson    string                 `protobuf:"bytes,7,opt,name=params_json,json=paramsJson,proto3" json:"params_json,omitempty"`
-	ResultJson    string                 `protobuf:"bytes,8,opt,name=result_json,json=resultJson,proto3" json:"result_json,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	FinishedAt    *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
-	Lifts         []*Lift                `protobuf:"bytes,11,rep,name=lifts,proto3" json:"lifts,omitempty"`
+	// running, stuck, completed, failed, cancelled or continued
+	// (continue_as_new: continued_as carries on).
+	Status     string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	Reason     string                 `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
+	Message    string                 `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
+	ParamsJson string                 `protobuf:"bytes,7,opt,name=params_json,json=paramsJson,proto3" json:"params_json,omitempty"`
+	ResultJson string                 `protobuf:"bytes,8,opt,name=result_json,json=resultJson,proto3" json:"result_json,omitempty"`
+	CreatedAt  *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	FinishedAt *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	Lifts      []*Lift                `protobuf:"bytes,11,rep,name=lifts,proto3" json:"lifts,omitempty"`
+	// A child haul: the haul that started it.
+	ParentId string `protobuf:"bytes,12,opt,name=parent_id,json=parentId,proto3" json:"parent_id,omitempty"`
+	// Status continued: the haul that carries on.
+	ContinuedAs   string `protobuf:"bytes,13,opt,name=continued_as,json=continuedAs,proto3" json:"continued_as,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -463,6 +468,20 @@ func (x *Haul) GetLifts() []*Lift {
 		return x.Lifts
 	}
 	return nil
+}
+
+func (x *Haul) GetParentId() string {
+	if x != nil {
+		return x.ParentId
+	}
+	return ""
+}
+
+func (x *Haul) GetContinuedAs() string {
+	if x != nil {
+		return x.ContinuedAs
+	}
+	return ""
 }
 
 type Lift struct {
@@ -603,7 +622,7 @@ const file_hubwagen_v1_haul_proto_rawDesc = "" +
 	"\x0eGetHaulRequest\x12\x17\n" +
 	"\ahaul_id\x18\x01 \x01(\tR\x06haulId\"8\n" +
 	"\x0fGetHaulResponse\x12%\n" +
-	"\x04haul\x18\x01 \x01(\v2\x11.hubwagen.v1.HaulR\x04haul\"\xef\x02\n" +
+	"\x04haul\x18\x01 \x01(\v2\x11.hubwagen.v1.HaulR\x04haul\"\xaf\x03\n" +
 	"\x04Haul\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06tenant\x18\x02 \x01(\tR\x06tenant\x12\x12\n" +
@@ -620,7 +639,9 @@ const file_hubwagen_v1_haul_proto_rawDesc = "" +
 	"\vfinished_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"finishedAt\x12'\n" +
-	"\x05lifts\x18\v \x03(\v2\x11.hubwagen.v1.LiftR\x05lifts\"\xe1\x01\n" +
+	"\x05lifts\x18\v \x03(\v2\x11.hubwagen.v1.LiftR\x05lifts\x12\x1b\n" +
+	"\tparent_id\x18\f \x01(\tR\bparentId\x12!\n" +
+	"\fcontinued_as\x18\r \x01(\tR\vcontinuedAs\"\xe1\x01\n" +
 	"\x04Lift\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x05R\x03seq\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
