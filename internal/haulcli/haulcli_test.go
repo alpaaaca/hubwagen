@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -228,6 +229,19 @@ func TestReplayOverADateRange(t *testing.T) {
   report    2 run (not memoized)
 2 completed
 `, s.replayRange(t, "2026-03-01..2026-03-02"))
+}
+
+func TestSignal(t *testing.T) {
+	s := start(t)
+	c := NewClient(s.url)
+	id, err := c.Start(ctx, HaulRequest{Tenant: "t", Name: "daily_orders", Params: map[string]any{"day": "2026-10-24"}})
+	require.NoError(t, err)
+	_, err = c.Wait(ctx, []string{id}, 20*time.Millisecond)
+	require.NoError(t, err)
+	_, err = c.Signal(ctx, id, "approve", `{"by":"ana"}`)
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err), "the haul has finished")
+	_, err = c.Signal(ctx, "nope", "approve", "")
+	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 }
 
 func TestStartAndWait(t *testing.T) {

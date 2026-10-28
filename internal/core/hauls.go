@@ -37,13 +37,15 @@ const DefaultDock = "default"
 // --- in-memory model ---
 
 type haulState struct {
-	rec    state.Haul
-	task   *haulTaskState     // the queued or dispatched haul task, if any
-	replay bool               // a result arrived while task was dispatched: replay again after it
-	tasks  int                // haul tasks created so far
-	cmds   []Command          // commands recorded in the logbook, in order
-	lifts  map[int]*liftState // unfinished lifts by seq
-	timers map[int]*haulTimer // pending timers by seq
+	rec     state.Haul
+	task    *haulTaskState      // the queued or dispatched haul task, if any
+	replay  bool                // a result arrived while task was dispatched: replay again after it
+	tasks   int                 // haul tasks created so far
+	cmds    []Command           // commands recorded in the logbook, in order
+	lifts   map[int]*liftState  // unfinished lifts by seq
+	timers  map[int]*haulTimer  // pending timers by seq
+	waits   map[int]*signalWait // wait_signal commands not answered yet, by seq
+	signals []keptSignal        // signals received that no wait took yet, oldest first
 }
 
 type haulTaskState struct {
@@ -131,6 +133,7 @@ func (c *Core) startHaul(req StartHaulRequest) (StartHaulResult, error) {
 		},
 		lifts:  map[int]*liftState{},
 		timers: map[int]*haulTimer{},
+		waits:  map[int]*signalWait{},
 	}
 	c.hauls[h.rec.ID] = h
 	c.dirtyHaul(h)
@@ -149,6 +152,9 @@ const (
 	// pallet. The server answers at once and records the answer
 	// (QueryAnswered), so every replay sees the same one.
 	CommandLatestPallet CommandKind = "latest_pallet"
+	// CommandWaitSignal waits for a signal named Name; Duration, if set, is
+	// its timeout. See signals.go.
+	CommandWaitSignal CommandKind = "wait_signal"
 )
 
 // Command is one step a haul's replay issued, numbered from 1 in the order
@@ -426,6 +432,8 @@ func (c *Core) completeHaulTask(res HaulTaskResult) error {
 			c.startTimer(h, cmd)
 		case CommandLatestPallet:
 			c.answerLatestPallet(h, cmd)
+		case CommandWaitSignal:
+			c.waitSignal(h, cmd)
 		}
 	}
 	if o := res.Outcome; o != nil {
@@ -463,6 +471,8 @@ func describeCommand(cmd Command) string {
 		s += " " + strconv.Quote(cmd.Name)
 	case CommandLatestPallet:
 		s += " " + strconv.Quote(cmd.Dataset)
+	case CommandWaitSignal:
+		s += " " + strconv.Quote(cmd.Name)
 	}
 	if cmd.Source != "" {
 		s += " at " + cmd.Source
@@ -515,6 +525,13 @@ func validateHaulTaskResult(res HaulTaskResult) error {
 			if cmd.Dataset == "" {
 				return fmt.Errorf("commands[%d]: latest_pallet needs a dataset", i)
 			}
+		case CommandWaitSignal:
+			if cmd.Name == "" {
+				return fmt.Errorf("commands[%d]: wait_signal needs a signal name", i)
+			}
+			if cmd.Duration < 0 {
+				return fmt.Errorf("commands[%d]: wait_signal timeout must not be negative", i)
+			}
 		default:
 			return fmt.Errorf("commands[%d]: unknown kind %q", i, cmd.Kind)
 		}
@@ -549,12 +566,7 @@ func (c *Core) finishHaul(h *haulState, status, reason, message string, result j
 		c.cancelLift(h.lifts[seq], "haul "+status)
 	}
 	for _, seq := range sortedKeys(h.timers) {
-		tm := h.timers[seq]
-		tm.ref.stop()
-		tm.rec.Status = state.TimerCancelled
-		c.dirtyTimer(tm)
-		c.emitH(state.EventTimerCancelled, h, "", timerPayload{Seq: seq})
-		delete(h.timers, seq)
+		c.cancelTimer(h, h.timers[seq])
 	}
 	if t := h.task; t != nil && t.rec.Status == state.HaulTaskQueued {
 		c.unqueue(h.rec.Dock, t.rec.ID)
@@ -799,9 +811,21 @@ func (c *Core) fireTimer(tm *haulTimer) {
 	h := tm.haul
 	tm.rec.Status, tm.rec.FiredAt = state.TimerFired, ptr(c.now())
 	c.dirtyTimer(tm)
-	c.emitH(state.EventTimerFired, h, "", timerPayload{Seq: tm.rec.Seq})
 	delete(h.timers, tm.rec.Seq)
+	if w := h.waits[tm.rec.Seq]; w != nil { // a wait_signal's timeout
+		c.deliverSignal(h, w, nil)
+		return
+	}
+	c.emitH(state.EventTimerFired, h, "", timerPayload{Seq: tm.rec.Seq})
 	c.wake(h)
+}
+
+func (c *Core) cancelTimer(h *haulState, tm *haulTimer) {
+	tm.ref.stop()
+	tm.rec.Status = state.TimerCancelled
+	c.dirtyTimer(tm)
+	c.emitH(state.EventTimerCancelled, h, "", timerPayload{Seq: tm.rec.Seq})
+	delete(h.timers, tm.rec.Seq)
 }
 
 func sortedKeys[V any](m map[int]V) []int {

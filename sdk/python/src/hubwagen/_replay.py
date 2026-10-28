@@ -21,6 +21,15 @@ from ._guards import NondeterminismError, guarded
 from ._model import Dataset, HaulDef, LiftDef, LiftFailed, Pallet, decode, encode, lift_def
 
 
+class SignalTimeout(Exception):
+    """ctx.wait_signal's timeout passed before the signal came. Haul code
+    may catch it."""
+
+    def __init__(self, name: str, timeout: float | None):
+        super().__init__(f"no signal {name!r} within {timeout:g}s" if timeout else f"no signal {name!r}")
+        self.name, self.timeout = name, timeout
+
+
 class Blocked(BaseException):
     """The replay reached a call without a result. A BaseException, so haul
     code's `except Exception:` can't swallow it and carry on with a made-up
@@ -88,7 +97,7 @@ class Ctx:
             match e.get("type"):
                 case "HaulStarted":
                     self._now = t
-                case "LiftFinished" | "TimerFired" | "QueryAnswered":
+                case "LiftFinished" | "TimerFired" | "QueryAnswered" | "SignalDelivered":
                     self._results[payload["seq"]] = _Result(payload, t)
                 case "HaulTaskCompleted":
                     self._recorded.extend(payload.get("commands") or [])
@@ -197,6 +206,27 @@ class Ctx:
         seq = self._command("sleep", {"sleep": {"duration": _duration(duration)}})
         if self._consume(seq) is None:
             raise Blocked()
+
+    def wait_signal(self, name: str, timeout: float | _dt.timedelta | None = None) -> Any:
+        """Wait for a signal named name (`hubwagen signal <haul> <name>`, or
+        SignalHaul) and return its payload. A signal sent before the haul
+        waits is kept for it; each signal answers one wait. Raises
+        SignalTimeout if timeout (seconds or a timedelta) passes first. The
+        wait is held by the server: it survives restarts and deploys."""
+        body: dict[str, Any] = {"name": name}
+        if timeout is not None:
+            if isinstance(timeout, _dt.timedelta):
+                timeout = timeout.total_seconds()
+            if timeout <= 0:
+                raise ValueError(f"wait_signal({name!r}): timeout must be positive")
+            body["timeout"] = _duration(timeout)
+        seq = self._command("wait_signal", {"waitSignal": body}, name)
+        r = self._consume(seq)
+        if r is None:
+            raise Blocked()
+        if r.get("timed_out"):
+            raise SignalTimeout(name, timeout)
+        return decode(r.get("payload"))
 
     def latest_pallet(self, dataset: Dataset | str, partition: Any = None) -> Pallet | None:
         """The newest committed pallet of a dataset partition, or None. The

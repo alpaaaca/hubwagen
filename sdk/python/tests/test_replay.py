@@ -238,3 +238,32 @@ def test_decorator_checks():
     r = run(lambda ctx: ctx.lift(print), [])
     assert r.outcome["reason"] == "TypeError" and "not a lift" in r.outcome["message"]
     assert add(1, 2) == 3, "a lift is still a plain function"
+
+
+def test_wait_signal():
+    def gate(ctx):
+        approval = ctx.wait_signal("approve", timeout=dt.timedelta(hours=24))
+        return ctx.lift(add, approval["n"], 1)
+
+    r = run(gate, [])
+    assert r.commands == [{"seq": 1, "source": r.commands[0]["source"], "waitSignal": {"name": "approve", "timeout": "86400s"}}]
+    assert r.outcome is None, "blocked until the signal comes"
+
+    got = ev("SignalDelivered", {"seq": 1, "name": "approve", "signal": "s1", "payload": {"n": 2}})
+    r = run(gate, [got])
+    assert r.commands[1]["lift"]["name"] == "add"
+    assert json.loads(r.commands[1]["lift"]["argsJson"]) == {"a": 2, "b": 1}
+
+
+def test_wait_signal_timeout_raises():
+    def gate(ctx):
+        try:
+            return ctx.wait_signal("approve", timeout=60)
+        except hw.SignalTimeout as e:
+            return f"gave up: {e}"
+
+    r = run(gate, [ev("SignalDelivered", {"seq": 1, "name": "approve", "timed_out": True})])
+    assert json.loads(r.outcome["resultJson"]) == "gave up: no signal 'approve' within 60s"
+    assert "timeout" not in run(lambda ctx: ctx.wait_signal("x"), []).commands[0]["waitSignal"]
+    bad = run(lambda ctx: ctx.wait_signal("x", timeout=0), []).outcome
+    assert (bad["reason"], bad["message"]) == ("ValueError", "wait_signal('x'): timeout must be positive")

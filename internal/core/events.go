@@ -154,6 +154,22 @@ type timerPayload struct {
 	Seq int `json:"seq"`
 }
 
+type signalReceivedPayload struct {
+	Signal  string          `json:"signal"`
+	Name    string          `json:"name"`
+	Payload json.RawMessage `json:"payload,omitempty"`
+}
+
+// signalDeliveredPayload ends the wait_signal command Seq: with a signal, or
+// TimedOut.
+type signalDeliveredPayload struct {
+	Seq      int             `json:"seq"`
+	Name     string          `json:"name"`
+	Signal   string          `json:"signal,omitempty"`
+	Payload  json.RawMessage `json:"payload,omitempty"`
+	TimedOut bool            `json:"timed_out,omitempty"`
+}
+
 // Catalog events.
 
 type datasetCreatedPayload struct {

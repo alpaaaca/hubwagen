@@ -55,10 +55,30 @@ calls in the same order every time:
   Deploying fixed code (a new build) resumes it.
 
 `ctx` offers `lift`, `lift_async` + `gather` (fan-out), `sleep` (durable,
-held by the server), `latest_pallet` (the newest committed pallet of a
-dataset partition, recorded so every replay sees the same one), `now`,
-`random` and `state`. A failed lift raises `hubwagen.LiftFailed` in the
-haul.
+held by the server), `wait_signal` (below), `latest_pallet` (the newest
+committed pallet of a dataset partition, recorded so every replay sees the
+same one), `now`, `random` and `state`. A failed lift raises
+`hubwagen.LiftFailed` in the haul.
+
+```python
+@hw.haul
+def daily(ctx, day: str):
+    report = ctx.lift(check_quality, day)
+    if report["failed"]:
+        try:
+            approval = ctx.wait_signal("approve", timeout=timedelta(hours=24))
+        except hw.SignalTimeout:
+            return "not approved"
+    return ctx.lift(publish, day)
+```
+
+```bash
+hubwagen signal <haul-id> approve --data '{"by": "ana"}'   # or Client.signal_haul(haul_id, "approve", {...})
+```
+
+A signal sent before the haul waits for it is kept; each signal answers one
+wait. The wait is held by the server, like a sleep: no worker is busy while
+the haul waits, and it survives restarts and deploys.
 
 ## Lifts
 

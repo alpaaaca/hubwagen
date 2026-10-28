@@ -69,6 +69,13 @@ func Describe(ev state.Event) string {
 		return fmt.Sprintf("haul %s stuck: %s", haul, str("message"))
 	case state.EventLiftScheduled:
 		return fmt.Sprintf("haul %s: lift %d %s scheduled (%s)", haul, num("seq"), str("name"), str("run_reason"))
+	case state.EventSignalReceived:
+		return fmt.Sprintf("haul %s: signal %s received", haul, str("name"))
+	case state.EventSignalDelivered:
+		if p["timed_out"] == true {
+			return fmt.Sprintf("haul %s: wait %d for signal %s timed out", haul, num("seq"), str("name"))
+		}
+		return fmt.Sprintf("haul %s: wait %d got signal %s", haul, num("seq"), str("name"))
 	case state.EventLiftReused:
 		if str("pallet") == "" {
 			return fmt.Sprintf("haul %s: lift %d reused the result of haul %s lift %d", haul, num("seq"), str("haul"), num("on_seq"))

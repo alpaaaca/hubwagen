@@ -108,7 +108,7 @@ def daily_revenue(ctx, day: date):
     report = ctx.lift(check_quality, orders)
     if report.failed:
         ctx.alert(owner="marketing", report=report)
-        ctx.wait_signal("approve", timeout="24h")    # durable across deploys
+        ctx.wait_signal("approve", timeout=timedelta(hours=24))  # durable across deploys
     return ctx.lift(build_revenue, orders, day)
 
 @lift(memo=True)                    # a closed day's orders no longer change
@@ -251,6 +251,17 @@ it continue.
   code in CI, without running lifts.
 
 The guideline for users: keep hauls thin, put real work in lifts.
+
+### Signals
+
+A signal is input from outside for one haul: `hubwagen signal <haul> approve
+--data '{"by": "ana"}'` (or `SignalHaul` on the API) records it in the haul's
+logbook, and `ctx.wait_signal("approve", timeout=...)` returns its payload.
+A signal sent before the haul waits is kept until a wait for that name takes
+it; each signal answers one wait, oldest wait first. A timeout is a timer:
+if it fires first, the wait raises `SignalTimeout` in the haul. Deliveries
+and timeouts are recorded (`SignalDelivered`), so replays see the same
+answer, and a new leader rebuilds waits and kept signals from the logbook.
 
 ### Haul states
 

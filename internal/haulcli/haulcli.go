@@ -137,6 +137,17 @@ func (c *Client) Start(ctx context.Context, r HaulRequest) (string, error) {
 	return res.Msg.HaulId, nil
 }
 
+// Signal sends a signal to a haul; payload is JSON ("" for null). It
+// returns the signal's ID.
+func (c *Client) Signal(ctx context.Context, haulID, name, payload string) (string, error) {
+	res, err := c.hauls.SignalHaul(ctx, connect.NewRequest(&hubwagenv1.SignalHaulRequest{
+		HaulId: haulID, Name: name, PayloadJson: payload}))
+	if err != nil {
+		return "", err
+	}
+	return res.Msg.SignalId, nil
+}
+
 // Wait polls until no haul is running any more (stuck counts as settled: it
 // needs a fix and a new build) and returns them in the order given.
 func (c *Client) Wait(ctx context.Context, ids []string, every time.Duration) ([]*hubwagenv1.Haul, error) {

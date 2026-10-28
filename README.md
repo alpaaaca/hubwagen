@@ -30,9 +30,10 @@ The engine runs on one machine: `hubwagen dev` (server and API), Python
 workers, `file://` storage. Built so far: durable hauls (replay until
 blocked, timers, retries, timeouts, leader restarts), pallets with
 exactly-once commits, fingerprint memoization with single-flight, a
-catalog with lineage, and the worker and haul APIs. Next: runtime
-determinism guards and import-aware code versions, then signals, schedules
-and testing tools. See [docs/roadmap.md](docs/roadmap.md) and
+catalog with lineage, the worker and haul APIs, dataframes between lifts,
+code versions from what a lift's code reaches, runtime determinism guards,
+and signals. Next (M4): version markers, fan-out limits, child hauls,
+schedules, subscriptions and testing tools. See [docs/roadmap.md](docs/roadmap.md) and
 [docs/architecture.md](docs/architecture.md).
 
 ## Try it

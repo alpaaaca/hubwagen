@@ -60,6 +60,22 @@ def test_haul_code_reading_the_clock_is_stuck(client):
     assert "time.time() called at" in h["message"] and "example_hauls.py:" in h["message"]
 
 
+def test_signals(client):
+    h = client.start_haul("approval")
+    sig = client.signal_haul(h, "approve", {"n": 41, "by": "ana"})
+    assert sig
+    done = wait(client, h)
+    assert done["status"] == "completed", done
+    assert json.loads(done["resultJson"]) == {"decision": {"n": 41, "by": "ana"}, "sum": 42}
+
+    with pytest.raises(hw.ConnectError) as e:
+        client.signal_haul(h, "approve", {})
+    assert e.value.code == "failed_precondition", "the haul has finished"
+
+    timed_out = wait(client, client.start_haul("approval", {"timeout": 0.5}))
+    assert json.loads(timed_out["resultJson"]) == "timed out"
+
+
 def test_cursor_from_the_catalog(client):
     cursors = [json.loads(wait(client, client.start_haul("ingest"))["resultJson"]) for _ in range(3)]
     assert cursors == [1, 2, 3]
