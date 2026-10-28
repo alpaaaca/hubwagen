@@ -24,7 +24,7 @@ What to try:
    `daily_revenue` and `revenue_report` are **reused**.
 2. Change `daily_revenue` (say, round to whole units: `Decimal("1")`),
    restart the worker and replay: it runs again with
-   `code changed (src-… → src-…)`, and `revenue_report` with `input changed`.
+   `code changed (py-… → py-…)`, and `revenue_report` with `input changed`.
 3. Kill a worker (`kill -9 <pid>`; dev prints them): dev restarts it.
    Run `hubwagen dev --no-workers` and `hubwagen workers` (same
    `--config`) in two terminals to restart the server while the workers

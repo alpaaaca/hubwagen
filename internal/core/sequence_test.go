@@ -166,3 +166,24 @@ func TestCheckReplay(t *testing.T) {
 		assert.Equal(t, tc.seq != 0, msg != "", name)
 	}
 }
+
+func TestGuardedHaulCodeMakesHaulStuck(t *testing.T) {
+	h := newHarness(t)
+	id := h.startHaul("x")
+	h.replay(seqs(lift("a")), nil)
+	h.succeedLift(h.poll(TaskLift))
+
+	// The worker's guard caught the haul code reading the clock.
+	ht := h.poll(TaskHaul)
+	msg := "time.time() called at app.py:7: haul code must not read the clock or randomness"
+	require.NoError(t, h.core.CompleteHaulTask(h.ctx, HaulTaskResult{TaskID: ht.ID, BuildID: "b",
+		Error: &TaskError{Reason: ReasonNondeterminism, Message: msg}}))
+	got := h.haul(id)
+	assert.Equal(t, state.HaulStuck, got.Status, "stuck, not failed: fixed code can resume it")
+	assert.Equal(t, ReasonNondeterminism, got.Reason)
+	assert.Equal(t, msg, got.Message)
+
+	require.NoError(t, h.core.ResumeHaul(h.ctx, id))
+	h.replay(seqs(lift("a")), &HaulOutcome{Status: state.HaulCompleted})
+	assert.Equal(t, state.HaulCompleted, h.haul(id).Status)
+}

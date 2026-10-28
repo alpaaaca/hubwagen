@@ -90,7 +90,9 @@ message CompleteHaulTaskRequest {
   repeated Command commands = 3;
   // Set when the haul function returned or raised.
   HaulOutcome outcome = 4;
-  // Set when the replay itself failed (not the haul code).
+  // Set when the replay itself failed (not the haul code), or with reason
+  // "nondeterminism" when the haul code read the clock or randomness: then
+  // the haul becomes stuck instead of failed, and a new build resumes it.
   TaskError error = 5;
 }
 

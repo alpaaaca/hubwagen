@@ -64,10 +64,10 @@ def load_inputs(fn: Any, kwargs: dict[str, Any]) -> dict[str, Any]:
 
 
 def build_id() -> str:
-    """A build is identified by its hauls and its lifts' code versions."""
+    """A build is identified by its hauls' and lifts' code versions."""
     h = hashlib.sha256()
     for name in sorted(_model.HAULS):
-        h.update(f"haul {name}\n".encode())
+        h.update(f"haul {name} {_model.HAULS[name].code_version()}\n".encode())
     for name in sorted(_model.LIFTS):
         h.update(f"lift {name} {_model.LIFTS[name].code_version()}\n".encode())
     return "b-" + h.hexdigest()[:12]
@@ -103,9 +103,13 @@ class Worker:
         else:
             params = json.loads(task.get("paramsJson") or "{}")
             r = _replay.replay(d, task["haulId"], params, task.get("logbook", []))
-            body["commands"] = r.commands
-            if r.outcome:
-                body["outcome"] = r.outcome
+            if r.nondeterministic:
+                # The server makes the haul stuck; a build with fixed code resumes it.
+                body["error"] = {"reason": "nondeterminism", "message": r.mismatch}
+            else:
+                body["commands"] = r.commands
+                if r.outcome:
+                    body["outcome"] = r.outcome
             if r.mismatch:
                 log.error("haul %s (%s) is not deterministic: %s", task["haulId"], task["name"], r.mismatch)
         self.client.call("WorkerService", "CompleteHaulTask", body)
@@ -255,6 +259,23 @@ def project_modules(directory: Path) -> list[str]:
     return modules
 
 
+def print_versions() -> None:
+    """What each code version covers, for finding out why a lift reran."""
+    from . import _codeversion
+
+    out: dict[str, Any] = {"build": build_id(), "hauls": {}, "lifts": {}}
+    for name, h in sorted(_model.HAULS.items()):
+        out["hauls"][name] = {"version": h.code_version(), **_codeversion.parts(h.fn, name=name, haul=True)}
+    for name, d in sorted(_model.LIFTS.items()):
+        entry: dict[str, Any] = {"version": d.code_version()}
+        if d.version:
+            entry["pinned"] = True
+        else:
+            entry.update(_codeversion.parts(d.fn, d.deps, name))
+        out["lifts"][name] = entry
+    print(json.dumps(out, indent=2))
+
+
 def main(argv: list[str] | None = None) -> None:
     argv = sys.argv[1:] if argv is None else argv
     # Iterating a set of strings must give the same order in every replay, in
@@ -271,12 +292,17 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--poll-wait", default=POLL_WAIT, help="how long one poll waits for work, e.g. 20s")
     p.add_argument("--worker-id", default=os.environ.get("HUBWAGEN_WORKER_ID"), help="default: <hostname>-<pid>")
     p.add_argument("--log-level", default="info")
+    p.add_argument("--versions", action="store_true",
+                   help="print the build ID and what each haul's and lift's code version covers, then exit")
     args = p.parse_args(argv)
     logging.basicConfig(level=args.log_level.upper(), format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
     sys.path.insert(0, os.getcwd())
     for m in args.modules or project_modules(Path.cwd()):
         importlib.import_module(m)
+    if args.versions:
+        print_versions()
+        return
     w = Worker(Client(args.server), args.dock or ["default"], lifts=args.lifts, poll_wait=args.poll_wait,
                worker_id=args.worker_id)
     while True:

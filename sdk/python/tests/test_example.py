@@ -75,7 +75,7 @@ def test_replay_reuses_what_did_not_change(demo):
         3 hauls started
         3 hauls
           extract_orders   3 run \\(not memoized\\)
-          daily_revenue    3 run \\(code changed \\(src-[0-9a-f]+ → src-[0-9a-f]+\\)\\)
+          daily_revenue    3 run \\(code changed \\(py-[0-9a-f]+ → py-[0-9a-f]+\\)\\)
           revenue_report   3 run \\(input changed\\)
         3 completed
     """), out), out

@@ -40,7 +40,12 @@ calls in the same order every time:
 - **No clock, randomness, network or files** in haul code. Use `ctx.now()`
   (the time of the newest result the replay has used, the same on every
   replay), `ctx.random()` / `ctx.rng` (seeded by the haul), and lifts.
-  Runtime guards for this arrive with #25.
+  While haul code runs, calling `time.time`, `datetime.now`, `date.today`,
+  the module-level `random` functions, `uuid1`/`uuid4` or `os.urandom`
+  from your code raises `hubwagen.NondeterminismError` with the line, and
+  the haul becomes **stuck** (fix the code; the new build resumes it).
+  Libraries that read the clock, such as `logging`, are left alone, and so
+  are lifts. Network and files aren't guarded: keep them in lifts.
 - **Don't swallow `hubwagen.Blocked`.** It is a `BaseException`, so
   `except Exception:` is safe; a bare `except:` is not.
 - `ctx.state` is a dict rebuilt by every replay; it holds what the haul
@@ -66,6 +71,26 @@ as inputs (lineage, and content hashes in the fingerprint), not inside the
 arguments. Raise `hubwagen.NonRetryable` for failures retrying won't fix.
 
 Arguments and results are JSON; `date` and `datetime` round-trip.
+
+### Code versions
+
+A memoized lift is reused only while its code version is unchanged. The
+version covers the code the lift can run: its own body and every function,
+class and module-level constant of your project it reaches, in any module
+(comments, docstrings, formatting and the `@hw.lift(...)` line don't
+count); the installed versions of the packages that code uses, with their
+requirements; the Python version; and the files under `deps=`. Changing a
+helper reruns the lifts that call it and no others; bumping pandas reruns
+the lifts that use pandas; bumping pytest reruns nothing.
+
+It can't see code reached through a computed name
+(`importlib.import_module(name)`, `getattr(module, name)`), data a module
+reads at import time, or the state of objects. Name such files with
+`deps=["config/rules.yaml"]` (relative to the project root, the directory
+of `pyproject.toml`), or pin the version yourself with `version="3"`.
+
+`python -m hubwagen.worker --versions` prints what each lift's and haul's
+version covers, to find out why a lift reran with `code changed`.
 
 ### Dataframes and tables
 

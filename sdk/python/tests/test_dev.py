@@ -53,6 +53,13 @@ def test_memoized_result_without_output(client):
     assert not lifts(other_day)["exchange_rate"].get("reused")
 
 
+def test_haul_code_reading_the_clock_is_stuck(client):
+    h = wait(client, client.start_haul("reads_clock"))
+    assert h["status"] == "stuck", h
+    assert h["reason"] == "nondeterminism"
+    assert "time.time() called at" in h["message"] and "example_hauls.py:" in h["message"]
+
+
 def test_cursor_from_the_catalog(client):
     cursors = [json.loads(wait(client, client.start_haul("ingest"))["resultJson"]) for _ in range(3)]
     assert cursors == [1, 2, 3]

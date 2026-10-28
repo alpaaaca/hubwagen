@@ -28,7 +28,7 @@ that only matters at scale waits.
 | M2: v1 engine in dev mode | **Done** |
 | M3a: Haul engine in the core | **Done** |
 | M3b: Pallets, catalog, memoization | **Done** |
-| M3c: Worker API + minimal Python SDK | **In progress** |
+| M3c: Worker API + minimal Python SDK | **Done** |
 | M4: Full haul surface (fan-out, signals, triggers, testing) | — |
 | M5: Catalog in the UI, invalidation, staleness | — |
 | Later | — |
@@ -120,8 +120,10 @@ reuse.
    until blocked; client-side sequence check with file and line; the worker
    (`python -m hubwagen.worker`, fixed hash seed, heartbeats); writing a
    lift's output files, and reading input pallets through their manifests
-   (`Pallet.files()`, `path()`). Still to do: runtime guards and code
-   version from imports + lockfile (#25). ([#24](https://github.com/alpaaaca/hubwagen/issues/24), [#25](https://github.com/alpaaaca/hubwagen/issues/25), [#26](https://github.com/alpaaaca/hubwagen/issues/26))
+   (`Pallet.files()`, `path()`). ✅ Code versions from the code a lift
+   reaches and the packages it uses, no lockfile term (spike S2); haul code
+   versions in the build ID; runtime guards in haul code with
+   `sys.monitoring`, which make a haul stuck (#25). ([#24](https://github.com/alpaaaca/hubwagen/issues/24), [#25](https://github.com/alpaaaca/hubwagen/issues/25), [#26](https://github.com/alpaaaca/hubwagen/issues/26))
    ✅ `hubwagen.yaml` (server settings and worker processes; `hubwagen dev`
    starts and restarts them, `hubwagen workers` runs them alone), see
    [config.md](config.md).
@@ -182,7 +184,7 @@ Roughly in order of expected need:
 | | Question | Blocks | Result |
 |---|---|---|---|
 | [S1](https://github.com/alpaaaca/hubwagen/issues/10) | Python replay prototype: how slow is full replay for a 1,000-event logbook? Does patching clock/random in a running interpreter catch typical mistakes without breaking libraries imported by haul modules? | M3c | **Done**: full replay is ~1 ms for 1,000 events (O(n²) over a haul's life); guard with `sys.monitoring`, not patching (13/13 caught, 0 libraries broken); call sites via `sys._getframe` are free. [Findings](spikes/s1-python-replay.md) |
-| [S2](https://github.com/alpaaaca/hubwagen/issues/11) | Code version from imports: can the SDK resolve a lift's project-local imports reliably (relative imports, `importlib`, namespace packages), and how often does the lockfile term cause reruns in a real project? | M3c | |
+| [S2](https://github.com/alpaaaca/hubwagen/issues/11) | Code version from imports: can the SDK resolve a lift's project-local imports reliably (relative imports, `importlib`, namespace packages), and how often does the lockfile term cause reruns in a real project? | M3c | **Done**: walk live objects from the lift (`co_names`, globals, closures, annotations), not import statements; AST hashes per function, class and constant; per-lift distribution versions instead of the lockfile, which would rerun everything on a dev-tool bump. [Findings](spikes/s2-code-version.md) |
 | [S3](https://github.com/alpaaaca/hubwagen/issues/29) | Load: one leader with group commit at the target load (first v1 signal: ~60k events/s in batches of 128 on an M1 Mac). Re-measure with logbook events. | Load target sign-off | |
 | [S4](https://github.com/alpaaaca/hubwagen/issues/30) | Litestream as a library with a replica path per leader term (from v1's R1). | Failover ([failover.md](failover.md), option A) | |
 
@@ -193,7 +195,7 @@ Roughly in order of expected need:
 | CLI name | Keep `hubwagen`; maybe add `hw` as a short alias | M3c |
 | Python SDK packaging | `sdk/python` in this repo, published as `hubwagen` on PyPI | M3c |
 | Memoization default | Opt-in per lift (`memo=True`); SQL lifts on by default. Results and dataframes are memoized without `hw.output()`; under review: reuse by default with `live=True` to opt out ([api-simplification.md](api-simplification.md)) | Before the first release |
-| Code version default | Source + imported project modules + lockfile, overridable with `version=` | M3b |
+| Code version default | Decided ([S2](spikes/s2-code-version.md)): code the lift reaches + versions of the packages it uses + Python version + `deps=`, overridable with `version=` | M3b |
 | dbt integration | One lift per project, one pallet per model | Later |
 | Catalog interoperability | OpenLineage export first; Iceberg REST catalog later, if at all | Later |
 | Failover | Nodes that supervise workers and can lead; bucket lease + Litestream first, embedded Raft if no-loss is needed ([failover.md](failover.md)) | Failover |
