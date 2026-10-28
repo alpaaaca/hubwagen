@@ -43,7 +43,7 @@ func serve(t *testing.T) (*Client, *state.Store) {
 	ps := pallet.NewStore(b, lay)
 
 	mk := func(id, ds, part string, at time.Duration) state.Pallet {
-		staging := lay.LiftStaging("default", "h-"+id, 1, "a-"+id)
+		staging := lay.LiftStaging("default", ds, part, "a-"+id)
 		content := []byte(id + " data\n")
 		require.NoError(t, b.Put(ctx, staging+"part-0.csv", content))
 		sum := sha256.Sum256(content)

@@ -46,7 +46,7 @@ spec-kit.
 | `internal/haulcli` | What `start` and `replay` do: `--param` ranges, starting and waiting over `HaulService`, the replay report |
 | `internal/catalogcli` | What `datasets`, `pallets` and `pallet` print, over `CatalogService` (lineage trees) |
 | `internal/schedule` | Calendar and cron math (DST-correct intervals, what is due since a cursor); the core's haul schedules use it |
-| `internal/clock`, `internal/layout`, `internal/blob` | Real/fake clock; bucket paths (lift staging, pallet manifests); bucket access with atomic create-if-absent |
+| `internal/clock`, `internal/layout`, `internal/blob` | Real/fake clock; bucket paths (lift staging under dataset and partition, pallet manifests); bucket access with atomic create-if-absent |
 | `internal/config` | `hubwagen.yaml`: data dir, listen address, worker processes |
 | `internal/supervise` | Runs and restarts worker processes for `dev` and `workers` (prefixed output, SIGTERM then kill) |
 | `cmd/` | `dev`, `workers`, `start`, `replay`, `signal`, `schedules`, `datasets`, `pallets`, `pallet` (and `pallet invalidate`), `stale`, `version` |

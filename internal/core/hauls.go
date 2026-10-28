@@ -738,7 +738,8 @@ func (c *Core) queueLiftAttempt(l *liftState) {
 	}
 	task.Output = l.output
 	if c.cfg.Pallets != nil {
-		task.Staging = c.cfg.Layout.LiftStaging(h.rec.Tenant, h.rec.ID, l.rec.Seq, task.ID)
+		o := l.outputSpec()
+		task.Staging = c.cfg.Layout.LiftStaging(h.rec.Tenant, o.Dataset, o.Partition, task.ID)
 	}
 	c.enqueue(task, func(c *Core, workerID string) Task {
 		l.queued = ""
@@ -747,7 +748,7 @@ func (c *Core) queueLiftAttempt(l *liftState) {
 		a := &liftAttemptState{
 			rec: state.LiftAttempt{
 				ID: task.ID, HaulID: h.rec.ID, Seq: l.rec.Seq, Number: l.rec.Attempts, Term: c.cfg.Term,
-				WorkerID: workerID, Status: state.AttemptDispatched, DispatchedAt: c.now(),
+				WorkerID: workerID, Status: state.AttemptDispatched, DispatchedAt: c.now(), Staging: task.Staging,
 			},
 			lift: l,
 		}
@@ -851,7 +852,7 @@ func (c *Core) finishLiftAttempt(a *liftAttemptState, status, reason, message st
 	c.releaseLift(l.rec.Dock)
 	c.freeSlots(l)
 	if status != state.AttemptSucceeded {
-		c.discardStaging(c.cfg.Layout.LiftStaging(l.haul.rec.Tenant, l.rec.HaulID, l.rec.Seq, a.rec.ID))
+		c.discardStaging(c.staging(a))
 	}
 }
 

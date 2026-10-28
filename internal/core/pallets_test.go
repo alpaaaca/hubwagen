@@ -79,7 +79,10 @@ func TestLiftOutputIsPromotedAndCommitted(t *testing.T) {
 	h := newHarness(t, withBucket(b, nil))
 	id, a := h.startLift(output("extract", "raw.orders", "2026-10-24"))
 	assert.Equal(t, &OutputSpec{Dataset: "raw.orders", Partition: "2026-10-24", PartitionKey: "day"}, a.Output)
-	assert.Equal(t, b.Base()+"/lifts/t/"+id+"/1/"+a.ID+"/", a.Staging)
+	assert.Equal(t, b.Base()+"/data/t/raw.orders/2026-10-24/"+a.ID+"/", a.Staging, "under the dataset and partition")
+	att, err := h.store.ListLiftAttempts(h.ctx, id, 1)
+	require.NoError(t, err)
+	assert.Equal(t, a.Staging, att[0].Staging, "recorded with the attempt")
 
 	out := writeOutput(t, b, a, map[string]string{"part-0.csv": "1,2\n", "part-1.csv": "3,4\n"})
 	require.NoError(t, h.core.CompleteLift(h.ctx, LiftResult{AttemptID: a.ID, Status: state.AttemptSucceeded,
@@ -387,4 +390,43 @@ func TestLiftTaskCarriesInputLocations(t *testing.T) {
 	h.replay(seqs(output("extract", "raw", ""), build), nil)
 	task := h.poll(TaskLift)
 	assert.Equal(t, []TaskInput{{Name: "orders", Pallet: raw.ID, Location: raw.Location}}, task.Inputs)
+}
+
+func TestStagingOfALiftWithoutOutput(t *testing.T) {
+	b := newBucket(t)
+	h := newHarness(t, withBucket(b, nil))
+	_, a := h.startLift(lift("frame"))
+	assert.Equal(t, b.Base()+"/data/t/lift:frame/_/"+a.ID+"/", a.Staging, "its implicit dataset")
+}
+
+func TestAttemptsKeepTheirStagingAcrossRestarts(t *testing.T) {
+	for _, legacy := range []bool{false, true} {
+		name := "recorded"
+		if legacy {
+			name = "dispatched before staging was recorded"
+		}
+		t.Run(name, func(t *testing.T) {
+			b := newBucket(t)
+			h := newHarness(t, withBucket(b, nil))
+			id, a := h.startLift(output("extract", "raw", ""))
+			require.NoError(t, h.stop())
+			if legacy { // an attempt from before the layout moved: no staging recorded, the old path
+				att, err := h.store.ListLiftAttempts(h.ctx, id, 1)
+				require.NoError(t, err)
+				att[0].Staging = ""
+				_, err = h.store.Append(h.ctx, h.store.Term(), nil, func(tx *state.Tx) error { return tx.PutLiftAttempt(att[0]) })
+				require.NoError(t, err)
+				a.Staging = layout.New(b.Base()).LegacyLiftStaging("t", id, 1, a.ID)
+			}
+			h.restart(withBucket(b, nil))
+			require.NoError(t, h.core.CompleteLift(h.ctx, LiftResult{AttemptID: a.ID, Status: state.AttemptSucceeded,
+				Output: writeOutput(t, b, a, map[string]string{"a.csv": "x"})}))
+			h.waitLift(id, state.LiftCompleted)
+			p := h.pallets(id)[0]
+			assert.Equal(t, state.PalletCommitted, p.State, "its files were found where it wrote them")
+			m, err := pallet.NewStore(b, layout.New(b.Base())).Read(h.ctx, p.Location)
+			require.NoError(t, err)
+			assert.Equal(t, a.Staging, m.Data)
+		})
+	}
 }

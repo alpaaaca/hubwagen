@@ -130,7 +130,7 @@ func (c *Core) completeLiftWithOutput(a *liftAttemptState, res LiftResult, o Out
 		c.liftAttemptFailed(l, "no_output", msg, true)
 		return nil
 	}
-	staging := c.cfg.Layout.LiftStaging(h.rec.Tenant, h.rec.ID, l.rec.Seq, a.rec.ID)
+	staging := c.staging(a)
 	id := c.cfg.NewID()
 	m, err := newManifest(id, h.rec.Tenant, o, staging, res)
 	if err != nil {
@@ -173,6 +173,24 @@ func (c *Core) recordPallet(a *liftAttemptState, res LiftResult, o OutputSpec, i
 	c.emitH(state.EventPalletRecorded, h, "", palletRecordedPayload{Seq: l.rec.Seq, Manifest: m, Location: rec.Location})
 	c.promote(&promotion{lift: l, rec: rec, manifest: m})
 	return nil
+}
+
+// outputSpec is where the lift's pallet goes: its output, or for a lift
+// without one, its implicit dataset (if it builds a pallet at all).
+func (l *liftState) outputSpec() OutputSpec {
+	if l.output != nil {
+		return *l.output
+	}
+	return OutputSpec{Dataset: ImplicitDataset(l.rec.Name)}
+}
+
+// staging is where attempt a writes: what it was handed, recorded with it.
+func (c *Core) staging(a *liftAttemptState) string {
+	if a.rec.Staging != "" {
+		return a.rec.Staging
+	}
+	l := a.lift // dispatched before staging was recorded
+	return c.cfg.Layout.LegacyLiftStaging(l.haul.rec.Tenant, l.rec.HaulID, l.rec.Seq, a.rec.ID)
 }
 
 func (c *Core) ensureDataset(tenant string, o OutputSpec) {

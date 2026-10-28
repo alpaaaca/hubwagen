@@ -96,7 +96,7 @@ func TestNewRejectsBadFiles(t *testing.T) {
 
 func TestPromoteWritesManifestOnce(t *testing.T) {
 	s, b, l := open(t)
-	staging := l.LiftStaging("t", "h1", 1, "a1")
+	staging := l.LiftStaging("t", "raw", "", "a1")
 	files := []File{write(t, b, staging, "part-0.csv", "id,n\n1,2\n"), write(t, b, staging, "sub/part-1.csv", "3,4\n")}
 	m, err := New("p1", "t", "raw.orders", "2026-10-24", staging, files, nil)
 	require.NoError(t, err)
@@ -121,7 +121,7 @@ func TestPromoteWritesManifestOnce(t *testing.T) {
 
 func TestPromoteChecksFilesArePresent(t *testing.T) {
 	s, b, l := open(t)
-	staging := l.LiftStaging("t", "h1", 1, "a1")
+	staging := l.LiftStaging("t", "raw", "", "a1")
 	present := write(t, b, staging, "a.csv", "x")
 	m, err := New("p1", "t", "raw", "", staging, []File{present, {Path: "b.csv", Size: 1, SHA256: present.SHA256}}, nil)
 	require.NoError(t, err)
@@ -135,7 +135,7 @@ func TestPromoteChecksFilesArePresent(t *testing.T) {
 
 func TestConcurrentPromotesAgree(t *testing.T) {
 	s, b, l := open(t)
-	staging := l.LiftStaging("t", "h1", 1, "a1")
+	staging := l.LiftStaging("t", "raw", "", "a1")
 	m, err := New("p1", "t", "raw", "", staging, []File{write(t, b, staging, "a.csv", "x")}, nil)
 	require.NoError(t, err)
 
@@ -157,11 +157,11 @@ func TestConcurrentPromotesAgree(t *testing.T) {
 
 func TestDiscard(t *testing.T) {
 	s, b, l := open(t)
-	keep, drop := l.LiftStaging("t", "h1", 1, "a2"), l.LiftStaging("t", "h1", 1, "a1")
+	keep, drop := l.LiftStaging("t", "raw", "", "a2"), l.LiftStaging("t", "raw", "", "a1")
 	write(t, b, drop, "a.csv", "x")
 	write(t, b, keep, "a.csv", "y")
 	require.NoError(t, s.Discard(ctx, drop))
-	left, err := b.List(ctx, b.Base()+"/lifts/")
+	left, err := b.List(ctx, b.Base()+"/data/")
 	require.NoError(t, err)
 	assert.Equal(t, []string{keep + "a.csv"}, left)
 }

@@ -406,7 +406,13 @@ loop.
 ### Protocol
 
 1. The server starts a lift attempt and gives it a staging location of its
-   own (`lifts/<tenant>/<haul>/<seq>/<attempt>/`).
+   own, under the dataset and partition its pallet goes to
+   (`data/<tenant>/<dataset>/<partition>/<attempt>/`; `_` when
+   unpartitioned), and records it with the attempt. The files never move:
+   once committed, the manifest (`pallets/<tenant>/<dataset>/<partition>/
+   <pallet>.json`) points there, so the bucket reads like the catalog.
+   Attempts dispatched before this layout keep their old paths
+   (`lifts/<tenant>/<haul>/<seq>/<attempt>/`).
 2. The lift writes its output only to staging and reports `completed` with an
    output descriptor.
 3. The server records completion in the logbook, then runs the commit: an

@@ -142,6 +142,7 @@ type LiftAttempt struct {
 	DispatchedAt   time.Time
 	StartedAt      *time.Time
 	FinishedAt     *time.Time
+	Staging        string // where it writes its output; "" if dispatched before this was recorded
 }
 
 type Timer struct {
@@ -204,15 +205,15 @@ func (t *Tx) PutLift(v Lift) error {
 func (t *Tx) PutLiftAttempt(v LiftAttempt) error {
 	return t.exec(`
 		INSERT INTO lift_attempts (id, haul_id, seq, number, term, worker_id, status, reason, message,
-			lease_expires_at, dispatched_at, started_at, finished_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			lease_expires_at, dispatched_at, started_at, finished_at, staging)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (id) DO UPDATE SET
 			worker_id = excluded.worker_id, status = excluded.status, reason = excluded.reason,
 			message = excluded.message, lease_expires_at = excluded.lease_expires_at,
-			started_at = excluded.started_at, finished_at = excluded.finished_at`,
+			started_at = excluded.started_at, finished_at = excluded.finished_at, staging = excluded.staging`,
 		v.ID, v.HaulID, v.Seq, v.Number, v.Term, v.WorkerID, v.Status, v.Reason, v.Message,
 		formatTimePtr(v.LeaseExpiresAt), formatTime(v.DispatchedAt), formatTimePtr(v.StartedAt),
-		formatTimePtr(v.FinishedAt))
+		formatTimePtr(v.FinishedAt), v.Staging)
 }
 
 func (t *Tx) PutTimer(v Timer) error {
@@ -457,7 +458,7 @@ func scanLift(sc interface{ Scan(...any) error }) (Lift, error) {
 }
 
 const liftAttemptColumns = `id, haul_id, seq, number, term, worker_id, status, reason, message,
-	lease_expires_at, dispatched_at, started_at, finished_at`
+	lease_expires_at, dispatched_at, started_at, finished_at, staging`
 
 func scanLiftAttempt(sc interface{ Scan(...any) error }) (LiftAttempt, error) {
 	var (
@@ -467,7 +468,7 @@ func scanLiftAttempt(sc interface{ Scan(...any) error }) (LiftAttempt, error) {
 		err                      error
 	)
 	if err = sc.Scan(&v.ID, &v.HaulID, &v.Seq, &v.Number, &v.Term, &v.WorkerID, &v.Status, &v.Reason,
-		&v.Message, &lease, &dispatched, &started, &finished); err != nil {
+		&v.Message, &lease, &dispatched, &started, &finished, &v.Staging); err != nil {
 		return v, err
 	}
 	if v.LeaseExpiresAt, err = parseTimePtr(lease); err != nil {

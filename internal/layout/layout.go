@@ -21,10 +21,23 @@ func New(base string) Layout {
 
 func (l Layout) Base() string { return l.base }
 
-// LiftStaging is where one lift attempt writes its output. Once the attempt's
-// pallet is committed, its manifest points here, so this becomes the data's
-// home; attempts that fail are discarded.
-func (l Layout) LiftStaging(tenant, haulID string, seq int, attemptID string) string {
+// LiftStaging is where one lift attempt writes its output: under the
+// dataset and partition it goes to, so the bucket reads like the catalog
+// (data/<tenant>/<dataset>/<partition>/<attempt>/; partition "_" when
+// unpartitioned). Once the attempt's pallet is committed, its manifest
+// points here, so this becomes the data's home; attempts that fail are
+// discarded.
+func (l Layout) LiftStaging(tenant, dataset, partition, attemptID string) string {
+	if partition == "" {
+		partition = "_"
+	}
+	return fmt.Sprintf("%s/data/%s/%s/%s/%s/", l.base, tenant, url.PathEscape(dataset), url.PathEscape(partition), attemptID)
+}
+
+// LegacyLiftStaging is where attempts dispatched before LiftStaging went by
+// dataset wrote (lifts/<tenant>/<haul>/<seq>/<attempt>/). Pallets committed
+// there keep their paths; only those attempts' cleanup needs it.
+func (l Layout) LegacyLiftStaging(tenant, haulID string, seq int, attemptID string) string {
 	return fmt.Sprintf("%s/lifts/%s/%s/%d/%s/", l.base, tenant, haulID, seq, attemptID)
 }
 

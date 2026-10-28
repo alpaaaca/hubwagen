@@ -244,9 +244,8 @@ PR-sized, in order:
 - **Names.** Authors would only meet `haul` and `lift`; "pallet" would
   appear in the catalog and UI. Whether `haul`/`lift` themselves should be
   plainer (`flow`/`step`) is a separate question.
-- **Where codecs write without a dataset.** Partly settled by step 2: the
-  implicit dataset `lift:<name>`, unpartitioned. The files still sit under
-  the attempt's staging prefix; the bucket layout and retention are
-  undecided.
+- **Where codecs write without a dataset.** Settled: the implicit dataset
+  `lift:<name>`, unpartitioned, and since M5 the bucket keeps it like any
+  dataset (`data/<tenant>/lift:<name>/_/<attempt>/`). Retention is M5's.
 - **Spark detection.** Whether returning a Spark `DataFrame` should be
   supported at all, or always require `hw.table`.
