@@ -32,7 +32,7 @@ blocked, timers, retries, timeouts, leader restarts), pallets with
 exactly-once commits, fingerprint memoization with single-flight, a
 catalog with lineage, the worker and haul APIs, dataframes between lifts,
 code versions from what a lift's code reaches, runtime determinism guards,
-signals and version markers. Next (M4): fan-out limits, child hauls,
+signals, version markers and fan-out limits. Next (M4): child hauls,
 schedules, subscriptions and testing tools. See
 [docs/roadmap.md](docs/roadmap.md) and
 [docs/architecture.md](docs/architecture.md).

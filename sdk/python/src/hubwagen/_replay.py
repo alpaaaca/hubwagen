@@ -83,10 +83,11 @@ class ReplayResult:
 class Ctx:
     """What haul code gets as its first argument."""
 
-    def __init__(self, haul_id: str, logbook: list[dict]):
+    def __init__(self, haul_id: str, logbook: list[dict], max_parallel: int | None = None):
         self.haul_id = haul_id
         self.state: dict[str, Any] = {}  # rebuilt by every replay
         self.rng = _random.Random(haul_id)  # deterministic per haul
+        self._max_parallel = max_parallel  # @haul(max_parallel=): every lift's haul-wide limit
         self._seq = 0
         self.commands: list[dict] = []
         self.mismatch: str | None = None
@@ -163,6 +164,8 @@ class Ctx:
             body["output"] = out
         if inputs:
             body["inputs"] = inputs
+        if self._max_parallel:
+            body["limits"] = [{"group": "haul", "max": self._max_parallel}]
         if d.memo:
             body["memo"] = d.memo
         return self._command("lift", {"lift": body}, d.name), d
@@ -197,9 +200,22 @@ class Ctx:
         seq, d = self._lift_command(f, args, kwargs)
         return Handle(seq, d)
 
-    def gather(self, handles: list[Handle]) -> list[Any]:
+    def gather(self, handles: list[Handle], max_parallel: int | None = None) -> list[Any]:
         """Wait for every handle; results in the same order. Raises the first
-        LiftFailed among them."""
+        LiftFailed among them.
+
+        With max_parallel=N, at most N of these lifts run at once; the server
+        starts the rest as earlier ones finish. The limit applies to lifts
+        started in the same replay as the gather, as in
+        `ctx.gather([ctx.lift_async(f, x) for x in xs], max_parallel=20)`."""
+        if max_parallel is not None:
+            if not isinstance(max_parallel, int) or max_parallel < 1:
+                raise ValueError(f"gather: max_parallel must be a positive integer, got {max_parallel!r}")
+            if handles:
+                limit = {"group": f"gather:{handles[0].seq}", "max": max_parallel}
+                for h in handles:
+                    if h.seq > len(self._recorded):  # issued by this replay: not sent yet
+                        self.commands[h.seq - 1]["lift"].setdefault("limits", []).append(limit)
         results = [self._consume(h.seq) for h in handles]
         if any(r is None for r in results):
             raise Blocked()
@@ -294,7 +310,7 @@ class Ctx:
 
 def replay(d: HaulDef, haul_id: str, params: dict, logbook: list[dict]) -> ReplayResult:
     """Run the haul function until it blocks or ends."""
-    ctx = Ctx(haul_id, logbook)
+    ctx = Ctx(haul_id, logbook, d.max_parallel)
     try:
         with guarded():
             result = d.fn(ctx, **decode(params))

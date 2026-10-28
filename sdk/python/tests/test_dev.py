@@ -76,6 +76,21 @@ def test_signals(client):
     assert json.loads(timed_out["resultJson"]) == "timed out"
 
 
+def test_gather_max_parallel(client, tmp_path):
+    def most_at_once(limit: int) -> int:
+        d = tmp_path / str(limit)
+        d.mkdir()
+        h = wait(client, client.start_haul("limited_fanout", {"marker_dir": str(d), "n": 6, "limit": limit}), timeout=30)
+        assert h["status"] == "completed", h
+        assert json.loads(h["resultJson"]) == list(range(6))
+        spans = [tuple(map(float, p.read_text().split())) for p in d.glob("*.txt")]
+        assert len(spans) == 6
+        return max(sum(1 for s, e in spans if s <= t < e) for t, _ in spans)
+
+    assert most_at_once(2) == 2
+    assert most_at_once(6) > 2, "without a tight limit the worker's 4 lift threads run more at once"
+
+
 def test_cursor_from_the_catalog(client):
     cursors = [json.loads(wait(client, client.start_haul("ingest"))["resultJson"]) for _ in range(3)]
     assert cursors == [1, 2, 3]

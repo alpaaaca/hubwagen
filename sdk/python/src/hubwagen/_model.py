@@ -108,6 +108,7 @@ class HaulDef:
     name: str
     fn: Callable
     dock: str | None
+    max_parallel: int | None = None  # lifts of one haul queued or running at once
 
     @functools.cached_property
     def _computed_version(self) -> str:
@@ -158,12 +159,16 @@ def _register(registry: dict, d) -> None:
     registry[d.name] = d
 
 
-def haul(fn: Callable | None = None, *, name: str | None = None, dock: str | None = None):
+def haul(fn: Callable | None = None, *, name: str | None = None, dock: str | None = None,
+         max_parallel: int | None = None):
     """Mark a function as a haul: deterministic orchestration code, called
-    as fn(ctx, **params) and replayed against its logbook."""
+    as fn(ctx, **params) and replayed against its logbook. max_parallel caps
+    how many of one haul's lifts are queued or running at once."""
+    if max_parallel is not None and (not isinstance(max_parallel, int) or max_parallel < 1):
+        raise ValueError(f"haul: max_parallel must be a positive integer, got {max_parallel!r}")
 
     def wrap(f: Callable) -> Callable:
-        d = HaulDef(name=name or f.__name__, fn=f, dock=dock)
+        d = HaulDef(name=name or f.__name__, fn=f, dock=dock, max_parallel=max_parallel)
         _register(HAULS, d)
         f.__hubwagen_haul__ = d
         return f

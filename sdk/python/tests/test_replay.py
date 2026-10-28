@@ -311,3 +311,32 @@ def test_version_recorded_is_kept_and_checked():
 
     bad = run(lambda ctx: ctx.version("gate", min=2, max=1), []).outcome
     assert bad["reason"] == "ValueError"
+
+
+def test_gather_max_parallel_limits_the_new_lifts():
+    def fan(ctx):
+        return ctx.gather([ctx.lift_async(add, i, 0) for i in range(3)], max_parallel=2)
+
+    r = run(fan, [])
+    assert [c["lift"]["limits"] for c in r.commands] == [[{"group": "gather:1", "max": 2}]] * 3
+
+    # Recorded commands were sent with their limits already: not again.
+    recorded = ev("HaulTaskCompleted", {"number": 1, "commands": [{"seq": i, "kind": "lift", "name": "add"} for i in (1, 2, 3)]})
+    r = run(fan, [recorded])
+    assert all("limits" not in c["lift"] for c in r.commands)
+
+    bad = run(lambda ctx: ctx.gather([], max_parallel=0), []).outcome
+    assert bad["reason"] == "ValueError"
+
+
+def test_haul_max_parallel_limits_every_lift():
+    @hw.haul(name="limited_haul", max_parallel=3)
+    def limited(ctx):
+        ctx.lift_async(add, 1, 2)
+        return ctx.gather([ctx.lift_async(add, 3, 4)], max_parallel=1)
+
+    r = _replay.replay(limited.__hubwagen_haul__, "h1", {}, [START])
+    assert r.commands[0]["lift"]["limits"] == [{"group": "haul", "max": 3}]
+    assert r.commands[1]["lift"]["limits"] == [{"group": "haul", "max": 3}, {"group": "gather:2", "max": 1}]
+    with pytest.raises(ValueError, match="max_parallel"):
+        hw.haul(lambda ctx: 1, name="bad_limit", max_parallel=0)

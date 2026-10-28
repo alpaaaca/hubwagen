@@ -47,6 +47,10 @@ type haulState struct {
 	timers  map[int]*haulTimer  // pending timers by seq
 	waits   map[int]*signalWait // wait_signal commands not answered yet, by seq
 	signals []keptSignal        // signals received that no wait took yet, oldest first
+	// Fan-out limits: lifts holding a slot, by group, and lifts waiting for
+	// one, in the order they asked. See limits.go.
+	slots     map[string]int
+	throttled []*liftState
 }
 
 type haulTaskState struct {
@@ -64,6 +68,8 @@ type liftState struct {
 	wait    *timerRef         // pending retry, while in retry_wait
 	output  *OutputSpec       // where its pallet goes; nil = it produces none
 	inputs  []InputRef
+	limits  []ParallelLimit
+	slot    bool // holds a slot in each of its limits' groups
 	memo    memoPolicy
 	pallet  string  // the committed (or reused) pallet, once there is one
 	flight  *flight // the flight it waits on, while waiting
@@ -136,6 +142,7 @@ func (c *Core) startHaul(req StartHaulRequest) (StartHaulResult, error) {
 		timers:  map[int]*haulTimer{},
 		waits:   map[int]*signalWait{},
 		markers: map[string]int{},
+		slots:   map[string]int{},
 	}
 	c.hauls[h.rec.ID] = h
 	c.dirtyHaul(h)
@@ -172,6 +179,7 @@ type Command struct {
 	Retry   *RetryPolicy    `json:"retry,omitempty"`   // nil = no retries
 	Output  *OutputSpec     `json:"output,omitempty"`  // the lift produces a pallet here
 	Inputs  []InputRef      `json:"inputs,omitempty"`  // pallets passed to the lift
+	Limits  []ParallelLimit `json:"limits,omitempty"`  // fan-out limits; see limits.go
 	// Memo: "" or "never" (default), "fingerprint", or "ttl:<duration>". A
 	// lift with an output reuses a pallet; one without reuses a result.
 	Memo string `json:"memo,omitempty"`
@@ -561,6 +569,9 @@ func validateHaulTaskResult(res HaulTaskResult) error {
 					return fmt.Errorf("commands[%d]: %v", i, err)
 				}
 			}
+			if err := validateLimits(cmd.Limits); err != nil {
+				return fmt.Errorf("commands[%d]: %v", i, err)
+			}
 			for j, in := range cmd.Inputs {
 				if in.Pallet == "" {
 					return fmt.Errorf("commands[%d].inputs[%d]: no pallet", i, j)
@@ -614,6 +625,7 @@ func (c *Core) markStuck(h *haulState, reason, message string, seq int) {
 // haul task is withdrawn. A dispatched haul task stays known so its result
 // is still accepted (and ignored).
 func (c *Core) finishHaul(h *haulState, status, reason, message string, result json.RawMessage) {
+	h.throttled = nil // cancelled below; slots freed meanwhile must not start them
 	for _, seq := range sortedKeys(h.lifts) {
 		c.cancelLift(h.lifts[seq], "haul "+status)
 	}
@@ -659,6 +671,7 @@ func (c *Core) scheduleLift(h *haulState, cmd Command) {
 		l.inputs = cmd.Inputs
 		l.rec.Inputs = marshalPayload(state.EventLiftScheduled, cmd.Inputs)
 	}
+	l.limits = cmd.Limits
 	l.memo, _ = parseMemo(cmd.Memo) // validated with the haul task result
 	h.lifts[cmd.Seq] = l
 	c.dirtyLift(l)
@@ -792,7 +805,7 @@ func (c *Core) armLiftRetry(l *liftState, d time.Duration) {
 		l.wait = nil
 		l.rec.Status, l.rec.RetryAt = state.LiftScheduled, nil
 		c.dirtyLift(l)
-		c.queueLiftAttempt(l)
+		c.startAttempt(l)
 	})
 }
 
@@ -807,6 +820,7 @@ func (c *Core) finishLiftAttempt(a *liftAttemptState, status, reason, message st
 	delete(c.liftAttempts, a.rec.ID)
 	l.attempt = nil
 	c.releaseLift(l.rec.Dock)
+	c.freeSlots(l)
 	if status != state.AttemptSucceeded {
 		c.discardStaging(c.cfg.Layout.LiftStaging(l.haul.rec.Tenant, l.rec.HaulID, l.rec.Seq, a.rec.ID))
 	}
@@ -830,9 +844,11 @@ func (c *Core) cancelLift(l *liftState, message string) {
 	l.wait.stop()
 	l.wait = nil
 	c.leaveFlight(l)
+	c.unthrottle(l)
 	if l.queued != "" {
 		c.unqueue(l.rec.Dock, l.queued)
 		l.queued = ""
+		c.freeSlots(l)
 	}
 	if a := l.attempt; a != nil {
 		c.finishLiftAttempt(a, state.AttemptCancelled, "cancelled", message)

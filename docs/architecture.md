@@ -158,6 +158,13 @@ def partner_files(ctx, day: date):
 The number of files is unknown until runtime. That is a loop, not a special
 primitive.
 
+`max_parallel` is held by the server, not the replay: all the lifts are
+recorded at once, each carrying a limit (a group per gather, plus a
+haul-wide group with `@haul(max_parallel=N)`), and the core starts a lift
+only while each of its groups has fewer than the maximum queued or running.
+The rest wait in order and start as slots free up; a lift waiting to retry
+holds no slot. Docks' own limits apply on top.
+
 ### Dataframes between lifts
 
 ```python

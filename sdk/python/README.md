@@ -54,7 +54,9 @@ calls in the same order every time:
   recorded) makes the haul **stuck**, with both call sites in its message.
   Deploying fixed code (a new build) resumes it.
 
-`ctx` offers `lift`, `lift_async` + `gather` (fan-out), `sleep` (durable,
+`ctx` offers `lift`, `lift_async` + `gather` (fan-out;
+`gather(handles, max_parallel=N)` runs at most N of them at once, and
+`@hw.haul(max_parallel=N)` caps all of a haul's lifts), `sleep` (durable,
 held by the server), `wait_signal` and `version` (below), `latest_pallet` (the newest
 committed pallet of a dataset partition, recorded so every replay sees the
 same one), `now`, `random` and `state`. A failed lift raises

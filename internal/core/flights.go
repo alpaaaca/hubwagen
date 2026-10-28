@@ -29,7 +29,7 @@ func flightKey(l *liftState) string { return l.haul.rec.Tenant + "\x00" + l.rec.
 // is already running.
 func (c *Core) runOrWait(l *liftState) {
 	if l.rec.Fingerprint == "" {
-		c.queueLiftAttempt(l)
+		c.startAttempt(l)
 		return
 	}
 	if f := c.flights[flightKey(l)]; f != nil {
@@ -37,7 +37,7 @@ func (c *Core) runOrWait(l *liftState) {
 		return
 	}
 	c.flights[flightKey(l)] = &flight{owner: l}
-	c.queueLiftAttempt(l)
+	c.startAttempt(l)
 }
 
 func (c *Core) waitOn(l *liftState, f *flight) {
@@ -78,7 +78,7 @@ func (c *Core) landFlight(l *liftState) {
 		w.flight = nil
 		c.waitOn(w, nf)
 	}
-	c.queueLiftAttempt(next)
+	c.startAttempt(next)
 }
 
 // leaveFlight takes a waiting lift out of its flight (it was cancelled).

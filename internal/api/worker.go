@@ -158,6 +158,9 @@ func command(c *hubwagenv1.Command) (core.Command, error) {
 		for _, in := range l.Inputs {
 			cmd.Inputs = append(cmd.Inputs, core.InputRef{Name: in.Name, Pallet: in.Pallet})
 		}
+		for _, lim := range l.Limits {
+			cmd.Limits = append(cmd.Limits, core.ParallelLimit{Group: lim.Group, Max: int(lim.Max)})
+		}
 	case *hubwagenv1.Command_Sleep:
 		cmd.Kind = core.CommandSleep
 		if k.Sleep.Duration != nil {
