@@ -470,8 +470,16 @@ Hauls start from a schedule, a new pallet in a dataset, a signal from outside
   that moves the cursor. The server can't run a params function, so the
   haul derives what it needs (`interval.start.date()`) itself.
   `hubwagen schedules` lists them with their next runs.
-- **Dataset subscription**: starts when a pallet is committed to a dataset or
-  partition, with debounce and batching.
+- **Dataset subscription**: `@haul(subscribe=Subscription("raw.orders",
+  debounce=60))` starts the haul when pallets are committed to the
+  datasets, in batches: once none came for `debounce`, once `max_batch`
+  wait, or once the first has waited `max_wait`. The haul gets the batch as
+  `pallets` (handles; passed to lifts they are inputs, so lineage follows).
+  Waiting pallets are recorded, so a new leader keeps the batch; starting
+  the haul and clearing the batch is one commit. A haul's own pallets don't
+  start it, and memoized lifts commit nothing, so a rerun that changes
+  nothing starts nothing downstream. Registered like schedules: the newest
+  build that defines the haul decides.
 
 **Keep-fresh** is a library haul, not a separate engine:
 

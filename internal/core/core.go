@@ -59,20 +59,21 @@ type Core struct {
 	inbox mailbox
 
 	// Everything below is owned by the Run goroutine.
-	hauls        map[string]*haulState // open hauls
-	haulTasks    map[string]*haulTaskState
-	liftAttempts map[string]*liftAttemptState // dispatched, unfinished
-	docks        map[string]*dockState
-	datasets     map[string]string            // tenant\x00name → partition key
-	builds       map[string]map[string]string // build ID → lift → code version
-	buildHauls   map[string]map[string]bool   // build ID → hauls it defines (none recorded: any)
-	haulNames    map[string]bool              // hauls some build defines; StartHaul accepts only these
-	promotions   map[string]*promotion        // by pallet ID, while its promote runs
-	flights      map[string]*flight           // running memoized lifts, by tenant\x00fingerprint
-	schedules    map[string]*scheduleState    // by haul name (ScheduleTenant)
-	bg           sync.WaitGroup               // background bucket I/O
-	pollers      []*poller                    // waiting, oldest first
-	b            *batch
+	hauls         map[string]*haulState // open hauls
+	haulTasks     map[string]*haulTaskState
+	liftAttempts  map[string]*liftAttemptState // dispatched, unfinished
+	docks         map[string]*dockState
+	datasets      map[string]string             // tenant\x00name → partition key
+	builds        map[string]map[string]string  // build ID → lift → code version
+	buildHauls    map[string]map[string]bool    // build ID → hauls it defines (none recorded: any)
+	haulNames     map[string]bool               // hauls some build defines; StartHaul accepts only these
+	promotions    map[string]*promotion         // by pallet ID, while its promote runs
+	flights       map[string]*flight            // running memoized lifts, by tenant\x00fingerprint
+	schedules     map[string]*scheduleState     // by haul name (ScheduleTenant)
+	subscriptions map[string]*subscriptionState // by haul name
+	bg            sync.WaitGroup                // background bucket I/O
+	pollers       []*poller                     // waiting, oldest first
+	b             *batch
 	// queueOrder numbers queued tasks so the oldest across docks goes first.
 	queueOrder uint64
 	ctx        context.Context // Run's context, for store reads inside the loop
@@ -89,20 +90,21 @@ func New(cfg Config) *Core {
 		cfg.Logger = slog.Default()
 	}
 	return &Core{
-		cfg:          cfg,
-		log:          cfg.Logger.With("component", "core", "term", cfg.Term),
-		inbox:        newMailbox(),
-		hauls:        map[string]*haulState{},
-		haulTasks:    map[string]*haulTaskState{},
-		liftAttempts: map[string]*liftAttemptState{},
-		docks:        map[string]*dockState{},
-		datasets:     map[string]string{},
-		builds:       map[string]map[string]string{},
-		buildHauls:   map[string]map[string]bool{},
-		haulNames:    map[string]bool{},
-		promotions:   map[string]*promotion{},
-		flights:      map[string]*flight{},
-		schedules:    map[string]*scheduleState{},
+		cfg:           cfg,
+		log:           cfg.Logger.With("component", "core", "term", cfg.Term),
+		inbox:         newMailbox(),
+		hauls:         map[string]*haulState{},
+		haulTasks:     map[string]*haulTaskState{},
+		liftAttempts:  map[string]*liftAttemptState{},
+		docks:         map[string]*dockState{},
+		datasets:      map[string]string{},
+		builds:        map[string]map[string]string{},
+		buildHauls:    map[string]map[string]bool{},
+		haulNames:     map[string]bool{},
+		promotions:    map[string]*promotion{},
+		flights:       map[string]*flight{},
+		schedules:     map[string]*scheduleState{},
+		subscriptions: map[string]*subscriptionState{},
 	}
 }
 

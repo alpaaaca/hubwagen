@@ -18,13 +18,13 @@ Run a worker with `python -m hubwagen.worker app.hauls`.
 
 from ._codecs import register_codec
 from ._guards import NondeterminismError
-from ._model import Dataset, Interval, LiftFailed, NonRetryable, Pallet, Retry, Schedule, haul, lift
+from ._model import Dataset, Interval, LiftFailed, NonRetryable, Pallet, Retry, Schedule, Subscription, haul, lift
 from ._output import Output, output
 from ._replay import Blocked, ChildFailed, Ctx, Handle, SignalTimeout
 from .client import Client, ConnectError
 
 __all__ = [
     "Blocked", "ChildFailed", "Client", "ConnectError", "Ctx", "Dataset", "Handle", "Interval", "LiftFailed",
-    "NondeterminismError", "NonRetryable", "Output", "Pallet", "Retry", "Schedule", "SignalTimeout", "haul", "lift",
+    "NondeterminismError", "NonRetryable", "Output", "Pallet", "Retry", "Schedule", "SignalTimeout", "Subscription", "haul", "lift",
     "output", "register_codec",
 ]

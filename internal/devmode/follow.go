@@ -74,6 +74,20 @@ func Describe(ev state.Event) string {
 		return fmt.Sprintf("haul %s stuck: %s", haul, str("message"))
 	case state.EventLiftScheduled:
 		return fmt.Sprintf("haul %s: lift %d %s scheduled (%s)", haul, num("seq"), str("name"), str("run_reason"))
+	case state.EventSubscriptionSet:
+		ds, _ := json.Marshal(p["datasets"])
+		return fmt.Sprintf("subscription %s: on %s", str("haul"), ds)
+	case state.EventSubscriptionRemoved:
+		return fmt.Sprintf("subscription %s removed", str("haul"))
+	case state.EventSubscriptionStarted:
+		n := 0
+		if ps, ok := p["pallets"].([]any); ok {
+			n = len(ps)
+		}
+		if str("error") != "" {
+			return fmt.Sprintf("subscription %s: couldn't start: %s", str("haul"), str("error"))
+		}
+		return fmt.Sprintf("subscription %s: started haul %s with %d pallets", str("haul"), short(str("haul_id")), n)
 	case state.EventScheduleSet:
 		return fmt.Sprintf("schedule %s: %s (%s, catch-up %s)", str("haul"), str("cron"), str("interval"), str("catch_up"))
 	case state.EventScheduleRemoved:

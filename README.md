@@ -32,8 +32,9 @@ blocked, timers, retries, timeouts, leader restarts), pallets with
 exactly-once commits, fingerprint memoization with single-flight, a
 catalog with lineage, the worker and haul APIs, dataframes between lifts,
 code versions from what a lift's code reaches, runtime determinism guards,
-signals, version markers, fan-out limits, child hauls, continue_as_new
-and schedules. Next (M4): subscriptions and testing tools. See
+signals, version markers, fan-out limits, child hauls, continue_as_new,
+schedules and dataset subscriptions. Next (M4): `hubwagen lint` and
+`hubwagen test`. See
 [docs/roadmap.md](docs/roadmap.md) and
 [docs/architecture.md](docs/architecture.md).
 

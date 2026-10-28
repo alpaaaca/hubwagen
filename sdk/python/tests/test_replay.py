@@ -420,3 +420,18 @@ def test_scheduled_haul_gets_its_interval():
     iv = _model.decode(params)["interval"]
     assert iv.end - iv.start == dt.timedelta(hours=25), "the day the clocks go back"
     assert _model.decode(_model.encode(iv)) == iv
+
+
+def test_subscription_declaration():
+    s = hw.Subscription(["raw.b", hw.Dataset("raw.a"), "raw.b"], debounce=dt.timedelta(minutes=1))
+    assert (s.datasets, s.debounce, s.max_wait, s.max_batch) == (("raw.a", "raw.b"), 60.0, None, 100)
+    with pytest.raises(ValueError, match="max_wait >= debounce"):
+        hw.Subscription("raw.a", debounce=60, max_wait=10)
+    with pytest.raises(ValueError, match="`pallets` parameter"):
+        hw.haul(lambda ctx: 1, name="no_pallets", subscribe="raw.a")
+
+    def on_orders(ctx, pallets: list):
+        return [p.id for p in pallets]
+
+    r = run(on_orders, [], params={"pallets": [{"$pallet": "p1", "dataset": "raw.a", "partition": ""}]})
+    assert json.loads(r.outcome["resultJson"]) == ["p1"]

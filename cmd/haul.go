@@ -141,11 +141,13 @@ func serverError(err error) error {
 
 var schedulesCmd = &cobra.Command{
 	Use:   "schedules",
-	Short: "List the haul schedules and their next runs",
+	Short: "List the haul schedules and dataset subscriptions",
 	Long: `Schedules lists the hauls that run on a schedule: their cron, timezone, the
 data interval each run covers, what happens to runs missed while no server
-ran (catch-up), and the next run. A haul gets a schedule from its code,
-@hw.haul(schedule=...); the newest build that defines the haul decides.`,
+ran (catch-up), and the next run. Then the hauls that new pallets start:
+their datasets, batching and how many pallets wait. A haul gets either from
+its code, @hw.haul(schedule=...) or subscribe=...; the newest build that
+defines the haul decides.`,
 	Args:         cobra.NoArgs,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, _ []string) error {

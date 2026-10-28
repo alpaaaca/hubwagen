@@ -107,6 +107,21 @@ newest, `all` every one, `skip` none. The schedule is part of the build: a
 new build with another schedule, or none, replaces it.
 `hubwagen schedules` lists them.
 
+### Subscriptions
+
+```python
+@hw.haul(subscribe=hw.Subscription("raw.orders", debounce=60, max_batch=100))
+def on_new_orders(ctx, pallets: list[hw.Pallet]):
+    for p in pallets:
+        ctx.lift(load_into_warehouse, p)
+```
+
+New pallets in the datasets start the haul, a batch at a time: once none
+came for `debounce` seconds (default: at once), once `max_batch` wait, or
+once the first has waited `max_wait` (default: ten debounces). A haul's
+own pallets don't start it. `hubwagen schedules` lists subscriptions too,
+with how many pallets wait.
+
 ### Changing haul code while hauls run
 
 A running haul replays its logbook on whatever code the workers have now.

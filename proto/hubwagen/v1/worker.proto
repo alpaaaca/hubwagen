@@ -45,6 +45,23 @@ message RegisterBuildRequest {
   // haul decides its schedule; one that defines it without a schedule
   // removes it.
   repeated HaulSchedule schedules = 4;
+  // Dataset subscriptions of hauls this build defines, decided like
+  // schedules.
+  repeated HaulSubscription subscriptions = 5;
+}
+
+// HaulSubscription starts a haul with the pallets committed to its
+// datasets, in batches: once none came for debounce, once max_batch wait,
+// or once the first waited max_wait.
+message HaulSubscription {
+  string haul = 1;
+  repeated string datasets = 2;
+  // Default: none (start at once).
+  google.protobuf.Duration debounce = 3;
+  // Default: 10 × debounce.
+  google.protobuf.Duration max_wait = 4;
+  // Default: 100.
+  int32 max_batch = 5;
 }
 
 message HaulSchedule {

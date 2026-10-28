@@ -60,6 +60,37 @@ class Schedule:
 
 
 @dataclass(frozen=True)
+class Subscription:
+    """Start a haul when pallets are committed to datasets: the haul takes a
+    `pallets` parameter, the list of new pallets (handles: pass them to
+    lifts). Pallets are collected in batches; the haul starts once none came
+    for `debounce` seconds (default 0: at once), once `max_batch` wait
+    (default 100), or once the first has waited `max_wait` (default 10 ×
+    debounce). A haul's own pallets don't start it."""
+
+    datasets: tuple[str, ...]
+    debounce: float = 0.0
+    max_wait: float | None = None
+    max_batch: int = 100
+
+    def __init__(self, datasets: str | Dataset | list | tuple, debounce: float | _dt.timedelta = 0,
+                 max_wait: float | _dt.timedelta | None = None, max_batch: int = 100):
+        if isinstance(datasets, (str, Dataset)):
+            datasets = [datasets]
+        names = tuple(sorted({d.name if isinstance(d, Dataset) else d for d in datasets}))
+        secs = lambda v: v.total_seconds() if isinstance(v, _dt.timedelta) else v  # noqa: E731
+        if not names or "" in names:
+            raise ValueError("Subscription: needs dataset names")
+        debounce, max_wait = secs(debounce), secs(max_wait)
+        if debounce < 0 or (max_wait is not None and max_wait < debounce) or max_batch < 1:
+            raise ValueError("Subscription: want debounce >= 0, max_wait >= debounce and max_batch >= 1")
+        object.__setattr__(self, "datasets", names)
+        object.__setattr__(self, "debounce", float(debounce))
+        object.__setattr__(self, "max_wait", None if max_wait is None else float(max_wait))
+        object.__setattr__(self, "max_batch", max_batch)
+
+
+@dataclass(frozen=True)
 class Interval:
     """The data interval a scheduled run covers: [start, end), in the
     schedule's timezone."""
@@ -145,6 +176,7 @@ class HaulDef:
     dock: str | None
     max_parallel: int | None = None  # lifts of one haul queued or running at once
     schedule: Schedule | None = None
+    subscribe: Subscription | None = None
 
     @functools.cached_property
     def _computed_version(self) -> str:
@@ -196,20 +228,27 @@ def _register(registry: dict, d) -> None:
 
 
 def haul(fn: Callable | None = None, *, name: str | None = None, dock: str | None = None,
-         max_parallel: int | None = None, schedule: Schedule | str | None = None):
+         max_parallel: int | None = None, schedule: Schedule | str | None = None,
+         subscribe: Subscription | str | list | None = None):
     """Mark a function as a haul: deterministic orchestration code, called
     as fn(ctx, **params) and replayed against its logbook. max_parallel caps
     how many of one haul's lifts are queued or running at once. With
     schedule (a Schedule, or a cron string), the server starts it on its own,
     once per data interval: the function takes an `interval` parameter, a
-    hubwagen.Interval."""
+    hubwagen.Interval. With subscribe (a Subscription, or dataset names),
+    new pallets in those datasets start it: it takes a `pallets` parameter."""
     if max_parallel is not None and (not isinstance(max_parallel, int) or max_parallel < 1):
         raise ValueError(f"haul: max_parallel must be a positive integer, got {max_parallel!r}")
     if isinstance(schedule, str):
         schedule = Schedule(schedule)
+    if subscribe is not None and not isinstance(subscribe, Subscription):
+        subscribe = Subscription(subscribe)
 
     def wrap(f: Callable) -> Callable:
-        d = HaulDef(name=name or f.__name__, fn=f, dock=dock, max_parallel=max_parallel, schedule=schedule)
+        d = HaulDef(name=name or f.__name__, fn=f, dock=dock, max_parallel=max_parallel, schedule=schedule,
+                    subscribe=subscribe)
+        if subscribe is not None and "pallets" not in inspect.signature(f).parameters:
+            raise ValueError(f"haul {d.name}: a subscribed haul takes a `pallets` parameter (a list of hubwagen.Pallet)")
         if schedule is not None and "interval" not in inspect.signature(f).parameters:
             raise ValueError(f"haul {d.name}: a scheduled haul takes an `interval` parameter (a hubwagen.Interval)")
         _register(HAULS, d)

@@ -168,7 +168,7 @@ written. Steps, in order; each is one PR:
 5. ✅ **Schedules**: `@hw.haul(schedule="0 3 * * *", catch_up="latest")` on
    `internal/schedule`; builds register schedules, the leader keeps a
    cursor per schedule and starts what is due (`skip`, `latest`, `all`). ([#60](https://github.com/alpaaaca/hubwagen/issues/60))
-6. **Dataset subscriptions**: start a haul when a pallet is committed to a
+6. ✅ **Dataset subscriptions**: start a haul when a pallet is committed to a
    dataset or partition, with debounce and batching. ([#61](https://github.com/alpaaaca/hubwagen/issues/61))
 7. **`hubwagen lint`**: AST checks for clock, randomness, set iteration and
    I/O in haul code, and for SQL table references that bypass `input()`. ([#63](https://github.com/alpaaaca/hubwagen/issues/63))

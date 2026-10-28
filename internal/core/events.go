@@ -27,6 +27,27 @@ type haulStartedPayload struct {
 	Parent  string         `json:"parent,omitempty"` // a child haul: the haul that started it
 }
 
+type subscriptionSetPayload struct {
+	Haul     string        `json:"haul"`
+	Datasets []string      `json:"datasets"`
+	Debounce time.Duration `json:"debounce"`
+	MaxWait  time.Duration `json:"max_wait"`
+	MaxBatch int           `json:"max_batch"`
+	Build    string        `json:"build"`
+}
+
+type subscriptionRemovedPayload struct {
+	Haul  string `json:"haul"`
+	Build string `json:"build"`
+}
+
+type subscriptionStartedPayload struct {
+	Haul    string   `json:"haul"`
+	Pallets []string `json:"pallets"`
+	HaulID  string   `json:"haul_id,omitempty"`
+	Error   string   `json:"error,omitempty"`
+}
+
 type scheduleSetPayload struct {
 	Haul     string    `json:"haul"`
 	Cron     string    `json:"cron"`
