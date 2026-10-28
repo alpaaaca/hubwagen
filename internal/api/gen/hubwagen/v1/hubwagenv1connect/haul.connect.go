@@ -37,6 +37,8 @@ const (
 	HaulServiceStartHaulProcedure = "/hubwagen.v1.HaulService/StartHaul"
 	// HaulServiceGetHaulProcedure is the fully-qualified name of the HaulService's GetHaul RPC.
 	HaulServiceGetHaulProcedure = "/hubwagen.v1.HaulService/GetHaul"
+	// HaulServiceSignalHaulProcedure is the fully-qualified name of the HaulService's SignalHaul RPC.
+	HaulServiceSignalHaulProcedure = "/hubwagen.v1.HaulService/SignalHaul"
 )
 
 // HaulServiceClient is a client for the hubwagen.v1.HaulService service.
@@ -46,6 +48,10 @@ type HaulServiceClient interface {
 	StartHaul(context.Context, *connect.Request[v1.StartHaulRequest]) (*connect.Response[v1.StartHaulResponse], error)
 	// GetHaul returns a haul and its lifts.
 	GetHaul(context.Context, *connect.Request[v1.GetHaulRequest]) (*connect.Response[v1.GetHaulResponse], error)
+	// SignalHaul sends a signal to an open haul. A signal the haul isn't
+	// waiting for yet is kept until it waits; each goes to one wait. NOT_FOUND
+	// for an unknown haul, FAILED_PRECONDITION for a finished one.
+	SignalHaul(context.Context, *connect.Request[v1.SignalHaulRequest]) (*connect.Response[v1.SignalHaulResponse], error)
 }
 
 // NewHaulServiceClient constructs a client for the hubwagen.v1.HaulService service. By default, it
@@ -71,13 +77,20 @@ func NewHaulServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(haulServiceMethods.ByName("GetHaul")),
 			connect.WithClientOptions(opts...),
 		),
+		signalHaul: connect.NewClient[v1.SignalHaulRequest, v1.SignalHaulResponse](
+			httpClient,
+			baseURL+HaulServiceSignalHaulProcedure,
+			connect.WithSchema(haulServiceMethods.ByName("SignalHaul")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // haulServiceClient implements HaulServiceClient.
 type haulServiceClient struct {
-	startHaul *connect.Client[v1.StartHaulRequest, v1.StartHaulResponse]
-	getHaul   *connect.Client[v1.GetHaulRequest, v1.GetHaulResponse]
+	startHaul  *connect.Client[v1.StartHaulRequest, v1.StartHaulResponse]
+	getHaul    *connect.Client[v1.GetHaulRequest, v1.GetHaulResponse]
+	signalHaul *connect.Client[v1.SignalHaulRequest, v1.SignalHaulResponse]
 }
 
 // StartHaul calls hubwagen.v1.HaulService.StartHaul.
@@ -90,6 +103,11 @@ func (c *haulServiceClient) GetHaul(ctx context.Context, req *connect.Request[v1
 	return c.getHaul.CallUnary(ctx, req)
 }
 
+// SignalHaul calls hubwagen.v1.HaulService.SignalHaul.
+func (c *haulServiceClient) SignalHaul(ctx context.Context, req *connect.Request[v1.SignalHaulRequest]) (*connect.Response[v1.SignalHaulResponse], error) {
+	return c.signalHaul.CallUnary(ctx, req)
+}
+
 // HaulServiceHandler is an implementation of the hubwagen.v1.HaulService service.
 type HaulServiceHandler interface {
 	// StartHaul starts a haul and queues its first replay. A haul no
@@ -97,6 +115,10 @@ type HaulServiceHandler interface {
 	StartHaul(context.Context, *connect.Request[v1.StartHaulRequest]) (*connect.Response[v1.StartHaulResponse], error)
 	// GetHaul returns a haul and its lifts.
 	GetHaul(context.Context, *connect.Request[v1.GetHaulRequest]) (*connect.Response[v1.GetHaulResponse], error)
+	// SignalHaul sends a signal to an open haul. A signal the haul isn't
+	// waiting for yet is kept until it waits; each goes to one wait. NOT_FOUND
+	// for an unknown haul, FAILED_PRECONDITION for a finished one.
+	SignalHaul(context.Context, *connect.Request[v1.SignalHaulRequest]) (*connect.Response[v1.SignalHaulResponse], error)
 }
 
 // NewHaulServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -118,12 +140,20 @@ func NewHaulServiceHandler(svc HaulServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(haulServiceMethods.ByName("GetHaul")),
 		connect.WithHandlerOptions(opts...),
 	)
+	haulServiceSignalHaulHandler := connect.NewUnaryHandler(
+		HaulServiceSignalHaulProcedure,
+		svc.SignalHaul,
+		connect.WithSchema(haulServiceMethods.ByName("SignalHaul")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/hubwagen.v1.HaulService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case HaulServiceStartHaulProcedure:
 			haulServiceStartHaulHandler.ServeHTTP(w, r)
 		case HaulServiceGetHaulProcedure:
 			haulServiceGetHaulHandler.ServeHTTP(w, r)
+		case HaulServiceSignalHaulProcedure:
+			haulServiceSignalHaulHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -139,4 +169,8 @@ func (UnimplementedHaulServiceHandler) StartHaul(context.Context, *connect.Reque
 
 func (UnimplementedHaulServiceHandler) GetHaul(context.Context, *connect.Request[v1.GetHaulRequest]) (*connect.Response[v1.GetHaulResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("hubwagen.v1.HaulService.GetHaul is not implemented"))
+}
+
+func (UnimplementedHaulServiceHandler) SignalHaul(context.Context, *connect.Request[v1.SignalHaulRequest]) (*connect.Response[v1.SignalHaulResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("hubwagen.v1.HaulService.SignalHaul is not implemented"))
 }

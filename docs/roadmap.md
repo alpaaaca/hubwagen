@@ -29,7 +29,7 @@ that only matters at scale waits.
 | M3a: Haul engine in the core | **Done** |
 | M3b: Pallets, catalog, memoization | **Done** |
 | M3c: Worker API + minimal Python SDK | **Done** |
-| M4: Full haul surface (fan-out, signals, triggers, testing) | — |
+| M4: Full haul surface (fan-out, signals, triggers, testing) | **In progress** |
 | M5: Catalog in the UI, invalidation, staleness | — |
 | Later | — |
 
@@ -150,11 +150,35 @@ a date range reports reused and rerun lifts with reasons.
 
 ## M4: Full haul surface
 
-`lift_async` and `gather` with `max_parallel`; signals (`wait_signal`,
-`hubwagen signal`); cron schedules on hauls with catch-up policy (on
-`internal/schedule`, extracted from v1's cron); dataset subscriptions with debounce; child hauls; `continue_as_new`;
-version markers; `hubwagen lint`; `hubwagen test` with a fake ctx and
-`--replay <logbook>`.
+Goal: the hauls in [architecture.md](architecture.md) (a scheduled daily
+batch with an approval gate, incremental ingestion, dynamic fan-out) run as
+written. Steps, in order; each is one PR:
+
+1. ✅ **Signals**: `ctx.wait_signal(name, timeout=)` returns the payload or
+   raises `SignalTimeout`; `SignalHaul` on `HaulService` and
+   `hubwagen signal <haul> <name> [--data JSON]`. Signals sent before the
+   haul waits are kept, and each is delivered to one wait, oldest first. ([#56](https://github.com/alpaaaca/hubwagen/issues/56))
+2. **Version markers**: `ctx.version(name, max=)`, recorded the first time,
+   so old logbooks replay the old branch and new hauls take the new one. ([#57](https://github.com/alpaaaca/hubwagen/issues/57))
+3. **Fan-out limits**: `gather(..., max_parallel=)` and a per-haul limit on
+   running lifts, held by the server. ([#58](https://github.com/alpaaaca/hubwagen/issues/58))
+4. **Child hauls and `continue_as_new`**: `ctx.haul(...)` (start and wait
+   for the result), `ctx.start_haul(...)` (fire and forget), and
+   `ctx.continue_as_new(**params)` for hauls that loop. ([#59](https://github.com/alpaaaca/hubwagen/issues/59))
+5. **Schedules**: `@hw.haul(schedule="0 3 * * *", catch_up="latest")` on
+   `internal/schedule`; builds register schedules, the leader keeps a
+   cursor per schedule and starts what is due (`skip`, `latest`, `all`). ([#60](https://github.com/alpaaaca/hubwagen/issues/60))
+6. **Dataset subscriptions**: start a haul when a pallet is committed to a
+   dataset or partition, with debounce and batching. ([#61](https://github.com/alpaaaca/hubwagen/issues/61))
+7. **`hubwagen lint`**: AST checks for clock, randomness, set iteration and
+   I/O in haul code, and for SQL table references that bypass `input()`. ([#63](https://github.com/alpaaaca/hubwagen/issues/63))
+8. **`hubwagen test`**: a fake ctx that scripts lift results and signals,
+   and `--replay <logbook>` to replay recorded logbooks against new code. ([#64](https://github.com/alpaaaca/hubwagen/issues/64))
+
+Done when: the architecture's daily-revenue haul (schedule, quality gate
+with an approval signal, fan-out with a limit) runs end to end on
+`hubwagen dev`, and `hubwagen test --replay` catches a non-deterministic
+change to it.
 
 ## M5: Catalog in the UI, invalidation, staleness
 

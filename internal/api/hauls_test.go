@@ -46,3 +46,30 @@ func TestHaulService(t *testing.T) {
 	_, err = c.StartHaul(ctx, connect.NewRequest(&hubwagenv1.StartHaulRequest{Name: "x"}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "no tenant")
 }
+
+func TestSignalHaul(t *testing.T) {
+	s := start(t)
+	mux := http.NewServeMux()
+	path, h := NewHaulHandler(s.core, s.store)
+	mux.Handle(path, h)
+	c := hubwagenv1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
+	require.NoError(t, s.core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Hauls: []string{"x"}}))
+	res, err := c.StartHaul(ctx, connect.NewRequest(&hubwagenv1.StartHaulRequest{Tenant: "t", Name: "x"}))
+	require.NoError(t, err)
+	id := res.Msg.HaulId
+
+	sig, err := c.SignalHaul(ctx, connect.NewRequest(&hubwagenv1.SignalHaulRequest{HaulId: id, Name: "approve", PayloadJson: `{"by":"ana"}`}))
+	require.NoError(t, err)
+	assert.NotEmpty(t, sig.Msg.SignalId)
+	evs, err := s.store.HaulEvents(ctx, id)
+	require.NoError(t, err)
+	assert.Equal(t, state.EventSignalReceived, evs[len(evs)-1].Type)
+
+	_, err = c.SignalHaul(ctx, connect.NewRequest(&hubwagenv1.SignalHaulRequest{HaulId: "nope", Name: "approve"}))
+	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+	_, err = c.SignalHaul(ctx, connect.NewRequest(&hubwagenv1.SignalHaulRequest{HaulId: id, Name: "approve", PayloadJson: "{"}))
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	require.NoError(t, s.core.CancelHaul(ctx, id, "test"))
+	_, err = c.SignalHaul(ctx, connect.NewRequest(&hubwagenv1.SignalHaulRequest{HaulId: id, Name: "approve"}))
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err), "the haul is finished")
+}

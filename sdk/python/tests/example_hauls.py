@@ -150,3 +150,13 @@ def reads_inputs(ctx, day: str):
 def reads_clock(ctx):
     """Reads the clock in haul code: the guard makes the haul stuck."""
     return ctx.lift(add, int(time.time()) % 2, 0)
+
+
+@hw.haul
+def approval(ctx, timeout: float | None = None):
+    """Waits for an `approve` signal; returns its payload, or "timed out"."""
+    try:
+        decision = ctx.wait_signal("approve", timeout=timeout)
+    except hw.SignalTimeout:
+        return "timed out"
+    return {"decision": decision, "sum": ctx.lift(add, decision["n"], 1)}

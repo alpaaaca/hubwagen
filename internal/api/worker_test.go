@@ -255,3 +255,47 @@ func httptestServer(t *testing.T, h http.Handler) string {
 	t.Cleanup(srv.Close)
 	return srv.URL
 }
+
+func TestSignalWaitOverTheAPI(t *testing.T) {
+	s := start(t)
+	require.NoError(t, s.core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Hauls: []string{"gate"}}))
+	res, err := s.core.StartHaul(ctx, core.StartHaulRequest{Tenant: "t", Name: "gate"})
+	require.NoError(t, err)
+	poll := func() *hubwagenv1.HaulTask {
+		hr, err := s.client.PollHaulTask(ctx, connect.NewRequest(&hubwagenv1.PollHaulTaskRequest{
+			WorkerId: "w1", Docks: []string{core.DefaultDock}, Wait: durationpb.New(time.Second)}))
+		require.NoError(t, err)
+		require.NotNil(t, hr.Msg.Task)
+		return hr.Msg.Task
+	}
+	wait := []*hubwagenv1.Command{{Seq: 1, Kind: &hubwagenv1.Command_WaitSignal{WaitSignal: &hubwagenv1.WaitSignalCommand{
+		Name: "approve", Timeout: durationpb.New(time.Hour)}}}}
+	_, err = s.client.CompleteHaulTask(ctx, connect.NewRequest(&hubwagenv1.CompleteHaulTaskRequest{
+		TaskId: poll().Id, BuildId: "b1", Commands: wait}))
+	require.NoError(t, err)
+
+	_, err = s.core.SignalHaul(ctx, core.SignalRequest{HaulID: res.HaulID, Name: "approve", Payload: json.RawMessage(`{"ok":true}`)})
+	require.NoError(t, err)
+	var got *hubwagenv1.Event
+	for _, e := range poll().Logbook {
+		if e.Type == string(state.EventSignalDelivered) {
+			got = e
+		}
+	}
+	require.NotNil(t, got, "the replay gets the delivery")
+	assert.JSONEq(t, `{"seq":1,"name":"approve","signal":"`+signalID(t, s, res.HaulID)+`","payload":{"ok":true}}`, got.PayloadJson)
+}
+
+func signalID(t *testing.T, s *server, haulID string) string {
+	evs, err := s.store.HaulEvents(ctx, haulID)
+	require.NoError(t, err)
+	for _, e := range evs {
+		if e.Type == state.EventSignalReceived {
+			var p struct{ Signal string }
+			require.NoError(t, json.Unmarshal(e.Payload, &p))
+			return p.Signal
+		}
+	}
+	t.Fatal("no signal")
+	return ""
+}

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -137,7 +138,35 @@ func serverError(err error) error {
 	return err
 }
 
+var signalData string
+
+var signalCmd = &cobra.Command{
+	Use:   "signal <haul-id> <name>",
+	Short: "Send a signal to a running haul",
+	Long: `Signal sends a signal to a haul, which gets it from ctx.wait_signal(name). A
+signal the haul isn't waiting for yet is kept until it waits for that name;
+each signal answers one wait. --data is the payload, as JSON.
+
+  hubwagen signal 01M6... approve --data '{"by": "ana"}'`,
+	Args:         cobra.ExactArgs(2),
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if signalData != "" && !json.Valid([]byte(signalData)) {
+			return fmt.Errorf("--data is not JSON: %s", signalData)
+		}
+		id, err := haulcli.NewClient(haulServer).Signal(cmd.Context(), args[0], args[1], signalData)
+		if err != nil {
+			return serverError(err)
+		}
+		fmt.Println(id)
+		return nil
+	},
+}
+
 func init() {
+	signalCmd.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev serves it)")
+	signalCmd.Flags().StringVar(&signalData, "data", "", "payload, as JSON (default: null)")
+	rootCmd.AddCommand(signalCmd)
 	addHaulFlags(startCmd)
 	startCmd.Flags().BoolVar(&startWait, "wait", false, "wait for the haul to end and report what its lifts did")
 	addHaulFlags(replayCmd)

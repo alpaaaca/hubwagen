@@ -25,6 +25,8 @@ import (
 //     replays are still checked against it;
 //   - a lift whose pallet was recorded but not promoted gets the promote
 //     again, from the manifest in the logbook. Promotes are idempotent;
+//   - signal waits and signals no wait took yet are rebuilt from the
+//     logbook; a wait's timeout is a timer like any other;
 //   - single-flight is rebuilt: unfinished lifts with a fingerprint own their
 //     flights again, waiting lifts rejoin them.
 
@@ -60,7 +62,7 @@ func (c *Core) loadHauls(ctx context.Context) (*restoredHauls, error) {
 	}
 	out := &restoredHauls{ActiveHauls: act, pending: map[string]*promotion{}}
 	for _, rec := range act.Hauls {
-		h := &haulState{rec: rec, lifts: map[int]*liftState{}, timers: map[int]*haulTimer{}}
+		h := &haulState{rec: rec, lifts: map[int]*liftState{}, timers: map[int]*haulTimer{}, waits: map[int]*signalWait{}}
 		evs, err := c.cfg.Store.HaulEvents(ctx, rec.ID)
 		if err != nil {
 			return nil, err
@@ -86,6 +88,9 @@ func (c *Core) loadHauls(ctx context.Context) (*restoredHauls, error) {
 		}
 		if len(h.cmds) != rec.Commands {
 			return nil, fmt.Errorf("haul %s: logbook has %d commands, the haul record %d", rec.ID, len(h.cmds), rec.Commands)
+		}
+		if err := restoreSignals(h, evs); err != nil {
+			return nil, err
 		}
 		pending, err := c.cfg.Store.ListPallets(ctx, state.PalletFilter{HaulID: rec.ID, States: []string{state.PalletPending}, Limit: 1 << 20})
 		if err != nil {

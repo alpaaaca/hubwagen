@@ -43,6 +43,15 @@ func (s *HaulServer) StartHaul(ctx context.Context, req *connect.Request[hubwage
 	return connect.NewResponse(&hubwagenv1.StartHaulResponse{HaulId: res.HaulID}), nil
 }
 
+func (s *HaulServer) SignalHaul(ctx context.Context, req *connect.Request[hubwagenv1.SignalHaulRequest]) (*connect.Response[hubwagenv1.SignalHaulResponse], error) {
+	m := req.Msg
+	id, err := s.core.SignalHaul(ctx, core.SignalRequest{HaulID: m.HaulId, Name: m.Name, Payload: json.RawMessage(m.PayloadJson)})
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&hubwagenv1.SignalHaulResponse{SignalId: id}), nil
+}
+
 func (s *HaulServer) GetHaul(ctx context.Context, req *connect.Request[hubwagenv1.GetHaulRequest]) (*connect.Response[hubwagenv1.GetHaulResponse], error) {
 	h, err := s.store.GetHaul(ctx, req.Msg.HaulId)
 	if errors.Is(err, state.ErrNotFound) {

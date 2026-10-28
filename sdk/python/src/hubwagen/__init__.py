@@ -20,10 +20,10 @@ from ._codecs import register_codec
 from ._guards import NondeterminismError
 from ._model import Dataset, LiftFailed, NonRetryable, Pallet, Retry, haul, lift
 from ._output import Output, output
-from ._replay import Blocked, Ctx, Handle
+from ._replay import Blocked, Ctx, Handle, SignalTimeout
 from .client import Client, ConnectError
 
 __all__ = [
     "Blocked", "Client", "ConnectError", "Ctx", "Dataset", "Handle", "LiftFailed", "NondeterminismError", "NonRetryable",
-    "Output", "Pallet", "Retry", "haul", "lift", "output", "register_codec",
+    "Output", "Pallet", "Retry", "SignalTimeout", "haul", "lift", "output", "register_codec",
 ]

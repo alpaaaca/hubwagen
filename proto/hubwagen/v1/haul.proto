@@ -14,6 +14,22 @@ service HaulService {
   rpc StartHaul(StartHaulRequest) returns (StartHaulResponse);
   // GetHaul returns a haul and its lifts.
   rpc GetHaul(GetHaulRequest) returns (GetHaulResponse);
+  // SignalHaul sends a signal to an open haul. A signal the haul isn't
+  // waiting for yet is kept until it waits; each goes to one wait. NOT_FOUND
+  // for an unknown haul, FAILED_PRECONDITION for a finished one.
+  rpc SignalHaul(SignalHaulRequest) returns (SignalHaulResponse);
+}
+
+message SignalHaulRequest {
+  string haul_id = 1;
+  // What the haul waits for: ctx.wait_signal(name).
+  string name = 2;
+  // JSON; empty means null.
+  string payload_json = 3;
+}
+
+message SignalHaulResponse {
+  string signal_id = 1;
 }
 
 message StartHaulRequest {

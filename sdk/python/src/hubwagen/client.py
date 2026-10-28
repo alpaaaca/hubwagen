@@ -51,3 +51,10 @@ class Client:
 
     def get_haul(self, haul_id: str) -> dict:
         return self.call("HaulService", "GetHaul", {"haulId": haul_id})["haul"]
+
+    def signal_haul(self, haul_id: str, name: str, payload: Any = None) -> str:
+        """Send a signal to a haul (ctx.wait_signal(name) gets payload).
+        Returns the signal's ID."""
+        from ._model import encode
+        body = {"haulId": haul_id, "name": name, "payloadJson": json.dumps(encode(payload))}
+        return self.call("HaulService", "SignalHaul", body)["signalId"]

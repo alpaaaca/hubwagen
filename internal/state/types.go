@@ -38,6 +38,8 @@ const (
 	EventTimerStarted          EventType = "TimerStarted"
 	EventTimerFired            EventType = "TimerFired"
 	EventTimerCancelled        EventType = "TimerCancelled"
+	EventSignalReceived        EventType = "SignalReceived"  // a signal sent to the haul
+	EventSignalDelivered       EventType = "SignalDelivered" // a wait_signal got a signal or timed out
 )
 
 // Event is one immutable record in the log. Seq and Term are assigned by

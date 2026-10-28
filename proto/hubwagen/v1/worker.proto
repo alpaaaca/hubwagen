@@ -106,7 +106,16 @@ message Command {
     LiftCommand lift = 3;
     SleepCommand sleep = 4;
     LatestPalletCommand latest_pallet = 5;
+    WaitSignalCommand wait_signal = 6;
   }
+}
+
+// WaitSignalCommand waits for a signal by name. The logbook answers it with
+// SignalDelivered: the signal's payload, or timed_out once timeout passed.
+message WaitSignalCommand {
+  string name = 1;
+  // Unset: wait forever.
+  google.protobuf.Duration timeout = 2;
 }
 
 // LatestPalletCommand asks for a dataset partition's newest committed

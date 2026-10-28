@@ -22,6 +22,112 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type SignalHaulRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	HaulId string                 `protobuf:"bytes,1,opt,name=haul_id,json=haulId,proto3" json:"haul_id,omitempty"`
+	// What the haul waits for: ctx.wait_signal(name).
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// JSON; empty means null.
+	PayloadJson   string `protobuf:"bytes,3,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SignalHaulRequest) Reset() {
+	*x = SignalHaulRequest{}
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SignalHaulRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SignalHaulRequest) ProtoMessage() {}
+
+func (x *SignalHaulRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SignalHaulRequest.ProtoReflect.Descriptor instead.
+func (*SignalHaulRequest) Descriptor() ([]byte, []int) {
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *SignalHaulRequest) GetHaulId() string {
+	if x != nil {
+		return x.HaulId
+	}
+	return ""
+}
+
+func (x *SignalHaulRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SignalHaulRequest) GetPayloadJson() string {
+	if x != nil {
+		return x.PayloadJson
+	}
+	return ""
+}
+
+type SignalHaulResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SignalId      string                 `protobuf:"bytes,1,opt,name=signal_id,json=signalId,proto3" json:"signal_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SignalHaulResponse) Reset() {
+	*x = SignalHaulResponse{}
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SignalHaulResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SignalHaulResponse) ProtoMessage() {}
+
+func (x *SignalHaulResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SignalHaulResponse.ProtoReflect.Descriptor instead.
+func (*SignalHaulResponse) Descriptor() ([]byte, []int) {
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *SignalHaulResponse) GetSignalId() string {
+	if x != nil {
+		return x.SignalId
+	}
+	return ""
+}
+
 type StartHaulRequest struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Tenant string                 `protobuf:"bytes,1,opt,name=tenant,proto3" json:"tenant,omitempty"`
@@ -39,7 +145,7 @@ type StartHaulRequest struct {
 
 func (x *StartHaulRequest) Reset() {
 	*x = StartHaulRequest{}
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[0]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -51,7 +157,7 @@ func (x *StartHaulRequest) String() string {
 func (*StartHaulRequest) ProtoMessage() {}
 
 func (x *StartHaulRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[0]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -64,7 +170,7 @@ func (x *StartHaulRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartHaulRequest.ProtoReflect.Descriptor instead.
 func (*StartHaulRequest) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{0}
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *StartHaulRequest) GetTenant() string {
@@ -111,7 +217,7 @@ type StartHaulResponse struct {
 
 func (x *StartHaulResponse) Reset() {
 	*x = StartHaulResponse{}
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[1]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -123,7 +229,7 @@ func (x *StartHaulResponse) String() string {
 func (*StartHaulResponse) ProtoMessage() {}
 
 func (x *StartHaulResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[1]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -136,7 +242,7 @@ func (x *StartHaulResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartHaulResponse.ProtoReflect.Descriptor instead.
 func (*StartHaulResponse) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{1}
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *StartHaulResponse) GetHaulId() string {
@@ -155,7 +261,7 @@ type GetHaulRequest struct {
 
 func (x *GetHaulRequest) Reset() {
 	*x = GetHaulRequest{}
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[2]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -167,7 +273,7 @@ func (x *GetHaulRequest) String() string {
 func (*GetHaulRequest) ProtoMessage() {}
 
 func (x *GetHaulRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[2]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -180,7 +286,7 @@ func (x *GetHaulRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHaulRequest.ProtoReflect.Descriptor instead.
 func (*GetHaulRequest) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{2}
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetHaulRequest) GetHaulId() string {
@@ -199,7 +305,7 @@ type GetHaulResponse struct {
 
 func (x *GetHaulResponse) Reset() {
 	*x = GetHaulResponse{}
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[3]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -211,7 +317,7 @@ func (x *GetHaulResponse) String() string {
 func (*GetHaulResponse) ProtoMessage() {}
 
 func (x *GetHaulResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[3]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -224,7 +330,7 @@ func (x *GetHaulResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHaulResponse.ProtoReflect.Descriptor instead.
 func (*GetHaulResponse) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{3}
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetHaulResponse) GetHaul() *Haul {
@@ -254,7 +360,7 @@ type Haul struct {
 
 func (x *Haul) Reset() {
 	*x = Haul{}
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[4]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -266,7 +372,7 @@ func (x *Haul) String() string {
 func (*Haul) ProtoMessage() {}
 
 func (x *Haul) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[4]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -279,7 +385,7 @@ func (x *Haul) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Haul.ProtoReflect.Descriptor instead.
 func (*Haul) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{4}
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Haul) GetId() string {
@@ -383,7 +489,7 @@ type Lift struct {
 
 func (x *Lift) Reset() {
 	*x = Lift{}
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[5]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -395,7 +501,7 @@ func (x *Lift) String() string {
 func (*Lift) ProtoMessage() {}
 
 func (x *Lift) ProtoReflect() protoreflect.Message {
-	mi := &file_hubwagen_v1_haul_proto_msgTypes[5]
+	mi := &file_hubwagen_v1_haul_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -408,7 +514,7 @@ func (x *Lift) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Lift.ProtoReflect.Descriptor instead.
 func (*Lift) Descriptor() ([]byte, []int) {
-	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{5}
+	return file_hubwagen_v1_haul_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Lift) GetSeq() int32 {
@@ -478,7 +584,13 @@ var File_hubwagen_v1_haul_proto protoreflect.FileDescriptor
 
 const file_hubwagen_v1_haul_proto_rawDesc = "" +
 	"\n" +
-	"\x16hubwagen/v1/haul.proto\x12\vhubwagen.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8d\x01\n" +
+	"\x16hubwagen/v1/haul.proto\x12\vhubwagen.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"c\n" +
+	"\x11SignalHaulRequest\x12\x17\n" +
+	"\ahaul_id\x18\x01 \x01(\tR\x06haulId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
+	"\fpayload_json\x18\x03 \x01(\tR\vpayloadJson\"1\n" +
+	"\x12SignalHaulResponse\x12\x1b\n" +
+	"\tsignal_id\x18\x01 \x01(\tR\bsignalId\"\x8d\x01\n" +
 	"\x10StartHaulRequest\x12\x16\n" +
 	"\x06tenant\x18\x01 \x01(\tR\x06tenant\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -519,10 +631,12 @@ const file_hubwagen_v1_haul_proto_rawDesc = "" +
 	"\battempts\x18\x06 \x01(\x05R\battempts\x12\x16\n" +
 	"\x06pallet\x18\a \x01(\tR\x06pallet\x12\x16\n" +
 	"\x06reason\x18\b \x01(\tR\x06reason\x12\x18\n" +
-	"\amessage\x18\t \x01(\tR\amessage2\x9f\x01\n" +
+	"\amessage\x18\t \x01(\tR\amessage2\xee\x01\n" +
 	"\vHaulService\x12J\n" +
 	"\tStartHaul\x12\x1d.hubwagen.v1.StartHaulRequest\x1a\x1e.hubwagen.v1.StartHaulResponse\x12D\n" +
-	"\aGetHaul\x12\x1b.hubwagen.v1.GetHaulRequest\x1a\x1c.hubwagen.v1.GetHaulResponseBCZAgithub.com/alper/hubwagen/internal/api/gen/hubwagen/v1;hubwagenv1b\x06proto3"
+	"\aGetHaul\x12\x1b.hubwagen.v1.GetHaulRequest\x1a\x1c.hubwagen.v1.GetHaulResponse\x12M\n" +
+	"\n" +
+	"SignalHaul\x12\x1e.hubwagen.v1.SignalHaulRequest\x1a\x1f.hubwagen.v1.SignalHaulResponseBCZAgithub.com/alper/hubwagen/internal/api/gen/hubwagen/v1;hubwagenv1b\x06proto3"
 
 var (
 	file_hubwagen_v1_haul_proto_rawDescOnce sync.Once
@@ -536,27 +650,31 @@ func file_hubwagen_v1_haul_proto_rawDescGZIP() []byte {
 	return file_hubwagen_v1_haul_proto_rawDescData
 }
 
-var file_hubwagen_v1_haul_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_hubwagen_v1_haul_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_hubwagen_v1_haul_proto_goTypes = []any{
-	(*StartHaulRequest)(nil),      // 0: hubwagen.v1.StartHaulRequest
-	(*StartHaulResponse)(nil),     // 1: hubwagen.v1.StartHaulResponse
-	(*GetHaulRequest)(nil),        // 2: hubwagen.v1.GetHaulRequest
-	(*GetHaulResponse)(nil),       // 3: hubwagen.v1.GetHaulResponse
-	(*Haul)(nil),                  // 4: hubwagen.v1.Haul
-	(*Lift)(nil),                  // 5: hubwagen.v1.Lift
-	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
+	(*SignalHaulRequest)(nil),     // 0: hubwagen.v1.SignalHaulRequest
+	(*SignalHaulResponse)(nil),    // 1: hubwagen.v1.SignalHaulResponse
+	(*StartHaulRequest)(nil),      // 2: hubwagen.v1.StartHaulRequest
+	(*StartHaulResponse)(nil),     // 3: hubwagen.v1.StartHaulResponse
+	(*GetHaulRequest)(nil),        // 4: hubwagen.v1.GetHaulRequest
+	(*GetHaulResponse)(nil),       // 5: hubwagen.v1.GetHaulResponse
+	(*Haul)(nil),                  // 6: hubwagen.v1.Haul
+	(*Lift)(nil),                  // 7: hubwagen.v1.Lift
+	(*timestamppb.Timestamp)(nil), // 8: google.protobuf.Timestamp
 }
 var file_hubwagen_v1_haul_proto_depIdxs = []int32{
-	4, // 0: hubwagen.v1.GetHaulResponse.haul:type_name -> hubwagen.v1.Haul
-	6, // 1: hubwagen.v1.Haul.created_at:type_name -> google.protobuf.Timestamp
-	6, // 2: hubwagen.v1.Haul.finished_at:type_name -> google.protobuf.Timestamp
-	5, // 3: hubwagen.v1.Haul.lifts:type_name -> hubwagen.v1.Lift
-	0, // 4: hubwagen.v1.HaulService.StartHaul:input_type -> hubwagen.v1.StartHaulRequest
-	2, // 5: hubwagen.v1.HaulService.GetHaul:input_type -> hubwagen.v1.GetHaulRequest
-	1, // 6: hubwagen.v1.HaulService.StartHaul:output_type -> hubwagen.v1.StartHaulResponse
-	3, // 7: hubwagen.v1.HaulService.GetHaul:output_type -> hubwagen.v1.GetHaulResponse
-	6, // [6:8] is the sub-list for method output_type
-	4, // [4:6] is the sub-list for method input_type
+	6, // 0: hubwagen.v1.GetHaulResponse.haul:type_name -> hubwagen.v1.Haul
+	8, // 1: hubwagen.v1.Haul.created_at:type_name -> google.protobuf.Timestamp
+	8, // 2: hubwagen.v1.Haul.finished_at:type_name -> google.protobuf.Timestamp
+	7, // 3: hubwagen.v1.Haul.lifts:type_name -> hubwagen.v1.Lift
+	2, // 4: hubwagen.v1.HaulService.StartHaul:input_type -> hubwagen.v1.StartHaulRequest
+	4, // 5: hubwagen.v1.HaulService.GetHaul:input_type -> hubwagen.v1.GetHaulRequest
+	0, // 6: hubwagen.v1.HaulService.SignalHaul:input_type -> hubwagen.v1.SignalHaulRequest
+	3, // 7: hubwagen.v1.HaulService.StartHaul:output_type -> hubwagen.v1.StartHaulResponse
+	5, // 8: hubwagen.v1.HaulService.GetHaul:output_type -> hubwagen.v1.GetHaulResponse
+	1, // 9: hubwagen.v1.HaulService.SignalHaul:output_type -> hubwagen.v1.SignalHaulResponse
+	7, // [7:10] is the sub-list for method output_type
+	4, // [4:7] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name
 	4, // [4:4] is the sub-list for extension extendee
 	0, // [0:4] is the sub-list for field type_name
@@ -573,7 +691,7 @@ func file_hubwagen_v1_haul_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hubwagen_v1_haul_proto_rawDesc), len(file_hubwagen_v1_haul_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

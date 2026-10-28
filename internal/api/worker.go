@@ -89,6 +89,7 @@ var replayEvents = map[state.EventType]bool{
 	state.EventLiftFinished:      true,
 	state.EventTimerFired:        true,
 	state.EventQueryAnswered:     true,
+	state.EventSignalDelivered:   true,
 	state.EventHaulTaskCompleted: true,
 }
 
@@ -161,8 +162,13 @@ func command(c *hubwagenv1.Command) (core.Command, error) {
 		}
 	case *hubwagenv1.Command_LatestPallet:
 		cmd.Kind, cmd.Dataset, cmd.Partition = core.CommandLatestPallet, k.LatestPallet.Dataset, k.LatestPallet.Partition
+	case *hubwagenv1.Command_WaitSignal:
+		cmd.Kind, cmd.Name = core.CommandWaitSignal, k.WaitSignal.Name
+		if k.WaitSignal.Timeout != nil {
+			cmd.Duration = k.WaitSignal.Timeout.AsDuration()
+		}
 	default:
-		return cmd, errors.New("a command is a lift, a sleep or a latest_pallet")
+		return cmd, errors.New("a command is a lift, a sleep, a latest_pallet or a wait_signal")
 	}
 	return cmd, nil
 }
@@ -264,7 +270,7 @@ func connectError(err error) error {
 		return connect.NewError(connect.CodeNotFound, err)
 	case errors.Is(err, core.ErrInvalid):
 		return connect.NewError(connect.CodeInvalidArgument, err)
-	case errors.Is(err, core.ErrUnknownHaul), errors.Is(err, core.ErrUnknownBuild):
+	case errors.Is(err, core.ErrUnknownHaul), errors.Is(err, core.ErrUnknownBuild), errors.Is(err, core.ErrHaulFinished):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	case errors.Is(err, core.ErrStopped):
 		return connect.NewError(connect.CodeUnavailable, err)
