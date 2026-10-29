@@ -450,7 +450,12 @@ where a lift writes. Each adapter declares two things:
 The core follows one rule: **only a readable pallet can be reused or read by a
 replay.** Lineage is always kept; an expired pallet stays in the catalog as a
 record. "Replays read the same versions" holds while the input pallets are
-readable.
+readable. Readable means the catalog says committed *and* the storage still
+has it: before reusing a pallet, the core checks that its manifest and every
+file it lists are in the bucket (`PalletStore.Check`), because files can be
+deleted outside hubwagen. A pallet that fails the check isn't reused; the
+lift runs again ("the earlier run's output can't be read: its files are
+gone"), and its new pallet stands in from then on.
 
 v1 has one adapter, `file://` with pallet manifests: atomic, and every version
 stays readable until retention removes it. Warehouse and table-format adapters

@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/json"
+	"os"
 	"testing"
 	"time"
 
@@ -235,6 +236,33 @@ func TestInvalidPalletIsNotReused(t *testing.T) {
 
 	_, ran := h.runHaul(b, "b1", steps, nil)
 	assert.Equal(t, []string{"extract"}, ran)
+}
+
+func TestPalletWhoseFilesAreGoneIsNotReused(t *testing.T) {
+	b := newBucket(t)
+	h := newHarness(t, withBucket(b, nil))
+	steps := []step{memoLift("extract", "raw"), memoLift("report", "reports", 0)}
+	h.build("b1", map[string]string{"extract": "v1", "report": "v1"})
+	first, _ := h.runHaul(b, "b1", steps, nil)
+
+	// Someone deletes extract's manifest by hand: the catalog still says
+	// committed, but the pallet can't be read, so it runs again.
+	var raw state.Pallet
+	for _, p := range h.pallets(first) {
+		if p.Dataset == "raw" {
+			raw = p
+		}
+	}
+	path, ok := b.LocalPath(raw.Location)
+	require.True(t, ok)
+	require.NoError(t, os.Remove(path))
+	second, ran := h.runHaul(b, "b1", steps, nil)
+	assert.Equal(t, []string{"extract"}, ran, "report's input has the same content, so it is reused")
+	assert.Equal(t, "the earlier run's output can't be read: its files are gone", h.reasons(second)["extract"])
+
+	// The new pallet stands in from now on.
+	_, ran = h.runHaul(b, "b1", steps, nil)
+	assert.Empty(t, ran)
 }
 
 func TestMemoSurvivesRestart(t *testing.T) {

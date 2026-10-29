@@ -69,6 +69,9 @@ type PalletStore interface {
 	Promote(ctx context.Context, m pallet.Manifest) (string, error)
 	Discard(ctx context.Context, prefix string) error
 	Read(ctx context.Context, uri string) (pallet.Manifest, error)
+	// Check reports whether the pallet whose manifest is at uri can still
+	// be read: its manifest and files are there.
+	Check(ctx context.Context, uri string) error
 }
 
 // promoteRetryDelay is how long to wait before retrying a promote that

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alper/hubwagen/internal/pallet"
 	"github.com/alper/hubwagen/internal/state"
 )
 
@@ -226,7 +227,7 @@ func canonicalJSON(raw json.RawMessage) (json.RawMessage, error) {
 
 // errUnreadable: a run with the fingerprint exists, but what it built can't
 // be read any more, so it isn't reused.
-var errUnreadable = errors.New("not readable")
+var errUnreadable = errors.New("can't be read")
 
 // memoMatch is what a reused lift completes with: the pallet (if it has an
 // output) and result of the lift that ran with the same fingerprint.
@@ -284,7 +285,7 @@ func (c *Core) memoize(l *liftState, inputs []state.Pallet) *memoMatch {
 	case err == nil:
 		return &m
 	case errors.Is(err, errUnreadable):
-		l.rec.RunReason = fmt.Sprintf("the earlier run's output can't be read (%v)", err)
+		l.rec.RunReason = fmt.Sprintf("the earlier run's output %v", err)
 		return nil
 	case !errors.Is(err, state.ErrNotFound):
 		c.log.Warn("memo lookup failed", "haul", h.rec.ID, "seq", l.rec.Seq, "err", err)
@@ -301,6 +302,31 @@ func (c *Core) memoize(l *liftState, inputs []state.Pallet) *memoMatch {
 	return nil
 }
 
+// checkReadableTimeout bounds checking a pallet's files before reuse.
+const checkReadableTimeout = 10 * time.Second
+
+// checkReadable is errUnreadable unless p's manifest and files are still
+// in the bucket: the catalog says committed, but files can be deleted
+// outside hubwagen, and a reused pallet that can't be read fails every lift
+// that reads it. It reads the bucket from the loop, like the store reads
+// around it; a bucket that can't answer means rerun ("when unsure, rerun").
+func (c *Core) checkReadable(p state.Pallet) error {
+	if c.cfg.Pallets == nil {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(c.ctx, checkReadableTimeout)
+	defer cancel()
+	err := c.cfg.Pallets.Check(ctx, p.Location)
+	if err == nil {
+		return nil
+	}
+	c.log.Info("not reusing a pallet that can't be read", "pallet", p.ID, "err", err)
+	if errors.Is(err, pallet.ErrMissingFiles) {
+		return fmt.Errorf("%w: its files are gone", errUnreadable)
+	}
+	return fmt.Errorf("%w: %v", errUnreadable, err)
+}
+
 // lookupMemo finds what a run with l's fingerprint produced, completed at or
 // after since.
 func (c *Core) lookupMemo(tenant string, l *liftState, since time.Time) (memoMatch, error) {
@@ -314,6 +340,9 @@ func (c *Core) lookupMemo(tenant string, l *liftState, since time.Time) (memoMat
 		// then that pallet is what gets reused, and it must be readable.
 		switch p, err := c.cfg.Store.LiftPallet(c.ctx, run.HaulID, run.Seq); {
 		case err == nil && p.State == state.PalletCommitted:
+			if err := c.checkReadable(p); err != nil {
+				return memoMatch{}, err
+			}
 			m.pallet = p.ID
 		case err == nil:
 			return memoMatch{}, fmt.Errorf("%w: pallet %s is %s", errUnreadable, p.ID, p.State)
@@ -324,6 +353,9 @@ func (c *Core) lookupMemo(tenant string, l *liftState, since time.Time) (memoMat
 	}
 	p, err := c.cfg.Store.MemoPallet(c.ctx, tenant, l.rec.Fingerprint, since)
 	if err != nil {
+		return memoMatch{}, err
+	}
+	if err := c.checkReadable(p); err != nil {
 		return memoMatch{}, err
 	}
 	m := memoMatch{pallet: p.ID, haulID: p.HaulID, seq: p.LiftSeq}

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -131,6 +132,34 @@ func TestPromoteChecksFilesArePresent(t *testing.T) {
 	assert.ErrorContains(t, err, `"b.csv"`)
 	_, err = b.Get(ctx, l.PalletManifest("t", "raw", "", "p1"))
 	assert.ErrorIs(t, err, blob.ErrNotExist, "nothing was promoted")
+}
+
+// remove deletes an object behind hubwagen's back, as someone could.
+func remove(t *testing.T, b blob.Bucket, uri string) {
+	t.Helper()
+	path, ok := b.LocalPath(uri)
+	require.True(t, ok)
+	require.NoError(t, os.Remove(path))
+}
+
+func TestCheckFindsDeletedData(t *testing.T) {
+	s, b, l := open(t)
+	staging := l.LiftStaging("t", "raw", "", "a1")
+	m, err := New("p1", "t", "raw", "", staging, []File{write(t, b, staging, "a.csv", "x"), write(t, b, staging, "b.csv", "y")}, nil)
+	require.NoError(t, err)
+	uri, err := s.Promote(ctx, m)
+	require.NoError(t, err)
+	require.NoError(t, s.Check(ctx, uri))
+
+	remove(t, b, staging+"b.csv")
+	err = s.Check(ctx, uri)
+	assert.ErrorIs(t, err, ErrMissingFiles)
+	assert.ErrorContains(t, err, `"b.csv"`)
+
+	remove(t, b, uri)
+	err = s.Check(ctx, uri)
+	assert.ErrorIs(t, err, ErrMissingFiles)
+	assert.ErrorContains(t, err, "manifest")
 }
 
 func TestConcurrentPromotesAgree(t *testing.T) {
