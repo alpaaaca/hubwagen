@@ -176,7 +176,10 @@ type ListHaulsRequest struct {
 	// Only the children of this haul (started by its start_haul commands).
 	ParentId string `protobuf:"bytes,5,opt,name=parent_id,json=parentId,proto3" json:"parent_id,omitempty"`
 	// Only hauls older than this one (paging).
-	BeforeId      string `protobuf:"bytes,6,opt,name=before_id,json=beforeId,proto3" json:"before_id,omitempty"`
+	BeforeId string `protobuf:"bytes,6,opt,name=before_id,json=beforeId,proto3" json:"before_id,omitempty"`
+	// Also return each haul's lifts (name, status, reused, times; no results
+	// or edges): a run history by step. At most 200 hauls then.
+	WithLifts     bool `protobuf:"varint,7,opt,name=with_lifts,json=withLifts,proto3" json:"with_lifts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -251,6 +254,13 @@ func (x *ListHaulsRequest) GetBeforeId() string {
 		return x.BeforeId
 	}
 	return ""
+}
+
+func (x *ListHaulsRequest) GetWithLifts() bool {
+	if x != nil {
+		return x.WithLifts
+	}
+	return false
 }
 
 type CancelHaulRequest struct {
@@ -1642,14 +1652,16 @@ const file_hubwagen_v1_haul_proto_rawDesc = "" +
 	"\bPipeline\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\"\xaa\x01\n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\"\xc9\x01\n" +
 	"\x10ListHaulsRequest\x12\x16\n" +
 	"\x06tenant\x18\x01 \x01(\tR\x06tenant\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
 	"\bstatuses\x18\x03 \x03(\tR\bstatuses\x12\x14\n" +
 	"\x05limit\x18\x04 \x01(\x05R\x05limit\x12\x1b\n" +
 	"\tparent_id\x18\x05 \x01(\tR\bparentId\x12\x1b\n" +
-	"\tbefore_id\x18\x06 \x01(\tR\bbeforeId\"<\n" +
+	"\tbefore_id\x18\x06 \x01(\tR\bbeforeId\x12\x1d\n" +
+	"\n" +
+	"with_lifts\x18\a \x01(\bR\twithLifts\"<\n" +
 	"\x11CancelHaulRequest\x12\x17\n" +
 	"\ahaul_id\x18\x01 \x01(\tR\x06haulId\x12\x0e\n" +
 	"\x02by\x18\x02 \x01(\tR\x02by\"\x14\n" +

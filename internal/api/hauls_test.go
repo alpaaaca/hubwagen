@@ -143,6 +143,8 @@ func TestListHaulsAndLogbook(t *testing.T) {
 	assert.Empty(t, got.Msg.Hauls)
 	_, err = c.ListHauls(ctx, connect.NewRequest(&hubwagenv1.ListHaulsRequest{Limit: 5000}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	_, err = c.ListHauls(ctx, connect.NewRequest(&hubwagenv1.ListHaulsRequest{Limit: 500, WithLifts: true}))
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 
 	lb, err := c.GetLogbook(ctx, connect.NewRequest(&hubwagenv1.GetLogbookRequest{HaulId: ids[0]}))
 	require.NoError(t, err)

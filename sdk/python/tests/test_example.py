@@ -60,10 +60,15 @@ def test_replay_reuses_what_did_not_change(demo):
     # a DAG (a step comes after the steps whose pallets it reads).
     api = hw.Client(url)
     pipelines = api.call("HaulService", "ListPipelines", {})["pipelines"]
-    assert [(p["name"], p["title"]) for p in pipelines] == [("daily", "Daily revenue")]
+    assert [(p["name"], p["title"]) for p in pipelines] == [("daily", "Daily revenue"), ("nightly", "Nightly revenue")]
+    schedules = api.call("HaulService", "ListSchedules", {})["schedules"]
+    assert [(s["haul"], s["cron"], s["timezone"]) for s in schedules] == [("nightly", "0 3 * * *", "Europe/Berlin")]
     run = api.call("HaulService", "ListHauls", {"name": "daily", "limit": 1})["hauls"][0]
     assert run["trigger"] == "the CLI"
     assert run["liftCounts"] == {"total": 3, "completed": 3}
+    history = api.call("HaulService", "ListHauls", {"name": "daily", "limit": 3, "withLifts": True})["hauls"]
+    assert [[(l["name"], l["status"]) for l in h["lifts"]] for h in history] == [
+        [("extract_orders", "completed"), ("daily_revenue", "completed"), ("revenue_report", "completed")]] * 3
     lifts = api.call("HaulService", "GetHaul", {"haulId": run["id"]})["haul"]["lifts"]
     assert [(l["name"], l.get("after", []), l["dataset"]) for l in lifts] == [
         ("extract_orders", [], "raw.orders"), ("daily_revenue", [1], "mart.daily_revenue"),

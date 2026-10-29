@@ -408,6 +408,27 @@ func (s *Store) ListLifts(ctx context.Context, haulID string) ([]Lift, error) {
 		`SELECT `+liftColumns+` FROM lifts WHERE haul_id = ? ORDER BY seq`, haulID)
 }
 
+// ListLiftsOf returns the lifts of each of haulIDs, in seq order.
+func (s *Store) ListLiftsOf(ctx context.Context, haulIDs []string) (map[string][]Lift, error) {
+	out := map[string][]Lift{}
+	if len(haulIDs) == 0 {
+		return out, nil
+	}
+	args := make([]any, len(haulIDs))
+	for i, id := range haulIDs {
+		args[i] = id
+	}
+	lifts, err := queryAll(ctx, s.r, scanLift, `SELECT `+liftColumns+` FROM lifts
+		WHERE haul_id IN (?`+strings.Repeat(", ?", len(haulIDs)-1)+`) ORDER BY haul_id, seq`, args...)
+	if err != nil {
+		return nil, err
+	}
+	for _, l := range lifts {
+		out[l.HaulID] = append(out[l.HaulID], l)
+	}
+	return out, nil
+}
+
 // GetLiftAttempt returns an attempt by its ID.
 func (s *Store) GetLiftAttempt(ctx context.Context, id string) (LiftAttempt, error) {
 	v, err := scanLiftAttempt(s.r.QueryRowContext(ctx, `SELECT `+liftAttemptColumns+` FROM lift_attempts WHERE id = ?`, id))

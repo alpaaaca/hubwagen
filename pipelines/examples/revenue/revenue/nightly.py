@@ -1,0 +1,17 @@
+"""Nightly revenue: every night at 03:00 (Berlin), yesterday's Daily revenue.
+
+A scheduled haul: the server starts it on its own, once per data interval
+(here: the previous day), and it runs `daily` for that day as a child haul.
+"""
+
+import hubwagen as hw
+
+from .hauls import daily
+
+
+@hw.haul(title="Nightly revenue",
+         schedule=hw.Schedule("0 3 * * *", interval="daily", timezone="Europe/Berlin", catch_up="latest"))
+def nightly(ctx, interval: hw.Interval):
+    """Every night, yesterday's revenue: runs Daily revenue for the day that just ended."""
+    day = interval.start.date().isoformat()
+    return ctx.haul(daily, day=day)

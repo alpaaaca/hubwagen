@@ -243,6 +243,15 @@ each is one PR:
    (`--events` for those). Not captured: output that bypasses Python
    (subprocesses, C libraries) and haul code, which replays (a
    replay-safe `ctx.log` later).
+   ✅ **Run history**, added to this step: the start page lists the
+   pipelines with what to know about each (description, cron and
+   timezone or the datasets it waits for, next run, recent runs as
+   squares, last run, how many succeeded, usual duration); a pipeline's
+   page shows its recent runs as a grid, a column per run with a bar for
+   its duration and a row per step with a square for how that step went
+   (fan-outs folded), each square opening the run on that step.
+   `ListHauls` can return each run's lifts (`with_lifts`). The revenue
+   example gets a scheduled pipeline (`nightly`, 03:00 Berlin).
 7. **Web UI: catalog**: datasets, partitions and pallets with stale and
    invalid marked, lineage up and down as a graph, a pallet's files, and
    invalidating from the UI (with the same dry run first);

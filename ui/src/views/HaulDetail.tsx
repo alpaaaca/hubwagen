@@ -14,7 +14,7 @@ const OPEN = ["running", "stuck"];
 // HaulDetail: one run of a pipeline: what went in, how long each step took
 // and why it ran, and what came out; refreshed while it is open, with cancel,
 // resume and signal. The raw events are at the bottom, folded.
-export function HaulDetail({ id }: { id: string }) {
+export function HaulDetail({ id, step }: { id: string; step?: number }) {
   const api = useApi();
   const pipelines = usePipelines();
   const haul = usePoll(() => api.hauls.getHaul({ haulId: id }), [id]);
@@ -23,7 +23,7 @@ export function HaulDetail({ id }: { id: string }) {
   const children = usePoll(() => api.hauls.listHauls({ parentId: id, limit: 100 }), [id]);
   const logbook = usePoll(() => api.hauls.getLogbook({ haulId: id }), [id]);
   const [actionError, setActionError] = useState("");
-  const [picked, setPicked] = useState<number>(); // the step whose logs show; unset: a failed step, else all
+  const [picked, setPicked] = useState<number | undefined>(step); // the step whose logs show; unset: a failed step, else all
 
   async function act(f: () => Promise<unknown>) {
     setActionError("");

@@ -1,7 +1,9 @@
 # Example: daily revenue (v2, Python)
 
 One haul per day: `extract_orders` → `daily_revenue` → `revenue_report`,
-writing CSV and text pallets. Source data: `data/orders.csv`.
+writing CSV and text pallets. Source data: `data/orders.csv`. `nightly`
+([revenue/nightly.py](revenue/nightly.py)) runs it on a schedule: at 03:00
+Berlin time, for the day that just ended.
 
 ```bash
 # from the repository root

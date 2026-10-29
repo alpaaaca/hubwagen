@@ -80,6 +80,9 @@ func (s *HaulServer) ListHauls(ctx context.Context, req *connect.Request[hubwage
 	if limit > 1000 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("limit %d: at most 1000", limit))
 	}
+	if m.WithLifts && limit > 200 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("limit %d: at most 200 with lifts", limit))
+	}
 	hauls, err := s.store.ListHauls(ctx, state.HaulFilter{Tenant: m.Tenant, Name: m.Name, Statuses: m.Statuses,
 		ParentID: m.ParentId, BeforeID: m.BeforeId, Limit: limit})
 	if err != nil {
@@ -93,11 +96,25 @@ func (s *HaulServer) ListHauls(ctx context.Context, req *connect.Request[hubwage
 	if err != nil {
 		return nil, connectError(err)
 	}
+	var lifts map[string][]state.Lift
+	if m.WithLifts {
+		if lifts, err = s.store.ListLiftsOf(ctx, ids); err != nil {
+			return nil, connectError(err)
+		}
+	}
 	out := &hubwagenv1.ListHaulsResponse{}
 	for _, h := range hauls {
-		m := haulMessage(h)
-		m.LiftCounts = liftCountsMessage(counts[h.ID])
-		out.Hauls = append(out.Hauls, m)
+		hm := haulMessage(h)
+		hm.LiftCounts = liftCountsMessage(counts[h.ID])
+		for _, l := range lifts[h.ID] {
+			lm := &hubwagenv1.Lift{Seq: int32(l.Seq), Name: l.Name, Status: l.Status, Reused: l.Reused,
+				Attempts: int32(l.Attempts), ScheduledAt: timestamppb.New(l.ScheduledAt)}
+			if l.FinishedAt != nil {
+				lm.FinishedAt = timestamppb.New(*l.FinishedAt)
+			}
+			hm.Lifts = append(hm.Lifts, lm)
+		}
+		out.Hauls = append(out.Hauls, hm)
 	}
 	return connect.NewResponse(out), nil
 }

@@ -26,6 +26,18 @@ export function ago(t?: Timestamp, now = Date.now()): string {
   return days === 1 ? "yesterday" : `${days} days ago`;
 }
 
+// fromNow says when a future t is: "in 5 min", "in 3 h", "in 2 days".
+export function fromNow(t?: Timestamp, now = Date.now()): string {
+  const at = ms(t);
+  if (at === undefined) return "–";
+  const s = Math.round((at - now) / 1000);
+  if (s < 60) return s <= 0 ? "now" : "in a minute";
+  if (s < 3600) return `in ${Math.round(s / 60)} min`;
+  if (s < 86400) return `in ${Math.round(s / 3600)} h`;
+  const days = Math.round(s / 86400);
+  return days === 1 ? "tomorrow" : `in ${days} days`;
+}
+
 // duration formats milliseconds: "45 ms", "3.2 s", "4 min 05 s", "2 h 10 min".
 export function duration(millis: number): string {
   if (millis < 1000) return `${Math.max(0, Math.round(millis))} ms`;
