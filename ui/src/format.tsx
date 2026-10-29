@@ -2,11 +2,41 @@ import { timestampDate, type Timestamp } from "@bufbuild/protobuf/wkt";
 
 import type { Haul, Lift } from "./gen/hubwagen/v1/haul_pb";
 
+// Times are always shown in UTC, and say so: hubwagen runs on servers and
+// schedules in many places, and one clock for everyone is easier to compare.
+
+// when is a point in time, to the second, in UTC.
 export function when(t?: Timestamp): string {
   if (!t) return "–";
-  const d = timestampDate(t);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  return utc(timestampDate(t)).slice(0, 19) + " UTC";
+}
+
+// clock is a time of day in UTC, to the millisecond (digits: how many to keep).
+export function clock(t?: Timestamp, digits = 3): string {
+  if (!t) return "";
+  const s = utc(timestampDate(t)).slice(11, 23);
+  return digits === 0 ? s.slice(0, 8) : s.slice(0, 9 + digits);
+}
+
+// utc is "YYYY-MM-DD HH:MM:SS.mmm" in UTC.
+function utc(d: Date): string {
+  return d.toISOString().replace("T", " ").replace("Z", "");
+}
+
+// interval shows a data interval in UTC: a whole UTC day as that day, whole
+// days as "start – last day", else start and end times.
+export function interval(start: string, end: string): string {
+  const a = new Date(start);
+  const b = new Date(end);
+  if (isNaN(a.getTime()) || isNaN(b.getTime())) return `${start} – ${end}`;
+  const day = 86400000;
+  const midnight = (d: Date) => d.getTime() % day === 0;
+  if (midnight(a) && midnight(b)) {
+    const last = new Date(b.getTime() - day);
+    return b.getTime() - a.getTime() === day ? utc(a).slice(0, 10) : `${utc(a).slice(0, 10)} – ${utc(last).slice(0, 10)}`;
+  }
+  const sameDay = utc(a).slice(0, 10) === utc(b).slice(0, 10);
+  return `${utc(a).slice(0, 16)} – ${sameDay ? utc(b).slice(11, 16) : utc(b).slice(0, 16)} UTC`;
 }
 
 export function ms(t?: Timestamp): number | undefined {
@@ -79,8 +109,20 @@ function parse(json: string): unknown {
   }
 }
 
+// scalar shows one value: dates and intervals (how the SDK encodes them) in
+// UTC, other objects as JSON.
 function scalar(v: unknown): string {
   if (typeof v === "string") return v;
+  if (v && typeof v === "object" && !Array.isArray(v)) {
+    const o = v as Record<string, unknown>;
+    const iv = o["$interval"] as { start?: string; end?: string } | undefined;
+    if (iv && Object.keys(o).length === 1) return interval(String(iv.start), String(iv.end));
+    if (typeof o["$date"] === "string") return o["$date"];
+    if (typeof o["$datetime"] === "string") {
+      const d = new Date(o["$datetime"]);
+      return isNaN(d.getTime()) ? o["$datetime"] : utc(d).slice(0, 19) + " UTC";
+    }
+  }
   return JSON.stringify(v);
 }
 

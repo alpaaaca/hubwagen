@@ -385,7 +385,8 @@ func describePartition(p string) string {
 	return p
 }
 
-func when(t time.Time) string { return t.Local().Format("2006-01-02 15:04:05") }
+// when shows a time as everything hubwagen shows it: in UTC, saying so.
+func when(t time.Time) string { return t.UTC().Format("2006-01-02 15:04:05 UTC") }
 
 func size(n int64) string {
 	switch {

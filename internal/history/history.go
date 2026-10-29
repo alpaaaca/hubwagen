@@ -404,8 +404,8 @@ func value(v any) string {
 	return string(b)
 }
 
-// interval shows a data interval by its dates: one day as that day,
-// midnight to midnight as "start – end" (end exclusive), else times.
+// interval shows a data interval in UTC, like every time: a whole UTC day
+// as that day, whole days as "start – last day", else its times.
 func interval(iv map[string]any) string {
 	s, _ := iv["start"].(string)
 	e, _ := iv["end"].(string)
@@ -414,6 +414,7 @@ func interval(iv map[string]any) string {
 	if err1 != nil || err2 != nil {
 		return s + " – " + e
 	}
+	start, end = start.UTC(), end.UTC()
 	midnight := func(t time.Time) bool { return t.Hour() == 0 && t.Minute() == 0 && t.Second() == 0 }
 	if midnight(start) && midnight(end) {
 		if start.AddDate(0, 0, 1).Equal(end) {
@@ -421,7 +422,10 @@ func interval(iv map[string]any) string {
 		}
 		return start.Format("2006-01-02") + " – " + end.AddDate(0, 0, -1).Format("2006-01-02")
 	}
-	return start.Format("2006-01-02 15:04") + " – " + end.Format("15:04")
+	if start.Format("2006-01-02") != end.Format("2006-01-02") {
+		return start.Format("2006-01-02 15:04") + " – " + end.Format("2006-01-02 15:04 UTC")
+	}
+	return start.Format("2006-01-02 15:04") + " – " + end.Format("15:04 UTC")
 }
 
 // Took formats a duration as people say it: "45 ms", "3.2 s", "4 min 5 s".

@@ -84,7 +84,7 @@ function PipelineRow({ name, hauls, pipelines }: { name: string; hauls: Haul[]; 
         {schedule ? (
           <>
             <span className="mono">{schedule.cron}</span>
-            {schedule.timezone && <span className="dim small"> {schedule.timezone}</span>}
+            <span className="dim small"> {schedule.timezone || "UTC"}</span>
             <div className="dim small">{schedule.interval} data</div>
           </>
         ) : sub ? (

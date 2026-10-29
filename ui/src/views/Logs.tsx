@@ -1,9 +1,9 @@
-import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useEffect, useRef } from "react";
 
 import { useApi } from "../api";
 import type { Lift } from "../gen/hubwagen/v1/haul_pb";
 import type { RunLogLine } from "../gen/hubwagen/v1/log_pb";
+import { clock } from "../format";
 import { POLL_MS, usePoll } from "../hooks";
 
 // Logs shows what a run's lifts printed and logged: all of them, lines
@@ -48,6 +48,7 @@ export function Logs({
             </option>
           ))}
         </select>
+        <span className="dim small">times in UTC</span>
         {open && <span className="dim small">following</span>}
       </div>
       {logs.error && <p className="error">{logs.error}</p>}
@@ -73,19 +74,12 @@ export function Logs({
   );
 }
 
-function clock(l: RunLogLine): string {
-  if (!l.line?.time) return "";
-  const d = timestampDate(l.line.time);
-  const pad = (n: number, w = 2) => String(n).padStart(w, "0");
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`;
-}
-
 function LogRow({ line: l, step }: { line: RunLogLine; step: string }) {
   const level = l.line?.stream === "log" && l.line.level !== "INFO" ? l.line.level : ""; // like hubwagen dev: only what stands out
   const kind = l.line?.stream === "stderr" || level === "ERROR" || level === "CRITICAL" ? "bad" : level === "WARNING" ? "warn" : "";
   return (
     <div className={`log-line ${kind}`}>
-      <span className="dim">{clock(l)}</span>
+      <span className="dim">{clock(l.line?.time)}</span>
       {step && <span className="log-step">{step}</span>}
       {level && <span className="log-level">{level}</span>}
       <span className="log-text">{l.line?.text}</span>

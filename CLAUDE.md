@@ -91,6 +91,10 @@ proto, Go code and docs/architecture.md, and as SDK aliases.
 
 - Raw `database/sql`, no ORM; migrations are embedded SQL files.
 - IDs are ULIDs (`github.com/oklog/ulid/v2`).
+- Times are UTC wherever people see them (web UI, CLI, `hubwagen dev`,
+  server and worker logs), and say so ("UTC"); stored and sent as UTC
+  timestamps. Schedules default to UTC; a schedule's `timezone` only
+  decides when its cron fires and what its intervals' days are.
 - Errors for users name the location (`commands[2]: …`, `app/hauls.py:42`)
   and report all problems at once where possible.
 - Structured logs via `log/slog` to stderr; command output to stdout.

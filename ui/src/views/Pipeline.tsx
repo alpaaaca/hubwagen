@@ -49,7 +49,7 @@ export function Pipeline({ haul }: { haul: string }) {
           {schedule ? (
             <>
               on a schedule: <span className="mono">{schedule.cron}</span>
-              {schedule.timezone && ` (${schedule.timezone})`}, {schedule.interval} data, catch-up {schedule.catchUp || "latest"}
+{` (${schedule.timezone || "UTC"})`}, {schedule.interval} data, catch-up {schedule.catchUp || "latest"}
             </>
           ) : sub ? (
             <>

@@ -21,7 +21,7 @@ func TestARunInPlainWords(t *testing.T) {
 	evs := []state.Event{
 		ev(0, state.EventHaulStarted, map[string]any{"name": "daily", "trigger": "schedule",
 			"params": map[string]any{"interval": map[string]any{"$interval": map[string]any{
-				"start": "2026-10-28T00:00:00+01:00", "end": "2026-10-29T00:00:00+01:00"}}}}),
+				"start": "2026-10-28T00:00:00Z", "end": "2026-10-29T00:00:00Z"}}}}),
 		ev(10*time.Millisecond, state.EventHaulTaskQueued, map[string]any{"number": 1}),
 		ev(20*time.Millisecond, state.EventLiftScheduled, map[string]any{"seq": 1, "name": "extract_orders", "run_reason": "no previous run"}),
 		ev(30*time.Millisecond, state.EventLiftAttemptDispatched, map[string]any{"seq": 1, "number": 1, "worker": "worker-1"}),
@@ -94,7 +94,9 @@ func TestInputs(t *testing.T) {
 	}
 	assert.Equal(t, "day=2026-10-01, region=eu", Inputs(map[string]any{"region": "eu", "day": "2026-10-01"}))
 	assert.Equal(t, "2026-10-01 – 2026-10-07", Inputs(map[string]any{"interval": iv("2026-10-01T00:00:00Z", "2026-10-08T00:00:00Z")}))
-	assert.Equal(t, "interval=2026-10-01 13:00 – 14:00, n=1", Inputs(map[string]any{"n": 1, "interval": iv("2026-10-01T13:00:00Z", "2026-10-01T14:00:00Z")}))
+	assert.Equal(t, "interval=2026-10-01 13:00 – 14:00 UTC, n=1", Inputs(map[string]any{"n": 1, "interval": iv("2026-10-01T13:00:00Z", "2026-10-01T14:00:00Z")}))
+	// Shown in UTC, like every time: a Berlin day isn't a UTC day.
+	assert.Equal(t, "2026-10-27 23:00 – 2026-10-28 23:00 UTC", Inputs(map[string]any{"interval": iv("2026-10-28T00:00:00+01:00", "2026-10-29T00:00:00+01:00")}))
 	assert.Equal(t, "n=3, on=2026-10-01", Inputs(map[string]any{"n": 3, "on": map[string]any{"$date": "2026-10-01"}}))
 	assert.Equal(t, "", Inputs(nil))
 }

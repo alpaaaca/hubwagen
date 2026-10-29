@@ -178,7 +178,7 @@ func (c *Client) Schedules(ctx context.Context, w io.Writer) error {
 	}
 	sort.SliceStable(scheds, func(i, j int) bool { return scheds[i].NextRun.AsTime().Before(scheds[j].NextRun.AsTime()) })
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
-	fmt.Fprintln(tw, "PIPELINE\tCRON\tTIMEZONE\tINTERVAL\tCATCH-UP\tNEXT RUN")
+	fmt.Fprintln(tw, "PIPELINE\tCRON\tCRON TIMEZONE\tINTERVAL\tCATCH-UP\tNEXT RUN")
 	for _, s := range scheds {
 		tz := s.Timezone
 		if tz == "" {
@@ -186,9 +186,7 @@ func (c *Client) Schedules(ctx context.Context, w io.Writer) error {
 		}
 		next := "-"
 		if s.NextRun != nil {
-			if loc, err := time.LoadLocation(tz); err == nil {
-				next = s.NextRun.AsTime().In(loc).Format("2006-01-02 15:04 MST")
-			}
+			next = s.NextRun.AsTime().UTC().Format("2006-01-02 15:04 UTC") // shown in UTC, like every time
 		}
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n", s.Haul, s.Cron, tz, s.Interval, s.CatchUp, next)
 	}

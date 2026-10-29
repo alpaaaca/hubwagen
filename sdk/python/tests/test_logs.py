@@ -66,3 +66,22 @@ def test_flush_sends_only_new_lines():
         print("b")
     c.flush(final=True)
     assert [[l["text"] for l in b] for b in batches] == [["a"], ["b"]]
+
+
+def test_worker_logs_are_utc():
+    import time
+
+    from hubwagen import worker
+
+    h = logging.StreamHandler(io.StringIO())
+    h.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+    root = logging.getLogger()
+    root.addHandler(h)
+    try:
+        worker.utc_logs()
+        r = logging.LogRecord("x", logging.INFO, __file__, 1, "hi", None, None)
+        r.created, r.msecs = 0.0, 0.0  # 1970-01-01 00:00 UTC
+        assert h.format(r) == "1970-01-01 00:00:00.000 UTC hi"
+        assert h.formatter.converter is time.gmtime
+    finally:
+        root.removeHandler(h)

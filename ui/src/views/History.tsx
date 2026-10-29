@@ -1,7 +1,7 @@
-import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useState } from "react";
 
 import { useApi } from "../api";
+import { clock } from "../format";
 import { POLL_MS, usePoll } from "../hooks";
 import type { HistoryEntry } from "../gen/hubwagen/v1/haul_pb";
 import { Link } from "../router";
@@ -22,6 +22,7 @@ export function History({ haulId, open, onSelect }: { haulId: string; open: bool
         <h2>
           What happened <Hint word="history" />
         </h2>
+        <span className="dim small">times in UTC</span>
         <label className="dim small">
           <input type="checkbox" checked={engine} onChange={(e) => setEngine(e.target.checked)} /> engine details
         </label>
@@ -39,7 +40,7 @@ export function History({ haulId, open, onSelect }: { haulId: string; open: bool
 function Line({ e, engine, onSelect }: { e: HistoryEntry; engine: boolean; onSelect: (seq: number) => void }) {
   return (
     <li className={`history-line kind-${e.kind}`}>
-      <span className="dim mono">{clock(e)}</span>
+      <span className="dim mono">{clock(e.time, 1)}</span>
       <span>
         {e.step && (
           <button type="button" className="step-name" onClick={() => onSelect(e.seq)} title="show its logs">
@@ -64,12 +65,4 @@ function Line({ e, engine, onSelect }: { e: HistoryEntry; engine: boolean; onSel
       </span>
     </li>
   );
-}
-
-// clock is the time of day, to the tenth of a second: a run's events are close together.
-function clock(e: HistoryEntry): string {
-  if (!e.time) return "";
-  const d = timestampDate(e.time);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${Math.floor(d.getMilliseconds() / 100)}`;
 }
