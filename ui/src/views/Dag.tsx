@@ -54,7 +54,19 @@ function groupStatus(lifts: Lift[]): string {
 
 // Dag draws a haul's lifts as boxes in columns, with arrows from the lifts
 // whose pallets each one reads.
-export function Dag({ lifts, now, plain = false }: { lifts: Lift[]; now: number; plain?: boolean }) {
+export function Dag({
+  lifts,
+  now,
+  plain = false,
+  selected = 0,
+  onSelect,
+}: {
+  lifts: Lift[];
+  now: number;
+  plain?: boolean;
+  selected?: number; // a lift's seq, to mark its node
+  onSelect?: (seq: number) => void; // clicking a node picks its (first) lift
+}) {
   const { nodes, edges } = layout(lifts);
   const cols = Math.max(...nodes.map((n) => n.col)) + 1;
   const rows = Math.max(...nodes.map((n) => n.row)) + 1;
@@ -86,7 +98,14 @@ export function Dag({ lifts, now, plain = false }: { lifts: Lift[]; now: number;
           const done = n.lifts.filter((l) => l.status === "completed").length;
           const t = one && took(one.scheduledAt, one.finishedAt, now);
           return (
-            <div key={n.key} role="listitem" className={`dag-node${plain ? "" : ` node-${status}`}`} style={{ left: x(n), top: y(n), width: W, height: H }}>
+            <div
+              key={n.key}
+              role="listitem"
+              className={`dag-node${plain ? "" : ` node-${status}`}${onSelect ? " clickable" : ""}${n.lifts.some((l) => l.seq === selected) ? " selected" : ""}`}
+              style={{ left: x(n), top: y(n), width: W, height: H }}
+              onClick={onSelect && (() => onSelect(n.lifts[0].seq))}
+              title={onSelect ? "show its logs" : undefined}
+            >
               <div className="dag-name" title={n.name}>
                 {n.lifts.length > 1 && <span className="dim">{n.lifts.length} × </span>}
                 {n.name}

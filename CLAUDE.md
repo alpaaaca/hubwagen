@@ -41,8 +41,9 @@ spec-kit.
 | `internal/core` | The core: one event loop; hauls (replay until blocked, sequence check, stuck), lifts (retries, timeouts, leases), timers, docks (long-poll), commits, memoization, single-flight, restore |
 | `internal/state` | Store: event log + projections (hauls, lifts, timers, catalog, builds), term fencing, leader-start loader |
 | `internal/pallet` | Storage adapter for pallets as files: manifests, content hash, idempotent promote, discard |
-| `internal/api` | Connect services over HTTP (`WorkerService`, `HaulService`, `CatalogService`); generated code in `gen/` from `proto/` |
-| `internal/devmode` | Wires store, bucket, core and API for one process; data-dir lock; event descriptions for `hubwagen dev` |
+| `internal/api` | Connect services over HTTP (`WorkerService`, `HaulService`, `CatalogService`, `LogService`); generated code in `gen/` from `proto/` |
+| `internal/runlog` | What lifts printed and logged, per attempt: files of JSON lines, capped; not state, not in the event log |
+| `internal/devmode` | Wires store, bucket, logs, core and API for one process; data-dir lock; what `hubwagen dev` prints (runs and their output; `--events`: event descriptions) |
 | `internal/haulcli` | What `start` and `replay` do: `--param` ranges, starting and waiting over `HaulService`, the replay report |
 | `internal/catalogcli` | What `datasets`, `pallets` and `pallet` print, over `CatalogService` (lineage trees) |
 | `internal/schedule` | Calendar and cron math (DST-correct intervals, what is due since a cursor); the core's haul schedules use it |

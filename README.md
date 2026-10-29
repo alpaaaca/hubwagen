@@ -68,8 +68,29 @@ go build -o hubwagen .
 3 completed
 ```
 
-Each lift dispatch shows in dev's output with the worker that took it
-(`lift 2 attempt 1 → py-3`). The config file: [docs/config.md](docs/config.md).
+Dev prints each run as it starts and ends, and in between what its lifts
+print and log, marked with the run and the step:
+
+```
+▶ Daily revenue day=2026-10-01 started
+  day=2026-10-01 › extract_orders │ reading orders.csv
+  day=2026-10-01 › extract_orders │ 6 orders for 2026-10-01: 3 apac, 3 eu
+  day=2026-10-01 › daily_revenue │ eu       439.78  78.5%
+  day=2026-10-01 › daily_revenue │ apac     120.17  21.5%
+  day=2026-10-01 › daily_revenue │ eu brings the most revenue on 2026-10-01
+  day=2026-10-01 › revenue_report │ Revenue on 2026-10-01
+  ...
+✓ Daily revenue day=2026-10-01 completed in 58ms
+▶ Daily revenue day=2026-10-01 started
+  day=2026-10-01 › extract_orders │ reading orders.csv
+  day=2026-10-01 › extract_orders │ 6 orders for 2026-10-01: 3 apac, 3 eu
+  day=2026-10-01 › daily_revenue ↺ reused: same inputs and code, nothing ran
+  day=2026-10-01 › revenue_report ↺ reused: same inputs and code, nothing ran
+✓ Daily revenue day=2026-10-01 completed in 23ms
+```
+
+The web UI shows the same output on the run's page, step by step
+(`hubwagen dev --events` prints the engine's own events instead). The config file: [docs/config.md](docs/config.md).
 Writing hauls and lifts: [sdk/python/README.md](sdk/python/README.md).
 The example: [pipelines/examples/revenue](pipelines/examples/revenue).
 

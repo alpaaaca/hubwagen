@@ -1,6 +1,8 @@
 """Hauls the integration tests run on a real worker."""
 
+import logging
 import random
+import sys
 import time
 from pathlib import Path
 
@@ -275,3 +277,24 @@ def keep_event(n: int) -> int:
 @hw.haul
 def keep_producer(ctx, n: int):
     return ctx.lift(keep_event, n).id
+
+
+_log = logging.getLogger("example.chatty")
+
+
+@hw.lift
+def chatty(n: int) -> int:
+    """Prints, logs and fails, for the captured output."""
+    print("loading", n, "rows")
+    _log.warning("row %d looks odd", 2)
+    sys.stderr.write("partial ")
+    sys.stderr.write("line\n")
+    print("no newline at the end", end="")
+    if n < 0:
+        raise ValueError("n must not be negative")
+    return n
+
+
+@hw.haul
+def chatter(ctx, n: int):
+    return ctx.lift(chatty, n)

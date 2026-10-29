@@ -75,6 +75,11 @@ of all hauls. Nobody writes to it directly. `CatalogService` reads it
 (`hubwagen datasets`, `hubwagen pallets <dataset>`, and `hubwagen pallet <id>`
 with its files and its lineage both ways).
 
+**Logs are not state.** What a lift prints and logs is captured by the
+worker per attempt and sent as it runs (`LogService`); the server keeps it
+apart from the event log, capped per attempt, and decides nothing by it. A
+lost batch is lost output, never a wrong result.
+
 ## Core concepts
 
 A hubwagen moves pallets: hauls orchestrate, lifts do the work, pallets are

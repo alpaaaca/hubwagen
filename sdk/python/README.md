@@ -66,6 +66,14 @@ committed pallet of a dataset partition, recorded so every replay sees the
 same one), `now`, `random` and `state`. A failed lift raises
 `hubwagen.LiftFailed` in the haul.
 
+What a lift prints (stdout, stderr) and logs (`logging`) is captured with
+it: the web UI shows it on the run's page, step by step, and `hubwagen dev`
+prints it marked with the run and the lift; a failure's traceback is part
+of it. Capture goes by thread, so output from threads the lift starts, from
+subprocesses or from C libraries writing to the file descriptor isn't
+captured. Standalone workers still echo it to their terminal, marked with
+the lift (`HUBWAGEN_ECHO_LOGS=0` turns that off).
+
 The web UI calls a haul by its title: `@hw.haul(title="Daily revenue")`,
 or else the first line of its docstring; the rest of the docstring
 describes it. Without either, it shows the haul's name.

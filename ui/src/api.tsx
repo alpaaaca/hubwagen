@@ -7,14 +7,20 @@ import { createContext, useContext, type ReactNode } from "react";
 
 import { CatalogService } from "./gen/hubwagen/v1/catalog_pb";
 import { HaulService } from "./gen/hubwagen/v1/haul_pb";
+import { LogService } from "./gen/hubwagen/v1/log_pb";
 
 export type Api = {
   hauls: Client<typeof HaulService>;
   catalog: Client<typeof CatalogService>;
+  logs: Client<typeof LogService>;
 };
 
 export function apiFor(transport: Transport): Api {
-  return { hauls: createClient(HaulService, transport), catalog: createClient(CatalogService, transport) };
+  return {
+    hauls: createClient(HaulService, transport),
+    catalog: createClient(CatalogService, transport),
+    logs: createClient(LogService, transport),
+  };
 }
 
 const ApiContext = createContext<Api | null>(null);

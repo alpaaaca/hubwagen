@@ -7,6 +7,7 @@ import { message, usePoll } from "../hooks";
 import { usePipelines } from "../pipelines";
 import { Link } from "../router";
 import { Dag } from "./Dag";
+import { Logs } from "./Logs";
 
 const OPEN = ["running", "stuck"];
 
@@ -22,6 +23,7 @@ export function HaulDetail({ id }: { id: string }) {
   const children = usePoll(() => api.hauls.listHauls({ parentId: id, limit: 100 }), [id]);
   const logbook = usePoll(() => api.hauls.getLogbook({ haulId: id }), [id]);
   const [actionError, setActionError] = useState("");
+  const [picked, setPicked] = useState<number>(); // the step whose logs show; unset: a failed step, else all
 
   async function act(f: () => Promise<unknown>) {
     setActionError("");
@@ -38,6 +40,11 @@ export function HaulDetail({ id }: { id: string }) {
   if (!h) return <p className="dim">loading…</p>;
   const now = Date.now();
   const t = took(h.createdAt, h.finishedAt, now);
+  const selected = picked ?? h.lifts.find((l) => l.status === "failed")?.seq ?? 0;
+  const pick = (seq: number) => {
+    setPicked(seq);
+    document.getElementById("logs")?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  };
 
   return (
     <section>
@@ -92,8 +99,11 @@ export function HaulDetail({ id }: { id: string }) {
         <p className="dim">none yet</p>
       ) : (
         <>
-          <Dag lifts={h.lifts} now={now} />
-          <Steps haul={h} now={now} />
+          <Dag lifts={h.lifts} now={now} selected={selected} onSelect={pick} />
+          <Steps haul={h} now={now} selected={selected} onSelect={pick} />
+          <div id="logs">
+            <Logs haulId={h.id} lifts={h.lifts} seq={selected} onSelect={setPicked} open={open} />
+          </div>
         </>
       )}
 
@@ -158,7 +168,7 @@ function Result({ json }: { json: string }) {
 
 // Steps lays the lifts out on the haul's timeline: when each started and how
 // long it took, whether it ran or was reused, and what it returned.
-function Steps({ haul, now }: { haul: Haul; now: number }) {
+function Steps({ haul, now, selected, onSelect }: { haul: Haul; now: number; selected: number; onSelect: (seq: number) => void }) {
   const start = ms(haul.createdAt)!;
   const end = Math.max(ms(haul.finishedAt) ?? now, ...haul.lifts.map((l) => ms(l.finishedAt) ?? now), start + 1);
   const span = end - start;
@@ -178,21 +188,21 @@ function Steps({ haul, now }: { haul: Haul; now: number }) {
       </thead>
       <tbody>
         {haul.lifts.map((l) => (
-          <Step key={l.seq} lift={l} start={start} span={span} now={now} />
+          <Step key={l.seq} lift={l} start={start} span={span} now={now} selected={l.seq === selected} onSelect={() => onSelect(l.seq)} />
         ))}
       </tbody>
     </table>
   );
 }
 
-function Step({ lift: l, start, span, now }: { lift: Lift; start: number; span: number; now: number }) {
+function Step({ lift: l, start, span, now, selected, onSelect }: { lift: Lift; start: number; span: number; now: number; selected: boolean; onSelect: () => void }) {
   const from = ms(l.scheduledAt) ?? start;
   const to = ms(l.finishedAt) ?? now;
   const left = ((from - start) / span) * 100;
   const width = Math.max(((to - from) / span) * 100, 0.6);
   const t = took(l.scheduledAt, l.finishedAt, now);
   return (
-    <tr>
+    <tr className={`clickable${selected ? " selected" : ""}`} onClick={onSelect} title="show its logs">
       <td>
         <strong>{l.name}</strong>
       </td>

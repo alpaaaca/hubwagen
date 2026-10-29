@@ -8,22 +8,35 @@ extract_orders reads a source that can change, so it is not memoized: it
 runs every time. daily_revenue and revenue_report are memoized: when the
 orders for a day come out identical (same content hash), they are reused,
 and when their own code changes, they run again.
+
+Each lift prints and logs what it does; `hubwagen dev` and the web UI show
+it with the step (print() and logging both work).
 """
 
 import csv
+import logging
 from decimal import Decimal
 from pathlib import Path
 
 import hubwagen as hw
 
 SOURCE = Path(__file__).resolve().parent.parent / "data" / "orders.csv"
+log = logging.getLogger(__name__)
 
 
 @hw.lift(output=hw.Dataset("raw.orders", partition="day"))
 def extract_orders(day: str) -> dict:
     """The day's orders from the source system (here: a CSV file)."""
+    log.info("reading %s", SOURCE.name)
     with SOURCE.open() as f:
         rows = [r for r in csv.DictReader(f) if r["day"] == day]
+    if not rows:
+        log.warning("no orders for %s in %s: the report will be empty", day, SOURCE.name)
+    else:
+        by_region: dict[str, int] = {}
+        for r in rows:
+            by_region[r["region"]] = by_region.get(r["region"], 0) + 1
+        print(f"{len(rows)} orders for {day}: " + ", ".join(f"{n} {region}" for region, n in sorted(by_region.items())))
     out = hw.output()
     with (out.path / "orders.csv").open("w", newline="") as f:
         w = csv.writer(f)
@@ -41,6 +54,13 @@ def daily_revenue(orders: hw.Pallet, day: str) -> dict:
         for r in csv.DictReader(f):
             totals[r["region"]] = totals.get(r["region"], Decimal(0)) + Decimal(r["amount"])
     totals = {region: amount.quantize(Decimal("0.01")) for region, amount in totals.items()}
+    grand = sum(totals.values(), Decimal(0))
+    for region, amount in sorted(totals.items(), key=lambda kv: -kv[1]):
+        share = amount / grand * 100 if grand else Decimal(0)
+        print(f"{region:<5} {amount:>9}  {share:4.1f}%")
+    if totals:
+        top = max(totals, key=lambda region: totals[region])
+        log.info("%s brings the most revenue on %s", top, day)
     out = hw.output()
     with (out.path / "revenue.csv").open("w", newline="") as f:
         w = csv.writer(f)
@@ -57,7 +77,10 @@ def revenue_report(revenue: hw.Pallet, day: str) -> str:
     with revenue.path("revenue.csv").open() as f:
         rows = list(csv.DictReader(f))
     lines = [f"Revenue on {day}"] + [f"  {r['region']:<5} {r['revenue']:>10}" for r in rows]
-    (hw.output().path / "report.txt").write_text("\n".join(lines) + "\n")
+    text = "\n".join(lines) + "\n"
+    (hw.output().path / "report.txt").write_text(text)
+    print(text, end="")
+    log.info("wrote report.txt (%d bytes)", len(text.encode()))
     return lines[0]
 
 

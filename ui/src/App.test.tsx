@@ -1,5 +1,5 @@
 import { create, type MessageInitShape } from "@bufbuild/protobuf";
-import { timestampFromDate } from "@bufbuild/protobuf/wkt";
+import { timestampFromDate, type Timestamp } from "@bufbuild/protobuf/wkt";
 import { createRouterTransport } from "@connectrpc/connect";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -7,6 +7,7 @@ import userEvent from "@testing-library/user-event";
 import { ApiProvider, apiFor } from "./api";
 import { App } from "./App";
 import { HaulSchema, HaulService, LiftCountsSchema, LiftSchema, LogbookEventSchema } from "./gen/hubwagen/v1/haul_pb";
+import { LogService } from "./gen/hubwagen/v1/log_pb";
 
 const start = new Date(2026, 9, 24, 3, 0, 0);
 const at = (seconds: number) => timestampFromDate(new Date(start.getTime() + seconds * 1000));
@@ -40,17 +41,36 @@ function fakeServer() {
     liftCounts: create(LiftCountsSchema, { total: 3, completed: 3, reused: 3 }),
   });
   const stuck = haul("01M6BBBBBBBBBBBBBBBBBBBBBB", "hourly", "stuck", { reason: "nondeterminism", message: "time.time() called" });
+  const broken = haul("01M6EEEEEEEEEEEEEEEEEEEEEE", "daily", "failed", {
+    paramsJson: '{"day":"2026-10-22"}',
+    finishedAt: at(2),
+    reason: "LiftFailed",
+    lifts: [
+      create(LiftSchema, { seq: 1, name: "extract", status: "completed", scheduledAt: at(0), finishedAt: at(1) }),
+      create(LiftSchema, { seq: 2, name: "build", status: "failed", reason: "ValueError", message: "no orders", scheduledAt: at(1), finishedAt: at(2), after: [1] }),
+    ],
+  });
+  const runLogs: Record<string, { seq: number; lift: string; attempt: number; line: { time: Timestamp; stream: string; level?: string; text: string } }[]> = {
+    [daily.id]: [
+      { seq: 1, lift: "extract", attempt: 1, line: { time: at(0.1), stream: "stdout", text: "reading 6 orders" } },
+      { seq: 2, lift: "build", attempt: 1, line: { time: at(3.1), stream: "log", level: "WARNING", text: "one order has no region" } },
+    ],
+    [broken.id]: [
+      { seq: 1, lift: "extract", attempt: 1, line: { time: at(0.1), stream: "stdout", text: "reading 0 orders" } },
+      { seq: 2, lift: "build", attempt: 1, line: { time: at(1.1), stream: "stderr", text: "ValueError: no orders" } },
+    ],
+  };
   const transport = createRouterTransport(({ service }) => {
     service(HaulService, {
       listHauls(req) {
         record("listHauls", req);
         if (req.parentId) return { hauls: [haul("01M6CHILDCHILDCHILDCHILD01", "child", "completed", { parentId: req.parentId })] };
-        const all = [daily, done, stuck];
+        const all = [daily, done, stuck, broken];
         return { hauls: all.filter((h) => (!req.name || h.name === req.name) && (!req.statuses.length || req.statuses.includes(h.status))) };
       },
       getHaul(req) {
         record("getHaul", req);
-        return { haul: [daily, done, stuck].find((h) => h.id === req.haulId) };
+        return { haul: [daily, done, stuck, broken].find((h) => h.id === req.haulId) };
       },
       getLogbook(req) {
         record("getLogbook", req);
@@ -79,6 +99,12 @@ function fakeServer() {
         return { schedules: [{ haul: "daily", cron: "0 3 * * *", timezone: "Europe/Berlin", nextRun: at(86400) }], subscriptions: [] };
       },
     });
+    service(LogService, {
+      getLogs(req) {
+        record("getLogs", req);
+        return { lines: (runLogs[req.haulId] ?? []).filter((l) => !req.seq || l.seq === req.seq) };
+      },
+    });
   });
   return { api: apiFor(transport), calls };
 }
@@ -100,7 +126,7 @@ test("the start page: pipelines by title, and the latest runs", async () => {
   const cards = await screen.findByRole("navigation", { name: "pipelines" });
   const card = within(cards).getByRole("link", { name: "Daily revenue" });
   expect(card).toHaveTextContent("Orders to a report, per day.");
-  expect(card).toHaveTextContent(/2 runs · none failed · usually 4.0 s/);
+  expect(card).toHaveTextContent(/3 runs · 1 failed · usually 4.0 s/);
   expect(within(cards).getByRole("link", { name: "hourly" })).toHaveTextContent("1 failed"); // no title: its name
 
   // Runs say what went in, how far they got, how long they took and what came out.
@@ -164,6 +190,15 @@ test("a run: steps on a timeline, children, events, signal and cancel", async ()
   expect(within(build).getByText("reused")).toBeInTheDocument();
   expect(build).toHaveTextContent("nothing ran");
   expect(within(steps).getByText("report").closest("tr")).toHaveTextContent("running");
+
+  // Logs: all steps, each line marked with its step; a step shows its own.
+  const logs = screen.getByRole("log", { name: "log lines" });
+  expect(await within(logs).findByText("reading 6 orders")).toBeInTheDocument();
+  expect(within(logs).getByText("one order has no region").closest(".log-line")).toHaveTextContent(/build\s*WARNING/);
+  await userEvent.click(build);
+  await waitFor(() => expect(within(logs).queryByText("reading 6 orders")).not.toBeInTheDocument());
+  expect(calls.getLogs.at(-1)).toMatchObject({ haulId: "01M6AAAAAAAAAAAAAAAAAAAAAA", seq: 2 });
+  expect(screen.getByLabelText("logs of")).toHaveValue("2");
   expect(await screen.findByText("child")).toBeInTheDocument();
   expect(calls.listHauls[0]).toMatchObject({ parentId: "01M6AAAAAAAAAAAAAAAAAAAAAA" });
   expect(await screen.findByText("HaulStarted")).toBeInTheDocument();
@@ -185,6 +220,16 @@ test("a finished run shows its result", async () => {
   expect(screen.getByText("total").nextElementSibling).toHaveTextContent("775.99");
   expect(screen.getByText(/took 4.0 s · 3 steps · all reused/)).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+});
+
+test("a failed run opens on the failed step's log", async () => {
+  const { calls } = show("#/hauls/01M6EEEEEEEEEEEEEEEEEEEEEE");
+  const logs = await screen.findByRole("log", { name: "log lines" });
+  expect(await within(logs).findByText("ValueError: no orders")).toBeInTheDocument();
+  expect(within(logs).queryByText("reading 0 orders")).not.toBeInTheDocument();
+  expect(calls.getLogs[0]).toMatchObject({ seq: 2 });
+  await userEvent.selectOptions(screen.getByLabelText("logs of"), "all steps");
+  expect(await within(logs).findByText("reading 0 orders")).toBeInTheDocument();
 });
 
 test("a stuck haul can be resumed", async () => {

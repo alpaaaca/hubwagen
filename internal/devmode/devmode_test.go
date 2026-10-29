@@ -47,7 +47,7 @@ func TestStateSurvivesRestart(t *testing.T) {
 	var lines []string
 	fctx, cancel := context.WithTimeout(ctx, 600*time.Millisecond)
 	defer cancel()
-	e.Follow(fctx, 0, func(s string) { lines = append(lines, s) })
+	e.Follow(fctx, 0, func(s string) { lines = append(lines, s) }, nil)
 	require.Len(t, lines, 2)
 	assert.Equal(t, "build b1 registered (1 hauls, 0 lifts)", lines[0])
 	assert.Contains(t, lines[1], `daily started {"day":"2026-10-24"}`)
