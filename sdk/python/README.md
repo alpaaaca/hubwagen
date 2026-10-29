@@ -66,6 +66,10 @@ committed pallet of a dataset partition, recorded so every replay sees the
 same one), `now`, `random` and `state`. A failed lift raises
 `hubwagen.LiftFailed` in the haul.
 
+The web UI calls a haul by its title: `@hw.haul(title="Daily revenue")`,
+or else the first line of its docstring; the rest of the docstring
+describes it. Without either, it shows the haul's name.
+
 Hauls can start hauls: `ctx.haul(other, **params)` waits for the child's
 result (raising `hubwagen.ChildFailed` if it fails), `ctx.start_haul(other,
 **params)` starts it and returns its ID. Ending a haul cancels the children

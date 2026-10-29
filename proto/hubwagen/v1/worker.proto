@@ -51,6 +51,16 @@ message RegisterBuildRequest {
   // Retention of datasets this build's lifts write. The newest build that
   // declares a dataset decides; declaring it without keep removes it.
   repeated DatasetRetention datasets = 6;
+  // What the hauls are, for people (the web UI), by haul name.
+  repeated HaulInfo haul_info = 7;
+}
+
+// HaulInfo describes a haul for people: a title ("Daily revenue") and a
+// longer description.
+message HaulInfo {
+  string haul = 1;
+  string title = 2;
+  string description = 3;
 }
 
 // DatasetRetention keeps, per partition, the latest pallet and those among

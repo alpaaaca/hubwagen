@@ -111,6 +111,32 @@ func TestHaulUnsetJSONStaysNil(t *testing.T) {
 	assert.Nil(t, ls[0].Result)
 }
 
+func TestCountLifts(t *testing.T) {
+	s, _ := openFile(t)
+	writes := []func(tx *Tx) error{
+		func(tx *Tx) error { return tx.PutHaul(haul("h1", HaulRunning)) },
+		func(tx *Tx) error { return tx.PutHaul(haul("h2", HaulRunning)) },
+		func(tx *Tx) error { return tx.PutHaul(haul("h3", HaulRunning)) },
+	}
+	for i, st := range []string{LiftCompleted, LiftCompleted, LiftFailed, LiftCancelled, LiftDispatched} {
+		l := lift("h1", i+1, st)
+		l.Reused = i == 0
+		writes = append(writes, func(tx *Tx) error { return tx.PutLift(l) })
+	}
+	writes = append(writes, func(tx *Tx) error { return tx.PutLift(lift("h2", 1, LiftScheduled)) })
+	put(t, s, nil, writes...)
+
+	got, err := s.CountLifts(ctx, []string{"h1", "h2", "h3"})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]LiftCounts{
+		"h1": {Total: 5, Completed: 2, Reused: 1, Failed: 1, Cancelled: 1},
+		"h2": {Total: 1},
+	}, got, "h3 has no lifts")
+	got, err = s.CountLifts(ctx, nil)
+	require.NoError(t, err)
+	assert.Empty(t, got)
+}
+
 func TestHaulUpsertUpdatesMutableFieldsOnly(t *testing.T) {
 	s, _ := openFile(t)
 	h := haul("h1", HaulRunning)

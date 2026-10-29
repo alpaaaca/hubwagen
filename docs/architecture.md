@@ -665,7 +665,7 @@ leader gives restored attempts fresh ones.
 ## Local dev and single-node mode
 
 ```
-$ hubwagen dev                                # server + web UI (M5), SQLite in .hubwagen/
+$ hubwagen dev                                # server + web UI on the same port, SQLite in .hubwagen/
 $ python -m hubwagen.worker                   # local worker; modules from pyproject.toml
 $ hubwagen start daily_revenue --day 2026-10-24
 $ pytest                                      # hauls against scripted results: hubwagen.testing.run

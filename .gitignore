@@ -52,3 +52,7 @@ __pycache__/
 .pytest_cache/
 .venv/
 *.egg-info/
+
+# The web UI build, embedded by internal/webui; made by go generate ./internal/webui
+/internal/webui/dist/*
+!/internal/webui/dist/.gitkeep

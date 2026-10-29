@@ -50,6 +50,8 @@ spec-kit.
 | `internal/config` | `hubwagen.yaml`: data dir, listen address, worker processes |
 | `internal/supervise` | Runs and restarts worker processes for `dev` and `workers` (prefixed output, SIGTERM then kill) |
 | `cmd/` | `dev`, `workers`, `start`, `replay`, `signal`, `schedules`, `datasets`, `pallets`, `pallet` (and `pallet invalidate`), `stale`, `gc`, `version` |
+| `internal/webui` | Serves the web UI from the binary (embedded `dist/`, filled by `go generate ./internal/webui`; a placeholder page without it) |
+| `ui/` | Web UI: React + TypeScript + Vite on the Connect services (clients generated from `proto/` into `ui/src/gen`); vitest tests |
 | `sdk/python/` | Python SDK (stdlib only, Python ≥ 3.12): `@haul`, `@lift`, replay engine, worker; pytest runs it against a real `hubwagen dev` |
 | `pipelines/examples/revenue/` | Example Python project; `sdk/python/tests/test_example.py` is its demo |
 | `tests/` | Cross-package end-to-end tests (leader restarts) |
@@ -99,6 +101,10 @@ go vet ./...
 go test ./...
 go test -race ./...
 go generate ./internal/api    # after changing proto/: buf lint + generate (via go run, nothing to install)
+(cd ui && npm run gen)        # ...and the UI's TypeScript clients
+go generate ./internal/webui  # build the web UI into the binary (needs Node; dist/ isn't committed)
+(cd ui && npm ci && npm test && npm run typecheck)   # UI tests
+(cd ui && npm run dev)        # UI dev server, proxying the API to a running hubwagen dev
 (cd sdk/python && uv run --no-project --with pytest --with polars --with pandas --with pyarrow --python 3.12 pytest -q)   # Python SDK, incl. against hubwagen dev and dataframes
 (cd pipelines/examples/revenue && PYTHONPATH=../../../sdk/python/src python3 -m hubwagen.lint)   # lint haul code
 

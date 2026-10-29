@@ -41,12 +41,14 @@ UI, invalidation, staleness). See
 
 ## Try it
 
-Requires Go 1.26+ and Python 3.12+.
+Requires Go 1.26+ and Python 3.12+ (and Node 20+ for the web UI).
 
 ```bash
+go generate ./internal/webui   # builds the web UI into the binary (optional; needs Node)
 go build -o hubwagen .
 # the server plus three workers, as pipelines/examples/revenue/hubwagen.yaml says
 ./hubwagen dev --config pipelines/examples/revenue/hubwagen.yaml
+# the web UI: http://127.0.0.1:7070/
 ```
 
 ```bash

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"time"
 
 	"connectrpc.com/connect"
@@ -55,19 +56,48 @@ func (s *HaulServer) SignalHaul(ctx context.Context, req *connect.Request[hubwag
 	return connect.NewResponse(&hubwagenv1.SignalHaulResponse{SignalId: id}), nil
 }
 
+func (s *HaulServer) CancelHaul(ctx context.Context, req *connect.Request[hubwagenv1.CancelHaulRequest]) (*connect.Response[hubwagenv1.CancelHaulResponse], error) {
+	by := req.Msg.By
+	if by == "" {
+		by = "the API"
+	}
+	if err := s.core.CancelHaul(ctx, req.Msg.HaulId, by); err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&hubwagenv1.CancelHaulResponse{}), nil
+}
+
+func (s *HaulServer) ResumeHaul(ctx context.Context, req *connect.Request[hubwagenv1.ResumeHaulRequest]) (*connect.Response[hubwagenv1.ResumeHaulResponse], error) {
+	if err := s.core.ResumeHaul(ctx, req.Msg.HaulId); err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&hubwagenv1.ResumeHaulResponse{}), nil
+}
+
 func (s *HaulServer) ListHauls(ctx context.Context, req *connect.Request[hubwagenv1.ListHaulsRequest]) (*connect.Response[hubwagenv1.ListHaulsResponse], error) {
 	m := req.Msg
 	limit := int(m.Limit)
 	if limit > 1000 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("limit %d: at most 1000", limit))
 	}
-	hauls, err := s.store.ListHauls(ctx, state.HaulFilter{Tenant: m.Tenant, Name: m.Name, Statuses: m.Statuses, Limit: limit})
+	hauls, err := s.store.ListHauls(ctx, state.HaulFilter{Tenant: m.Tenant, Name: m.Name, Statuses: m.Statuses,
+		ParentID: m.ParentId, BeforeID: m.BeforeId, Limit: limit})
+	if err != nil {
+		return nil, connectError(err)
+	}
+	ids := make([]string, len(hauls))
+	for i, h := range hauls {
+		ids[i] = h.ID
+	}
+	counts, err := s.store.CountLifts(ctx, ids)
 	if err != nil {
 		return nil, connectError(err)
 	}
 	out := &hubwagenv1.ListHaulsResponse{}
 	for _, h := range hauls {
-		out.Hauls = append(out.Hauls, haulMessage(h))
+		m := haulMessage(h)
+		m.LiftCounts = liftCountsMessage(counts[h.ID])
+		out.Hauls = append(out.Hauls, m)
 	}
 	return connect.NewResponse(out), nil
 }
@@ -161,23 +191,81 @@ func (s *HaulServer) GetHaul(ctx context.Context, req *connect.Request[hubwagenv
 		}
 	}
 
+	// The DAG: a lift comes after the lifts whose pallets it reads.
+	producedBy := map[string]int32{}
+	for seq, f := range results {
+		if f.Pallet != "" {
+			producedBy[f.Pallet] = seq
+		}
+	}
 	out := haulMessage(h)
+	var counts state.LiftCounts
 	for _, l := range lifts {
 		f := results[int32(l.Seq)]
-		out.Lifts = append(out.Lifts, &hubwagenv1.Lift{
+		m := &hubwagenv1.Lift{
 			Seq: int32(l.Seq), Name: l.Name, Status: l.Status, RunReason: l.RunReason, Reused: f.Reused,
 			Attempts: int32(l.Attempts), Pallet: f.Pallet, Reason: l.Reason, Message: l.Message,
-		})
+			ScheduledAt: timestamppb.New(l.ScheduledAt), ResultJson: string(l.Result),
+		}
+		var inputs []struct {
+			Pallet string `json:"pallet"`
+		}
+		var output struct {
+			Dataset string `json:"dataset"`
+		}
+		_ = json.Unmarshal(l.Inputs, &inputs) // encoded by the core; nil when it has none
+		_ = json.Unmarshal(l.Output, &output)
+		for _, in := range inputs {
+			if seq, ok := producedBy[in.Pallet]; ok && seq != m.Seq && !slices.Contains(m.After, seq) {
+				m.After = append(m.After, seq)
+			}
+		}
+		slices.Sort(m.After)
+		m.Dataset = output.Dataset
+		if l.FinishedAt != nil {
+			m.FinishedAt = timestamppb.New(*l.FinishedAt)
+		}
+		out.Lifts = append(out.Lifts, m)
+		counts.Total++
+		switch l.Status {
+		case state.LiftCompleted:
+			counts.Completed++
+			if l.Reused {
+				counts.Reused++
+			}
+		case state.LiftFailed:
+			counts.Failed++
+		case state.LiftCancelled:
+			counts.Cancelled++
+		}
 	}
+	out.LiftCounts = liftCountsMessage(counts)
 	return connect.NewResponse(&hubwagenv1.GetHaulResponse{Haul: out}), nil
 }
 
 // haulMessage is a haul without its lifts.
+func (s *HaulServer) ListPipelines(ctx context.Context, _ *connect.Request[hubwagenv1.ListPipelinesRequest]) (*connect.Response[hubwagenv1.ListPipelinesResponse], error) {
+	ps, err := s.store.ListPipelines(ctx)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	out := &hubwagenv1.ListPipelinesResponse{}
+	for _, p := range ps {
+		out.Pipelines = append(out.Pipelines, &hubwagenv1.Pipeline{Name: p.Name, Title: p.Title, Description: p.Description})
+	}
+	return connect.NewResponse(out), nil
+}
+
+func liftCountsMessage(c state.LiftCounts) *hubwagenv1.LiftCounts {
+	return &hubwagenv1.LiftCounts{Total: int32(c.Total), Completed: int32(c.Completed), Reused: int32(c.Reused),
+		Failed: int32(c.Failed), Cancelled: int32(c.Cancelled)}
+}
+
 func haulMessage(h state.Haul) *hubwagenv1.Haul {
 	out := &hubwagenv1.Haul{
 		Id: h.ID, Tenant: h.Tenant, Name: h.Name, Status: h.Status, Reason: h.Reason, Message: h.Message,
 		ResultJson: string(h.Result), CreatedAt: timestamppb.New(h.CreatedAt),
-		ParentId: h.ParentID, ContinuedAs: h.ContinuedAs,
+		ParentId: h.ParentID, ContinuedAs: h.ContinuedAs, Trigger: h.Trigger,
 	}
 	if len(h.Params) > 0 {
 		if b, err := json.Marshal(h.Params); err == nil { // a JSON object read from the store

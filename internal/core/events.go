@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/alper/hubwagen/internal/pallet"
+	"github.com/alper/hubwagen/internal/state"
 )
 
 // Event payloads. They are stored as JSON in the event log and read by the
@@ -208,9 +209,10 @@ type liftWaitingPayload struct {
 }
 
 type buildRegisteredPayload struct {
-	ID    string            `json:"id"`
-	Hauls []string          `json:"hauls,omitempty"`
-	Lifts map[string]string `json:"lifts"`
+	ID    string                    `json:"id"`
+	Hauls []string                  `json:"hauls,omitempty"`
+	Info  map[string]state.HaulInfo `json:"info,omitempty"`
+	Lifts map[string]string         `json:"lifts"`
 }
 
 type timerStartedPayload struct {

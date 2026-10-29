@@ -34,10 +34,11 @@ import (
 type BuildRequest struct {
 	ID            string
 	Hauls         []string
-	Lifts         map[string]string  // lift name → code version
-	Schedules     []ScheduleSpec     // for hauls it defines; see schedules.go
-	Subscriptions []SubscriptionSpec // for hauls it defines; see subscriptions.go
-	Datasets      []DatasetSpec      // retention of datasets its lifts write; see retention.go
+	Lifts         map[string]string         // lift name → code version
+	Schedules     []ScheduleSpec            // for hauls it defines; see schedules.go
+	Subscriptions []SubscriptionSpec        // for hauls it defines; see subscriptions.go
+	Datasets      []DatasetSpec             // retention of datasets its lifts write; see retention.go
+	Info          map[string]state.HaulInfo // titles and descriptions of hauls it defines
 }
 
 // RegisterBuild records a build. Registering the same build again is a
@@ -80,6 +81,11 @@ func (c *Core) RegisterBuild(ctx context.Context, req BuildRequest) error {
 		if err := validateDatasets(req.Datasets); err != nil {
 			return struct{}{}, fmt.Errorf("build %s: %w", req.ID, err)
 		}
+		for name := range req.Info {
+			if !slices.Contains(hauls, name) {
+				return struct{}{}, fmt.Errorf("%w: build %s: info for haul %s, which it does not define", ErrInvalid, req.ID, name)
+			}
+		}
 		lifts := map[string]string{}
 		for k, v := range req.Lifts {
 			if k == "" || v == "" {
@@ -88,9 +94,15 @@ func (c *Core) RegisterBuild(ctx context.Context, req BuildRequest) error {
 			lifts[k] = v
 		}
 		c.addBuild(req.ID, lifts, hauls)
-		b := state.Build{ID: req.ID, Hauls: hauls, Lifts: lifts, RegisteredAt: c.now()}
+		info := map[string]state.HaulInfo{}
+		for name, i := range req.Info {
+			if i != (state.HaulInfo{}) {
+				info[name] = i
+			}
+		}
+		b := state.Build{ID: req.ID, Hauls: hauls, Info: info, Lifts: lifts, RegisteredAt: c.now()}
 		c.b.catalog = append(c.b.catalog, func(tx *state.Tx) error { return tx.PutBuild(b) })
-		c.emit(state.EventBuildRegistered, "", buildRegisteredPayload{ID: req.ID, Hauls: hauls, Lifts: lifts})
+		c.emit(state.EventBuildRegistered, "", buildRegisteredPayload{ID: req.ID, Hauls: hauls, Info: info, Lifts: lifts})
 		c.applySchedules(req.ID, hauls, schedules)
 		c.applySubscriptions(req.ID, hauls, subs)
 		c.applyRetention(req.ID, req.Datasets)
