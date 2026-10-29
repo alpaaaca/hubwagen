@@ -3,7 +3,7 @@
 One run per day: `extract_orders` → `daily_revenue` → `revenue_report`,
 each writing a new version of its dataset (CSV and text files). Source data: `data/orders.csv`. `nightly`
 ([revenue/nightly.py](revenue/nightly.py)) runs it on a schedule: at 03:00
-Berlin time, for the day that just ended.
+UTC, for the day that just ended.
 
 ```bash
 # from the repository root

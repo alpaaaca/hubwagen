@@ -62,7 +62,7 @@ def test_replay_reuses_what_did_not_change(demo):
     pipelines = api.call("HaulService", "ListPipelines", {})["pipelines"]
     assert [(p["name"], p["title"]) for p in pipelines] == [("daily", "Daily revenue"), ("nightly", "Nightly revenue")]
     schedules = api.call("HaulService", "ListSchedules", {})["schedules"]
-    assert [(s["haul"], s["cron"], s["timezone"]) for s in schedules] == [("nightly", "0 3 * * *", "Europe/Berlin")]
+    assert [(s["haul"], s["cron"], s.get("timezone", "")) for s in schedules] == [("nightly", "0 3 * * *", "")]  # UTC
     run = api.call("HaulService", "ListHauls", {"name": "daily", "limit": 1})["hauls"][0]
     assert run["trigger"] == "the CLI"
     assert run["liftCounts"] == {"total": 3, "completed": 3}

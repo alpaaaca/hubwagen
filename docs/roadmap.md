@@ -270,6 +270,10 @@ each is one PR:
    version: `hubwagen versions` and `hubwagen data` (`pallets` and
    `pallet` as aliases), the replay report in words ("1 ran (its code
    changed …)"). The API, proto and Go code keep the engine's names.
+   ✅ **Times in UTC**: every time people see is UTC and says so: the
+   web UI (times, run history and log clocks, intervals in inputs), the
+   CLI, the server's and the worker's logs. Schedules default to UTC (the
+   example's `nightly` too); a `timezone` still sets when a cron fires.
 7. **Web UI: catalog**: datasets, partitions and pallets with stale and
    invalid marked, lineage up and down as a graph, a pallet's files, and
    invalidating from the UI (with the same dry run first);

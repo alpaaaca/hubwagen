@@ -128,14 +128,17 @@ the run waits, and it survives restarts and deploys.
 ### Schedules
 
 ```python
-@hw.pipeline(schedule=hw.Schedule("0 3 * * *", interval="daily", timezone="Europe/Berlin", catch_up="all"))
+@hw.pipeline(schedule=hw.Schedule("0 3 * * *", interval="daily", catch_up="all"))
 def daily_revenue(ctx, interval: hw.Interval):
-    day = interval.start.date()          # yesterday in Berlin; interval.end is today 00:00
+    day = interval.start.date()          # yesterday (UTC); interval.end is today 00:00 UTC
     ...
 ```
 
 The server starts a scheduled pipeline once per data interval and passes
-it as the `interval` input (`start`, `end`, timezone-aware). `interval` is
+it as the `interval` input (`start`, `end`, timezone-aware). Schedules are
+in UTC unless you give `timezone="Europe/Berlin"` (IANA): then the cron
+fires on that clock and intervals are its days, DST-correct. Whatever the
+schedule's timezone, hubwagen shows every time in UTC. `interval` is
 `hourly`, `daily`, `weekly` or `monthly` (the previous full period,
 DST-correct) or `cron` (previous tick to this one; the default, and what a
 plain cron string, `schedule="*/15 * * * *"`, gets). `catch_up` decides

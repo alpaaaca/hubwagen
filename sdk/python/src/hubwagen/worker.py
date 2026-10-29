@@ -318,6 +318,16 @@ class Worker:
         threading.Thread(target=watch, name="supervisor", daemon=True).start()
 
 
+def utc_logs() -> None:
+    """The worker's log lines carry UTC times, like everything hubwagen shows
+    (what lifts log is timed in UTC by the capture)."""
+    for h in logging.getLogger().handlers:
+        if h.formatter is not None:
+            h.formatter.converter = time.gmtime
+            h.formatter.default_time_format = "%Y-%m-%d %H:%M:%S"
+            h.formatter.default_msec_format = "%s.%03d UTC"
+
+
 def project_modules(directory: Path) -> list[str]:
     """The modules listed under [tool.hubwagen] modules in directory/pyproject.toml."""
     path = directory / "pyproject.toml"
@@ -375,6 +385,7 @@ def main(argv: list[str] | None = None) -> None:
                    help="print the build ID and what each pipeline's and step's code version covers, then exit")
     args = p.parse_args(argv)
     logging.basicConfig(level=args.log_level.upper(), format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    utc_logs()
 
     sys.path.insert(0, os.getcwd())
     for m in args.modules or project_modules(Path.cwd()):

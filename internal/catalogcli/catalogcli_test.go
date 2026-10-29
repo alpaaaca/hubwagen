@@ -245,3 +245,8 @@ func TestGC(t *testing.T) {
 	assert.Contains(t, out.String(), "data version o2, expired\n  reason     retention: raw.orders keeps each partition's latest and the newest 1")
 	assert.Contains(t, out.String(), "files      can't be read: expired: its data was removed")
 }
+
+func TestTimesAreUTC(t *testing.T) {
+	berlin := time.FixedZone("CEST", 2*60*60)
+	assert.Equal(t, "2026-10-24 05:00:00 UTC", when(time.Date(2026, 10, 24, 7, 0, 0, 0, berlin)))
+}
