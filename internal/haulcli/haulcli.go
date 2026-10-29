@@ -132,7 +132,7 @@ func (c *Client) Start(ctx context.Context, r HaulRequest) (string, error) {
 		return "", err
 	}
 	res, err := c.hauls.StartHaul(ctx, connect.NewRequest(&hubwagenv1.StartHaulRequest{
-		Tenant: r.Tenant, Name: r.Name, Dock: r.Dock, ParamsJson: string(params)}))
+		Tenant: r.Tenant, Name: r.Name, Dock: r.Dock, ParamsJson: string(params), Trigger: "the CLI"}))
 	if err != nil {
 		return "", err
 	}

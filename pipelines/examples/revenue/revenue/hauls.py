@@ -61,8 +61,9 @@ def revenue_report(revenue: hw.Pallet, day: str) -> str:
     return lines[0]
 
 
-@hw.haul
+@hw.haul(title="Daily revenue")
 def daily(ctx, day: str):
+    """Orders for one day, revenue per region from them, and a short report."""
     orders = ctx.lift(extract_orders, day)
     revenue = ctx.lift(daily_revenue, orders, day)
     report = ctx.lift(revenue_report, revenue, day)

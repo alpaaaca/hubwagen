@@ -52,6 +52,12 @@ func (s *WorkerServer) RegisterBuild(ctx context.Context, req *connect.Request[h
 	for _, d := range req.Msg.Datasets {
 		b.Datasets = append(b.Datasets, core.DatasetSpec{Name: d.Name, Versions: int(d.KeepVersions), Age: d.KeepFor.AsDuration()})
 	}
+	for _, i := range req.Msg.HaulInfo {
+		if b.Info == nil {
+			b.Info = map[string]state.HaulInfo{}
+		}
+		b.Info[i.Haul] = state.HaulInfo{Title: i.Title, Description: i.Description}
+	}
 	err := s.core.RegisterBuild(ctx, b)
 	if err != nil {
 		return nil, connectError(err)

@@ -26,6 +26,7 @@ import (
 	"github.com/alper/hubwagen/internal/layout"
 	"github.com/alper/hubwagen/internal/pallet"
 	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/hubwagen/internal/webui"
 )
 
 type Config struct {
@@ -128,6 +129,7 @@ func (e *Engine) serveAPI(addr string, log *slog.Logger) error {
 	mux.Handle(path, h)
 	path, h = api.NewHaulHandler(e.Core, e.Store)
 	mux.Handle(path, h)
+	mux.Handle("/", webui.Handler()) // the Connect services' paths above are more specific
 	path, h = api.NewCatalogHandler(e.Core, e.Store, pallet.NewStore(e.Bucket, layout.New(e.Bucket.Base())))
 	mux.Handle(path, h)
 	e.api = &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}

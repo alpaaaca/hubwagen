@@ -200,6 +200,8 @@ class HaulDef:
     max_parallel: int | None = None  # lifts of one haul queued or running at once
     schedule: Schedule | None = None
     subscribe: Subscription | None = None
+    title: str = ""  # for people: the web UI shows it in place of the name
+    description: str = ""
 
     @functools.cached_property
     def _computed_version(self) -> str:
@@ -250,8 +252,8 @@ def _register(registry: dict, d) -> None:
     registry[d.name] = d
 
 
-def haul(fn: Callable | None = None, *, name: str | None = None, dock: str | None = None,
-         max_parallel: int | None = None, schedule: Schedule | str | None = None,
+def haul(fn: Callable | None = None, *, name: str | None = None, title: str | None = None,
+         dock: str | None = None, max_parallel: int | None = None, schedule: Schedule | str | None = None,
          subscribe: Subscription | str | list | None = None):
     """Mark a function as a haul: deterministic orchestration code, called
     as fn(ctx, **params) and replayed against its logbook. max_parallel caps
@@ -259,7 +261,9 @@ def haul(fn: Callable | None = None, *, name: str | None = None, dock: str | Non
     schedule (a Schedule, or a cron string), the server starts it on its own,
     once per data interval: the function takes an `interval` parameter, a
     hubwagen.Interval. With subscribe (a Subscription, or dataset names),
-    new pallets in those datasets start it: it takes a `pallets` parameter."""
+    new pallets in those datasets start it: it takes a `pallets` parameter.
+    title ("Daily revenue") is what the web UI calls it; without one, the
+    docstring's first line is; the rest of the docstring describes it."""
     if max_parallel is not None and (not isinstance(max_parallel, int) or max_parallel < 1):
         raise ValueError(f"haul: max_parallel must be a positive integer, got {max_parallel!r}")
     if isinstance(schedule, str):
@@ -269,7 +273,7 @@ def haul(fn: Callable | None = None, *, name: str | None = None, dock: str | Non
 
     def wrap(f: Callable) -> Callable:
         d = HaulDef(name=name or f.__name__, fn=f, dock=dock, max_parallel=max_parallel, schedule=schedule,
-                    subscribe=subscribe)
+                    subscribe=subscribe, **_describe(f, title))
         if subscribe is not None and "pallets" not in inspect.signature(f).parameters:
             raise ValueError(f"haul {d.name}: a subscribed haul takes a `pallets` parameter (a list of hubwagen.Pallet)")
         if schedule is not None and "interval" not in inspect.signature(f).parameters:
@@ -279,6 +283,16 @@ def haul(fn: Callable | None = None, *, name: str | None = None, dock: str | Non
         return f
 
     return wrap(fn) if fn is not None else wrap
+
+
+def _describe(f: Callable, title: str | None) -> dict[str, str]:
+    """A haul's title and description: title if given, else the docstring's
+    first line; the description is the rest of the docstring."""
+    doc = inspect.getdoc(f) or ""
+    first, _, rest = doc.partition("\n")
+    if title:
+        return {"title": title.strip(), "description": doc}
+    return {"title": first.strip(), "description": rest.strip()}
 
 
 def _memo(memo: bool | str | None) -> str:

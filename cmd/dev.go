@@ -12,6 +12,7 @@ import (
 	"github.com/alper/hubwagen/internal/config"
 	"github.com/alper/hubwagen/internal/devmode"
 	"github.com/alper/hubwagen/internal/supervise"
+	"github.com/alper/hubwagen/internal/webui"
 )
 
 var (
@@ -71,6 +72,11 @@ func runDev(cmd *cobra.Command, _ []string) error {
 	fmt.Printf("hubwagen dev: config %s\n", configName(cfg))
 	fmt.Printf("hubwagen dev: data in %s; Ctrl-C to stop\n", e.DataDir)
 	fmt.Printf("hubwagen dev: API on http://%s\n", e.APIAddr)
+	if webui.Built() {
+		fmt.Printf("hubwagen dev: web UI on http://%s/\n", e.APIAddr)
+	} else {
+		fmt.Println("hubwagen dev: no web UI in this binary (go generate ./internal/webui, then go build)")
+	}
 	go e.Follow(ctx, from, func(line string) { fmt.Println("·", line) })
 
 	// Workers stop before the server, so running lifts can still report.

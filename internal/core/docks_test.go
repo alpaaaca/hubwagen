@@ -63,12 +63,13 @@ func TestLongPollWaitsForWork(t *testing.T) {
 
 func TestPollWaitExpiresOnCoreClock(t *testing.T) {
 	h := newHarness(t)
+	timers := h.clock.Pending() // the core's own, such as retention
 	done := make(chan pollResult, 1)
 	go func() {
 		task, ok, err := h.core.Poll(h.ctx, PollRequest{WorkerID: "w1", Docks: []string{"default"}, Wait: 30 * time.Second})
 		done <- pollResult{task, ok, err}
 	}()
-	require.Eventually(t, func() bool { return h.clock.Pending() > 0 }, 5*time.Second, time.Millisecond)
+	require.Eventually(t, func() bool { return h.clock.Pending() > timers }, 5*time.Second, time.Millisecond)
 
 	h.advance(29 * time.Second)
 	select {
@@ -188,13 +189,14 @@ func TestUnqueue(t *testing.T) {
 
 func TestPollWithdrawsWhenContextEnds(t *testing.T) {
 	h := newHarness(t)
+	timers := h.clock.Pending() // the core's own, such as retention
 	ctx, cancel := context.WithCancel(h.ctx)
 	done := make(chan error, 1)
 	go func() {
 		_, _, err := h.core.Poll(ctx, PollRequest{WorkerID: "gone", Docks: []string{"default"}, Wait: time.Hour})
 		done <- err
 	}()
-	require.Eventually(t, func() bool { return h.clock.Pending() > 0 }, 5*time.Second, time.Millisecond)
+	require.Eventually(t, func() bool { return h.clock.Pending() > timers }, 5*time.Second, time.Millisecond)
 	cancel()
 	assert.ErrorIs(t, <-done, context.Canceled)
 

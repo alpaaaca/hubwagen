@@ -282,7 +282,9 @@ type HaulFilter struct {
 	Tenant   string
 	Name     string
 	Statuses []string
-	Limit    int // default 50
+	ParentID string // children of this haul
+	BeforeID string // pages backwards: only IDs (ULIDs) lower than this
+	Limit    int    // default 50
 }
 
 // ListHauls returns hauls newest first.
@@ -296,6 +298,12 @@ func (s *Store) ListHauls(ctx context.Context, f HaulFilter) ([]Haul, error) {
 	}
 	if f.Name != "" {
 		where, args = append(where, "name = ?"), append(args, f.Name)
+	}
+	if f.ParentID != "" {
+		where, args = append(where, "parent_id = ?"), append(args, f.ParentID)
+	}
+	if f.BeforeID != "" {
+		where, args = append(where, "id < ?"), append(args, f.BeforeID)
 	}
 	if len(f.Statuses) > 0 {
 		where = append(where, "status IN (?"+strings.Repeat(", ?", len(f.Statuses)-1)+")")
@@ -311,6 +319,41 @@ func (s *Store) ListHauls(ctx context.Context, f HaulFilter) ([]Haul, error) {
 		q += " WHERE " + strings.Join(where, " AND ")
 	}
 	return queryAll(ctx, s.r, scanHaul, q+` ORDER BY id DESC LIMIT ?`, append(args, f.Limit)...)
+}
+
+// LiftCounts counts a haul's lifts by where they are.
+type LiftCounts struct {
+	Total, Completed, Reused, Failed, Cancelled int
+}
+
+// CountLifts returns LiftCounts for each of haulIDs that has lifts.
+func (s *Store) CountLifts(ctx context.Context, haulIDs []string) (map[string]LiftCounts, error) {
+	out := map[string]LiftCounts{}
+	if len(haulIDs) == 0 {
+		return out, nil
+	}
+	args := make([]any, len(haulIDs))
+	for i, id := range haulIDs {
+		args[i] = id
+	}
+	rows, err := s.r.QueryContext(ctx, `SELECT haul_id, COUNT(*),
+		SUM(status = 'completed'), SUM(status = 'completed' AND reused), SUM(status = 'failed'), SUM(status = 'cancelled')
+		FROM lifts WHERE haul_id IN (?`+strings.Repeat(", ?", len(haulIDs)-1)+`) GROUP BY haul_id`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var (
+			id string
+			c  LiftCounts
+		)
+		if err := rows.Scan(&id, &c.Total, &c.Completed, &c.Reused, &c.Failed, &c.Cancelled); err != nil {
+			return nil, err
+		}
+		out[id] = c
+	}
+	return out, rows.Err()
 }
 
 func (s *Store) GetHaul(ctx context.Context, id string) (Haul, error) {

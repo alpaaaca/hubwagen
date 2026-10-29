@@ -10,6 +10,8 @@ import subprocess
 
 import pytest
 
+import hubwagen as hw
+
 from conftest import REPO, start_dev, start_worker, stop
 
 EXAMPLE = REPO / "pipelines" / "examples" / "revenue"
@@ -37,13 +39,13 @@ def demo(hubwagen_bin, tmp_path):
         stop(procs["worker"])
         procs["worker"] = start_worker(url, None, project, tmp_path / "worker2.log")
 
-    yield project, replay, restart_worker
+    yield project, replay, restart_worker, url
     stop(procs["worker"])
     stop(dev, signal.SIGINT)
 
 
 def test_replay_reuses_what_did_not_change(demo):
-    project, replay, restart_worker = demo
+    project, replay, restart_worker, url = demo
 
     assert replay("2026-10-01..2026-10-03") == normalize("""
         3 hauls started
@@ -53,6 +55,19 @@ def test_replay_reuses_what_did_not_change(demo):
           revenue_report   3 run (no previous run)
         3 completed
     """)
+
+    # The web UI's view: the pipeline by its title, and each run's steps as
+    # a DAG (a step comes after the steps whose pallets it reads).
+    api = hw.Client(url)
+    pipelines = api.call("HaulService", "ListPipelines", {})["pipelines"]
+    assert [(p["name"], p["title"]) for p in pipelines] == [("daily", "Daily revenue")]
+    run = api.call("HaulService", "ListHauls", {"name": "daily", "limit": 1})["hauls"][0]
+    assert run["trigger"] == "the CLI"
+    assert run["liftCounts"] == {"total": 3, "completed": 3}
+    lifts = api.call("HaulService", "GetHaul", {"haulId": run["id"]})["haul"]["lifts"]
+    assert [(l["name"], l.get("after", []), l["dataset"]) for l in lifts] == [
+        ("extract_orders", [], "raw.orders"), ("daily_revenue", [1], "mart.daily_revenue"),
+        ("revenue_report", [2], "reports.revenue")]
 
     # The same days again: extract runs (it reads the source), finds the
     # same orders, so everything downstream is reused.

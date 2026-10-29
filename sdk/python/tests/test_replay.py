@@ -460,3 +460,24 @@ def test_lifts_must_agree_on_a_datasets_keep():
     finally:
         _model.LIFTS.clear()
         _model.LIFTS.update(saved)
+
+
+def test_haul_title_and_description():
+    @hw.haul(name="titled_from_doc")
+    def from_doc(ctx):
+        """Daily revenue
+
+        Orders for one day, and a report."""
+
+    @hw.haul(name="titled", title="Weekly revenue")
+    def titled(ctx):
+        """Seven days of orders."""
+
+    @hw.haul(name="untitled")
+    def untitled(ctx):
+        pass
+
+    got = {n: (_model.HAULS[n].title, _model.HAULS[n].description) for n in ("titled_from_doc", "titled", "untitled")}
+    assert got == {"titled_from_doc": ("Daily revenue", "Orders for one day, and a report."),
+                   "titled": ("Weekly revenue", "Seven days of orders."),
+                   "untitled": ("", "")}

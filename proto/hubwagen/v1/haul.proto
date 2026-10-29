@@ -19,6 +19,12 @@ service HaulService {
   // waiting for yet is kept until it waits; each goes to one wait. NOT_FOUND
   // for an unknown haul, FAILED_PRECONDITION for a finished one.
   rpc SignalHaul(SignalHaulRequest) returns (SignalHaulResponse);
+  // CancelHaul cancels an open haul: its queued work is withdrawn, the
+  // children it waits for are cancelled. A finished haul is left as is.
+  rpc CancelHaul(CancelHaulRequest) returns (CancelHaulResponse);
+  // ResumeHaul gives a stuck haul a new replay, typically after a fix was
+  // deployed. A haul that isn't stuck is left as is.
+  rpc ResumeHaul(ResumeHaulRequest) returns (ResumeHaulResponse);
   // ListHauls returns hauls newest first (without their lifts).
   rpc ListHauls(ListHaulsRequest) returns (ListHaulsResponse);
   // GetLogbook returns the events a replay of the haul reads, for replaying
@@ -27,6 +33,21 @@ service HaulService {
   // ListSchedules returns the current haul schedules and their next runs,
   // and the dataset subscriptions.
   rpc ListSchedules(ListSchedulesRequest) returns (ListSchedulesResponse);
+  // ListPipelines returns the hauls the registered builds define, with the
+  // title and description of the newest build that defines each.
+  rpc ListPipelines(ListPipelinesRequest) returns (ListPipelinesResponse);
+}
+
+message ListPipelinesRequest {}
+message ListPipelinesResponse {
+  repeated Pipeline pipelines = 1;
+}
+message Pipeline {
+  // The haul's name in code.
+  string name = 1;
+  // Empty if its code gives none.
+  string title = 2;
+  string description = 3;
 }
 
 message ListHaulsRequest {
@@ -36,7 +57,25 @@ message ListHaulsRequest {
   repeated string statuses = 3;
   // Default 50, at most 1000.
   int32 limit = 4;
+  // Only the children of this haul (started by its start_haul commands).
+  string parent_id = 5;
+  // Only hauls older than this one (paging).
+  string before_id = 6;
 }
+
+message CancelHaulRequest {
+  string haul_id = 1;
+  // Who asked, for the record.
+  string by = 2;
+}
+
+message CancelHaulResponse {}
+
+message ResumeHaulRequest {
+  string haul_id = 1;
+}
+
+message ResumeHaulResponse {}
 
 message ListHaulsResponse {
   repeated Haul hauls = 1;
@@ -145,6 +184,20 @@ message Haul {
   string parent_id = 12;
   // Status continued: the haul that carries on.
   string continued_as = 13;
+  // What started it: "schedule", "subscription", "haul <id>" (a child),
+  // "continue <id>", or what the caller of StartHaul said.
+  string trigger = 14;
+  // How many of its lifts are where, so far.
+  LiftCounts lift_counts = 15;
+}
+
+message LiftCounts {
+  int32 total = 1;
+  int32 completed = 2;
+  // Of the completed: memoized, nothing ran.
+  int32 reused = 3;
+  int32 failed = 4;
+  int32 cancelled = 5;
 }
 
 message Lift {
@@ -164,4 +217,12 @@ message Lift {
   // Why it failed or was cancelled.
   string reason = 8;
   string message = 9;
+  // When the haul asked for it, and when it finished.
+  google.protobuf.Timestamp scheduled_at = 10;
+  google.protobuf.Timestamp finished_at = 11;
+  string result_json = 12;
+  // The lifts of this haul (by seq) whose pallets it reads: the haul's DAG.
+  repeated int32 after = 13;
+  // The dataset its pallet goes to, if it has an output.
+  string dataset = 14;
 }

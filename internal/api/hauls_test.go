@@ -98,6 +98,29 @@ func TestSchedulesOverTheAPI(t *testing.T) {
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
+func TestListPipelines(t *testing.T) {
+	s := start(t)
+	mux := http.NewServeMux()
+	path, h := NewHaulHandler(s.core, s.store)
+	mux.Handle(path, h)
+	hauls := hubwagenv1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
+	register := func(id string, info ...*hubwagenv1.HaulInfo) error {
+		_, err := s.client.RegisterBuild(ctx, connect.NewRequest(&hubwagenv1.RegisterBuildRequest{
+			BuildId: id, Hauls: []string{"daily", "hourly"}, HaulInfo: info}))
+		return err
+	}
+	require.NoError(t, register("b1", &hubwagenv1.HaulInfo{Haul: "daily", Title: "Daily", Description: "old"}))
+	require.NoError(t, register("b2", &hubwagenv1.HaulInfo{Haul: "daily", Title: "Daily revenue", Description: "Orders to a report."}))
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(register("b3", &hubwagenv1.HaulInfo{Haul: "weekly", Title: "x"})))
+
+	got, err := hauls.ListPipelines(ctx, connect.NewRequest(&hubwagenv1.ListPipelinesRequest{}))
+	require.NoError(t, err)
+	require.Len(t, got.Msg.Pipelines, 2)
+	assert.Equal(t, []string{"daily", "Daily revenue", "Orders to a report."},
+		[]string{got.Msg.Pipelines[0].Name, got.Msg.Pipelines[0].Title, got.Msg.Pipelines[0].Description}, "the newest build decides")
+	assert.Equal(t, []string{"hourly", ""}, []string{got.Msg.Pipelines[1].Name, got.Msg.Pipelines[1].Title})
+}
+
 func TestListHaulsAndLogbook(t *testing.T) {
 	s := start(t)
 	mux := http.NewServeMux()
@@ -131,4 +154,41 @@ func TestListHaulsAndLogbook(t *testing.T) {
 	}
 	_, err = c.GetLogbook(ctx, connect.NewRequest(&hubwagenv1.GetLogbookRequest{HaulId: "nope"}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+}
+
+func TestCancelResumeAndChildren(t *testing.T) {
+	s := start(t)
+	mux := http.NewServeMux()
+	path, h := NewHaulHandler(s.core, s.store)
+	mux.Handle(path, h)
+	c := hubwagenv1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
+	require.NoError(t, s.core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Hauls: []string{"x"}}))
+	res, err := c.StartHaul(ctx, connect.NewRequest(&hubwagenv1.StartHaulRequest{Tenant: "t", Name: "x"}))
+	require.NoError(t, err)
+	id := res.Msg.HaulId
+
+	_, err = c.ResumeHaul(ctx, connect.NewRequest(&hubwagenv1.ResumeHaulRequest{HaulId: id}))
+	require.NoError(t, err, "not stuck: a no-op")
+	_, err = c.CancelHaul(ctx, connect.NewRequest(&hubwagenv1.CancelHaulRequest{HaulId: id, By: "ana"}))
+	require.NoError(t, err)
+	got, err := s.store.GetHaul(ctx, id)
+	require.NoError(t, err)
+	assert.Equal(t, state.HaulCancelled, got.Status)
+	assert.Equal(t, "cancelled by ana", got.Message)
+	_, err = c.CancelHaul(ctx, connect.NewRequest(&hubwagenv1.CancelHaulRequest{HaulId: "nope"}))
+	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+
+	put := func(h state.Haul) {
+		_, err := s.store.Append(ctx, s.store.Term(), nil, func(tx *state.Tx) error { return tx.PutHaul(h) })
+		require.NoError(t, err)
+	}
+	put(state.Haul{ID: "zc1", Tenant: "t", Name: "x", Dock: "default", Trigger: "haul " + id, Status: state.HaulRunning, ParentID: id, CreatedAt: time.Now()})
+	put(state.Haul{ID: "zc2", Tenant: "t", Name: "x", Dock: "default", Trigger: "manual", Status: state.HaulRunning, CreatedAt: time.Now()})
+	kids, err := c.ListHauls(ctx, connect.NewRequest(&hubwagenv1.ListHaulsRequest{ParentId: id}))
+	require.NoError(t, err)
+	require.Len(t, kids.Msg.Hauls, 1)
+	assert.Equal(t, "zc1", kids.Msg.Hauls[0].Id)
+	older, err := c.ListHauls(ctx, connect.NewRequest(&hubwagenv1.ListHaulsRequest{BeforeId: "zc2"}))
+	require.NoError(t, err)
+	assert.NotContains(t, []string{older.Msg.Hauls[0].Id}, "zc2", "paging: older than zc2")
 }

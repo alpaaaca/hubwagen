@@ -13,8 +13,9 @@ const EventBuildRegistered EventType = "BuildRegistered"
 // each lift it can run.
 type Build struct {
 	ID           string
-	Hauls        []string          // empty for builds registered before hauls were recorded
-	Lifts        map[string]string // lift name → code version
+	Hauls        []string            // empty for builds registered before hauls were recorded
+	Info         map[string]HaulInfo // by haul name; only hauls that have any
+	Lifts        map[string]string   // lift name → code version
 	RegisteredAt time.Time
 }
 
@@ -26,8 +27,9 @@ func (t *Tx) PutBuild(v Build) error {
 		return err
 	}
 	for _, haul := range v.Hauls {
-		if err := t.exec(`INSERT INTO build_hauls (build_id, haul) VALUES (?, ?) ON CONFLICT (build_id, haul) DO NOTHING`,
-			v.ID, haul); err != nil {
+		info := v.Info[haul]
+		if err := t.exec(`INSERT INTO build_hauls (build_id, haul, title, description) VALUES (?, ?, ?, ?)
+			ON CONFLICT (build_id, haul) DO NOTHING`, v.ID, haul, info.Title, info.Description); err != nil {
 			return err
 		}
 	}
@@ -39,6 +41,31 @@ func (t *Tx) PutBuild(v Build) error {
 		}
 	}
 	return nil
+}
+
+// HaulInfo describes a haul for people.
+type HaulInfo struct {
+	Title       string `json:"title,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
+// Pipeline is a haul some build defines, as the newest such build describes it.
+type Pipeline struct {
+	Name string
+	HaulInfo
+}
+
+// ListPipelines returns every haul a build defines, by name.
+func (s *Store) ListPipelines(ctx context.Context) ([]Pipeline, error) {
+	return queryAll(ctx, s.r, func(sc interface{ Scan(...any) error }) (Pipeline, error) {
+		var p Pipeline
+		err := sc.Scan(&p.Name, &p.Title, &p.Description)
+		return p, err
+	}, `SELECT bh.haul, bh.title, bh.description FROM build_hauls bh JOIN builds b ON b.id = bh.build_id
+		WHERE (b.registered_at, b.id) = (
+			SELECT b2.registered_at, b2.id FROM build_hauls bh2 JOIN builds b2 ON b2.id = bh2.build_id
+			WHERE bh2.haul = bh.haul ORDER BY b2.registered_at DESC, b2.id DESC LIMIT 1)
+		ORDER BY bh.haul`)
 }
 
 // LoadBuilds reads every build, for a new leader.

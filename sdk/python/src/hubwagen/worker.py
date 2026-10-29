@@ -89,7 +89,7 @@ def build_id() -> str:
         h.update(f"dataset {ds} {keep!r}\n".encode())
     for name in sorted(_model.HAULS):
         d = _model.HAULS[name]
-        h.update(f"haul {name} {d.code_version()} {d.schedule!r} {d.subscribe!r}\n".encode())
+        h.update(f"haul {name} {d.code_version()} {d.schedule!r} {d.subscribe!r} {d.title!r} {d.description!r}\n".encode())
     for name in sorted(_model.LIFTS):
         h.update(f"lift {name} {_model.LIFTS[name].code_version()}\n".encode())
     return "b-" + h.hexdigest()[:12]
@@ -132,7 +132,9 @@ class Worker:
             retention.append(r)
         self.client.call("WorkerService", "RegisterBuild",
                          {"buildId": self.build, "hauls": sorted(_model.HAULS), "liftVersions": versions,
-                          "schedules": schedules, "subscriptions": subscriptions, "datasets": retention})
+                          "schedules": schedules, "subscriptions": subscriptions, "datasets": retention,
+                          "haulInfo": [{"haul": n, "title": d.title, "description": d.description}
+                                       for n, d in sorted(_model.HAULS.items()) if d.title or d.description]})
         log.info("registered build %s: %d hauls, %d lifts", self.build, len(_model.HAULS), len(_model.LIFTS))
 
     # --- hauls ---

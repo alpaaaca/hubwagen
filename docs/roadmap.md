@@ -220,16 +220,20 @@ each is one PR:
    and `hubwagen gc` expire the rest as events (`PalletExpired`, then the
    files go), never a pallet an open haul reads or the latest of a
    partition; expired pallets stay in the catalog as lineage records. ([#77](https://github.com/alpaaaca/hubwagen/issues/77))
-6. **Web UI: hauls**: a web UI in TypeScript (React + Vite) under `ui/`,
+6. ✅ **Web UI: hauls**: a web UI in TypeScript (React + Vite) under `ui/`,
    calling the Connect services from the browser with clients generated
    from `proto/` (`@connectrpc/connect-web`, through the same
    `buf generate`). `hubwagen dev` serves it on the API's port, embedded
    in the binary (`go:embed`), so there is still one binary and nothing
    else to run; during UI work, Vite's dev server proxies to a running
    `hubwagen dev`. This step: the scaffolding (build, embed, generated
-   clients, tests) and the hauls views: hauls with their status and
-   filters, a haul's lifts, logbook and children, live updates by polling,
-   and starting, signalling and cancelling hauls. ([#78](https://github.com/alpaaaca/hubwagen/issues/78))
+   clients, tests) and the hauls views, organised as pipelines (hauls by
+   name, titled from code: `@hw.haul(title=...)` or the docstring) and
+   their runs: a pipeline's steps as a DAG (a lift comes after the lifts
+   whose pallets it reads), its schedule and runs with inputs, duration,
+   progress and result; a run's steps on the DAG and a timeline, why each
+   ran, its children and its (folded) event log; live updates by polling;
+   starting, signalling, cancelling and resuming runs. ([#78](https://github.com/alpaaaca/hubwagen/issues/78))
 7. **Web UI: catalog**: datasets, partitions and pallets with stale and
    invalid marked, lineage up and down as a graph, a pallet's files, and
    invalidating from the UI (with the same dry run first);
@@ -243,10 +247,10 @@ in use.
 
 Open questions, to settle in the step that needs them:
 
-- Dashboard: decided, a web UI in TypeScript, not a terminal UI. Still to
-  settle in step 6: whether the built UI (`ui/dist`) is committed, so
-  `go install` gets it, or built in release CI only (`go build` without it
-  serves a page saying how to build it).
+- Dashboard: decided, a web UI in TypeScript, not a terminal UI. Its build
+  isn't committed: `go generate ./internal/webui` builds it into the binary,
+  and a binary built without it serves a page saying how; releases will
+  build it in CI.
 - Retention: decided, in code (`hw.Dataset(keep=hw.Keep(...))`, versioned
   with the build); a config override can come later.
 - Staleness by code version: "current" is the newest build that defines
