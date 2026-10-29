@@ -16,6 +16,7 @@ import (
 	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
 	"github.com/alper/hubwagen/internal/api/gen/hubwagen/v1/hubwagenv1connect"
 	"github.com/alper/hubwagen/internal/core"
+	"github.com/alper/hubwagen/internal/history"
 	"github.com/alper/hubwagen/internal/schedule"
 	"github.com/alper/hubwagen/internal/state"
 )
@@ -141,6 +142,48 @@ func (s *HaulServer) GetLogbook(ctx context.Context, req *connect.Request[hubwag
 	return connect.NewResponse(out), nil
 }
 
+// why says why a lift ran or was reused, for people.
+func why(runReason string, reused bool) string {
+	if reused {
+		return "same inputs and same code as before, so it didn't run again"
+	}
+	if w := history.WhyItRan(runReason); w != "" {
+		return "it ran because " + w
+	}
+	return ""
+}
+
+func (s *HaulServer) GetHistory(ctx context.Context, req *connect.Request[hubwagenv1.GetHistoryRequest]) (*connect.Response[hubwagenv1.GetHistoryResponse], error) {
+	h, err := s.store.GetHaul(ctx, req.Msg.HaulId)
+	if errors.Is(err, state.ErrNotFound) {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("haul %s not found", req.Msg.HaulId))
+	}
+	if err != nil {
+		return nil, connectError(err)
+	}
+	evs, err := s.store.HaulEvents(ctx, h.ID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	look := history.Lookup{
+		Pallet: func(id string) (state.Pallet, bool) {
+			p, err := s.store.GetPallet(ctx, id)
+			return p, err == nil
+		},
+		Haul: func(id string) (state.Haul, bool) {
+			h, err := s.store.GetHaul(ctx, id)
+			return h, err == nil
+		},
+	}
+	out := &hubwagenv1.GetHistoryResponse{}
+	for _, e := range history.Tell(evs, look) {
+		out.Entries = append(out.Entries, &hubwagenv1.HistoryEntry{
+			Time: timestamppb.New(e.Time), Kind: e.Kind, Seq: int32(e.Seq), Step: e.Step, Text: e.Text, Detail: e.Detail,
+			HaulId: e.Run, EventSeq: e.Event.Seq, EventType: string(e.Event.Type), PayloadJson: string(e.Event.Payload)})
+	}
+	return connect.NewResponse(out), nil
+}
+
 func (s *HaulServer) ListSchedules(ctx context.Context, _ *connect.Request[hubwagenv1.ListSchedulesRequest]) (*connect.Response[hubwagenv1.ListSchedulesResponse], error) {
 	scheds, err := s.store.ListSchedules(ctx)
 	if err != nil {
@@ -225,7 +268,7 @@ func (s *HaulServer) GetHaul(ctx context.Context, req *connect.Request[hubwagenv
 	for _, l := range lifts {
 		f := results[int32(l.Seq)]
 		m := &hubwagenv1.Lift{
-			Seq: int32(l.Seq), Name: l.Name, Status: l.Status, RunReason: l.RunReason, Reused: f.Reused,
+			Seq: int32(l.Seq), Name: l.Name, Status: l.Status, RunReason: l.RunReason, Why: why(l.RunReason, f.Reused), Reused: f.Reused,
 			Attempts: int32(l.Attempts), Pallet: f.Pallet, Reason: l.Reason, Message: l.Message,
 			ScheduledAt: timestamppb.New(l.ScheduledAt), ResultJson: string(l.Result),
 		}

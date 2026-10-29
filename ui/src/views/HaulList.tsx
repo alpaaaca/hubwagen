@@ -6,6 +6,7 @@ import { ago, duration, fromNow, HAUL_STATUSES, Status, steps, took, Values, whe
 import { message, usePoll } from "../hooks";
 import { usePipelines, type Pipelines } from "../pipelines";
 import { Link, navigate } from "../router";
+import { Hint } from "../words";
 
 const OVERVIEW = 500;
 
@@ -32,10 +33,16 @@ export function HaulList() {
         <table className="pipelines">
           <thead>
             <tr>
-              <th>pipeline</th>
-              <th>schedule</th>
+              <th>
+                pipeline <Hint word="pipeline" />
+              </th>
+              <th>
+                schedule <Hint word="schedule" />
+              </th>
               <th>next run</th>
-              <th>recent runs</th>
+              <th>
+                recent runs <Hint word="run" />
+              </th>
               <th>last run</th>
               <th>succeeded</th>
               <th>usually takes</th>
@@ -155,7 +162,9 @@ export function RunsTable({ hauls, pipelines }: { hauls: Haul[]; pipelines?: Pip
       <thead>
         <tr>
           {pipelines && <th>pipeline</th>}
-          <th>inputs</th>
+          <th>
+            inputs <Hint word="inputs" />
+          </th>
           <th>status</th>
           <th>steps</th>
           <th>started</th>

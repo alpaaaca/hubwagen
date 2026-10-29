@@ -5,6 +5,7 @@ import { ago, duration, fromNow, Status, when } from "../format";
 import { usePoll } from "../hooks";
 import { usePipelines } from "../pipelines";
 import { Link } from "../router";
+import { Hint } from "../words";
 import { Dag } from "./Dag";
 import { RunHistory } from "./RunHistory";
 import { RunsTable, StartRun, StatusFilter, summary } from "./HaulList";
@@ -86,7 +87,9 @@ export function Pipeline({ haul }: { haul: string }) {
         <p className="dim">{history.data ? "no runs yet" : "loading…"}</p>
       )}
 
-      <h2>Steps</h2>
+      <h2>
+        Steps <Hint word="step" />
+      </h2>
       {lifts.length > 0 ? (
         <>
           <Dag lifts={lifts} now={now} plain />

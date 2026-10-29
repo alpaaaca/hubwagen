@@ -149,10 +149,10 @@ export function steps(h: Haul): string {
   return parts.join(" · ");
 }
 
-// trigger says what started a haul, in words.
+// trigger says what started a run, in words.
 export function trigger(t: string): string {
   if (!t) return "";
-  if (t.startsWith("haul ")) return "started by another haul";
+  if (t.startsWith("haul ")) return "by another run";
   if (t.startsWith("continue ")) return "continued from an earlier run";
   if (t === "schedule") return "on its schedule";
   if (t === "subscription") return "by new data";

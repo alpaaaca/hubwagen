@@ -6,7 +6,7 @@ import userEvent from "@testing-library/user-event";
 
 import { ApiProvider, apiFor } from "./api";
 import { App } from "./App";
-import { HaulSchema, HaulService, LiftCountsSchema, LiftSchema, LogbookEventSchema } from "./gen/hubwagen/v1/haul_pb";
+import { HaulSchema, HaulService, LiftCountsSchema, LiftSchema } from "./gen/hubwagen/v1/haul_pb";
 import { LogService } from "./gen/hubwagen/v1/log_pb";
 
 const start = new Date(2026, 9, 24, 3, 0, 0);
@@ -27,10 +27,10 @@ function fakeServer() {
     liftCounts: create(LiftCountsSchema, { total: 3, completed: 2, reused: 1 }),
     lifts: [
       create(LiftSchema, {
-        seq: 1, name: "extract", status: "completed", attempts: 1, runReason: "not memoized",
+        seq: 1, name: "extract", status: "completed", attempts: 1, runReason: "no previous run", why: "it ran because it hasn't run with these inputs before",
         pallet: "01M6PALLETPALLETPALLET0001", scheduledAt: at(0), finishedAt: at(2.5), resultJson: '{"rows": 6}', dataset: "raw.orders",
       }),
-      create(LiftSchema, { seq: 2, name: "build", status: "completed", attempts: 0, reused: true, scheduledAt: at(3), finishedAt: at(3), after: [1] }),
+      create(LiftSchema, { seq: 2, name: "build", status: "completed", attempts: 0, reused: true, why: "same inputs and same code as before, so it didn't run again", scheduledAt: at(3), finishedAt: at(3), after: [1] }),
       create(LiftSchema, { seq: 3, name: "report", status: "dispatched", attempts: 1, runReason: "code changed", scheduledAt: at(3), after: [2] }),
     ],
   });
@@ -72,9 +72,16 @@ function fakeServer() {
         record("getHaul", req);
         return { haul: [daily, done, stuck, broken].find((h) => h.id === req.haulId) };
       },
-      getLogbook(req) {
-        record("getLogbook", req);
-        return { logbook: [create(LogbookEventSchema, { seq: 1n, type: "HaulStarted", time: t0, payloadJson: '{"name":"daily"}' })] };
+      getHistory(req) {
+        record("getHistory", req);
+        return {
+          entries: [
+            { eventSeq: 1n, time: t0, kind: "started", text: "Started by its schedule, for day=2026-10-24", eventType: "HaulStarted", payloadJson: '{"name":"daily"}' },
+            { eventSeq: 2n, time: t0, kind: "engine", text: "Waits for a worker to run the pipeline's code", eventType: "HaulTaskQueued", payloadJson: "{}" },
+            { eventSeq: 3n, time: at(2.5), kind: "step", seq: 1, step: "extract", text: "done in 2.5 s, wrote a new version of raw.orders for 2026-10-24", eventType: "LiftFinished" },
+            { eventSeq: 4n, time: at(3), kind: "reused", seq: 2, step: "build", text: "reused the existing version of mart.revenue: same inputs and same code, so it didn't run again (from the run of daily for day=2026-10-23)", haulId: "01M6DDDDDDDDDDDDDDDDDDDDDD", eventType: "LiftReused" },
+          ],
+        };
       },
       startHaul(req) {
         record("startHaul", req);
@@ -216,11 +223,12 @@ test("a run: steps on a timeline, children, events, signal and cancel", async ()
   const steps = screen.getAllByRole("table")[0];
   const extract = within(steps).getByText("extract").closest("tr")!;
   expect(extract).toHaveTextContent("2.5 s");
-  expect(extract).toHaveTextContent("not memoized");
+  expect(extract).toHaveTextContent("it hasn't run with these inputs before");
+  expect(extract).toHaveTextContent("wrote a new version of raw.orders");
   expect(extract).toHaveTextContent("rows 6");
   const build = within(steps).getByText("build").closest("tr")!;
   expect(within(build).getByText("reused")).toBeInTheDocument();
-  expect(build).toHaveTextContent("nothing ran");
+  expect(build).toHaveTextContent("didn't run again");
   expect(within(steps).getByText("report").closest("tr")).toHaveTextContent("running");
 
   // Logs: all steps, each line marked with its step; a step shows its own.
@@ -233,7 +241,20 @@ test("a run: steps on a timeline, children, events, signal and cancel", async ()
   expect(screen.getByLabelText("logs of")).toHaveValue("2");
   expect(await screen.findByText("child")).toBeInTheDocument();
   expect(calls.listHauls[0]).toMatchObject({ parentId: "01M6AAAAAAAAAAAAAAAAAAAAAA" });
-  expect(await screen.findByText("HaulStarted")).toBeInTheDocument();
+
+  // What happened, in sentences; the engine's bookkeeping only when asked.
+  const story = await screen.findByRole("list", { name: "what happened" });
+  await waitFor(() => expect(within(story).getAllByRole("listitem")).toHaveLength(3));
+  expect(within(story).getAllByRole("listitem")[0]).toHaveTextContent("Started by its schedule, for day=2026-10-24");
+  expect(within(story).getAllByRole("listitem")[2]).toHaveTextContent(/build reused the existing version of mart.revenue/);
+  expect(within(story).getByRole("link", { name: "open that run" })).toHaveAttribute("href", "#/hauls/01M6DDDDDDDDDDDDDDDDDDDDDD");
+  expect(within(story).queryByText(/Waits for a worker/)).not.toBeInTheDocument();
+  await userEvent.click(screen.getByLabelText("engine details"));
+  expect(within(story).getByText(/Waits for a worker/)).toBeInTheDocument();
+  expect(within(story).getByText(/HaulTaskQueued/)).toBeInTheDocument();
+  await userEvent.click(within(story).getByRole("button", { name: "extract" }));
+  expect(screen.getByLabelText("logs of")).toHaveValue("1");
+  expect(screen.getByRole("note", { name: /^step: One function call/ })).toBeInTheDocument();
   expect(screen.getByText("2026-10-24")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Resume" })).not.toBeInTheDocument();
 

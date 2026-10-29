@@ -1,6 +1,7 @@
 import type { Haul, Lift } from "../gen/hubwagen/v1/haul_pb";
 import { ago, duration, liftStatus, steps, took, when } from "../format";
 import { Link } from "../router";
+import { Hint } from "../words";
 
 // RunHistory shows a pipeline's recent runs at a glance: a column per run,
 // oldest on the left, with a bar for how long it took, and a row per step
@@ -109,6 +110,7 @@ function Legend() {
       {["completed", "reused", "running", "waiting", "retrying", "failed", "cancelled"].map((s) => (
         <span key={s}>
           <span className={`history-cell cell-${s} legend`} /> {s}
+          {s === "reused" && <Hint word="reused" />}
         </span>
       ))}
     </div>

@@ -6,14 +6,16 @@ import { ago, duration, liftStatus, ms, pretty, shortId, Status, steps, took, tr
 import { message, usePoll } from "../hooks";
 import { usePipelines } from "../pipelines";
 import { Link } from "../router";
+import { Hint } from "../words";
 import { Dag } from "./Dag";
+import { History } from "./History";
 import { Logs } from "./Logs";
 
 const OPEN = ["running", "stuck"];
 
 // HaulDetail: one run of a pipeline: what went in, how long each step took
-// and why it ran, and what came out; refreshed while it is open, with cancel,
-// resume and signal. The raw events are at the bottom, folded.
+// and why it ran, and what came out; what happened, in order; refreshed
+// while it is open, with cancel, resume and signal.
 export function HaulDetail({ id, step }: { id: string; step?: number }) {
   const api = useApi();
   const pipelines = usePipelines();
@@ -21,7 +23,6 @@ export function HaulDetail({ id, step }: { id: string; step?: number }) {
   const h = haul.data?.haul;
   const open = h ? OPEN.includes(h.status) : false;
   const children = usePoll(() => api.hauls.listHauls({ parentId: id, limit: 100 }), [id]);
-  const logbook = usePoll(() => api.hauls.getLogbook({ haulId: id }), [id]);
   const [actionError, setActionError] = useState("");
   const [picked, setPicked] = useState<number | undefined>(step); // the step whose logs show; unset: a failed step, else all
 
@@ -30,7 +31,6 @@ export function HaulDetail({ id, step }: { id: string; step?: number }) {
     try {
       await f();
       haul.reload();
-      logbook.reload();
     } catch (e) {
       setActionError(message(e));
     }
@@ -94,7 +94,9 @@ export function HaulDetail({ id, step }: { id: string; step?: number }) {
       )}
       {open && <SignalForm onSend={(name, payload) => act(() => api.hauls.signalHaul({ haulId: h.id, name, payloadJson: payload }))} />}
 
-      <h2>Steps</h2>
+      <h2>
+        Steps <Hint word="step" />
+      </h2>
       {h.lifts.length === 0 ? (
         <p className="dim">none yet</p>
       ) : (
@@ -120,24 +122,8 @@ export function HaulDetail({ id, step }: { id: string; step?: number }) {
         </>
       )}
 
-      <details className="raw">
-        <summary>Event log{logbook.data ? ` (${logbook.data.logbook.length} events)` : ""}</summary>
-        <p className="dim mono small">run {h.id}</p>
-        {logbook.error && <p className="error">{logbook.error}</p>}
-        <table className="logbook">
-          <tbody>
-            {logbook.data?.logbook.map((e) => (
-              <tr key={String(e.seq)}>
-                <td className="dim">{when(e.time)}</td>
-                <td>{e.type}</td>
-                <td>
-                  <code>{e.payloadJson}</code>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </details>
+      <History haulId={h.id} open={open} onSelect={pick} />
+      <p className="dim mono small">run {h.id}</p>
     </section>
   );
 }
@@ -177,13 +163,17 @@ function Steps({ haul, now, selected, onSelect }: { haul: Haul; now: number; sel
       <thead>
         <tr>
           <th>step</th>
-          <th>status</th>
+          <th>
+            status <Hint word="reused" />
+          </th>
           <th className="timeline-head">
             timeline <span className="dim">({duration(span)})</span>
           </th>
           <th>took</th>
           <th>why</th>
-          <th>returned</th>
+          <th>
+            output <Hint word="version" />
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -222,14 +212,14 @@ function Step({ lift: l, start, span, now, selected, onSelect }: { lift: Lift; s
       </td>
       <td>{t === undefined ? "–" : duration(t)}</td>
       <td className="dim">
-        {l.reused ? "same inputs and code as before, so nothing ran" : l.runReason}
+        {l.why}
         {l.attempts > 1 && <div>{l.attempts} attempts</div>}
       </td>
       <td>
         <Values json={l.resultJson} />
         {l.pallet && (
-          <div className="dim small">
-            data <span className="mono">{shortId(l.pallet)}</span>
+          <div className="dim small" title={`version ${l.pallet}`}>
+            {l.reused ? "reused a version of" : "wrote a new version of"} <span className="mono">{l.dataset || shortId(l.pallet)}</span>
           </div>
         )}
       </td>

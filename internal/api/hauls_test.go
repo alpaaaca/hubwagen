@@ -43,6 +43,17 @@ func TestHaulService(t *testing.T) {
 
 	_, err = c.GetHaul(ctx, connect.NewRequest(&hubwagenv1.GetHaulRequest{HaulId: "nope"}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+
+	// Its history, in plain words (internal/history tells the rest).
+	hist, err := c.GetHistory(ctx, connect.NewRequest(&hubwagenv1.GetHistoryRequest{HaulId: res.Msg.HaulId}))
+	require.NoError(t, err)
+	require.NotEmpty(t, hist.Msg.Entries)
+	first := hist.Msg.Entries[0]
+	assert.Equal(t, []string{"started", "Started by hand, for day=2026-10-24, n=10000000000000001", "HaulStarted"},
+		[]string{first.Kind, first.Text, first.EventType})
+	assert.NotZero(t, first.EventSeq)
+	_, err = c.GetHistory(ctx, connect.NewRequest(&hubwagenv1.GetHistoryRequest{HaulId: "nope"}))
+	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 	_, err = c.StartHaul(ctx, connect.NewRequest(&hubwagenv1.StartHaulRequest{Tenant: "t", Name: "x", ParamsJson: "[1]"}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "params must be an object")
 	_, err = c.StartHaul(ctx, connect.NewRequest(&hubwagenv1.StartHaulRequest{Name: "x"}))

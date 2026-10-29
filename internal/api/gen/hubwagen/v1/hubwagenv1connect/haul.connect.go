@@ -47,6 +47,8 @@ const (
 	HaulServiceListHaulsProcedure = "/hubwagen.v1.HaulService/ListHauls"
 	// HaulServiceGetLogbookProcedure is the fully-qualified name of the HaulService's GetLogbook RPC.
 	HaulServiceGetLogbookProcedure = "/hubwagen.v1.HaulService/GetLogbook"
+	// HaulServiceGetHistoryProcedure is the fully-qualified name of the HaulService's GetHistory RPC.
+	HaulServiceGetHistoryProcedure = "/hubwagen.v1.HaulService/GetHistory"
 	// HaulServiceListSchedulesProcedure is the fully-qualified name of the HaulService's ListSchedules
 	// RPC.
 	HaulServiceListSchedulesProcedure = "/hubwagen.v1.HaulService/ListSchedules"
@@ -77,6 +79,9 @@ type HaulServiceClient interface {
 	// GetLogbook returns the events a replay of the haul reads, for replaying
 	// it against other code (hubwagen.testing --replay).
 	GetLogbook(context.Context, *connect.Request[v1.GetLogbookRequest]) (*connect.Response[v1.GetLogbookResponse], error)
+	// GetHistory tells what happened in a haul, in plain words: one entry per
+	// event, in order.
+	GetHistory(context.Context, *connect.Request[v1.GetHistoryRequest]) (*connect.Response[v1.GetHistoryResponse], error)
 	// ListSchedules returns the current haul schedules and their next runs,
 	// and the dataset subscriptions.
 	ListSchedules(context.Context, *connect.Request[v1.ListSchedulesRequest]) (*connect.Response[v1.ListSchedulesResponse], error)
@@ -138,6 +143,12 @@ func NewHaulServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(haulServiceMethods.ByName("GetLogbook")),
 			connect.WithClientOptions(opts...),
 		),
+		getHistory: connect.NewClient[v1.GetHistoryRequest, v1.GetHistoryResponse](
+			httpClient,
+			baseURL+HaulServiceGetHistoryProcedure,
+			connect.WithSchema(haulServiceMethods.ByName("GetHistory")),
+			connect.WithClientOptions(opts...),
+		),
 		listSchedules: connect.NewClient[v1.ListSchedulesRequest, v1.ListSchedulesResponse](
 			httpClient,
 			baseURL+HaulServiceListSchedulesProcedure,
@@ -162,6 +173,7 @@ type haulServiceClient struct {
 	resumeHaul    *connect.Client[v1.ResumeHaulRequest, v1.ResumeHaulResponse]
 	listHauls     *connect.Client[v1.ListHaulsRequest, v1.ListHaulsResponse]
 	getLogbook    *connect.Client[v1.GetLogbookRequest, v1.GetLogbookResponse]
+	getHistory    *connect.Client[v1.GetHistoryRequest, v1.GetHistoryResponse]
 	listSchedules *connect.Client[v1.ListSchedulesRequest, v1.ListSchedulesResponse]
 	listPipelines *connect.Client[v1.ListPipelinesRequest, v1.ListPipelinesResponse]
 }
@@ -201,6 +213,11 @@ func (c *haulServiceClient) GetLogbook(ctx context.Context, req *connect.Request
 	return c.getLogbook.CallUnary(ctx, req)
 }
 
+// GetHistory calls hubwagen.v1.HaulService.GetHistory.
+func (c *haulServiceClient) GetHistory(ctx context.Context, req *connect.Request[v1.GetHistoryRequest]) (*connect.Response[v1.GetHistoryResponse], error) {
+	return c.getHistory.CallUnary(ctx, req)
+}
+
 // ListSchedules calls hubwagen.v1.HaulService.ListSchedules.
 func (c *haulServiceClient) ListSchedules(ctx context.Context, req *connect.Request[v1.ListSchedulesRequest]) (*connect.Response[v1.ListSchedulesResponse], error) {
 	return c.listSchedules.CallUnary(ctx, req)
@@ -233,6 +250,9 @@ type HaulServiceHandler interface {
 	// GetLogbook returns the events a replay of the haul reads, for replaying
 	// it against other code (hubwagen.testing --replay).
 	GetLogbook(context.Context, *connect.Request[v1.GetLogbookRequest]) (*connect.Response[v1.GetLogbookResponse], error)
+	// GetHistory tells what happened in a haul, in plain words: one entry per
+	// event, in order.
+	GetHistory(context.Context, *connect.Request[v1.GetHistoryRequest]) (*connect.Response[v1.GetHistoryResponse], error)
 	// ListSchedules returns the current haul schedules and their next runs,
 	// and the dataset subscriptions.
 	ListSchedules(context.Context, *connect.Request[v1.ListSchedulesRequest]) (*connect.Response[v1.ListSchedulesResponse], error)
@@ -290,6 +310,12 @@ func NewHaulServiceHandler(svc HaulServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(haulServiceMethods.ByName("GetLogbook")),
 		connect.WithHandlerOptions(opts...),
 	)
+	haulServiceGetHistoryHandler := connect.NewUnaryHandler(
+		HaulServiceGetHistoryProcedure,
+		svc.GetHistory,
+		connect.WithSchema(haulServiceMethods.ByName("GetHistory")),
+		connect.WithHandlerOptions(opts...),
+	)
 	haulServiceListSchedulesHandler := connect.NewUnaryHandler(
 		HaulServiceListSchedulesProcedure,
 		svc.ListSchedules,
@@ -318,6 +344,8 @@ func NewHaulServiceHandler(svc HaulServiceHandler, opts ...connect.HandlerOption
 			haulServiceListHaulsHandler.ServeHTTP(w, r)
 		case HaulServiceGetLogbookProcedure:
 			haulServiceGetLogbookHandler.ServeHTTP(w, r)
+		case HaulServiceGetHistoryProcedure:
+			haulServiceGetHistoryHandler.ServeHTTP(w, r)
 		case HaulServiceListSchedulesProcedure:
 			haulServiceListSchedulesHandler.ServeHTTP(w, r)
 		case HaulServiceListPipelinesProcedure:
@@ -357,6 +385,10 @@ func (UnimplementedHaulServiceHandler) ListHauls(context.Context, *connect.Reque
 
 func (UnimplementedHaulServiceHandler) GetLogbook(context.Context, *connect.Request[v1.GetLogbookRequest]) (*connect.Response[v1.GetLogbookResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("hubwagen.v1.HaulService.GetLogbook is not implemented"))
+}
+
+func (UnimplementedHaulServiceHandler) GetHistory(context.Context, *connect.Request[v1.GetHistoryRequest]) (*connect.Response[v1.GetHistoryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("hubwagen.v1.HaulService.GetHistory is not implemented"))
 }
 
 func (UnimplementedHaulServiceHandler) ListSchedules(context.Context, *connect.Request[v1.ListSchedulesRequest]) (*connect.Response[v1.ListSchedulesResponse], error) {

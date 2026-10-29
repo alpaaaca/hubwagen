@@ -145,3 +145,20 @@ a.history-cell:hover { outline: 2px solid var(--accent); }
 .history-label { writing-mode: vertical-rl; transform: rotate(180deg); justify-self: center; text-decoration: none; padding-top: 4px; font-size: 11px; }
 .history-label:hover { color: var(--accent); }
 .history-axis-label { align-self: end; text-align: right; padding-right: 10px; }
+
+/* Hints: a "?" that explains a word. */
+.hint { display: inline-block; width: 14px; height: 14px; line-height: 14px; margin-left: 2px; border-radius: 50%; border: 1px solid var(--line, #ccc); color: var(--dim); font-size: 10px; font-weight: normal; text-align: center; cursor: help; vertical-align: middle; }
+.hint:focus { outline: 2px solid var(--accent); }
+
+/* A run's history: one sentence per event. */
+.history-lines { list-style: none; padding: 0; margin: 0; font-size: 14px; }
+.history-line { display: flex; gap: 12px; padding: 3px 0; border-bottom: 1px solid var(--line, #eee); }
+.history-line > .mono:first-child { flex: none; font-size: 12px; padding-top: 2px; }
+.history-line > span:last-child { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.story { margin-top: 24px; }
+.history-line.kind-engine { color: var(--dim); }
+.history-line.kind-problem, .history-line.kind-stuck { color: var(--bad); }
+.history-line.kind-reused { color: var(--dim); }
+.history-line.kind-started, .history-line.kind-finished { font-weight: 600; }
+.history-line .step-name { font: inherit; font-weight: 600; color: inherit; background: none; border: none; padding: 0; cursor: pointer; text-decoration: underline dotted; }
+.raw-event { word-break: break-all; }
