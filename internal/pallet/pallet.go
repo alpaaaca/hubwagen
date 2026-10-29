@@ -125,22 +125,8 @@ func NewStore(b blob.Bucket, uris URIs) *Store { return &Store{bucket: b, uris: 
 // listed file is in the bucket. It is idempotent: if the identical manifest
 // already exists, Promote succeeds. It returns the manifest's URI.
 func (s *Store) Promote(ctx context.Context, m Manifest) (string, error) {
-	present, err := s.bucket.List(ctx, m.Data)
-	if err != nil {
+	if err := s.filesPresent(ctx, m); err != nil {
 		return "", err
-	}
-	have := map[string]bool{}
-	for _, uri := range present {
-		have[strings.TrimPrefix(uri, m.Data)] = true
-	}
-	var missing []string
-	for _, f := range m.Files {
-		if !have[f.Path] {
-			missing = append(missing, strconv.Quote(f.Path))
-		}
-	}
-	if len(missing) > 0 {
-		return "", fmt.Errorf("%w under %s: %s", ErrMissingFiles, m.Data, strings.Join(missing, ", "))
 	}
 
 	data, err := json.Marshal(m)
@@ -163,6 +149,43 @@ func (s *Store) Promote(ctx context.Context, m Manifest) (string, error) {
 		return "", err
 	}
 	return uri, nil
+}
+
+// filesPresent checks that every file m lists is in the bucket.
+func (s *Store) filesPresent(ctx context.Context, m Manifest) error {
+	present, err := s.bucket.List(ctx, m.Data)
+	if err != nil {
+		return err
+	}
+	have := map[string]bool{}
+	for _, uri := range present {
+		have[strings.TrimPrefix(uri, m.Data)] = true
+	}
+	var missing []string
+	for _, f := range m.Files {
+		if !have[f.Path] {
+			missing = append(missing, strconv.Quote(f.Path))
+		}
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("%w under %s: %s", ErrMissingFiles, m.Data, strings.Join(missing, ", "))
+	}
+	return nil
+}
+
+// Check reports whether the pallet whose manifest is at uri can still be
+// read: its manifest and every file it lists are in the bucket. Committed
+// pallets can lose their data outside hubwagen (someone deleted files);
+// what fails Check must not be reused.
+func (s *Store) Check(ctx context.Context, uri string) error {
+	m, err := s.Read(ctx, uri)
+	if errors.Is(err, blob.ErrNotExist) {
+		return fmt.Errorf("%w: its manifest %s is gone", ErrMissingFiles, uri)
+	}
+	if err != nil {
+		return err
+	}
+	return s.filesPresent(ctx, m)
 }
 
 // Read returns the manifest at uri.
