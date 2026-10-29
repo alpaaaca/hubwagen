@@ -32,4 +32,9 @@ What to try:
 4. Add a row for 2026-10-02 to `data/orders.csv` and replay: only that
    day's `daily_revenue` and report run again (`input changed`).
 
+5. Watch what the lifts print and log: `hubwagen dev` prints it marked
+   with the run and the step, and the web UI (http://127.0.0.1:7070/) shows
+   it on each run's page; click a step for its output only. Replay a day
+   with no orders (`--param day=2026-10-20`) for a warning.
+
 `sdk/python/tests/test_example.py` runs exactly this as a test.

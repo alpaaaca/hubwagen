@@ -111,14 +111,28 @@ func inputs(params map[string]any, id string) string {
 
 func (c *console) describeRun(ctx context.Context, ev state.Event) string {
 	switch ev.Type {
-	case state.EventHaulStarted, state.EventHaulFinished, state.EventHaulStuck:
+	case state.EventHaulStarted, state.EventHaulFinished, state.EventHaulStuck, state.EventLiftFinished:
 	default:
 		return ""
 	}
 	r := c.run(ctx, ev.HaulID)
-	var p struct{ Status, Reason, Message string }
+	var p struct {
+		Status, Reason, Message string
+		Seq                     int
+		Reused                  bool
+	}
 	_ = json.Unmarshal(ev.Payload, &p)
 	switch ev.Type {
+	case state.EventLiftFinished:
+		// A reused lift prints nothing: say why it is quiet.
+		if !p.Reused {
+			return ""
+		}
+		name := ""
+		if l, err := c.e.Store.GetLift(ctx, ev.HaulID, p.Seq); err == nil {
+			name = l.Name
+		}
+		return fmt.Sprintf("  %s › %s ↺ reused: same inputs and code, nothing ran", r.inputs, name)
 	case state.EventHaulStarted:
 		if !c.announce(ev.HaulID) {
 			return ""
