@@ -89,7 +89,7 @@ def test_only_haul_code_and_noqa():
 
 def test_messages_name_the_place():
     f = lint_source("import hubwagen as hw\n@hw.haul\ndef h(ctx):\n    return hw.x(open('f'))\n", "app/hauls.py")[0]
-    assert str(f) == "app/hauls.py:4:17: HW004 haul h: open() does I/O; do it in a lift"
+    assert str(f) == "app/hauls.py:4:17: HW004 pipeline h: open() does I/O; do it in a step"
     assert lint_source("def broken(:\n", "bad.py")[0].code == "HW000"
 
 
@@ -106,7 +106,7 @@ def test_command_line(tmp_path):
     run = subprocess.run([sys.executable, "-m", "hubwagen.lint"], cwd=tmp_path, capture_output=True, text=True,
                          env={"PYTHONPATH": str(SDK / "src")})
     assert run.returncode == 1
-    assert run.stdout == "app/hauls.py:6:12: HW002 haul h: random.random() is random; use ctx.random() or a lift\n"
+    assert run.stdout == "app/hauls.py:6:12: HW002 pipeline h: random.random() is random; use ctx.random() or a step\n"
     assert run.stderr == "1 problem\n"
     ok = subprocess.run([sys.executable, "-m", "hubwagen.lint", "app/__init__.py"], cwd=tmp_path,
                         capture_output=True, text=True, env={"PYTHONPATH": str(SDK / "src")})

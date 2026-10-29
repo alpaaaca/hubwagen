@@ -1,4 +1,4 @@
-"""Daily revenue: extract → transform → report, one haul per day.
+"""Daily revenue: extract → transform → report, one run per day.
 
     hubwagen dev
     python -m hubwagen.worker revenue.hauls        # from pipelines/examples/revenue
@@ -9,7 +9,7 @@ runs every time. daily_revenue and revenue_report are memoized: when the
 orders for a day come out identical (same content hash), they are reused,
 and when their own code changes, they run again.
 
-Each lift prints and logs what it does; `hubwagen dev` and the web UI show
+Each step prints and logs what it does; `hubwagen dev` and the web UI show
 it with the step (print() and logging both work).
 """
 
@@ -24,7 +24,7 @@ SOURCE = Path(__file__).resolve().parent.parent / "data" / "orders.csv"
 log = logging.getLogger(__name__)
 
 
-@hw.lift(output=hw.Dataset("raw.orders", partition="day"))
+@hw.step(output=hw.Dataset("raw.orders", partition="day"))
 def extract_orders(day: str) -> dict:
     """The day's orders from the source system (here: a CSV file)."""
     log.info("reading %s", SOURCE.name)
@@ -46,8 +46,8 @@ def extract_orders(day: str) -> dict:
     return {"rows": len(rows)}
 
 
-@hw.lift(memo=True, output=hw.Dataset("mart.daily_revenue", partition="day"))
-def daily_revenue(orders: hw.Pallet, day: str) -> dict:
+@hw.step(memo=True, output=hw.Dataset("mart.daily_revenue", partition="day"))
+def daily_revenue(orders: hw.DataVersion, day: str) -> dict:
     """Revenue per region."""
     totals: dict[str, Decimal] = {}
     with orders.path("orders.csv").open() as f:
@@ -71,8 +71,8 @@ def daily_revenue(orders: hw.Pallet, day: str) -> dict:
     return {"regions": len(totals), "total": str(total)}
 
 
-@hw.lift(memo=True, output=hw.Dataset("reports.revenue", partition="day"))
-def revenue_report(revenue: hw.Pallet, day: str) -> str:
+@hw.step(memo=True, output=hw.Dataset("reports.revenue", partition="day"))
+def revenue_report(revenue: hw.DataVersion, day: str) -> str:
     """A short text report."""
     with revenue.path("revenue.csv").open() as f:
         rows = list(csv.DictReader(f))
@@ -84,10 +84,10 @@ def revenue_report(revenue: hw.Pallet, day: str) -> str:
     return lines[0]
 
 
-@hw.haul(title="Daily revenue")
+@hw.pipeline(title="Daily revenue")
 def daily(ctx, day: str):
     """Orders for one day, revenue per region from them, and a short report."""
-    orders = ctx.lift(extract_orders, day)
-    revenue = ctx.lift(daily_revenue, orders, day)
-    report = ctx.lift(revenue_report, revenue, day)
+    orders = ctx.step(extract_orders, day)
+    revenue = ctx.step(daily_revenue, orders, day)
+    report = ctx.step(revenue_report, revenue, day)
     return {"orders": orders.result["rows"], "total": revenue.result["total"], "report": report.id}

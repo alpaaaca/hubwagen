@@ -35,7 +35,7 @@ def test_a_result_waits_for_the_leader_to_come_back(hubwagen_bin, tmp_path):
 
         stop(dev, signal.SIGINT)  # the leader goes away while the lift runs ...
         release.touch()  # ... and the lift finishes meanwhile
-        until(lambda: "can't deliver the result of lift gated" in log.read_text(), 10, "a failed delivery")
+        until(lambda: "can't deliver the result of step gated" in log.read_text(), 10, "a failed delivery")
 
         _, dev = start_dev(hubwagen_bin, tmp_path, url)
         h = wait(client, haul_id)

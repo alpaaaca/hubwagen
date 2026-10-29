@@ -73,9 +73,9 @@ func TestReport(t *testing.T) {
 			lift("extract", "completed", "no previous run", false),
 			{Name: "build", Status: "failed", RunReason: "input changed", Reason: "error"}}},
 	}
-	assert.Equal(t, `3 hauls
-  extract   2 reused, 1 run (no previous run)
-  build     1 run (code changed (v1 → v2)), 1 run (input changed), 1 failed (error)
+	assert.Equal(t, `3 runs
+  extract   2 reused, 1 ran (it hasn't run with these inputs before)
+  build     1 ran (an input changed), 1 ran (its code changed (v1 → v2)), 1 failed (error)
 2 completed, 1 failed
   h3 failed: lift_failed build: boom
 `, Report(hauls))
@@ -208,25 +208,25 @@ func (s *server) replayRange(t *testing.T, days string) string {
 func TestReplayOverADateRange(t *testing.T) {
 	s := start(t)
 
-	assert.Equal(t, `3 hauls
-  extract   3 run (no previous run)
-  report    3 run (not memoized)
+	assert.Equal(t, `3 runs
+  extract   3 ran (it hasn't run with these inputs before)
+  report    3 ran
 3 completed
 `, s.replayRange(t, "2026-03-01..2026-03-03"))
 
 	// Again, with one more day: the three known days are reused.
-	assert.Equal(t, `4 hauls
-  extract   3 reused, 1 run (no previous run)
-  report    4 run (not memoized)
+	assert.Equal(t, `4 runs
+  extract   3 reused, 1 ran (it hasn't run with these inputs before)
+  report    4 ran
 4 completed
 `, s.replayRange(t, "2026-03-01..2026-03-04"))
 
 	// extract's code changed.
 	require.NoError(t, s.core.RegisterBuild(ctx, core.BuildRequest{ID: "b2", Lifts: map[string]string{"extract": "v2", "report": "v1"}}))
 	s.build.Store("b2")
-	assert.Equal(t, `2 hauls
-  extract   2 run (code changed (v1 → v2))
-  report    2 run (not memoized)
+	assert.Equal(t, `2 runs
+  extract   2 ran (its code changed (v1 → v2))
+  report    2 ran
 2 completed
 `, s.replayRange(t, "2026-03-01..2026-03-02"))
 }

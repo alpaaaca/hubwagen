@@ -72,7 +72,7 @@ func (c *Core) InvalidatePallet(ctx context.Context, req InvalidateRequest) (Inv
 			p := &res.Pallets[i]
 			reason := req.Reason
 			if p.ID != req.PalletID {
-				reason = fmt.Sprintf("built from invalidated pallet %s: %s", req.PalletID, req.Reason)
+				reason = fmt.Sprintf("built from invalidated version %s: %s", req.PalletID, req.Reason)
 			}
 			if pr := c.promotions[p.ID]; pr != nil {
 				pr.invalidated = reason // its promote records it as invalid

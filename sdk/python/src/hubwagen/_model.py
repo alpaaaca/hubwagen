@@ -1,4 +1,8 @@
-"""Datasets, pallets and the registry of hauls and lifts."""
+"""Datasets, data versions and the registry of pipelines and steps.
+
+The engine calls a pipeline a haul, a step a lift and a data version a
+pallet; those names are what the server speaks, and stay as aliases here.
+"""
 
 from __future__ import annotations
 
@@ -23,7 +27,7 @@ def local_path(uri: str) -> Path:
 
 @dataclass(frozen=True)
 class Keep:
-    """A dataset's retention: per partition, the latest pallet always stays,
+    """A dataset's retention: per partition, the latest version always stays,
     and so do the newest `versions` and those younger than `age` (seconds
     or a timedelta); the rest expire (their data is deleted, their record
     stays). Keep(versions=3), Keep(age=timedelta(days=30)), or both."""
@@ -44,9 +48,10 @@ class Keep:
 
 @dataclass(frozen=True)
 class Dataset:
-    """A named, optionally partitioned stream of pallets.
+    """A named table or set of files that gets a new version each time a
+    step writes it, optionally per partition (a day, a region).
 
-    `partition` names the lift argument whose value is the partition, e.g.
+    `partition` names the step argument whose value is the partition, e.g.
     Dataset("marketing.daily_revenue", partition="day"). `keep` is its
     retention (hubwagen.Keep); without one, every version stays.
     """
@@ -58,7 +63,7 @@ class Dataset:
 
 @dataclass(frozen=True)
 class Schedule:
-    """When a haul runs on its own, and which data interval each run covers.
+    """When a pipeline runs on its own, and which data interval each run covers.
 
     cron is a standard 5-field cron in timezone (IANA; default UTC). interval
     is the data a run covers: "hourly", "daily", "weekly", "monthly" (the
@@ -84,12 +89,12 @@ class Schedule:
 
 @dataclass(frozen=True)
 class Subscription:
-    """Start a haul when pallets are committed to datasets: the haul takes a
-    `pallets` parameter, the list of new pallets (handles: pass them to
-    lifts). Pallets are collected in batches; the haul starts once none came
+    """Start a pipeline when new data versions are saved to datasets: it
+    takes a `versions` input, the list of new versions (handles: pass them
+    to steps). They are collected in batches; a run starts once none came
     for `debounce` seconds (default 0: at once), once `max_batch` wait
     (default 100), or once the first has waited `max_wait` (default 10 ×
-    debounce). A haul's own pallets don't start it."""
+    debounce). What a pipeline's own runs write doesn't start it."""
 
     datasets: tuple[str, ...]
     debounce: float = 0.0
@@ -123,8 +128,9 @@ class Interval:
 
 
 @dataclass
-class Pallet:
-    """A committed version of data. It points to data; it never holds it."""
+class DataVersion:
+    """A saved version of a dataset: what a step wrote, never changed
+    afterwards. It points to the data; it never holds it."""
 
     id: str
     dataset: str = ""
@@ -132,47 +138,50 @@ class Pallet:
     location: str = ""
     meta: dict[str, Any] = field(default_factory=dict)
     stats: dict[str, Any] = field(default_factory=dict)
-    # What the lift that built it returned (for pallets returned by ctx.lift).
+    # What the step that wrote it returned (for versions ctx.step returns).
     result: Any = None
-    # The pallet was reused (memoized), not built by this haul.
+    # The version was reused (same inputs and code), not written by this run.
     reused: bool = False
 
-    # Reading a pallet's data: inside a lift that got it as an argument.
+    # Reading a version's data: inside a step that got it as an argument.
 
     def manifest(self) -> dict:
-        """The pallet's manifest: its data prefix and files (path, size,
+        """The version's manifest: its data prefix and files (path, size,
         sha256)."""
         if not self.location:
-            raise RuntimeError(f"pallet {self.id}: no location; read pallets inside the lift they were passed to")
+            raise RuntimeError(f"data version {self.id}: no location; read data versions inside the step they were passed to")
         return json.loads(local_path(self.location).read_text())
 
     def files(self) -> list[Path]:
-        """The pallet's files as local paths, in path order."""
+        """The version's files as local paths, in path order."""
         m = self.manifest()
         base = local_path(m["data"])
         return [base / f["path"] for f in m["files"]]
 
     def path(self, name: str) -> Path:
-        """One of the pallet's files, by its path within the pallet."""
+        """One of the version's files, by its path within the version."""
         m = self.manifest()
         if not any(f["path"] == name for f in m["files"]):
-            raise FileNotFoundError(f"pallet {self.id} has no file {name!r}")
+            raise FileNotFoundError(f"data version {self.id} has no file {name!r}")
         return local_path(m["data"]) / name
 
     def load(self, as_: type | None = None) -> Any:
-        """The dataframe or table a lift returned into this pallet, loaded
+        """The dataframe or table a step returned into this version, loaded
         as as_ (e.g. pl.LazyFrame, pd.DataFrame) or as it was written."""
         from . import _codecs
 
         m = self.manifest()
         if not any(f["path"] == _codecs.FILE for f in m["files"]):
-            raise FileNotFoundError(f"pallet {self.id} holds no dataframe (no {_codecs.FILE})")
+            raise FileNotFoundError(f"data version {self.id} holds no dataframe (no {_codecs.FILE})")
         return _codecs.load(local_path(m["data"]) / _codecs.FILE, _codecs.frame_tag(m.get("result")), as_)
+
+
+Pallet = DataVersion  # the engine's name
 
 
 @dataclass(frozen=True)
 class Retry:
-    """How often and when a failed lift attempt is retried."""
+    """How often and when a failed step attempt is retried."""
 
     limit: int
     backoff: str = "fixed"  # or "exponential"
@@ -180,16 +189,23 @@ class Retry:
     max: float | None = None  # seconds
 
 
-class LiftFailed(Exception):
-    """A lift failed (after its retries). Haul code may catch it."""
+class StepFailed(Exception):
+    """A step failed (after its retries). Pipeline code may catch it."""
 
-    def __init__(self, lift: str, reason: str, message: str):
-        super().__init__(f"{lift} failed ({reason}): {message}" if message else f"{lift} failed ({reason})")
-        self.lift, self.reason, self.message = lift, reason, message
+    def __init__(self, step: str, reason: str, message: str):
+        super().__init__(f"{step} failed ({reason}): {message}" if message else f"{step} failed ({reason})")
+        self.step, self.reason, self.message = step, reason, message
+
+    @property
+    def lift(self) -> str:  # the engine's name
+        return self.step
+
+
+LiftFailed = StepFailed  # the engine's name
 
 
 class NonRetryable(Exception):
-    """Raise from a lift for a failure that will repeat on every attempt."""
+    """Raise from a step for a failure that will repeat on every attempt."""
 
 
 @dataclass
@@ -197,7 +213,7 @@ class HaulDef:
     name: str
     fn: Callable
     dock: str | None
-    max_parallel: int | None = None  # lifts of one haul queued or running at once
+    max_parallel: int | None = None  # steps of one run queued or running at once
     schedule: Schedule | None = None
     subscribe: Subscription | None = None
     title: str = ""  # for people: the web UI shows it in place of the name
@@ -252,20 +268,25 @@ def _register(registry: dict, d) -> None:
     registry[d.name] = d
 
 
-def haul(fn: Callable | None = None, *, name: str | None = None, title: str | None = None,
-         dock: str | None = None, max_parallel: int | None = None, schedule: Schedule | str | None = None,
-         subscribe: Subscription | str | list | None = None):
-    """Mark a function as a haul: deterministic orchestration code, called
-    as fn(ctx, **params) and replayed against its logbook. max_parallel caps
-    how many of one haul's lifts are queued or running at once. With
-    schedule (a Schedule, or a cron string), the server starts it on its own,
-    once per data interval: the function takes an `interval` parameter, a
+def pipeline(fn: Callable | None = None, *, name: str | None = None, title: str | None = None,
+             dock: str | None = None, max_parallel: int | None = None, schedule: Schedule | str | None = None,
+             subscribe: Subscription | str | list | None = None):
+    """Mark a function as a pipeline: the code that decides which steps run,
+    called as fn(ctx, **inputs). Each run of it survives crashes and
+    restarts: hubwagen replays the function against what the run already
+    did, so it must make the same calls in the same order every time (no
+    clock, randomness or I/O; do those in steps). max_parallel caps how many
+    of one run's steps are queued or running at once. With schedule (a
+    Schedule, or a cron string), the server starts it on its own, once per
+    data interval: the function takes an `interval` input, a
     hubwagen.Interval. With subscribe (a Subscription, or dataset names),
-    new pallets in those datasets start it: it takes a `pallets` parameter.
-    title ("Daily revenue") is what the web UI calls it; without one, the
-    docstring's first line is; the rest of the docstring describes it."""
+    new data versions in those datasets start it: it takes a `versions`
+    input (a list of hubwagen.DataVersion). title ("Daily revenue") is what
+    the web UI calls it; without one, the docstring's first line is; the
+    rest of the docstring describes it. (The engine calls a pipeline a
+    haul.)"""
     if max_parallel is not None and (not isinstance(max_parallel, int) or max_parallel < 1):
-        raise ValueError(f"haul: max_parallel must be a positive integer, got {max_parallel!r}")
+        raise ValueError(f"pipeline: max_parallel must be a positive integer, got {max_parallel!r}")
     if isinstance(schedule, str):
         schedule = Schedule(schedule)
     if subscribe is not None and not isinstance(subscribe, Subscription):
@@ -274,10 +295,12 @@ def haul(fn: Callable | None = None, *, name: str | None = None, title: str | No
     def wrap(f: Callable) -> Callable:
         d = HaulDef(name=name or f.__name__, fn=f, dock=dock, max_parallel=max_parallel, schedule=schedule,
                     subscribe=subscribe, **_describe(f, title))
-        if subscribe is not None and "pallets" not in inspect.signature(f).parameters:
-            raise ValueError(f"haul {d.name}: a subscribed haul takes a `pallets` parameter (a list of hubwagen.Pallet)")
-        if schedule is not None and "interval" not in inspect.signature(f).parameters:
-            raise ValueError(f"haul {d.name}: a scheduled haul takes an `interval` parameter (a hubwagen.Interval)")
+        takes = inspect.signature(f).parameters
+        if subscribe is not None and "versions" not in takes and "pallets" not in takes:
+            raise ValueError(f"pipeline {d.name}: a subscribed pipeline takes a `versions` input "
+                             "(a list of hubwagen.DataVersion)")
+        if schedule is not None and "interval" not in takes:
+            raise ValueError(f"pipeline {d.name}: a scheduled pipeline takes an `interval` input (a hubwagen.Interval)")
         _register(HAULS, d)
         f.__hubwagen_haul__ = d
         return f
@@ -285,8 +308,11 @@ def haul(fn: Callable | None = None, *, name: str | None = None, title: str | No
     return wrap(fn) if fn is not None else wrap
 
 
+haul = pipeline  # the engine's name
+
+
 def _describe(f: Callable, title: str | None) -> dict[str, str]:
-    """A haul's title and description: title if given, else the docstring's
+    """A pipeline's title and description: title if given, else the docstring's
     first line; the description is the rest of the docstring."""
     doc = inspect.getdoc(f) or ""
     first, _, rest = doc.partition("\n")
@@ -305,15 +331,17 @@ def _memo(memo: bool | str | None) -> str:
     raise ValueError(f"memo={memo!r}: want True, False, 'fingerprint' or 'ttl:<duration>'")
 
 
-def lift(fn: Callable | None = None, *, name: str | None = None, memo: bool | str = False,
+def step(fn: Callable | None = None, *, name: str | None = None, memo: bool | str = False,
          output: Dataset | None = None, version: str | None = None, deps: tuple[str, ...] | list[str] = (),
          timeout: float | _dt.timedelta | None = None, retry: Retry | int | None = None, dock: str | None = None):
-    """Mark a function as a lift: one side-effecting unit of work, run on a
-    worker and retried by policy. With output=, it produces a pallet: write
-    files to hubwagen.output().path. With memo=True, an unchanged lift
-    (code, inputs, arguments) reuses what an earlier run produced instead of
-    running: its pallet, or without an output, its result. The function
-    stays callable as is, for tests."""
+    """Mark a function as a step: one unit of real work (a query, an API
+    call, a computation), run on a worker and retried by policy. With
+    output=, what it writes becomes a new version of that dataset: return a
+    dataframe, or write files to hubwagen.output().path. With memo=True, a
+    step that comes again with the same code, inputs and arguments reuses
+    what an earlier run produced instead of running: its data version, or
+    without an output, its result. The function stays callable as is, for
+    tests. (The engine calls a step a lift.)"""
     memo_s = _memo(memo)
     if isinstance(timeout, _dt.timedelta):
         timeout = timeout.total_seconds()
@@ -324,12 +352,15 @@ def lift(fn: Callable | None = None, *, name: str | None = None, memo: bool | st
         d = LiftDef(name=name or f.__name__, fn=f, memo=memo_s, output=output, version=version,
                     deps=tuple(deps), timeout=timeout, retry=retry, dock=dock)
         if output is not None and output.partition and output.partition not in inspect.signature(f).parameters:
-            raise ValueError(f"lift {d.name}: output partition {output.partition!r} is not one of its arguments")
+            raise ValueError(f"step {d.name}: output partition {output.partition!r} is not one of its arguments")
         _register(LIFTS, d)
         f.__hubwagen_lift__ = d
         return f
 
     return wrap(fn) if fn is not None else wrap
+
+
+lift = step  # the engine's name
 
 
 def lift_def(f: Callable | str) -> LiftDef:
@@ -338,7 +369,7 @@ def lift_def(f: Callable | str) -> LiftDef:
     else:
         d = getattr(f, "__hubwagen_lift__", None)
     if d is None:
-        raise TypeError(f"{f!r} is not a lift (decorate it with @hubwagen.lift)")
+        raise TypeError(f"{f!r} is not a step (decorate it with @hubwagen.step)")
     return d
 
 
@@ -347,12 +378,12 @@ def lift_def(f: Callable | str) -> LiftDef:
 
 def encode(v: Any) -> Any:
     """Arguments and results as JSON: dates and datetimes get a tag so they
-    come back as what they were; pallets become references."""
+    come back as what they were; data versions become references."""
     from . import _codecs
 
     if _codecs.for_value(v) is not None:
-        raise TypeError(f"a {type(v).__name__} isn't JSON: return it from a lift on its own (it becomes a pallet) "
-                        "and pass the lift's handle on")
+        raise TypeError(f"a {type(v).__name__} isn't JSON: return it from a step on its own (it becomes a data version) "
+                        "and pass the step's handle on")
     if isinstance(v, Pallet):
         return {"$pallet": v.id, "dataset": v.dataset, "partition": v.partition}
     if isinstance(v, Interval):

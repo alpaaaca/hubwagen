@@ -72,7 +72,7 @@ of truth and runs are derived.
 `marketing.daily_revenue` for 2026-10-24?", "what was it built from?" and
 "what is stale?" are answered from the catalog, a projection of the logbooks
 of all hauls. Nobody writes to it directly. `CatalogService` reads it
-(`hubwagen datasets`, `hubwagen pallets <dataset>`, and `hubwagen pallet <id>`
+(`hubwagen datasets`, `hubwagen versions <dataset>`, and `hubwagen data <id>`
 with its files and its lineage both ways).
 
 **Logs are not state.** What a lift prints and logs is captured by the
@@ -99,14 +99,18 @@ the data they move.
 | **Timer** | A durable sleep or deadline held by the server. | Timer |
 | **State** | Small key-value state of a haul, rebuilt by every replay from the logbook, so it is as durable as the logbook. | Workflow variables |
 
-**In front of people** (the web UI, what `hubwagen dev` prints, error
-messages) these concepts go by plain words: a haul is a **pipeline**, one
-execution of it a **run**; a lift is a **step**; a pallet is a **version**
-of a dataset (a step's output); a memoized lift is **reused** ("same
-inputs and same code, so it didn't run again"); a logbook is a run's
-**history**, told in sentences by `internal/history`, with the engine's
-bookkeeping (haul tasks, attempts that succeeded) shown only on request.
-The UI explains each word where it appears (`ui/src/words.tsx`).
+**In front of people** (the SDK, the web UI, the CLI, what `hubwagen dev`
+prints, error messages) these concepts go by plain words: a haul is a
+**pipeline**, one execution of it a **run**; a lift is a **step**; a pallet
+is a **data version** (a version of a dataset, a step's output); a
+memoized lift is **reused** ("same inputs and same code, so it didn't run
+again"); a logbook is a run's **history**, told in sentences by
+`internal/history`, with the engine's bookkeeping (haul tasks, attempts
+that succeeded) shown only on request. The UI explains each word where it
+appears (`ui/src/words.tsx`). The SDK's names follow: `@hw.pipeline`,
+`@hw.step`, `ctx.step`, `ctx.run`, `hw.DataVersion`; the engine's
+(`@hw.haul`, `@hw.lift`, `ctx.lift`, `hw.Pallet`) stay as aliases, and are
+what this document, the API and the code inside use.
 
 ## Writing hauls and lifts
 
@@ -478,12 +482,12 @@ A backfill starts hauls for a range of parameters; memoization makes it cheap.
 
 ```
 $ hubwagen replay daily_revenue --param day=2026-03-01..2026-03-31
-31 hauls started
-31 hauls
+31 runs started
+31 runs
   extract_orders   31 reused
   check_quality    31 reused
-  build_revenue    31 run (code changed (7c1e → a04b))
-  report_extract   31 run (input changed)
+  build_revenue    31 ran (its code changed (7c1e → a04b))
+  report_extract   31 ran (an input changed)
 31 completed
 ```
 
@@ -491,7 +495,7 @@ $ hubwagen replay daily_revenue --param day=2026-03-01..2026-03-31
 reports the same way). Both talk to `HaulService` (`StartHaul`, `GetHaul`)
 on the server.
 
-`hubwagen pallet invalidate <id> --reason …` marks a pallet and everything
+`hubwagen data invalidate <id> --reason …` marks a pallet and everything
 built from it, directly or transitively, invalid. Invalid pallets are never
 reused, never a dataset's latest and never a lift's input, so a replay
 recomputes exactly that set; the command shows what it will mark, asks,

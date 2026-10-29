@@ -260,8 +260,16 @@ each is one PR:
    with "engine details". Each lift says why it ran in words (`Lift.why`);
    the UI says pipeline, run, step, version and reused, with a hint for
    each. Scheduled pipelines start by hand with their latest interval
-   (`Schedule.latest_params_json`). Open: the SDK's own names
-   (`@hw.haul`, `@hw.lift`) and the CLI's output still use the engine's.
+   (`Schedule.latest_params_json`).
+   ✅ **Plain words in the SDK and CLI**: `@hw.pipeline`, `@hw.step`,
+   `ctx.step`, `ctx.step_async`, `ctx.run`, `ctx.start_run`,
+   `ctx.latest_version`, `hw.DataVersion`, `hw.StepFailed`,
+   `hw.RunFailed`, `testing.run(steps=, run_steps=, versions=)`; the
+   engine's names stay as aliases, and a subscribed pipeline may take its
+   new versions as `versions`. The CLI says pipeline, run, step and
+   version: `hubwagen versions` and `hubwagen data` (`pallets` and
+   `pallet` as aliases), the replay report in words ("1 ran (its code
+   changed …)"). The API, proto and Go code keep the engine's names.
 7. **Web UI: catalog**: datasets, partitions and pallets with stale and
    invalid marked, lineage up and down as a graph, a pallet's files, and
    invalidating from the UI (with the same dry run first);

@@ -135,7 +135,7 @@ func TestPallets(t *testing.T) {
 	c := serve(t).c
 	var out bytes.Buffer
 	require.NoError(t, c.Pallets(ctx, &out, PalletsQuery{Tenant: "default", Dataset: "raw.orders"}))
-	assert.Equal(t, []string{"PARTITION LATEST PALLET COMMITTED VERSIONS",
+	assert.Equal(t, []string{"PARTITION LATEST VERSION SAVED VERSIONS",
 		"2026-10-23 o1 " + when(t0) + " 1", "2026-10-24 o3 " + when(t0.Add(2*time.Hour)) + " 2"}, lines(out.String()))
 
 	out.Reset()
@@ -152,7 +152,7 @@ func TestPalletShowsFilesAndLineage(t *testing.T) {
 	var out bytes.Buffer
 	require.NoError(t, c.Pallet(ctx, &out, "o3"))
 	s := out.String()
-	assert.Contains(t, s, "pallet o3, committed")
+	assert.Contains(t, s, "data version o3, committed")
 	assert.Contains(t, s, "files      part-0.csv (8 B)")
 	assert.Contains(t, s, "built from:\n  nothing")
 	assert.Contains(t, s, "built into:\n  m1  mart.revenue 2026-10-24  (as orders)\n    r1  reports.revenue 2026-10-24  (as revenue)\n  r1  reports.revenue 2026-10-24  (as orders)  (shown above)\n")
@@ -172,22 +172,22 @@ func TestInvalidate(t *testing.T) {
 	no := func(n int) bool { asked = n; return false }
 	require.NoError(t, c.Invalidate(ctx, &out, InvalidateQuery{ID: "m1", Reason: "bad", Confirm: no}))
 	assert.Equal(t, 2, asked)
-	assert.Equal(t, []string{"invalidating m1 marks 2 pallets invalid:", "m1 mart.revenue 2026-10-24 committed",
+	assert.Equal(t, []string{"invalidating m1 marks 2 versions invalid:", "m1 mart.revenue 2026-10-24 committed",
 		"r1 reports.revenue 2026-10-24 committed", "nothing changed"}, lines(out.String()))
 
 	out.Reset()
 	require.NoError(t, c.Invalidate(ctx, &out, InvalidateQuery{ID: "m1", Reason: "bad", DryRun: true}))
-	assert.Contains(t, out.String(), "m1 would mark 2 pallets")
+	assert.Contains(t, out.String(), "m1 would mark 2 versions")
 	assert.Contains(t, out.String(), "hubwagen start daily --param day=2026-10-24 --param 'label=Q4 revenue'")
 
 	out.Reset()
 	require.NoError(t, c.Invalidate(ctx, &out, InvalidateQuery{ID: "m1", Reason: "bad", By: "ana", Confirm: func(int) bool { return true }}))
-	assert.Contains(t, out.String(), "marked 2 pallets invalid")
-	assert.Contains(t, out.String(), "these recompute them (memoized lifts whose code and inputs didn't change are reused):")
+	assert.Contains(t, out.String(), "marked 2 versions invalid")
+	assert.Contains(t, out.String(), "these recompute them (memoized steps whose code and inputs didn't change are reused):")
 
 	out.Reset()
 	require.NoError(t, c.Pallet(ctx, &out, "r1"))
-	assert.Contains(t, out.String(), "pallet r1, invalid\n  reason     built from invalidated pallet m1: bad")
+	assert.Contains(t, out.String(), "data version r1, invalid\n  reason     built from invalidated version m1: bad")
 
 	out.Reset()
 	require.NoError(t, c.Invalidate(ctx, &out, InvalidateQuery{ID: "m1", Reason: "again"}))
@@ -210,10 +210,10 @@ func TestStale(t *testing.T) {
 	out.Reset()
 	require.NoError(t, c.Stale(ctx, &out, "default", ""))
 	got := lines(out.String())
-	assert.Equal(t, "DATASET PARTITION LATEST PALLET WHY", got[0])
-	assert.Contains(t, got, "mart.revenue 2026-10-24 m1 input raw.orders 2026-10-24 has a newer pallet o4")
-	assert.Contains(t, got, "reports.revenue 2026-10-24 r1 input raw.orders 2026-10-24 has a newer pallet o4")
-	assert.Contains(t, out.String(), "these refresh them (memoized lifts whose code and inputs didn't change are reused):\n  hubwagen start daily --param day=2026-10-24 --param 'label=Q4 revenue'\n")
+	assert.Equal(t, "DATASET PARTITION LATEST VERSION WHY", got[0])
+	assert.Contains(t, got, "mart.revenue 2026-10-24 m1 input raw.orders 2026-10-24 has a newer version o4")
+	assert.Contains(t, got, "reports.revenue 2026-10-24 r1 input raw.orders 2026-10-24 has a newer version o4")
+	assert.Contains(t, out.String(), "these refresh them (memoized steps whose code and inputs didn't change are reused):\n  hubwagen start daily --param day=2026-10-24 --param 'label=Q4 revenue'\n")
 	assert.Equal(t, 1, strings.Count(out.String(), "hubwagen start"), "one start for hauls with the same params")
 
 	out.Reset()
@@ -235,13 +235,13 @@ func TestGC(t *testing.T) {
 
 	out.Reset()
 	require.NoError(t, f.c.GC(ctx, &out, true))
-	assert.Equal(t, []string{"would expire 1 pallet:", "o2 raw.orders 2026-10-24 committed " + when(t0.Add(time.Hour))}, lines(out.String()),
+	assert.Equal(t, []string{"would expire 1 version:", "o2 raw.orders 2026-10-24 saved " + when(t0.Add(time.Hour))}, lines(out.String()),
 		"o3 is the latest of 10-24; o1 the only one of 10-23")
 	out.Reset()
 	require.NoError(t, f.c.GC(ctx, &out, false))
-	assert.True(t, strings.HasPrefix(out.String(), "expired 1 pallet:"))
+	assert.True(t, strings.HasPrefix(out.String(), "expired 1 version:"))
 	out.Reset()
 	require.NoError(t, f.c.Pallet(ctx, &out, "o2"))
-	assert.Contains(t, out.String(), "pallet o2, expired\n  reason     retention: raw.orders keeps each partition's latest and the newest 1")
+	assert.Contains(t, out.String(), "data version o2, expired\n  reason     retention: raw.orders keeps each partition's latest and the newest 1")
 	assert.Contains(t, out.String(), "files      can't be read: expired: its data was removed")
 }

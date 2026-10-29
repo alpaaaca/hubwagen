@@ -1,11 +1,12 @@
-"""hubwagen lint: find haul code that won't replay the same way twice.
+"""hubwagen lint: find pipeline code that won't replay the same way twice.
 
     python -m hubwagen.lint                  # the modules in ./pyproject.toml ([tool.hubwagen])
     python -m hubwagen.lint app/hauls.py src # files, directories or module names
 
-A haul is replayed from its logbook many times, on any worker, so its code
-must make the same calls in the same order every time. The runtime guards
-catch the clock and randomness while a haul replays; lint catches more, and
+A run of a pipeline is replayed against what it already did many times, on
+any worker, so pipeline code must make the same calls in the same order
+every time. The runtime guards catch the clock and randomness while a run
+replays; lint catches more, and
 before anything runs, by reading the source (nothing is imported):
 
     HW001  the clock (time.time, datetime.now, date.today, ...)
@@ -13,9 +14,9 @@ before anything runs, by reading the source (nothing is imported):
     HW003  iterating a set: its order can differ between processes
     HW004  I/O, network, subprocesses or environment variables
     HW005  `except:` or `except BaseException`: swallows the replay's Blocked
-    HW006  a lift called directly instead of through ctx.lift
+    HW006  a step called directly instead of through ctx.step
 
-Only code inside functions decorated with hubwagen's @haul is checked
+Only code inside functions decorated with hubwagen's @pipeline (or @haul) is checked
 (nested functions included, helpers it calls not). Silence a line with
 `# noqa: HW004` (or a bare `# noqa`). Exits 1 if anything is found.
 """
@@ -64,11 +65,11 @@ def lint_source(source: str, path: str = "<string>") -> list[Finding]:
         return [Finding(path, e.lineno or 1, (e.offset or 1) - 1, "HW000", f"syntax error: {e.msg}")]
     names = _imports(tree)
     lifts = {n.name for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
-             and any(_decorated(d, names, "lift") for d in n.decorator_list)}
+             and any(_decorated(d, names, "step", "lift") for d in n.decorator_list)}
     findings: list[Finding] = []
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and \
-                any(_decorated(d, names, "haul") for d in node.decorator_list):
+                any(_decorated(d, names, "pipeline", "haul") for d in node.decorator_list):
             findings += _HaulChecker(path, names, lifts, node.name).check(node)
     lines = source.splitlines()
     return sorted({f for f in findings if not _silenced(f, lines)}, key=lambda f: (f.line, f.col, f.code))
@@ -111,10 +112,10 @@ def _qualified(expr: ast.expr, names: dict[str, str]) -> str | None:
     return ".".join(reversed(parts))
 
 
-def _decorated(d: ast.expr, names: dict[str, str], what: str) -> bool:
+def _decorated(d: ast.expr, names: dict[str, str], *what: str) -> bool:
     if isinstance(d, ast.Call):
         d = d.func
-    return _qualified(d, names) in (f"hubwagen.{what}", f"hubwagen._model.{what}")
+    return _qualified(d, names) in {f"hubwagen{m}.{w}" for w in what for m in ("", "._model")}
 
 
 class _HaulChecker(ast.NodeVisitor):
@@ -129,25 +130,25 @@ class _HaulChecker(ast.NodeVisitor):
         return self.findings
 
     def add(self, node: ast.AST, code: str, message: str) -> None:
-        self.findings.append(Finding(self.path, node.lineno, node.col_offset, code, f"haul {self.haul}: {message}"))
+        self.findings.append(Finding(self.path, node.lineno, node.col_offset, code, f"pipeline {self.haul}: {message}"))
 
     def visit_Call(self, node: ast.Call) -> None:
         q = _qualified(node.func, self.names)
         if q in CLOCK:
             self.add(node, "HW001", f"{q}() reads the clock; use ctx.now()")
         elif q in RANDOM or (q and q.startswith(RANDOM_PREFIXES)):
-            self.add(node, "HW002", f"{q}() is random; use ctx.random() or a lift")
+            self.add(node, "HW002", f"{q}() is random; use ctx.random() or a step")
         elif q in IO_CALLS or (q and q.startswith(IO_PREFIXES)):
-            self.add(node, "HW004", f"{q}() does I/O; do it in a lift")
+            self.add(node, "HW004", f"{q}() does I/O; do it in a step")
         elif isinstance(node.func, ast.Attribute) and node.func.attr in IO_METHODS:
-            self.add(node, "HW004", f".{node.func.attr}() does I/O; do it in a lift")
+            self.add(node, "HW004", f".{node.func.attr}() does I/O; do it in a step")
         elif isinstance(node.func, ast.Name) and node.func.id in self.lifts:
-            self.add(node, "HW006", f"lift {node.func.id} called directly runs inside the haul; use ctx.lift({node.func.id}, ...)")
+            self.add(node, "HW006", f"step {node.func.id} called directly runs inside the pipeline; use ctx.step({node.func.id}, ...)")
         self.generic_visit(node)
 
     def visit_Attribute(self, node: ast.Attribute) -> None:
         if _qualified(node, self.names) == "os.environ":
-            self.add(node, "HW004", "os.environ reads the environment; pass it as a parameter or read it in a lift")
+            self.add(node, "HW004", "os.environ reads the environment; pass it as an input or read it in a step")
         self.generic_visit(node)
 
     def visit_Assign(self, node: ast.Assign) -> None:

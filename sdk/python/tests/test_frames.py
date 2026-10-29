@@ -78,7 +78,7 @@ def test_inputs_load_by_annotation(tmp_path):
 
 
 def test_frames_are_not_json():
-    with pytest.raises(TypeError, match="return it from a lift"):
+    with pytest.raises(TypeError, match="return it from a step"):
         _model.encode({"df": pl.DataFrame({"a": [1]})})
 
 
