@@ -2,35 +2,129 @@ import { useState, type FormEvent } from "react";
 
 import { useApi } from "../api";
 import type { Haul } from "../gen/hubwagen/v1/haul_pb";
-import { ago, duration, HAUL_STATUSES, Status, steps, took, Values, when } from "../format";
+import { ago, duration, fromNow, HAUL_STATUSES, Status, steps, took, Values, when } from "../format";
 import { message, usePoll } from "../hooks";
 import { usePipelines, type Pipelines } from "../pipelines";
 import { Link, navigate } from "../router";
+import { Hint } from "../words";
 
 const OVERVIEW = 500;
 
-// HaulList is the start page: a card per pipeline (hauls by name), then the
-// latest runs of all of them.
+// HaulList is the start page: the pipelines (hauls by name) and what to
+// know about each: what it is, how it is started, how its recent runs went.
+// Their runs are on each pipeline's page.
 export function HaulList() {
   const api = useApi();
   const pipelines = usePipelines();
-  const [status, setStatus] = useState("");
   const overview = usePoll(() => api.hauls.listHauls({ limit: OVERVIEW }), []);
-  const runs = usePoll(() => api.hauls.listHauls({ statuses: status ? [status] : [], limit: 50 }), [status]);
+  const byName = new Map<string, Haul[]>();
+  for (const name of pipelines.names) byName.set(name, []);
+  for (const h of overview.data?.hauls ?? []) byName.set(h.name, [...(byName.get(h.name) ?? []), h]); // newest first
+  const names = [...byName.keys()].sort((a, b) => pipelines.title(a).localeCompare(pipelines.title(b)));
 
   return (
     <section>
       <h1>Pipelines</h1>
       {overview.error && <p className="error">{overview.error}</p>}
-      {overview.data && <Cards hauls={overview.data.hauls} pipelines={pipelines} />}
-
-      <div className="toolbar">
-        <h2>Latest runs</h2>
-        <StatusFilter value={status} onChange={setStatus} />
-      </div>
-      {runs.error && <p className="error">{runs.error}</p>}
-      {runs.data && <RunsTable hauls={runs.data.hauls} pipelines={pipelines} />}
+      {overview.data && names.length === 0 && (
+        <p className="dim">No pipelines yet: start workers with your code (hubwagen dev does, from hubwagen.yaml).</p>
+      )}
+      {names.length > 0 && (
+        <table className="pipelines">
+          <thead>
+            <tr>
+              <th>
+                pipeline <Hint word="pipeline" />
+              </th>
+              <th>
+                schedule <Hint word="schedule" />
+              </th>
+              <th>next run</th>
+              <th>
+                recent runs <Hint word="run" />
+              </th>
+              <th>last run</th>
+              <th>succeeded</th>
+              <th>usually takes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {names.map((name) => (
+              <PipelineRow key={name} name={name} hauls={byName.get(name)!} pipelines={pipelines} />
+            ))}
+          </tbody>
+        </table>
+      )}
+      {overview.data && overview.data.hauls.length === OVERVIEW && (
+        <p className="dim small">counted over the newest {OVERVIEW} runs</p>
+      )}
     </section>
+  );
+}
+
+const RECENT = 12;
+
+function PipelineRow({ name, hauls, pipelines }: { name: string; hauls: Haul[]; pipelines: Pipelines }) {
+  const info = pipelines.info(name);
+  const schedule = pipelines.schedule(name);
+  const sub = pipelines.subscription(name);
+  const s = hauls.length ? summary(hauls) : undefined;
+  const finished = hauls.filter((h) => h.finishedAt);
+  const ok = finished.filter((h) => h.status === "completed" || h.status === "continued").length;
+  return (
+    <tr className="clickable" onClick={() => navigate({ name: "pipeline", haul: name })}>
+      <td>
+        <Link to={{ name: "pipeline", haul: name }} className="strong" onClick={(e) => e.stopPropagation()}>
+          {pipelines.title(name)}
+        </Link>
+        {info?.title && <span className="mono dim small"> {name}</span>}
+        {info?.description && <div className="small pipeline-desc">{info.description}</div>}
+      </td>
+      <td>
+        {schedule ? (
+          <>
+            <span className="mono">{schedule.cron}</span>
+            {schedule.timezone && <span className="dim small"> {schedule.timezone}</span>}
+            <div className="dim small">{schedule.interval} data</div>
+          </>
+        ) : sub ? (
+          <>
+            when new data arrives
+            <div className="dim small mono">{sub.datasets.join(", ")}</div>
+          </>
+        ) : (
+          <span className="dim">on demand</span>
+        )}
+      </td>
+      <td title={schedule ? when(schedule.nextRun) : undefined}>{schedule ? fromNow(schedule.nextRun) : <span className="dim">–</span>}</td>
+      <td>
+        <span className="recent" aria-label={`recent runs of ${pipelines.title(name)}`}>
+          {[...hauls.slice(0, RECENT)].reverse().map((h) => (
+            <Link key={h.id} to={{ name: "haul", id: h.id }} className={`recent-run run-${h.status}`} label={`${h.status}, started ${ago(h.createdAt)}`} onClick={(e) => e.stopPropagation()}>
+              {""}
+            </Link>
+          ))}
+          {hauls.length === 0 && <span className="dim">never ran</span>}
+        </span>
+      </td>
+      <td>
+        {s && (
+          <>
+            <Status status={s.last.status} /> <span title={when(s.last.createdAt)}>{ago(s.last.createdAt)}</span>
+          </>
+        )}
+      </td>
+      <td>
+        {finished.length > 0 ? (
+          <span className={ok < finished.length ? "error" : ""}>
+            {ok} of {finished.length}
+          </span>
+        ) : (
+          <span className="dim">–</span>
+        )}
+      </td>
+      <td>{s?.usually !== undefined ? duration(s.usually) : <span className="dim">–</span>}</td>
+    </tr>
   );
 }
 
@@ -58,41 +152,6 @@ function median(xs: number[]): number {
   return s[Math.floor(s.length / 2)];
 }
 
-// Cards shows one card per pipeline: how its last run went, how often it
-// fails, and how long it usually takes.
-function Cards({ hauls, pipelines }: { hauls: Haul[]; pipelines: Pipelines }) {
-  if (hauls.length === 0) {
-    return <p className="dim">Nothing has run yet. Start a run with hubwagen start, or from a pipeline's page.</p>;
-  }
-  const byName = new Map<string, Haul[]>();
-  for (const h of hauls) byName.set(h.name, [...(byName.get(h.name) ?? []), h]); // newest first
-  return (
-    <nav className="cards" aria-label="pipelines">
-      {[...byName.entries()].map(([name, hs]) => {
-        const s = summary(hs);
-        const title = pipelines.title(name);
-        return (
-          <Link key={name} to={{ name: "pipeline", haul: name }} className="card" label={title}>
-            <div className="card-title">
-              <strong>{title}</strong> <Status status={s.last.status} />
-            </div>
-            {pipelines.info(name)?.description && <div className="card-desc">{pipelines.info(name)!.description}</div>}
-            <div className="dim">
-              last run {ago(s.last.createdAt)}
-              {s.running > 0 && ` · ${s.running} running`}
-            </div>
-            <div>
-              {hs.length} run{hs.length === 1 ? "" : "s"}
-              {s.failed > 0 ? <span className="error"> · {s.failed} failed</span> : " · none failed"}
-              {s.usually !== undefined && <> · usually {duration(s.usually)}</>}
-            </div>
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-
 // RunsTable lists runs: what went in, how far they got, how long they took
 // and what came out. With pipelines, it says which pipeline each run is of.
 export function RunsTable({ hauls, pipelines }: { hauls: Haul[]; pipelines?: Pipelines }) {
@@ -103,7 +162,9 @@ export function RunsTable({ hauls, pipelines }: { hauls: Haul[]; pipelines?: Pip
       <thead>
         <tr>
           {pipelines && <th>pipeline</th>}
-          <th>inputs</th>
+          <th>
+            inputs <Hint word="inputs" />
+          </th>
           <th>status</th>
           <th>steps</th>
           <th>started</th>

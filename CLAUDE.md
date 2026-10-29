@@ -42,6 +42,7 @@ spec-kit.
 | `internal/state` | Store: event log + projections (hauls, lifts, timers, catalog, builds), term fencing, leader-start loader |
 | `internal/pallet` | Storage adapter for pallets as files: manifests, content hash, idempotent promote, discard |
 | `internal/api` | Connect services over HTTP (`WorkerService`, `HaulService`, `CatalogService`, `LogService`); generated code in `gen/` from `proto/` |
+| `internal/history` | A run's events told in plain words (pipeline, run, step, version, reused), for the web UI's "What happened" |
 | `internal/runlog` | What lifts printed and logged, per attempt: files of JSON lines, capped; not state, not in the event log |
 | `internal/devmode` | Wires store, bucket, logs, core and API for one process; data-dir lock; what `hubwagen dev` prints (runs and their output; `--events`: event descriptions) |
 | `internal/haulcli` | What `start` and `replay` do: `--param` ranges, starting and waiting over `HaulService`, the replay report |

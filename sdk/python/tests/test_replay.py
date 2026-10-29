@@ -481,3 +481,14 @@ def test_haul_title_and_description():
     assert got == {"titled_from_doc": ("Daily revenue", "Orders for one day, and a report."),
                    "titled": ("Weekly revenue", "Seven days of orders."),
                    "untitled": ("", "")}
+
+
+def test_a_haul_started_without_an_input_fails_and_says_which():
+    def nightly(ctx, interval: hw.Interval):
+        return interval.start
+
+    d = _model.HaulDef("nightly", nightly, None, schedule=hw.Schedule("0 3 * * *", interval="daily"))
+    r = _replay.replay(d, "h1", {}, [START])
+    assert r.outcome["status"] == "STATUS_FAILED"
+    assert "haul nightly was started with inputs {}" in r.outcome["message"]
+    assert "'interval'" in r.outcome["message"] and "$interval" in r.outcome["message"]

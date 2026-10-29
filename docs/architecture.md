@@ -99,6 +99,15 @@ the data they move.
 | **Timer** | A durable sleep or deadline held by the server. | Timer |
 | **State** | Small key-value state of a haul, rebuilt by every replay from the logbook, so it is as durable as the logbook. | Workflow variables |
 
+**In front of people** (the web UI, what `hubwagen dev` prints, error
+messages) these concepts go by plain words: a haul is a **pipeline**, one
+execution of it a **run**; a lift is a **step**; a pallet is a **version**
+of a dataset (a step's output); a memoized lift is **reused** ("same
+inputs and same code, so it didn't run again"); a logbook is a run's
+**history**, told in sentences by `internal/history`, with the engine's
+bookkeeping (haul tasks, attempts that succeeded) shown only on request.
+The UI explains each word where it appears (`ui/src/words.tsx`).
+
 ## Writing hauls and lifts
 
 A haul calls lifts, waits and branches. A lift touches the outside world and

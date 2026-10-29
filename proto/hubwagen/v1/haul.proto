@@ -30,6 +30,9 @@ service HaulService {
   // GetLogbook returns the events a replay of the haul reads, for replaying
   // it against other code (hubwagen.testing --replay).
   rpc GetLogbook(GetLogbookRequest) returns (GetLogbookResponse);
+  // GetHistory tells what happened in a haul, in plain words: one entry per
+  // event, in order.
+  rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse);
   // ListSchedules returns the current haul schedules and their next runs,
   // and the dataset subscriptions.
   rpc ListSchedules(ListSchedulesRequest) returns (ListSchedulesResponse);
@@ -61,6 +64,9 @@ message ListHaulsRequest {
   string parent_id = 5;
   // Only hauls older than this one (paging).
   string before_id = 6;
+  // Also return each haul's lifts (name, status, reused, times; no results
+  // or edges): a run history by step. At most 200 hauls then.
+  bool with_lifts = 7;
 }
 
 message CancelHaulRequest {
@@ -98,6 +104,35 @@ message LogbookEvent {
   string payload_json = 4;
 }
 
+message GetHistoryRequest {
+  string haul_id = 1;
+}
+
+message GetHistoryResponse {
+  repeated HistoryEntry entries = 1;
+}
+
+// HistoryEntry is one event of a haul, told for people (internal/history).
+message HistoryEntry {
+  google.protobuf.Timestamp time = 1;
+  // started, finished, stuck, step, reused, problem, retry, wait, run,
+  // data; engine for the engine's own bookkeeping.
+  string kind = 2;
+  // The lift it is about, 0 and "" for the haul itself.
+  int32 seq = 3;
+  string step = 4;
+  // The sentence, without the step's name.
+  string text = 5;
+  // More, when there is: an error message, arguments.
+  string detail = 6;
+  // A haul it refers to: the one a lift was reused from, a child.
+  string haul_id = 7;
+  // The event it tells.
+  int64 event_seq = 8;
+  string event_type = 9;
+  string payload_json = 10;
+}
+
 message ListSchedulesRequest {}
 
 message ListSchedulesResponse {
@@ -128,6 +163,9 @@ message Schedule {
   google.protobuf.Timestamp cursor = 7;
   // The next tick.
   google.protobuf.Timestamp next_run = 8;
+  // The inputs of a run for the latest interval that came due (JSON):
+  // {"interval": {"$interval": {start, end}}}, to start one by hand.
+  string latest_params_json = 9;
 }
 
 message SignalHaulRequest {
@@ -225,4 +263,7 @@ message Lift {
   repeated int32 after = 13;
   // The dataset its pallet goes to, if it has an output.
   string dataset = 14;
+  // Why it ran or was reused, in plain words ("its code changed (v1 →
+  // v2)"); empty when there is nothing to say.
+  string why = 15;
 }
