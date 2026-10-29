@@ -97,7 +97,9 @@ export function Pipeline({ haul }: { haul: string }) {
       )}
 
       <h2>Start a run</h2>
-      <StartRun haul={haul} inputs={latest?.paramsJson || "{}"} />
+      {/* A scheduled pipeline takes its data interval as an input: start with the latest one. */}
+      <StartRun haul={haul} inputs={schedule?.latestParamsJson || latest?.paramsJson || "{}"} />
+      {schedule?.latestParamsJson && <p className="dim small">inputs of the latest interval that came due</p>}
 
       <details className="raw">
         <summary>All runs, as a list</summary>

@@ -151,7 +151,12 @@ func (s *HaulServer) ListSchedules(ctx context.Context, _ *connect.Request[hubwa
 		v := &hubwagenv1.Schedule{Haul: sc.Haul, Cron: sc.Cron, Timezone: sc.Timezone, Interval: sc.Interval,
 			CatchUp: sc.CatchUp, BuildId: sc.BuildID, Cursor: timestamppb.New(sc.Cursor)}
 		if cal, err := schedule.NewCalendar(schedule.Schedule{Cron: sc.Cron, Timezone: sc.Timezone, Interval: sc.Interval}); err == nil {
-			v.NextRun = timestamppb.New(cal.Next(time.Now()))
+			now := time.Now()
+			v.NextRun = timestamppb.New(cal.Next(now))
+			if tick := cal.Prev(now); !tick.IsZero() {
+				b, _ := json.Marshal(map[string]any{"interval": core.IntervalParam(cal.Interval(tick))})
+				v.LatestParamsJson = string(b)
+			}
 		}
 		out.Schedules = append(out.Schedules, v)
 	}

@@ -181,7 +181,7 @@ func (c *Core) runSchedule(s *scheduleState) {
 		default:
 			res, err := c.startHaul(StartHaulRequest{
 				Tenant: ScheduleTenant, Name: s.rec.Haul, Trigger: "schedule",
-				Params: map[string]any{"interval": intervalParam(f.Interval)},
+				Params: map[string]any{"interval": IntervalParam(f.Interval)},
 			})
 			if err != nil {
 				p.Error = err.Error()
@@ -201,9 +201,9 @@ func (c *Core) runSchedule(s *scheduleState) {
 	c.armSchedule(s)
 }
 
-// intervalParam is how a haul receives its data interval; the Python SDK
+// IntervalParam is how a haul receives its data interval; the Python SDK
 // decodes it as hubwagen.Interval.
-func intervalParam(iv schedule.Interval) map[string]any {
+func IntervalParam(iv schedule.Interval) map[string]any {
 	return map[string]any{"$interval": map[string]any{
 		"start": iv.Start.Format(time.RFC3339Nano), "end": iv.End.Format(time.RFC3339Nano)}}
 }

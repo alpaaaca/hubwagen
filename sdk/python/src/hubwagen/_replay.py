@@ -377,6 +377,15 @@ def replay(d: HaulDef, haul_id: str, params: dict, logbook: list[dict]) -> Repla
     """Run the haul function until it blocks or ends."""
     ctx = Ctx(haul_id, logbook, d.max_parallel)
     try:
+        inspect.signature(d.fn).bind(None, **params)
+    except TypeError as e:
+        hint = ""
+        if d.schedule is not None and "interval" not in params:
+            hint = ('; its schedule passes the interval: to start it by hand, give '
+                    '{"interval": {"$interval": {"start": ..., "end": ...}}} (Start a run in the web UI fills in the latest)')
+        return ReplayResult([], {"status": "STATUS_FAILED", "reason": "TypeError",
+                                 "message": f"haul {d.name} was started with inputs {json.dumps(params)}: {e}{hint}"})
+    try:
         with guarded():
             result = d.fn(ctx, **decode(params))
     except Blocked:

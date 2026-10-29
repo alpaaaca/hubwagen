@@ -834,9 +834,12 @@ type Schedule struct {
 	// Everything before this is handled (cron interval: the last tick).
 	Cursor *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=cursor,proto3" json:"cursor,omitempty"`
 	// The next tick.
-	NextRun       *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=next_run,json=nextRun,proto3" json:"next_run,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	NextRun *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=next_run,json=nextRun,proto3" json:"next_run,omitempty"`
+	// The inputs of a run for the latest interval that came due (JSON):
+	// {"interval": {"$interval": {start, end}}}, to start one by hand.
+	LatestParamsJson string `protobuf:"bytes,9,opt,name=latest_params_json,json=latestParamsJson,proto3" json:"latest_params_json,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Schedule) Reset() {
@@ -923,6 +926,13 @@ func (x *Schedule) GetNextRun() *timestamppb.Timestamp {
 		return x.NextRun
 	}
 	return nil
+}
+
+func (x *Schedule) GetLatestParamsJson() string {
+	if x != nil {
+		return x.LatestParamsJson
+	}
+	return ""
 }
 
 type SignalHaulRequest struct {
@@ -1692,7 +1702,7 @@ const file_hubwagen_v1_haul_proto_rawDesc = "" +
 	"\bmax_wait\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\amaxWait\x12\x1b\n" +
 	"\tmax_batch\x18\x05 \x01(\x05R\bmaxBatch\x12\x19\n" +
 	"\bbuild_id\x18\x06 \x01(\tR\abuildId\x12\x18\n" +
-	"\awaiting\x18\a \x01(\x05R\awaiting\"\x8b\x02\n" +
+	"\awaiting\x18\a \x01(\x05R\awaiting\"\xb9\x02\n" +
 	"\bSchedule\x12\x12\n" +
 	"\x04haul\x18\x01 \x01(\tR\x04haul\x12\x12\n" +
 	"\x04cron\x18\x02 \x01(\tR\x04cron\x12\x1a\n" +
@@ -1701,7 +1711,8 @@ const file_hubwagen_v1_haul_proto_rawDesc = "" +
 	"\bcatch_up\x18\x05 \x01(\tR\acatchUp\x12\x19\n" +
 	"\bbuild_id\x18\x06 \x01(\tR\abuildId\x122\n" +
 	"\x06cursor\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x06cursor\x125\n" +
-	"\bnext_run\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\anextRun\"c\n" +
+	"\bnext_run\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\anextRun\x12,\n" +
+	"\x12latest_params_json\x18\t \x01(\tR\x10latestParamsJson\"c\n" +
 	"\x11SignalHaulRequest\x12\x17\n" +
 	"\ahaul_id\x18\x01 \x01(\tR\x06haulId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +

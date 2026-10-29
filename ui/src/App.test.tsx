@@ -97,7 +97,14 @@ function fakeServer() {
       },
       listSchedules() {
         const next = timestampFromDate(new Date(Date.now() + 5 * 3600 * 1000));
-        return { schedules: [{ haul: "daily", cron: "0 3 * * *", timezone: "Europe/Berlin", interval: "daily", nextRun: next }], subscriptions: [] };
+        const latest = '{"interval":{"$interval":{"end":"2026-10-24T13:00:00Z","start":"2026-10-24T12:00:00Z"}}}';
+        return {
+          schedules: [
+            { haul: "daily", cron: "0 3 * * *", timezone: "Europe/Berlin", interval: "daily", nextRun: next },
+            { haul: "nightly", cron: "5 * * * *", interval: "hourly", nextRun: next, latestParamsJson: latest },
+          ],
+          subscriptions: [],
+        };
       },
     });
     service(LogService, {
@@ -190,6 +197,12 @@ test("a pipeline: its steps as a graph, all its runs, starting one", async () =>
   await userEvent.click(screen.getByRole("button", { name: "Start a run" }));
   await waitFor(() => expect(window.location.hash).toBe("#/hauls/01M6AAAAAAAAAAAAAAAAAAAAAA"));
   expect(calls.startHaul[0]).toMatchObject({ name: "daily", paramsJson: '{"day": "2026-10-25"}', trigger: "the web UI" });
+});
+
+test("a scheduled pipeline starts by hand with the latest interval as its inputs", async () => {
+  show("#/pipelines/nightly");
+  await waitFor(() => expect(screen.getByLabelText("inputs")).toHaveValue('{"interval":{"$interval":{"end":"2026-10-24T13:00:00Z","start":"2026-10-24T12:00:00Z"}}}'));
+  expect(screen.getByText("inputs of the latest interval that came due")).toBeInTheDocument();
 });
 
 test("a run: steps on a timeline, children, events, signal and cancel", async () => {

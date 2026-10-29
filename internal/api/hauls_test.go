@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"testing"
 	"time"
@@ -92,6 +93,19 @@ func TestSchedulesOverTheAPI(t *testing.T) {
 	assert.Equal(t, []string{"daily", "0 3 * * *", "Europe/Berlin", "daily", "all", "b1"},
 		[]string{sc.Haul, sc.Cron, sc.Timezone, sc.Interval, sc.CatchUp, sc.BuildId})
 	assert.True(t, sc.NextRun.AsTime().After(time.Now()))
+	// To start one by hand: the latest day that came due, midnight to
+	// midnight in Berlin.
+	var latest struct {
+		Interval struct {
+			Iv struct{ Start, End time.Time } `json:"$interval"`
+		} `json:"interval"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(sc.LatestParamsJson), &latest), sc.LatestParamsJson)
+	iv := latest.Interval.Iv
+	berlin, _ := time.LoadLocation("Europe/Berlin")
+	assert.Equal(t, iv.Start.In(berlin).AddDate(0, 0, 1), iv.End.In(berlin))
+	assert.Equal(t, "00:00", iv.End.In(berlin).Format("15:04"))
+	assert.True(t, iv.End.Before(time.Now()))
 
 	_, err = s.client.RegisterBuild(ctx, connect.NewRequest(&hubwagenv1.RegisterBuildRequest{BuildId: "b2", Hauls: []string{"daily"},
 		Schedules: []*hubwagenv1.HaulSchedule{{Haul: "daily", Cron: "nope"}}}))

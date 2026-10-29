@@ -131,6 +131,9 @@ message Schedule {
   google.protobuf.Timestamp cursor = 7;
   // The next tick.
   google.protobuf.Timestamp next_run = 8;
+  // The inputs of a run for the latest interval that came due (JSON):
+  // {"interval": {"$interval": {start, end}}}, to start one by hand.
+  string latest_params_json = 9;
 }
 
 message SignalHaulRequest {
