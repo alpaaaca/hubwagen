@@ -55,6 +55,28 @@ def test_memoized_result_without_output(client):
     assert not lifts(other_day)["exchange_rate"].get("reused")
 
 
+def test_lift_output_is_kept_with_the_lift(client):
+    def logs(h):
+        res = client.call("LogService", "GetLogs", {"haulId": h["id"]})
+        return [(l["lift"], l["line"]["stream"], l["line"].get("level", ""), l["line"]["text"]) for l in res.get("lines", [])]
+
+    ok = wait(client, client.start_haul("chatter", {"n": 3}))
+    assert ok["status"] == "completed", ok
+    assert logs(ok) == [
+        ("chatty", "stdout", "", "loading 3 rows"),
+        ("chatty", "log", "WARNING", "row 2 looks odd"),
+        ("chatty", "stderr", "", "partial line"),
+        ("chatty", "stdout", "", "no newline at the end"),
+    ]
+
+    failed = wait(client, client.start_haul("chatter", {"n": -1}))
+    assert failed["status"] == "failed", failed
+    lines = logs(failed)
+    assert lines[0] == ("chatty", "stdout", "", "loading -1 rows")
+    trace = "\n".join(t for _, s, _, t in lines if s == "stderr")
+    assert "Traceback" in trace and "ValueError: n must not be negative" in trace, "the failure is in the lift's log"
+
+
 def test_haul_code_reading_the_clock_is_stuck(client):
     h = wait(client, client.start_haul("reads_clock"))
     assert h["status"] == "stuck", h

@@ -96,7 +96,7 @@ func configName(cfg *config.Config) string {
 }
 
 // workerProcesses expands the config's worker groups into processes.
-func workerProcesses(cfg *config.Config, server string) []supervise.Process {
+func workerProcesses(cfg *config.Config, server string, extraEnv ...string) []supervise.Process {
 	var procs []supervise.Process
 	for _, w := range cfg.Workers {
 		for n := 1; n <= w.Count(); n++ {
@@ -107,6 +107,7 @@ func workerProcesses(cfg *config.Config, server string) []supervise.Process {
 			}
 			env = append(env, config.EnvServer+"="+server, config.EnvWorkerID+"="+id,
 				config.EnvSupervisorPID+"="+strconv.Itoa(os.Getpid()))
+			env = append(env, extraEnv...)
 			procs = append(procs, supervise.Process{ID: id, Command: w.Command, Dir: w.Dir, Env: env})
 		}
 	}

@@ -234,6 +234,15 @@ each is one PR:
    progress and result; a run's steps on the DAG and a timeline, why each
    ran, its children and its (folded) event log; live updates by polling;
    starting, signalling, cancelling and resuming runs. ([#78](https://github.com/alpaaaca/hubwagen/issues/78))
+   ✅ **Run logs**, added to this step: what a lift prints and logs is
+   captured per attempt by the worker (stdout, stderr and `logging`, by
+   thread; a failure's traceback too) and kept by the server outside the
+   event log (`LogService`, files under the data dir, 1 MiB per attempt).
+   A run's page shows them, all steps or one, live while it runs;
+   `hubwagen dev` prints runs and their output instead of engine events
+   (`--events` for those). Not captured: output that bypasses Python
+   (subprocesses, C libraries) and haul code, which replays (a
+   replay-safe `ctx.log` later).
 7. **Web UI: catalog**: datasets, partitions and pallets with stale and
    invalid marked, lineage up and down as a graph, a pallet's files, and
    invalidating from the UI (with the same dry run first);

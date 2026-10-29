@@ -11,12 +11,14 @@ and when their own code changes, they run again.
 """
 
 import csv
+import logging
 from decimal import Decimal
 from pathlib import Path
 
 import hubwagen as hw
 
 SOURCE = Path(__file__).resolve().parent.parent / "data" / "orders.csv"
+log = logging.getLogger(__name__)
 
 
 @hw.lift(output=hw.Dataset("raw.orders", partition="day"))
@@ -24,6 +26,7 @@ def extract_orders(day: str) -> dict:
     """The day's orders from the source system (here: a CSV file)."""
     with SOURCE.open() as f:
         rows = [r for r in csv.DictReader(f) if r["day"] == day]
+    print(f"read {len(rows)} orders for {day} from {SOURCE.name}")
     out = hw.output()
     with (out.path / "orders.csv").open("w", newline="") as f:
         w = csv.writer(f)
@@ -41,6 +44,8 @@ def daily_revenue(orders: hw.Pallet, day: str) -> dict:
         for r in csv.DictReader(f):
             totals[r["region"]] = totals.get(r["region"], Decimal(0)) + Decimal(r["amount"])
     totals = {region: amount.quantize(Decimal("0.01")) for region, amount in totals.items()}
+    for region, amount in sorted(totals.items()):
+        log.info("%s: %s", region, amount)
     out = hw.output()
     with (out.path / "revenue.csv").open("w", newline="") as f:
         w = csv.writer(f)

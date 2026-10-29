@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
 	"github.com/alper/hubwagen/internal/api/gen/hubwagen/v1/hubwagenv1connect"
@@ -25,6 +27,7 @@ import (
 	"github.com/alper/hubwagen/internal/core"
 	"github.com/alper/hubwagen/internal/layout"
 	"github.com/alper/hubwagen/internal/pallet"
+	"github.com/alper/hubwagen/internal/runlog"
 	"github.com/alper/hubwagen/internal/state"
 )
 
@@ -36,6 +39,7 @@ type server struct {
 	bucket blob.Bucket
 	url    string
 	client hubwagenv1connect.WorkerServiceClient
+	logs   hubwagenv1connect.LogServiceClient
 }
 
 // start runs a core on a file-backed store and serves the worker API over a
@@ -56,8 +60,12 @@ func start(t *testing.T) *server {
 	go func() { done <- c.Run(runCtx) }()
 	require.NoError(t, c.Barrier(ctx))
 
+	logs, err := runlog.Open(filepath.Join(dir, "logs"))
+	require.NoError(t, err)
 	mux := http.NewServeMux()
 	path, h := NewWorkerHandler(c, 2*time.Second)
+	mux.Handle(path, h)
+	path, h = NewLogHandler(st, logs)
 	mux.Handle(path, h)
 	srv := httptest.NewServer(mux)
 	t.Cleanup(func() {
@@ -67,7 +75,8 @@ func start(t *testing.T) *server {
 		st.Close()
 	})
 	return &server{core: c, store: st, bucket: b, url: srv.URL,
-		client: hubwagenv1connect.NewWorkerServiceClient(srv.Client(), srv.URL)}
+		client: hubwagenv1connect.NewWorkerServiceClient(srv.Client(), srv.URL),
+		logs:   hubwagenv1connect.NewLogServiceClient(srv.Client(), srv.URL)}
 }
 
 // The test worker's haul: extract (memoized, writes raw), then build
@@ -127,6 +136,11 @@ func (s *server) work(t *testing.T, haulID string) []string {
 			hb, err := s.client.Heartbeat(ctx, connect.NewRequest(&hubwagenv1.HeartbeatRequest{WorkerId: "w1", TaskIds: []string{task.Id}}))
 			require.NoError(t, err)
 			assert.Empty(t, hb.Msg.Stop)
+			_, err = s.logs.AppendLogs(ctx, connect.NewRequest(&hubwagenv1.AppendLogsRequest{AttemptId: task.Id, Lines: []*hubwagenv1.LogLine{
+				{Time: timestamppb.Now(), Stream: "stdout", Text: task.Name + " starts"},
+				{Time: timestamppb.Now(), Stream: "log", Level: "INFO", Logger: "app", Text: task.Name + " done"},
+			}}))
+			require.NoError(t, err)
 
 			content := []byte(task.Name + " data\n")
 			require.NoError(t, s.bucket.Put(ctx, task.Staging+"part-0.csv", content))
@@ -166,6 +180,25 @@ func TestHaulRunsEndToEndOverTheAPI(t *testing.T) {
 	h, err := s.store.GetHaul(ctx, first)
 	require.NoError(t, err)
 	assert.Equal(t, state.HaulCompleted, h.Status)
+
+	// What the lifts printed and logged, by lift.
+	got, err := s.logs.GetLogs(ctx, connect.NewRequest(&hubwagenv1.GetLogsRequest{HaulId: first}))
+	require.NoError(t, err)
+	var lines []string
+	for _, l := range got.Msg.Lines {
+		lines = append(lines, fmt.Sprintf("%d %s #%d %s %s %s", l.Seq, l.Lift, l.Attempt, l.Line.Stream, l.Line.Level, l.Line.Text))
+	}
+	assert.Equal(t, []string{"1 extract #1 stdout  extract starts", "1 extract #1 log INFO extract done",
+		"2 build #1 stdout  build starts", "2 build #1 log INFO build done"}, lines)
+	one, err := s.logs.GetLogs(ctx, connect.NewRequest(&hubwagenv1.GetLogsRequest{HaulId: first, Seq: 2, Limit: 1}))
+	require.NoError(t, err)
+	require.Len(t, one.Msg.Lines, 1)
+	assert.Equal(t, "build done", one.Msg.Lines[0].Line.Text)
+	assert.Equal(t, int32(1), one.Msg.Skipped)
+	_, err = s.logs.AppendLogs(ctx, connect.NewRequest(&hubwagenv1.AppendLogsRequest{AttemptId: "nope"}))
+	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+	_, err = s.logs.GetLogs(ctx, connect.NewRequest(&hubwagenv1.GetLogsRequest{HaulId: "nope"}))
+	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 
 	mart, err := s.store.LatestPallet(ctx, "t", "mart.revenue", "")
 	require.NoError(t, err)

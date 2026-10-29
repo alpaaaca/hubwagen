@@ -25,12 +25,13 @@ import (
 	"github.com/alper/hubwagen/internal/core"
 	"github.com/alper/hubwagen/internal/layout"
 	"github.com/alper/hubwagen/internal/pallet"
+	"github.com/alper/hubwagen/internal/runlog"
 	"github.com/alper/hubwagen/internal/state"
 	"github.com/alper/hubwagen/internal/webui"
 )
 
 type Config struct {
-	DataDir string // holds state.db, bucket/ and the lock; created if missing
+	DataDir string // holds state.db, bucket/, logs/ and the lock; created if missing
 	// Listen, if set, is the address the API (worker and haul services) is
 	// served on, e.g. 127.0.0.1:7070. Port 0 picks a free port (see
 	// Engine.APIAddr).
@@ -45,6 +46,7 @@ const HeartbeatTimeout = time.Minute
 type Engine struct {
 	Store   *state.Store
 	Bucket  blob.Bucket
+	Logs    *runlog.Store // what lifts printed and logged
 	Core    *core.Core
 	DataDir string
 	// APIAddr is the API's address, if it is served.
@@ -93,6 +95,9 @@ func Start(ctx context.Context, cfg Config) (*Engine, error) {
 	if e.Bucket, err = blob.Open(blob.FileURI(filepath.Join(dir, "bucket"))); err != nil {
 		return fail(err)
 	}
+	if e.Logs, err = runlog.Open(filepath.Join(dir, "logs")); err != nil {
+		return fail(err)
+	}
 
 	lay := layout.New(e.Bucket.Base())
 	e.Core = core.New(core.Config{
@@ -128,6 +133,8 @@ func (e *Engine) serveAPI(addr string, log *slog.Logger) error {
 	path, h := api.NewWorkerHandler(e.Core, 0)
 	mux.Handle(path, h)
 	path, h = api.NewHaulHandler(e.Core, e.Store)
+	mux.Handle(path, h)
+	path, h = api.NewLogHandler(e.Store, e.Logs)
 	mux.Handle(path, h)
 	mux.Handle("/", webui.Handler()) // the Connect services' paths above are more specific
 	path, h = api.NewCatalogHandler(e.Core, e.Store, pallet.NewStore(e.Bucket, layout.New(e.Bucket.Base())))

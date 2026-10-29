@@ -97,3 +97,17 @@ details.raw summary { cursor: pointer; color: var(--dim); }
 .node-running { border-left-color: var(--accent); }
 .node-retrying { border-left-color: var(--warn); }
 .node-reused { border-left-color: var(--dim); }
+
+.dag-node.clickable { cursor: pointer; }
+.dag-node.clickable:hover, .dag-node.selected { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
+tr.selected td { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
+.logs { margin-top: 8px; }
+.log-lines { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; line-height: 1.5; max-height: 480px; overflow: auto; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: color-mix(in srgb, var(--line) 25%, transparent); }
+.log-line { display: flex; gap: 10px; white-space: pre-wrap; word-break: break-word; }
+.log-line > .dim:first-child { flex: none; }
+.log-step { flex: none; color: var(--accent); }
+.log-level { flex: none; font-weight: 600; }
+.log-text { flex: 1; }
+.log-line.bad .log-text, .log-line.bad .log-level { color: var(--bad); }
+.log-line.warn .log-text, .log-line.warn .log-level { color: var(--warn); }

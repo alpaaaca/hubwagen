@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package hubwagen.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1;hubwagenv1";
+
+// LogService keeps what user code printed and logged while its lifts ran:
+// workers append it, people read it (the web UI, `hubwagen dev`). Logs are
+// not state; they don't go through the event log.
+service LogService {
+  // AppendLogs adds lines to a lift attempt's log. An attempt keeps at most
+  // 1 MiB; after that its log says it was cut.
+  rpc AppendLogs(AppendLogsRequest) returns (AppendLogsResponse);
+  // GetLogs returns a haul's log lines (of one lift, with seq), oldest
+  // first, lifts interleaved by time.
+  rpc GetLogs(GetLogsRequest) returns (GetLogsResponse);
+}
+
+message LogLine {
+  google.protobuf.Timestamp time = 1;
+  // stdout, stderr or log (a logging record).
+  string stream = 2;
+  // Log records: INFO, WARNING, ERROR, ...
+  string level = 3;
+  // Log records: the logger's name.
+  string logger = 4;
+  string text = 5;
+}
+
+message AppendLogsRequest {
+  string attempt_id = 1;
+  repeated LogLine lines = 2;
+}
+message AppendLogsResponse {}
+
+message GetLogsRequest {
+  string haul_id = 1;
+  // Only this lift's lines; 0: all of the haul's.
+  int32 seq = 2;
+  // The last this many lines; default 2000, at most 10000.
+  int32 limit = 3;
+}
+message GetLogsResponse {
+  repeated RunLogLine lines = 1;
+  // Older lines left out by limit.
+  int32 skipped = 2;
+}
+
+// RunLogLine is a log line with the lift and attempt it came from.
+message RunLogLine {
+  int32 seq = 1;
+  string lift = 2;
+  int32 attempt = 3;
+  LogLine line = 4;
+}

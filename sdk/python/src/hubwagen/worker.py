@@ -7,6 +7,9 @@ run lifts, one sends heartbeats for running lifts. It polls with its build,
 so it gets only the hauls and lifts its code defines. Ctrl-C stops polling
 and lets running lifts finish.
 
+What a lift prints and logs is captured and sent to the server as it runs
+(see _logs), so the web UI shows it with the lift.
+
 A lift's result is kept, and its attempt heartbeated, until the server
 accepts it: if the leader is down when the lift finishes, the worker retries
 until it is back. Started by `hubwagen dev` or `hubwagen workers`
@@ -32,13 +35,14 @@ import traceback
 from pathlib import Path
 from typing import Any
 
-from . import _codecs, _model, _output, _replay
+from . import _codecs, _logs, _model, _output, _replay
 from .client import Client, ConnectError
 
 log = logging.getLogger("hubwagen.worker")
 
 POLL_WAIT = "20s"
 HEARTBEAT_EVERY = 20.0  # seconds; the server's timeout is longer (a minute in dev)
+LOG_FLUSH_EVERY = 0.5  # seconds: how often running lifts' output goes to the server
 DELIVER_BACKOFF = (0.5, 10.0)  # seconds: first and longest wait between tries to deliver a result
 SUPERVISOR_CHECK_EVERY = 1.0  # seconds
 
@@ -107,6 +111,7 @@ class Worker:
         self.stopping = threading.Event()
         self.exited = threading.Event()  # set once polling threads are done; ends heartbeats
         self._running: dict[str, threading.Event] = {}  # lift attempt → cancelled
+        self._captures: dict[str, _logs.Capture] = {}  # running lift attempt → its output
         self._lock = threading.Lock()
 
     def register(self) -> None:
@@ -162,12 +167,36 @@ class Worker:
 
     # --- lifts ---
 
+    def send_logs(self, attempt_id: str, lines: list[dict]) -> None:
+        try:
+            self.client.call("LogService", "AppendLogs", {"attemptId": attempt_id, "lines": lines})
+        except ConnectError as e:  # logs are best effort: the lift goes on
+            log.debug("AppendLogs: %s", e)
+
     def run_lift_task(self, task: dict) -> None:
         d = _model.LIFTS.get(task["name"])
         body: dict[str, Any] = {"attemptId": task["id"]}
         cancelled = threading.Event()
+        capture = _logs.Capture(task["name"], lambda lines: self.send_logs(task["id"], lines))
         with self._lock:
             self._running[task["id"]] = cancelled
+            self._captures[task["id"]] = capture
+        try:
+            with capture:
+                self._run_lift(task, d, body, capture)
+        finally:
+            with self._lock:
+                self._captures.pop(task["id"], None)
+            capture.flush(final=True)
+        if body.get("status") == "STATUS_FAILED":
+            log.warning("lift %s failed: %s: %s", task["name"], body["reason"], body["message"])
+        try:
+            self.deliver(task, body, cancelled)
+        finally:
+            with self._lock:
+                self._running.pop(task["id"], None)
+
+    def _run_lift(self, task: dict, d, body: dict, capture: _logs.Capture) -> None:
         try:
             if d is None:
                 raise _model.NonRetryable(f"no lift {task['name']!r} in build {self.build}")
@@ -198,12 +227,7 @@ class Worker:
         except Exception as e:  # noqa: BLE001 - the lift failed
             body.update(status="STATUS_FAILED", reason=type(e).__name__, message=str(e),
                         noRetry=isinstance(e, _model.NonRetryable))
-            log.warning("lift %s failed: %s", task["name"], "".join(traceback.format_exception_only(e)).strip())
-        try:
-            self.deliver(task, body, cancelled)
-        finally:
-            with self._lock:
-                self._running.pop(task["id"], None)
+            capture.write("stderr", "".join(traceback.format_exception(e)))  # the lift's own log shows why
 
     def deliver(self, task: dict, body: dict, cancelled: threading.Event) -> None:
         """Report a lift's result, retrying while the server is unavailable.
@@ -247,6 +271,14 @@ class Worker:
                 log.exception("%s failed", method)
                 self.stopping.wait(1)
 
+    def _flush_logs(self) -> None:
+        # Sends running lifts' output every LOG_FLUSH_EVERY, so it can be followed live.
+        while not self.exited.wait(LOG_FLUSH_EVERY):
+            with self._lock:
+                captures = list(self._captures.values())
+            for c in captures:
+                c.flush()
+
     def _heartbeats(self) -> None:
         # Runs until the worker exits, not until it stops polling: lifts
         # still running or delivering need their leases.
@@ -268,6 +300,7 @@ class Worker:
     def start(self) -> list[threading.Thread]:
         """Starts polling; returns the polling threads (heartbeats run until `exited`)."""
         threading.Thread(target=self._heartbeats, name="heartbeats", daemon=True).start()
+        threading.Thread(target=self._flush_logs, name="logs", daemon=True).start()
         threads = [threading.Thread(target=self._loop, args=("PollHaulTask", self.run_haul_task), name="hauls", daemon=True)]
         threads += [threading.Thread(target=self._loop, args=("PollLiftTask", self.run_lift_task), name=f"lifts-{i}", daemon=True)
                     for i in range(self.lift_threads)]
