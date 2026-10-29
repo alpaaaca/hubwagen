@@ -40,18 +40,18 @@ def gate(ctx, day: str):
 
 
 def test_scripted_run():
-    r = testing.run(gate, {"day": "2026-10-24"}, lifts={"t_check": {"failed": True}, "t_build": 42},
+    r = testing.run(gate, {"day": "2026-10-24"}, steps={"t_check": {"failed": True}, "t_build": 42},
                     signals={"approve": {"by": "ana"}})
     assert r.status == "completed"
     assert r.result == [42, {"by": "ana"}, "2026-01-01 00:01:00+00:00"], "the sleep's minute passed, not the timeout's hour"
-    assert [(c.name, c.args) for c in r.lifts] == [("t_check", {"day": "2026-10-24"}), ("t_check", {"day": "audit"}),
+    assert [(c.name, c.args) for c in r.steps] == [("t_check", {"day": "2026-10-24"}), ("t_check", {"day": "audit"}),
                                                      ("t_build", {"day": "2026-10-24"})]
 
 
 def test_signal_timeout_and_pallets():
-    r = testing.run(gate, {"day": "x"}, lifts={"t_check": {"failed": True}})
+    r = testing.run(gate, {"day": "x"}, steps={"t_check": {"failed": True}})
     assert r.result == "not approved"
-    r = testing.run(gate, {"day": "x"}, lifts={"t_check": lambda day: {"failed": day == "y"}, "t_build": 1})
+    r = testing.run(gate, {"day": "x"}, steps={"t_check": lambda day: {"failed": day == "y"}, "t_build": 1})
     assert r.result == "pallet-2", "a lift with an output returns a pallet"
 
 
@@ -71,25 +71,26 @@ def test_failures_children_and_continue():
             ctx.continue_as_new(n=n + 1)
         return [failed, total, child_failed]
 
-    r = testing.run(parent, {"n": 1}, lifts={"t_check": ValueError("source down")},
+    r = testing.run(parent, {"n": 1}, steps={"t_check": ValueError("source down")},
                     children={"t_child": lambda a: a * 10, "t_bad": RuntimeError("no data")})
     assert (r.status, r.params) == ("continued", {"n": 2})
-    r = testing.run(parent, {"n": 2}, lifts={"t_check": ValueError("source down")},
+    r = testing.run(parent, {"n": 2}, steps={"t_check": ValueError("source down")},
                     children={"t_child": lambda a: a * 10, "t_bad": RuntimeError("no data")})
     assert r.result == ["ValueError", 20, "no data"]
     assert r.children == [("t_child", {"a": 2}), ("t_bad", {})]
 
 
-def test_run_lifts_calls_the_real_ones():
+def test_run_steps_calls_the_real_ones():
     @hw.haul(name="t_real")
     def real(ctx):
         return ctx.lift(check, "x")
 
-    assert testing.run(real, run_lifts=True).result == {"failed": False}
+    assert testing.run(real, run_steps=True).result == {"failed": False}
+    assert testing.run(real, run_lifts=True).result == {"failed": False}, "the engine's name"
 
 
 def test_what_isnt_scripted_and_nondeterminism():
-    with pytest.raises(testing.TestingError, match=r"lift t_check isn't scripted"):
+    with pytest.raises(testing.TestingError, match=r"step t_check isn't scripted"):
         testing.run(gate, {"day": "x"})
     with pytest.raises(testing.TestingError, match="waits for signal 'go' with no timeout"):
         testing.run(hw.haul(lambda ctx: ctx.wait_signal("go"), name="t_forever"))
@@ -102,7 +103,7 @@ def test_what_isnt_scripted_and_nondeterminism():
         return ctx.lift(check if len(calls) == 1 else build, "x")
 
     with pytest.raises(testing.TestingError, match="isn't deterministic"):
-        testing.run(flaky, lifts={"t_check": {"failed": False}, "t_build": 1})
+        testing.run(flaky, steps={"t_check": {"failed": False}, "t_build": 1})
 
 
 V1 = '''
@@ -142,10 +143,10 @@ def test_replay_recorded_logbooks(server, tmp_path):
     changed = replay(V1.replace('ctx.lift(rp_step, "a")', 'ctx.lift(rp_step, "b") + ctx.lift(rp_step, "c")'))
     assert changed.returncode == 1
     assert f"FAIL {hid} rp_haul (completed)" in changed.stdout
-    assert "the haul completed, the replay doesn't end" in changed.stdout, "same lift, new arguments: a new call"
+    assert "the run completed, the replay doesn't end" in changed.stdout, "same lift, new arguments: a new call"
 
     returns = replay(V1.replace("return [ctx.lift(rp_step, \"a\"), n]", "return [ctx.lift(rp_step, \"a\"), n + 1]"))
-    assert returns.returncode == 1 and "the haul returned" in returns.stdout
+    assert returns.returncode == 1 and "the run returned" in returns.stdout
 
     renamed = replay(V1.replace("rp_step", "rp_other"))
     assert renamed.returncode == 1 and "replay issued lift 'rp_other'" in renamed.stdout

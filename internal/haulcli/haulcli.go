@@ -21,6 +21,7 @@ import (
 
 	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
 	"github.com/alper/hubwagen/internal/api/gen/hubwagen/v1/hubwagenv1connect"
+	"github.com/alper/hubwagen/internal/history"
 )
 
 // MaxHauls caps how many hauls one replay may start.
@@ -158,13 +159,13 @@ func (c *Client) Schedules(ctx context.Context, w io.Writer) error {
 	}
 	scheds, subs := res.Msg.Schedules, res.Msg.Subscriptions
 	if len(scheds) == 0 && len(subs) == 0 {
-		_, err := fmt.Fprintln(w, "no schedules or subscriptions (a haul gets one with @hw.haul(schedule=...) or subscribe=...)")
+		_, err := fmt.Fprintln(w, "no schedules or subscriptions (a pipeline gets one with @hw.pipeline(schedule=...) or subscribe=...)")
 		return err
 	}
 	if len(subs) > 0 {
 		defer func() {
 			tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
-			fmt.Fprintln(tw, "\nHAUL\tON DATASETS\tDEBOUNCE\tMAX WAIT\tMAX BATCH\tWAITING")
+			fmt.Fprintln(tw, "\nPIPELINE\tON NEW DATA IN\tDEBOUNCE\tMAX WAIT\tMAX BATCH\tWAITING")
 			for _, s := range subs {
 				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%d\t%d\n", s.Haul, strings.Join(s.Datasets, ", "),
 					s.Debounce.AsDuration(), s.MaxWait.AsDuration(), s.MaxBatch, s.Waiting)
@@ -177,7 +178,7 @@ func (c *Client) Schedules(ctx context.Context, w io.Writer) error {
 	}
 	sort.SliceStable(scheds, func(i, j int) bool { return scheds[i].NextRun.AsTime().Before(scheds[j].NextRun.AsTime()) })
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
-	fmt.Fprintln(tw, "HAUL\tCRON\tTIMEZONE\tINTERVAL\tCATCH-UP\tNEXT RUN")
+	fmt.Fprintln(tw, "PIPELINE\tCRON\tTIMEZONE\tINTERVAL\tCATCH-UP\tNEXT RUN")
 	for _, s := range scheds {
 		tz := s.Timezone
 		if tz == "" {
@@ -230,9 +231,9 @@ func (c *Client) Wait(ctx context.Context, ids []string, every time.Duration) ([
 	}
 }
 
-// Report summarises hauls: per lift (in the order the hauls called them),
-// how many were reused and how many ran, grouped by why; then how the hauls
-// ended.
+// Report summarises runs (hauls): per step (in the order the runs called
+// them), how many were reused and how many ran, grouped by why, in plain
+// words; then how the runs ended.
 func Report(hauls []*hubwagenv1.Haul) string {
 	type counts struct {
 		reused int
@@ -262,7 +263,7 @@ func Report(hauls []*hubwagenv1.Haul) string {
 			case l.Reused:
 				c.reused++
 			case l.Status == "completed":
-				c.ran[l.RunReason]++
+				c.ran[history.WhyItRan(l.RunReason)]++
 			default:
 				key := l.Status
 				if l.Reason != "" {
@@ -274,7 +275,7 @@ func Report(hauls []*hubwagenv1.Haul) string {
 	}
 
 	var b bytes.Buffer
-	fmt.Fprintf(&b, "%d hauls\n", len(hauls))
+	fmt.Fprintf(&b, "%d run%s\n", len(hauls), plural(len(hauls)))
 	tw := tabwriter.NewWriter(&b, 0, 0, 3, ' ', 0)
 	for _, name := range order {
 		c := byLift[name]
@@ -283,7 +284,7 @@ func Report(hauls []*hubwagenv1.Haul) string {
 			parts = append(parts, fmt.Sprintf("%d reused", c.reused))
 		}
 		for _, reason := range sortedKeys(c.ran) {
-			part := fmt.Sprintf("%d run", c.ran[reason])
+			part := fmt.Sprintf("%d ran", c.ran[reason])
 			if reason != "" {
 				part += " (" + reason + ")"
 			}
@@ -304,6 +305,13 @@ func Report(hauls []*hubwagenv1.Haul) string {
 		fmt.Fprintln(&b, "  "+p)
 	}
 	return b.String()
+}
+
+func plural(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
 }
 
 func sortedKeys(m map[string]int) []string {

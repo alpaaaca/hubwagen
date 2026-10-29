@@ -24,7 +24,7 @@ var datasetsCmd = &cobra.Command{
 	Use:   "datasets",
 	Short: "List the datasets in the catalog",
 	Long: `Datasets lists the catalog's datasets: what they are partitioned by, how many
-partitions have a committed pallet, and the newest one.`,
+partitions have a saved version, and the newest one.`,
 	Args:         cobra.NoArgs,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, _ []string) error {
@@ -33,15 +33,17 @@ partitions have a committed pallet, and the newest one.`,
 }
 
 var palletsCmd = &cobra.Command{
-	Use:   "pallets <dataset>",
-	Short: "List a dataset's partitions, or its pallets",
-	Long: `Pallets lists a dataset's partitions, each with its latest pallet and how many
-versions it has. With --partition, --state or --all it lists the pallets
-themselves, newest first.
+	Use:     "versions <dataset>",
+	Aliases: []string{"pallets"},
+	Short:   "List a dataset's partitions, or its versions",
+	Long: `Versions lists a dataset's partitions, each with its latest version and how
+many versions it has. With --partition, --state or --all it lists the
+versions themselves, newest first. (The engine calls a data version a
+pallet; "pallets" works too.)
 
-  hubwagen pallets mart.daily_revenue
-  hubwagen pallets mart.daily_revenue --partition 2026-10-01
-  hubwagen pallets raw.orders --state invalid`,
+  hubwagen versions mart.daily_revenue
+  hubwagen versions mart.daily_revenue --partition 2026-10-01
+  hubwagen versions raw.orders --state invalid`,
 	Args:         cobra.ExactArgs(1),
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -54,11 +56,12 @@ themselves, newest first.
 }
 
 var palletCmd = &cobra.Command{
-	Use:   "pallet <id>",
-	Short: "Show a pallet, its files and its lineage",
-	Long: `Pallet shows one pallet: its dataset and partition, the lift and haul that
-built it, its files, and its lineage both ways: everything it was built
-from, and everything built from it.`,
+	Use:     "data <version-id>",
+	Aliases: []string{"pallet"},
+	Short:   "Show a data version, its files and its lineage",
+	Long: `Data shows one version of a dataset: its dataset and partition, the step and
+run that wrote it, its files, and its lineage both ways: everything it was
+built from, and everything built from it. ("pallet" works too.)`,
 	Args:         cobra.ExactArgs(1),
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -68,11 +71,11 @@ from, and everything built from it.`,
 
 var staleCmd = &cobra.Command{
 	Use:   "stale [dataset]",
-	Short: "List the partitions whose latest pallet is out of date",
-	Long: `Stale lists the partitions whose latest pallet is out of date, and why: one of
-its inputs' partitions has a newer pallet with other content, or the newest
-build has another code version of the lift that built it. Then it prints
-the hauls to start again: their unchanged lifts are reused.
+	Short: "List the partitions whose latest version is out of date",
+	Long: `Stale lists the partitions whose latest version is out of date, and why: one of
+its inputs' partitions has a newer version with other content, or the newest
+build has another code version of the step that wrote it. Then it prints
+the runs to start again: their unchanged steps are reused.
 
   hubwagen stale
   hubwagen stale mart.daily_revenue`,
@@ -91,10 +94,10 @@ var gcDryRun bool
 
 var gcCmd = &cobra.Command{
 	Use:   "gc",
-	Short: "Expire pallets that retention no longer keeps",
+	Short: "Expire data versions that retention no longer keeps",
 	Long: `GC expires, now, what the leader otherwise expires every hour: per dataset with
-a retention (hw.Dataset(keep=...)), the pallets beyond what it keeps, never a
-partition's latest or anything a running haul may read. They are recorded as
+a retention (hw.Dataset(keep=...)), the versions beyond what it keeps, never a
+partition's latest or anything an open run may read. They are recorded as
 expired, then their data is deleted; their manifests and lineage stay.`,
 	Args:         cobra.NoArgs,
 	SilenceUsage: true,
@@ -110,20 +113,20 @@ var (
 )
 
 var invalidateCmd = &cobra.Command{
-	Use:   "invalidate <pallet-id>",
-	Short: "Mark a pallet and everything built from it invalid",
-	Long: `Invalidate marks a pallet and every pallet built from it, transitively,
-invalid: bad data that must not be reused or read. It shows what it will
-mark and asks first (--yes skips the question, --dry-run only shows), then
-prints the hauls to start again: their memoized lifts are reused, so only
-the invalid ones run.
+	Use:   "invalidate <version-id>",
+	Short: "Mark a data version and everything built from it invalid",
+	Long: `Invalidate marks a data version and every version built from it,
+transitively, invalid: bad data that must not be reused or read. It shows
+what it will mark and asks first (--yes skips the question, --dry-run only
+shows), then prints the runs to start again: their memoized steps are
+reused, so only the invalid ones run.
 
-  hubwagen pallet invalidate 01M6... --reason "orders export was truncated"`,
+  hubwagen data invalidate 01M6... --reason "orders export was truncated"`,
 	Args:         cobra.ExactArgs(1),
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if invalidateReason == "" {
-			return errors.New("--reason is required: it is recorded with every pallet marked")
+			return errors.New("--reason is required: it is recorded with every version marked")
 		}
 		q := catalogcli.InvalidateQuery{ID: args[0], Reason: invalidateReason, By: os.Getenv("USER"), DryRun: invalidateDryRun}
 		if !invalidateYes {
@@ -162,7 +165,7 @@ func init() {
 		rootCmd.AddCommand(c)
 	}
 	palletsCmd.Flags().StringVar(&palletsPartition, "partition", "", "only this partition")
-	palletsCmd.Flags().StringSliceVar(&palletsStates, "state", nil, "only pallets in these states (committed, pending, invalid, expired)")
-	palletsCmd.Flags().BoolVar(&palletsAll, "all", false, "every pallet, not each partition's latest")
-	palletsCmd.Flags().IntVar(&palletsLimit, "limit", 50, "at most this many pallets")
+	palletsCmd.Flags().StringSliceVar(&palletsStates, "state", nil, "only versions in these states (committed, pending, invalid, expired)")
+	palletsCmd.Flags().BoolVar(&palletsAll, "all", false, "every version, not each partition's latest")
+	palletsCmd.Flags().IntVar(&palletsLimit, "limit", 50, "at most this many versions")
 }

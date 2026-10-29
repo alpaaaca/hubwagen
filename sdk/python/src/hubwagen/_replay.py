@@ -18,17 +18,25 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, NoReturn
 
 from ._guards import NondeterminismError, guarded
-from ._model import Dataset, HaulDef, LiftDef, LiftFailed, Pallet, decode, encode, lift_def
+from ._model import DataVersion, Dataset, HaulDef, LiftDef, StepFailed, decode, encode, lift_def
 
 
-class ChildFailed(Exception):
-    """A child haul started with ctx.haul failed, was cancelled, or couldn't
-    start (status "failed", reason "start_failed"). Haul code may catch it."""
+class RunFailed(Exception):
+    """A run of another pipeline, started with ctx.run, failed, was
+    cancelled, or couldn't start (status "failed", reason "start_failed").
+    Pipeline code may catch it."""
 
     def __init__(self, name: str, haul_id: str, status: str, reason: str, message: str):
-        what = f"child haul {name}" + (f" ({haul_id})" if haul_id else "")
+        what = f"the run of {name}" + (f" ({haul_id})" if haul_id else "")
         super().__init__(f"{what} {status}: {reason}" + (f": {message}" if message else ""))
         self.name, self.haul_id, self.status, self.reason, self.message = name, haul_id, status, reason, message
+
+    @property
+    def run_id(self) -> str:
+        return self.haul_id
+
+
+ChildFailed = RunFailed  # the engine's name
 
 
 class _ContinueAsNew(BaseException):
@@ -79,7 +87,7 @@ class _Result:
 
 @dataclass
 class Handle:
-    """A lift started with ctx.lift_async; pass handles to ctx.gather."""
+    """A step started with ctx.step_async; pass handles to ctx.gather."""
 
     seq: int
     lift: LiftDef
@@ -99,7 +107,8 @@ class ReplayResult:
 
 
 class Ctx:
-    """What haul code gets as its first argument."""
+    """What pipeline code gets as its first argument: it starts steps
+    (ctx.step), sleeps, waits for signals and starts other pipelines."""
 
     def __init__(self, haul_id: str, logbook: list[dict], max_parallel: int | None = None):
         self.haul_id = haul_id
@@ -161,7 +170,7 @@ class Ctx:
         bound = inspect.signature(d.fn).bind(*args, **kwargs)
         inputs, call = [], {}
         for name, value in bound.arguments.items():
-            if isinstance(value, Pallet):
+            if isinstance(value, DataVersion):
                 inputs.append({"name": name, "pallet": value.id})
                 call[name] = {"$input": name}  # the ID stays out of the arguments (and the fingerprint)
             else:
@@ -192,42 +201,45 @@ class Ctx:
 
     def _lift_result(self, seq: int, d: LiftDef, r: dict) -> Any:
         if r.get("status") != "completed":
-            raise LiftFailed(d.name, r.get("reason", r.get("status", "")), r.get("message", ""))
+            raise StepFailed(d.name, r.get("reason", r.get("status", "")), r.get("message", ""))
         result = decode(r.get("result"))
         if not r.get("pallet"):
             return result
         # A pallet: the lift's output, or for a lift without one, the
         # dataframe it returned, in its implicit dataset.
         dataset = d.output.name if d.output is not None else "lift:" + d.name
-        return Pallet(id=r["pallet"], dataset=dataset, result=result, reused=bool(r.get("reused")),
+        return DataVersion(id=r["pallet"], dataset=dataset, result=result, reused=bool(r.get("reused")),
                       partition=self._partition_of(seq))
 
     def _partition_of(self, seq: int) -> str:
         return self.commands[seq - 1]["lift"].get("output", {}).get("partition", "")
 
-    def lift(self, f: Callable | str, *args: Any, **kwargs: Any) -> Any:
-        """Run a lift and wait for it. Returns what it returned, or a Pallet
-        for a lift with an output or one that returned a dataframe. Raises
-        LiftFailed if it failed."""
+    def step(self, f: Callable | str, *args: Any, **kwargs: Any) -> Any:
+        """Run a step and wait for it. Returns what it returned, or a
+        DataVersion for a step with an output or one that returned a
+        dataframe. Raises StepFailed if it failed."""
         seq, d = self._lift_command(f, args, kwargs)
         r = self._consume(seq)
         if r is None:
             raise Blocked()
         return self._lift_result(seq, d, r)
 
-    def lift_async(self, f: Callable | str, *args: Any, **kwargs: Any) -> Handle:
-        """Start a lift without waiting; collect it with gather."""
+    def step_async(self, f: Callable | str, *args: Any, **kwargs: Any) -> Handle:
+        """Start a step without waiting; collect it with gather."""
         seq, d = self._lift_command(f, args, kwargs)
         return Handle(seq, d)
 
+    lift = step  # the engine's names
+    lift_async = step_async
+
     def gather(self, handles: list[Handle], max_parallel: int | None = None) -> list[Any]:
         """Wait for every handle; results in the same order. Raises the first
-        LiftFailed among them.
+        StepFailed among them.
 
-        With max_parallel=N, at most N of these lifts run at once; the server
-        starts the rest as earlier ones finish. The limit applies to lifts
+        With max_parallel=N, at most N of these steps run at once; the server
+        starts the rest as earlier ones finish. The limit applies to steps
         started in the same replay as the gather, as in
-        `ctx.gather([ctx.lift_async(f, x) for x in xs], max_parallel=20)`."""
+        `ctx.gather([ctx.step_async(f, x) for x in xs], max_parallel=20)`."""
         if max_parallel is not None:
             if not isinstance(max_parallel, int) or max_parallel < 1:
                 raise ValueError(f"gather: max_parallel must be a positive integer, got {max_parallel!r}")
@@ -250,17 +262,17 @@ class Ctx:
             raise Blocked()
 
     def version(self, name: str, max: int, min: int = 1) -> int:  # noqa: A002 - the names read best
-        """Which version of a change this haul takes, for changing haul code
-        while hauls are running:
+        """Which version of a code change this run takes, for changing
+        pipeline code while runs are going on:
 
             if ctx.version("quality-gate", max=2) >= 2:
-                report = ctx.lift(check_quality, orders)
+                report = ctx.step(check_quality, orders)
 
-        A haul that started before the marker existed gets `min` (the old
-        code path, so its logbook still replays); a haul that reaches the
-        marker for the first time gets `max`. The decision is recorded, so
-        every later replay gets the same. Raise `min` once no running haul
-        takes the old version any more; a haul still on it becomes stuck.
+        A run that started before the marker existed gets `min` (the old
+        code path, so what it already did still replays); a run that reaches
+        the marker for the first time gets `max`. The decision is recorded,
+        so every later replay gets the same. Raise `min` once no open run
+        takes the old version any more; a run still on it becomes stuck.
         """
         if not (isinstance(min, int) and isinstance(max, int)) or not 0 <= min <= max:
             raise ValueError(f"version({name!r}): want integers 0 <= min <= max, got min={min!r}, max={max!r}")
@@ -271,40 +283,48 @@ class Ctx:
             v = min if self._seq < len(self._recorded) else max
             self._markers[name] = v
         elif not min <= v <= max:
-            raise NondeterminismError(f"version marker {name!r}: this haul took version {v}, the code supports "
-                                      f"{min} to {max}; keep the old branch until such hauls finish")
+            raise NondeterminismError(f"version marker {name!r}: this run took version {v}, the code supports "
+                                      f"{min} to {max}; keep the old branch until such runs finish")
         self.markers[name] = v
         return v
 
-    def haul(self, f: Callable | str, **params: Any) -> Any:
-        """Start another haul (a child) and wait for its result. Raises
-        ChildFailed if it fails, is cancelled or can't start. The child runs
-        on its own logbook; cancelling or ending this haul cancels it."""
+    def run(self, f: Callable | str, **inputs: Any) -> Any:
+        """Run another pipeline with these inputs and wait for its result.
+        Raises RunFailed if it fails, is cancelled or can't start. It is a
+        run of its own (a sub-run); cancelling or ending this run cancels
+        it."""
+        params = inputs
         seq, name = self._start_haul_command(f, params, wait=True)
         r = self._consume(seq)
         if r is None or "status" not in r:  # not started yet, or started and running
             raise Blocked()
         if r["status"] != "completed":
-            raise ChildFailed(name, r.get("haul", ""), r["status"], r.get("reason", ""), r.get("message", ""))
+            raise RunFailed(name, r.get("haul", ""), r["status"], r.get("reason", ""), r.get("message", ""))
         return decode(r.get("result"))
 
-    def start_haul(self, f: Callable | str, **params: Any) -> str:
-        """Start another haul without waiting for it; returns its ID. It
-        carries on whatever this haul does. Raises ChildFailed if it can't
-        start."""
+    def start_run(self, f: Callable | str, **inputs: Any) -> str:
+        """Start a run of another pipeline without waiting for it; returns
+        its ID. It carries on whatever this run does. Raises RunFailed if it
+        can't start."""
+        params = inputs
         seq, name = self._start_haul_command(f, params, wait=False)
         r = self._consume(seq)
         if r is None:
             raise Blocked()
         if "status" in r:
-            raise ChildFailed(name, "", r["status"], r.get("reason", ""), r.get("message", ""))
+            raise RunFailed(name, "", r["status"], r.get("reason", ""), r.get("message", ""))
         return r["haul"]
 
-    def continue_as_new(self, **params: Any) -> NoReturn:
-        """End this haul and start it again with params and a fresh logbook,
-        for hauls that loop (a cursor, a poll): the logbook, and so every
-        replay, stays short. A haul waiting for this one gets the result of
-        the last haul in the chain. Signals not yet taken don't carry over."""
+    haul = run  # the engine's names
+    start_haul = start_run
+
+    def continue_as_new(self, **inputs: Any) -> NoReturn:
+        """End this run and start the pipeline again with these inputs and a
+        fresh history, for pipelines that loop (a cursor, a poll): the
+        history, and so every replay, stays short. A run waiting for this one
+        gets the result of the last run in the chain. Signals not yet taken
+        don't carry over."""
+        params = inputs
         raise _ContinueAsNew(params)
 
     def _start_haul_command(self, f: Callable | str, params: dict, wait: bool) -> tuple[int, str]:
@@ -313,7 +333,7 @@ class Ctx:
         else:
             d = getattr(f, "__hubwagen_haul__", None)
             if d is None:
-                raise TypeError(f"{f!r} is not a haul (decorate it with @hubwagen.haul)")
+                raise TypeError(f"{f!r} is not a pipeline (decorate it with @hubwagen.pipeline)")
             name = d.name
             inspect.signature(d.fn).bind(None, **params)  # a TypeError here, not in the child
         body = {"name": name, "paramsJson": json.dumps(encode(params), sort_keys=True)}
@@ -323,7 +343,7 @@ class Ctx:
 
     def wait_signal(self, name: str, timeout: float | _dt.timedelta | None = None) -> Any:
         """Wait for a signal named name (`hubwagen signal <haul> <name>`, or
-        SignalHaul) and return its payload. A signal sent before the haul
+        SignalHaul) and return its payload. A signal sent before the run
         waits is kept for it; each signal answers one wait. Raises
         SignalTimeout if timeout (seconds or a timedelta) passes first. The
         wait is held by the server: it survives restarts and deploys."""
@@ -342,8 +362,8 @@ class Ctx:
             raise SignalTimeout(name, timeout)
         return decode(r.get("payload"))
 
-    def latest_pallet(self, dataset: Dataset | str, partition: Any = None) -> Pallet | None:
-        """The newest committed pallet of a dataset partition, or None. The
+    def latest_version(self, dataset: Dataset | str, partition: Any = None) -> DataVersion | None:
+        """The newest saved version of a dataset partition, or None. The
         answer is recorded, so every replay gets the same one."""
         name = dataset.name if isinstance(dataset, Dataset) else dataset
         body = {"dataset": name}
@@ -356,8 +376,10 @@ class Ctx:
         p = r.get("pallet")
         if not p:
             return None
-        return Pallet(id=p["id"], dataset=p.get("dataset", name), partition=p.get("partition", ""),
-                      location=p.get("location", ""), meta=p.get("meta") or {}, stats=p.get("stats") or {})
+        return DataVersion(id=p["id"], dataset=p.get("dataset", name), partition=p.get("partition", ""),
+                           location=p.get("location", ""), meta=p.get("meta") or {}, stats=p.get("stats") or {})
+
+    latest_pallet = latest_version  # the engine's name
 
     # --- deterministic values ---------------------------------------------
 
@@ -376,6 +398,10 @@ class Ctx:
 def replay(d: HaulDef, haul_id: str, params: dict, logbook: list[dict]) -> ReplayResult:
     """Run the haul function until it blocks or ends."""
     ctx = Ctx(haul_id, logbook, d.max_parallel)
+    takes = inspect.signature(d.fn).parameters
+    if "pallets" in params and "pallets" not in takes and "versions" in takes:
+        # A subscription's new data versions: the server sends them as pallets.
+        params = {("versions" if k == "pallets" else k): v for k, v in params.items()}
     try:
         inspect.signature(d.fn).bind(None, **params)
     except TypeError as e:
@@ -384,7 +410,7 @@ def replay(d: HaulDef, haul_id: str, params: dict, logbook: list[dict]) -> Repla
             hint = ('; its schedule passes the interval: to start it by hand, give '
                     '{"interval": {"$interval": {"start": ..., "end": ...}}} (Start a run in the web UI fills in the latest)')
         return ReplayResult([], {"status": "STATUS_FAILED", "reason": "TypeError",
-                                 "message": f"haul {d.name} was started with inputs {json.dumps(params)}: {e}{hint}"})
+                                 "message": f"pipeline {d.name} was started with inputs {json.dumps(params)}: {e}{hint}"})
     try:
         with guarded():
             result = d.fn(ctx, **decode(params))

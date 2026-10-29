@@ -47,7 +47,7 @@ that exits is restarted with backoff; Ctrl-C stops them all.`,
 		kill := make(chan struct{})
 		go func() {
 			<-ctx.Done()
-			fmt.Println("stopping: running lifts finish, polls end within their wait; Ctrl-C again to kill them")
+			fmt.Println("stopping: running steps finish, polls end within their wait; Ctrl-C again to kill them")
 			killOnSignal(kill)
 		}()
 		supervise.Run(ctx, procs, supervise.Options{Out: os.Stdout, Kill: kill})

@@ -79,7 +79,7 @@ def datasets() -> dict[str, _model.Keep | None]:
         ds = d.output.name
         keep = d.output.keep
         if out.get(ds) is not None and keep is not None and out[ds] != keep:
-            raise SystemExit(f"dataset {ds}: lifts {who[ds]} and {name} declare different keep "
+            raise SystemExit(f"dataset {ds}: steps {who[ds]} and {name} declare different keep "
                              f"({out[ds]} and {keep}); declare it once, the same everywhere")
         if out.get(ds) is None:  # a lift without keep defers to one with it
             out[ds], who[ds] = keep, name
@@ -140,7 +140,7 @@ class Worker:
                           "schedules": schedules, "subscriptions": subscriptions, "datasets": retention,
                           "haulInfo": [{"haul": n, "title": d.title, "description": d.description}
                                        for n, d in sorted(_model.HAULS.items()) if d.title or d.description]})
-        log.info("registered build %s: %d hauls, %d lifts", self.build, len(_model.HAULS), len(_model.LIFTS))
+        log.info("registered build %s: %d pipelines, %d steps", self.build, len(_model.HAULS), len(_model.LIFTS))
 
     # --- hauls ---
 
@@ -148,7 +148,7 @@ class Worker:
         d = _model.HAULS.get(task["name"])
         body: dict[str, Any] = {"taskId": task["id"], "buildId": self.build}
         if d is None:
-            body["error"] = {"reason": "unknown_haul", "message": f"no haul {task['name']!r} in build {self.build}"}
+            body["error"] = {"reason": "unknown_haul", "message": f"no pipeline {task['name']!r} in build {self.build}"}
         else:
             params = json.loads(task.get("paramsJson") or "{}")
             r = _replay.replay(d, task["haulId"], params, task.get("logbook", []))
@@ -199,7 +199,7 @@ class Worker:
     def _run_lift(self, task: dict, d, body: dict, capture: _logs.Capture) -> None:
         try:
             if d is None:
-                raise _model.NonRetryable(f"no lift {task['name']!r} in build {self.build}")
+                raise _model.NonRetryable(f"no step {task['name']!r} in build {self.build}")
             pallets = {i["name"]: _model.Pallet(id=i["pallet"], location=i.get("location", ""))
                        for i in task.get("inputs", [])}
             kwargs = load_inputs(d.fn, _model.decode(json.loads(task.get("argsJson") or "{}"), pallets))
@@ -217,7 +217,7 @@ class Worker:
             if _codecs.for_value(result) is not None:
                 if out is None:
                     if not task.get("staging"):
-                        raise _model.NonRetryable("returning a dataframe needs a server with a bucket for pallets")
+                        raise _model.NonRetryable("returning a dataframe needs a server with a bucket for data versions")
                     out = _output.Output(path=_output.local_dir(task["staging"]))
                 result = _codecs.write(result, out.path)
             body["status"] = "STATUS_SUCCEEDED"
@@ -245,7 +245,7 @@ class Worker:
                     return
                 if e.code != "unavailable":
                     raise
-                log.warning("can't deliver the result of lift %s (%s); retrying in %.1fs", task["name"], e, wait)
+                log.warning("can't deliver the result of step %s (%s); retrying in %.1fs", task["name"], e, wait)
             time.sleep(wait)
             wait = min(wait * 2, DELIVER_BACKOFF[1])
 
@@ -321,8 +321,8 @@ class Worker:
 def project_modules(directory: Path) -> list[str]:
     """The modules listed under [tool.hubwagen] modules in directory/pyproject.toml."""
     path = directory / "pyproject.toml"
-    hint = "pass them (python -m hubwagen.worker app.hauls) or list them in pyproject.toml:\n" \
-           "  [tool.hubwagen]\n  modules = [\"app.hauls\"]"
+    hint = "pass them (python -m hubwagen.worker app.pipelines) or list them in pyproject.toml:\n" \
+           "  [tool.hubwagen]\n  modules = [\"app.pipelines\"]"
     if not path.exists():
         raise SystemExit(f"no modules given and no {path}; {hint}")
     with path.open("rb") as f:
@@ -364,7 +364,7 @@ def main(argv: list[str] | None = None) -> None:
 
     p = argparse.ArgumentParser(prog="python -m hubwagen.worker", description=__doc__.splitlines()[0])
     p.add_argument("modules", nargs="*",
-                   help="modules that define hauls and lifts, e.g. app.hauls (default: [tool.hubwagen] modules in ./pyproject.toml)")
+                   help="modules that define pipelines and steps, e.g. app.pipelines (default: [tool.hubwagen] modules in ./pyproject.toml)")
     p.add_argument("--server", default=os.environ.get("HUBWAGEN_SERVER", "http://127.0.0.1:7070"))
     p.add_argument("--dock", action="append", default=None, help="dock to poll (repeatable; default: default)")
     p.add_argument("--lifts", type=int, default=4, help="lifts to run at the same time")
@@ -372,7 +372,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--worker-id", default=os.environ.get("HUBWAGEN_WORKER_ID"), help="default: <hostname>-<pid>")
     p.add_argument("--log-level", default="info")
     p.add_argument("--versions", action="store_true",
-                   help="print the build ID and what each haul's and lift's code version covers, then exit")
+                   help="print the build ID and what each pipeline's and step's code version covers, then exit")
     args = p.parse_args(argv)
     logging.basicConfig(level=args.log_level.upper(), format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -399,7 +399,7 @@ def main(argv: list[str] | None = None) -> None:
         w.watch_supervisor(int(os.environ["HUBWAGEN_SUPERVISOR_PID"]))
     log.info("worker %s polling %s on %s", w.id, ", ".join(w.docks), args.server)
     w.stopping.wait()
-    log.info("stopping: waiting for running lifts")
+    log.info("stopping: waiting for running steps")
     deadline = time.monotonic() + 60
     for t in threads:
         t.join(timeout=max(0, deadline - time.monotonic()))

@@ -51,12 +51,19 @@ spec-kit.
 | `internal/clock`, `internal/layout`, `internal/blob` | Real/fake clock; bucket paths (lift staging under dataset and partition, pallet manifests); bucket access with atomic create-if-absent |
 | `internal/config` | `hubwagen.yaml`: data dir, listen address, worker processes |
 | `internal/supervise` | Runs and restarts worker processes for `dev` and `workers` (prefixed output, SIGTERM then kill) |
-| `cmd/` | `dev`, `workers`, `start`, `replay`, `signal`, `schedules`, `datasets`, `pallets`, `pallet` (and `pallet invalidate`), `stale`, `gc`, `version` |
+| `cmd/` | `dev`, `workers`, `start`, `replay`, `signal`, `schedules`, `datasets`, `versions` (alias `pallets`), `data` (alias `pallet`; and `data invalidate`), `stale`, `gc`, `version` |
 | `internal/webui` | Serves the web UI from the binary (embedded `dist/`, filled by `go generate ./internal/webui`; a placeholder page without it) |
 | `ui/` | Web UI: React + TypeScript + Vite on the Connect services (clients generated from `proto/` into `ui/src/gen`); vitest tests |
-| `sdk/python/` | Python SDK (stdlib only, Python ≥ 3.12): `@haul`, `@lift`, replay engine, worker; pytest runs it against a real `hubwagen dev` |
+| `sdk/python/` | Python SDK (stdlib only, Python ≥ 3.12): `@pipeline`, `@step` (the engine's `@haul`, `@lift` as aliases), replay engine, worker; pytest runs it against a real `hubwagen dev` |
 | `pipelines/examples/revenue/` | Example Python project; `sdk/python/tests/test_example.py` is its demo |
 | `tests/` | Cross-package end-to-end tests (leader restarts) |
+
+## Words
+
+Users read plain words: pipeline (haul), run (one haul), step (lift), data
+version (pallet), reused (memoized), history (logbook). The SDK, CLI, web
+UI and docs for users say those; the engine's names stay in the API,
+proto, Go code and docs/architecture.md, and as SDK aliases.
 
 ## Rules that hold everywhere
 

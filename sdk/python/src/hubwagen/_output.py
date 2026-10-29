@@ -1,4 +1,4 @@
-"""Where a lift with an output writes its files."""
+"""Where a step with an output writes its files."""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ def output() -> Output:
     """The running lift's output. Only inside a lift declared with output=."""
     o = _current.get()
     if o is None:
-        raise RuntimeError("hubwagen.output() is only available inside a lift declared with output=")
+        raise RuntimeError("hubwagen.output() is only available inside a step declared with output=")
     return o
 
 

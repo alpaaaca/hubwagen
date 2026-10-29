@@ -41,7 +41,7 @@ func (c *Client) Datasets(ctx context.Context, w io.Writer, tenant string) error
 		return err
 	}
 	if len(res.Msg.Datasets) == 0 {
-		_, err := fmt.Fprintln(w, "no datasets yet (a lift with output=hw.Dataset(...) or one returning a dataframe makes one)")
+		_, err := fmt.Fprintln(w, "no datasets yet (a step with output=hw.Dataset(...) or one returning a dataframe makes one)")
 		return err
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
@@ -103,16 +103,16 @@ func (c *Client) GC(ctx context.Context, w io.Writer, dryRun bool) error {
 	if dryRun {
 		verb = "would expire"
 	}
-	fmt.Fprintf(w, "%s %d pallet%s:\n", verb, len(ex), plural(len(ex)))
+	fmt.Fprintf(w, "%s %d version%s:\n", verb, len(ex), plural(len(ex)))
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
 	for _, e := range ex {
 		p := e.Pallet
-		fmt.Fprintf(tw, "  %s\t%s\t%s\tcommitted %s\n", p.Id, p.Dataset, describePartition(p.Partition), when(p.CommittedAt.AsTime()))
+		fmt.Fprintf(tw, "  %s\t%s\t%s\tsaved %s\n", p.Id, p.Dataset, describePartition(p.Partition), when(p.CommittedAt.AsTime()))
 	}
 	return tw.Flush()
 }
 
-// PalletsQuery is what `hubwagen pallets` lists.
+// PalletsQuery is what `hubwagen versions` lists.
 type PalletsQuery struct {
 	Tenant    string
 	Dataset   string
@@ -133,10 +133,10 @@ func (c *Client) Pallets(ctx context.Context, w io.Writer, q PalletsQuery) error
 			return err
 		}
 		if len(res.Msg.Partitions) == 0 {
-			_, err := fmt.Fprintf(w, "%s has no committed pallets\n", q.Dataset)
+			_, err := fmt.Fprintf(w, "%s has no saved versions\n", q.Dataset)
 			return err
 		}
-		fmt.Fprintln(tw, "PARTITION\tLATEST PALLET\tCOMMITTED\tVERSIONS")
+		fmt.Fprintln(tw, "PARTITION\tLATEST VERSION\tSAVED\tVERSIONS")
 		for _, p := range res.Msg.Partitions {
 			fmt.Fprintf(tw, "%s\t%s\t%s\t%d\n", describePartition(p.Partition), p.Latest.Id,
 				when(p.Latest.CommittedAt.AsTime()), p.Pallets)
@@ -149,10 +149,10 @@ func (c *Client) Pallets(ctx context.Context, w io.Writer, q PalletsQuery) error
 		return err
 	}
 	if len(res.Msg.Pallets) == 0 {
-		_, err := fmt.Fprintln(w, "no pallets match")
+		_, err := fmt.Fprintln(w, "no versions match")
 		return err
 	}
-	fmt.Fprintln(tw, "PALLET\tPARTITION\tSTATE\tCOMMITTED\tBUILT BY HAUL")
+	fmt.Fprintln(tw, "VERSION\tPARTITION\tSTATE\tSAVED\tWRITTEN BY RUN")
 	for _, p := range res.Msg.Pallets {
 		committed := "-"
 		if p.CommittedAt != nil {
@@ -175,18 +175,18 @@ func (c *Client) Pallet(ctx context.Context, w io.Writer, id string) error {
 	}
 	m := res.Msg
 	p := m.Pallet
-	fmt.Fprintf(w, "pallet %s, %s\n", p.Id, p.State)
+	fmt.Fprintf(w, "data version %s, %s\n", p.Id, p.State)
 	if p.Reason != "" {
 		fmt.Fprintf(w, "  reason     %s\n", p.Reason)
 	}
 	fmt.Fprintf(w, "  dataset    %s, partition %s\n", p.Dataset, describePartition(p.Partition))
-	built := fmt.Sprintf("haul %s, command %d", p.HaulId, p.LiftSeq)
+	built := fmt.Sprintf("run %s, step %d", p.HaulId, p.LiftSeq)
 	if m.Lift != "" {
-		built = fmt.Sprintf("lift %s in %s", m.Lift, built)
+		built = fmt.Sprintf("step %s in run %s", m.Lift, p.HaulId)
 	}
-	fmt.Fprintf(w, "  built by   %s\n", built)
+	fmt.Fprintf(w, "  written by %s\n", built)
 	if p.CommittedAt != nil {
-		fmt.Fprintf(w, "  committed  %s\n", when(p.CommittedAt.AsTime()))
+		fmt.Fprintf(w, "  saved      %s\n", when(p.CommittedAt.AsTime()))
 	}
 	if p.ContentHash != "" {
 		fmt.Fprintf(w, "  content    %s\n", p.ContentHash)
@@ -216,7 +216,7 @@ func (c *Client) Pallet(ctx context.Context, w io.Writer, id string) error {
 	return nil
 }
 
-// InvalidateQuery is what `hubwagen pallet invalidate` does. Confirm is
+// InvalidateQuery is what `hubwagen data invalidate` does. Confirm is
 // asked, after the dry run is shown, before anything is marked.
 type InvalidateQuery struct {
 	ID, Reason, By string
@@ -241,7 +241,7 @@ func (c *Client) Invalidate(ctx context.Context, w io.Writer, q InvalidateQuery)
 	if q.DryRun {
 		verb = "would mark"
 	}
-	fmt.Fprintf(w, "invalidating %s %s %d pallet%s invalid:\n", q.ID, verb, len(ps), plural(len(ps)))
+	fmt.Fprintf(w, "invalidating %s %s %d version%s invalid:\n", q.ID, verb, len(ps), plural(len(ps)))
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
 	for _, p := range ps {
 		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\n", p.Id, p.Dataset, describePartition(p.Partition), p.State)
@@ -259,7 +259,7 @@ func (c *Client) Invalidate(ctx context.Context, w io.Writer, q InvalidateQuery)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(w, "marked %d pallet%s invalid\n", len(res.Msg.Pallets), plural(len(res.Msg.Pallets)))
+	fmt.Fprintf(w, "marked %d version%s invalid\n", len(res.Msg.Pallets), plural(len(res.Msg.Pallets)))
 	return replayHint(w, res.Msg.Hauls, "recompute them")
 }
 
@@ -275,7 +275,7 @@ func (c *Client) Stale(ctx context.Context, w io.Writer, tenant, dataset string)
 		return err
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
-	fmt.Fprintln(tw, "DATASET\tPARTITION\tLATEST PALLET\tWHY")
+	fmt.Fprintln(tw, "DATASET\tPARTITION\tLATEST VERSION\tWHY")
 	var hauls []*hubwagenv1.HaulRef
 	for _, st := range res.Msg.Stale {
 		p := st.Pallet
@@ -294,7 +294,7 @@ func replayHint(w io.Writer, hauls []*hubwagenv1.HaulRef, what string) error {
 	if len(hauls) == 0 {
 		return nil
 	}
-	fmt.Fprintf(w, "\nthese %s (memoized lifts whose code and inputs didn't change are reused):\n", what)
+	fmt.Fprintf(w, "\nthese %s (memoized steps whose code and inputs didn't change are reused):\n", what)
 	printed := map[string]bool{}
 	for _, h := range hauls {
 		var params map[string]json.RawMessage

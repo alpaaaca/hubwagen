@@ -44,7 +44,7 @@ func TestInvalidationMarksDownstreamAndForcesARerun(t *testing.T) {
 	assert.Equal(t, "bad fx rates", got.Reason)
 	rep := palletOf(t, h, first, "reports")
 	assert.Equal(t, state.PalletInvalid, rep.State)
-	assert.Equal(t, "built from invalidated pallet "+mart.ID+": bad fx rates", rep.Reason)
+	assert.Equal(t, "built from invalidated version "+mart.ID+": bad fx rates", rep.Reason)
 	assert.Equal(t, state.PalletCommitted, palletOf(t, h, first, "raw").State, "upstream stays")
 
 	evs, err := h.store.EventsSince(h.ctx, 0, "", 1<<20)

@@ -100,7 +100,7 @@ def test_the_error_names_the_line():
         run_guarded(haul_code)
     line = haul_code.__code__.co_firstlineno + 2
     assert f"test_guards.py:{line}" in str(e.value)
-    assert "use ctx.now(), ctx.random() or a lift" in str(e.value)
+    assert "use ctx.now(), ctx.random() or a step" in str(e.value)
 
 
 @hw.lift(name="guard_add")

@@ -76,7 +76,7 @@ def write(v: Any, directory: Path) -> dict:
     assert codec is not None
     f = directory / FILE
     if f.exists():
-        raise RuntimeError(f"the lift returned a {type(v).__name__} and also wrote {FILE} itself")
+        raise RuntimeError(f"the step returned a {type(v).__name__} and also wrote {FILE} itself")
     directory.mkdir(parents=True, exist_ok=True)
     codec.write(v, f)
     return {"$frame": codec.name, **codec.describe(v)}

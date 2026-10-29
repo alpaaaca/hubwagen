@@ -48,16 +48,16 @@ def test_replay_reuses_what_did_not_change(demo):
     project, replay, restart_worker, url = demo
 
     assert replay("2026-10-01..2026-10-03") == normalize("""
-        3 hauls started
-        3 hauls
-          extract_orders   3 run (not memoized)
-          daily_revenue    3 run (no previous run)
-          revenue_report   3 run (no previous run)
+        3 runs started
+        3 runs
+          extract_orders   3 ran
+          daily_revenue    3 ran (it hasn't run with these inputs before)
+          revenue_report   3 ran (it hasn't run with these inputs before)
         3 completed
     """)
 
     # The web UI's view: the pipeline by its title, and each run's steps as
-    # a DAG (a step comes after the steps whose pallets it reads).
+    # a DAG (a step comes after the steps whose data versions it reads).
     api = hw.Client(url)
     pipelines = api.call("HaulService", "ListPipelines", {})["pipelines"]
     assert [(p["name"], p["title"]) for p in pipelines] == [("daily", "Daily revenue"), ("nightly", "Nightly revenue")]
@@ -77,9 +77,9 @@ def test_replay_reuses_what_did_not_change(demo):
     # The same days again: extract runs (it reads the source), finds the
     # same orders, so everything downstream is reused.
     assert replay("2026-10-01..2026-10-03") == normalize("""
-        3 hauls started
-        3 hauls
-          extract_orders   3 run (not memoized)
+        3 runs started
+        3 runs
+          extract_orders   3 ran
           daily_revenue    3 reused
           revenue_report   3 reused
         3 completed
@@ -92,11 +92,11 @@ def test_replay_reuses_what_did_not_change(demo):
     restart_worker()
     out = replay("2026-10-01..2026-10-03")
     assert re.fullmatch(normalize("""
-        3 hauls started
-        3 hauls
-          extract_orders   3 run \\(not memoized\\)
-          daily_revenue    3 run \\(code changed \\(py-[0-9a-f]+ → py-[0-9a-f]+\\)\\)
-          revenue_report   3 run \\(input changed\\)
+        3 runs started
+        3 runs
+          extract_orders   3 ran
+          daily_revenue    3 ran \\(its code changed \\(py-[0-9a-f]+ → py-[0-9a-f]+\\)\\)
+          revenue_report   3 ran \\(an input changed\\)
         3 completed
     """), out), out
 
@@ -104,10 +104,10 @@ def test_replay_reuses_what_did_not_change(demo):
     source = project / "data" / "orders.csv"
     source.write_text(source.read_text() + "9999,2026-10-02,eu,100.00\n")
     assert replay("2026-10-01..2026-10-03") == normalize("""
-        3 hauls started
-        3 hauls
-          extract_orders   3 run (not memoized)
-          daily_revenue    2 reused, 1 run (input changed)
-          revenue_report   2 reused, 1 run (input changed)
+        3 runs started
+        3 runs
+          extract_orders   3 ran
+          daily_revenue    2 reused, 1 ran (an input changed)
+          revenue_report   2 reused, 1 ran (an input changed)
         3 completed
     """)

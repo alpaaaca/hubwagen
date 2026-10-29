@@ -113,8 +113,8 @@ class _Guard:
         if what is None:
             return None
         line = _line(code, offset)
-        raise NondeterminismError(f"{what}() called at {fn}:{line}: haul code must not read the clock or "
-                                  f"randomness; use ctx.now(), ctx.random() or a lift")
+        raise NondeterminismError(f"{what}() called at {fn}:{line}: pipeline code must not read the clock or "
+                                  f"randomness; use ctx.now(), ctx.random() or a step")
 
 
 def _line(code, offset: int) -> int:

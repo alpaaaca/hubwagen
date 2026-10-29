@@ -85,7 +85,7 @@ func (s *Store) staleness(ctx context.Context, p Pallet) (Stale, error) {
 			return st, err
 		}
 		if latest.ID != in.ID && !(latest.ContentHash != "" && latest.ContentHash == in.ContentHash) {
-			st.Reasons = append(st.Reasons, fmt.Sprintf("input %s %s has a newer pallet %s",
+			st.Reasons = append(st.Reasons, fmt.Sprintf("input %s %s has a newer version %s",
 				in.Dataset, partitionName(in.Partition), latest.ID))
 		}
 	}
@@ -122,7 +122,7 @@ func (s *Store) staleness(ctx context.Context, p Pallet) (Stale, error) {
 		return st, err
 	}
 	if built != "" && built != current {
-		st.Reasons = append(st.Reasons, fmt.Sprintf("lift %s: code changed (%s → %s)", lift.Name, built, current))
+		st.Reasons = append(st.Reasons, fmt.Sprintf("step %s: code changed (%s → %s)", lift.Name, built, current))
 	}
 	return st, nil
 }

@@ -113,7 +113,7 @@ def test_failed_lift_raises_in_the_haul():
 
     r = run(unhandled, [finished(1, status="failed", reason="ValueError", message="boom")])
     assert r.outcome["status"] == "STATUS_FAILED"
-    assert r.outcome["reason"] == "LiftFailed"
+    assert r.outcome["reason"] == "StepFailed"
     assert "add failed (ValueError): boom" in r.outcome["message"]
 
 
@@ -236,7 +236,7 @@ def test_decorator_checks():
     with pytest.raises(ValueError, match="not one of its arguments"):
         hw.lift(lambda x: 1, name="z", output=hw.Dataset("d", partition="day"))
     r = run(lambda ctx: ctx.lift(print), [])
-    assert r.outcome["reason"] == "TypeError" and "not a lift" in r.outcome["message"]
+    assert r.outcome["reason"] == "TypeError" and "not a step" in r.outcome["message"]
     assert add(1, 2) == 3, "a lift is still a plain function"
 
 
@@ -383,7 +383,7 @@ def test_start_haul_returns_the_child_id():
     assert json.loads(run(parent, [started]).outcome["resultJson"]) == "c1"
     cant = ev("ChildFinished", {"seq": 1, "name": "replay_child", "status": "failed", "reason": "start_failed",
                                 "message": "no registered build defines haul"})
-    assert run(parent, [cant]).outcome["reason"] == "ChildFailed"
+    assert run(parent, [cant]).outcome["reason"] == "RunFailed"
 
 
 def test_child_params_are_checked_against_its_signature():
@@ -404,7 +404,7 @@ def test_continue_as_new():
 
 
 def test_scheduled_haul_gets_its_interval():
-    with pytest.raises(ValueError, match="takes an `interval` parameter"):
+    with pytest.raises(ValueError, match="takes an `interval` input"):
         hw.haul(lambda ctx, day: 1, name="no_interval", schedule="0 3 * * *")
     with pytest.raises(ValueError, match="catch_up"):
         hw.Schedule("0 3 * * *", catch_up="sometimes")
@@ -427,7 +427,7 @@ def test_subscription_declaration():
     assert (s.datasets, s.debounce, s.max_wait, s.max_batch) == (("raw.a", "raw.b"), 60.0, None, 100)
     with pytest.raises(ValueError, match="max_wait >= debounce"):
         hw.Subscription("raw.a", debounce=60, max_wait=10)
-    with pytest.raises(ValueError, match="`pallets` parameter"):
+    with pytest.raises(ValueError, match="`versions` input"):
         hw.haul(lambda ctx: 1, name="no_pallets", subscribe="raw.a")
 
     def on_orders(ctx, pallets: list):
@@ -435,6 +435,22 @@ def test_subscription_declaration():
 
     r = run(on_orders, [], params={"pallets": [{"$pallet": "p1", "dataset": "raw.a", "partition": ""}]})
     assert json.loads(r.outcome["resultJson"]) == ["p1"]
+
+    # In plain words: the new data versions come as `versions`.
+    def on_versions(ctx, versions: list[hw.DataVersion]):
+        return [v.id for v in versions]
+
+    r = run(on_versions, [], params={"pallets": [{"$pallet": "p2", "dataset": "raw.a", "partition": ""}]})
+    assert json.loads(r.outcome["resultJson"]) == ["p2"]
+
+
+def test_the_engines_names_still_work():
+    assert (hw.haul, hw.lift, hw.Pallet, hw.LiftFailed, hw.ChildFailed) == \
+        (hw.pipeline, hw.step, hw.DataVersion, hw.StepFailed, hw.RunFailed)
+    assert (hw.Ctx.lift, hw.Ctx.lift_async, hw.Ctx.haul, hw.Ctx.start_haul, hw.Ctx.latest_pallet) == \
+        (hw.Ctx.step, hw.Ctx.step_async, hw.Ctx.run, hw.Ctx.start_run, hw.Ctx.latest_version)
+    e = hw.StepFailed("extract", "ValueError", "boom")
+    assert (str(e), e.step, e.lift) == ("extract failed (ValueError): boom", "extract", "extract")
 
 
 def test_keep():
@@ -455,7 +471,7 @@ def test_lifts_must_agree_on_a_datasets_keep():
         hw.lift(lambda: 1, name="k2", output=hw.Dataset("k.ds"))  # no keep: takes the other's
         assert worker.datasets()["k.ds"] == hw.Keep(versions=2)
         hw.lift(lambda: 1, name="k3", output=hw.Dataset("k.ds", keep=hw.Keep(versions=5)))
-        with pytest.raises(SystemExit, match="dataset k.ds: lifts k1 and k3 declare different keep"):
+        with pytest.raises(SystemExit, match="dataset k.ds: steps k1 and k3 declare different keep"):
             worker.datasets()
     finally:
         _model.LIFTS.clear()
@@ -490,5 +506,5 @@ def test_a_haul_started_without_an_input_fails_and_says_which():
     d = _model.HaulDef("nightly", nightly, None, schedule=hw.Schedule("0 3 * * *", interval="daily"))
     r = _replay.replay(d, "h1", {}, [START])
     assert r.outcome["status"] == "STATUS_FAILED"
-    assert "haul nightly was started with inputs {}" in r.outcome["message"]
+    assert "pipeline nightly was started with inputs {}" in r.outcome["message"]
     assert "'interval'" in r.outcome["message"] and "$interval" in r.outcome["message"]

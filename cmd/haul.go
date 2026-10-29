@@ -28,18 +28,18 @@ var (
 
 func addHaulFlags(c *cobra.Command) {
 	c.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev serves it)")
-	c.Flags().StringVar(&haulTenant, "tenant", "default", "tenant the haul belongs to")
-	c.Flags().StringVar(&haulDock, "dock", "", "dock its haul tasks go to (default: default)")
-	c.Flags().StringArrayVar(&haulParams, "param", nil, "haul parameter as name=value (repeatable); values are JSON if they parse, else strings")
+	c.Flags().StringVar(&haulTenant, "tenant", "default", "tenant the run belongs to")
+	c.Flags().StringVar(&haulDock, "dock", "", "dock its pipeline code runs from (default: default)")
+	c.Flags().StringArrayVar(&haulParams, "param", nil, "an input as name=value (repeatable); values are JSON if they parse, else strings")
 }
 
 var startCmd = &cobra.Command{
-	Use:   "start <haul>",
-	Short: "Start a haul on a running server",
-	Long: `Start starts one haul on the server (hubwagen dev by default) and prints its ID.
-Workers registered with the server run it. With --wait it waits for the haul
-to end (following continue_as_new to the last haul), prints what each lift
-did, and exits non-zero unless it completed.
+	Use:   "start <pipeline>",
+	Short: "Start a run of a pipeline on a running server",
+	Long: `Start starts one run of a pipeline on the server (hubwagen dev by default)
+and prints its ID. Workers registered with the server run it. With --wait it
+waits for the run to end (following continue_as_new to the last run), prints
+what each step did, and exits non-zero unless it completed.
 
   hubwagen start daily_revenue --param day=2026-10-24 --wait`,
 	Args:         cobra.ExactArgs(1),
@@ -68,18 +68,18 @@ did, and exits non-zero unless it completed.
 }
 
 var replayCmd = &cobra.Command{
-	Use:   "replay <haul>",
-	Short: "Run a haul for a range of parameters and report what was reused",
-	Long: `Replay starts one haul per parameter set, waits for all of them, and reports
-per lift how many were reused and how many ran, and why. A --param value
-a..b is a range: dates (daily) or integers, inclusive; several ranges
-multiply. Memoized lifts whose code, inputs and parameters are unchanged
-are reused, so replays and backfills only run what changed.
+	Use:   "replay <pipeline>",
+	Short: "Run a pipeline for a range of inputs and report what was reused",
+	Long: `Replay starts one run of a pipeline per set of inputs, waits for all of them,
+and reports per step how many were reused and how many ran, and why. A
+--param value a..b is a range: dates (daily) or integers, inclusive; several
+ranges multiply. Memoized steps whose code, inputs and arguments are
+unchanged are reused, so replays and backfills only run what changed.
 
   hubwagen replay daily_revenue --param day=2026-03-01..2026-03-31
 
-Exits non-zero unless every haul completed. Ctrl-C stops waiting; the
-hauls keep running.`,
+Exits non-zero unless every run completed. Ctrl-C stops waiting; the runs
+keep running.`,
 	Args:         cobra.ExactArgs(1),
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -98,7 +98,7 @@ hauls keep running.`,
 			}
 			ids = append(ids, id)
 		}
-		fmt.Printf("%d hauls started\n", len(ids))
+		fmt.Printf("%d run%s started\n", len(ids), map[bool]string{true: "", false: "s"}[len(ids) == 1])
 		return waitAndReport(ctx, c, ids)
 	},
 }
@@ -106,7 +106,7 @@ hauls keep running.`,
 func waitAndReport(ctx context.Context, c *haulcli.Client, ids []string) error {
 	hauls, err := c.Wait(ctx, ids, 500*time.Millisecond)
 	if errors.Is(err, context.Canceled) {
-		fmt.Println("stopped waiting; the hauls keep running")
+		fmt.Println("stopped waiting; the runs keep going")
 		return nil
 	}
 	if err != nil {
@@ -115,7 +115,7 @@ func waitAndReport(ctx context.Context, c *haulcli.Client, ids []string) error {
 	fmt.Print(haulcli.Report(hauls))
 	for _, h := range hauls {
 		if h.Status != "completed" {
-			return fmt.Errorf("%d of %d hauls did not complete", countNot(hauls, "completed"), len(hauls))
+			return fmt.Errorf("%d of %d runs did not complete", countNot(hauls, "completed"), len(hauls))
 		}
 	}
 	return nil
@@ -141,13 +141,13 @@ func serverError(err error) error {
 
 var schedulesCmd = &cobra.Command{
 	Use:   "schedules",
-	Short: "List the haul schedules and dataset subscriptions",
-	Long: `Schedules lists the hauls that run on a schedule: their cron, timezone, the
-data interval each run covers, what happens to runs missed while no server
-ran (catch-up), and the next run. Then the hauls that new pallets start:
-their datasets, batching and how many pallets wait. A haul gets either from
-its code, @hw.haul(schedule=...) or subscribe=...; the newest build that
-defines the haul decides.`,
+	Short: "List the pipelines that run on a schedule or on new data",
+	Long: `Schedules lists the pipelines that run on a schedule: their cron, timezone,
+the data interval each run covers, what happens to runs missed while no
+server ran (catch-up), and the next run. Then the pipelines that new data
+versions start: their datasets, batching and how many new versions wait. A
+pipeline gets either from its code, @hw.pipeline(schedule=...) or
+subscribe=...; the newest build that defines the pipeline decides.`,
 	Args:         cobra.NoArgs,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, _ []string) error {
@@ -158,10 +158,10 @@ defines the haul decides.`,
 var signalData string
 
 var signalCmd = &cobra.Command{
-	Use:   "signal <haul-id> <name>",
-	Short: "Send a signal to a running haul",
-	Long: `Signal sends a signal to a haul, which gets it from ctx.wait_signal(name). A
-signal the haul isn't waiting for yet is kept until it waits for that name;
+	Use:   "signal <run-id> <name>",
+	Short: "Send a signal to a run that is going on",
+	Long: `Signal sends a signal to a run, which gets it from ctx.wait_signal(name). A
+signal the run isn't waiting for yet is kept until it waits for that name;
 each signal answers one wait. --data is the payload, as JSON.
 
   hubwagen signal 01M6... approve --data '{"by": "ana"}'`,

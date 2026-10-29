@@ -12,29 +12,31 @@ workers you start; the server never runs it.
 ```python
 import hubwagen as hw
 
-@hw.lift(output=hw.Dataset("raw.orders", partition="day"))
+@hw.step(output=hw.Dataset("raw.orders", partition="day"))
 def extract_orders(day: str) -> dict: ...            # writes files to hw.output().path
 
-@hw.lift(memo=True, output=hw.Dataset("mart.daily_revenue", partition="day"))
-def daily_revenue(orders: hw.Pallet, day: str) -> dict: ...
+@hw.step(memo=True, output=hw.Dataset("mart.daily_revenue", partition="day"))
+def daily_revenue(orders: hw.DataVersion, day: str) -> dict: ...
 
-@hw.haul
+@hw.pipeline
 def daily(ctx, day: str):
-    orders = ctx.lift(extract_orders, day)           # a Pallet: an immutable version of data
-    return ctx.lift(daily_revenue, orders, day).id   # reused if code and inputs are unchanged
+    orders = ctx.step(extract_orders, day)           # a DataVersion: a saved, never-changed version of raw.orders
+    return ctx.step(daily_revenue, orders, day).id   # reused if code and inputs are unchanged
 ```
 
 ## Status
 
 The engine runs on one machine: `hubwagen dev` (server and API), Python
-workers, `file://` storage. Built so far: durable hauls (replay until
-blocked, timers, retries, timeouts, leader restarts), pallets with
-exactly-once commits, fingerprint memoization with single-flight, a
-catalog with lineage, the worker and haul APIs, dataframes between lifts,
-code versions from what a lift's code reaches, runtime determinism guards,
-signals, version markers, fan-out limits, child hauls, continue_as_new,
-schedules, dataset subscriptions, a linter for haul code and testing
-tools (scripted runs, replays of recorded logbooks). Next: M5 (catalog
+workers, `file://` storage. Built so far: durable pipelines (replay until
+blocked, timers, retries, timeouts, leader restarts), data versions with
+exactly-once commits, memoized steps with single-flight, a catalog with
+lineage, the worker and pipeline APIs, dataframes between steps, code
+versions from what a step's code reaches, runtime determinism guards,
+signals, version markers, fan-out limits, runs that start runs,
+continue_as_new, schedules, dataset subscriptions, a linter for pipeline
+code, testing tools (scripted runs, replays of recorded runs) and a web UI.
+(Inside, the engine calls a pipeline a haul, a step a lift and a data
+version a pallet.) Next: M5 (catalog
 UI, invalidation, staleness). See
 [docs/roadmap.md](docs/roadmap.md) and
 [docs/architecture.md](docs/architecture.md).
@@ -58,17 +60,17 @@ go build -o hubwagen .
 ./hubwagen start daily --param day=2026-10-04 --wait
 ```
 
-`replay` prints, per lift, what was reused and what ran and why:
+`replay` prints, per step, what was reused and what ran and why:
 
 ```
-3 hauls
-  extract_orders   3 run (not memoized)
+3 runs
+  extract_orders   3 ran
   daily_revenue    3 reused
   revenue_report   3 reused
 3 completed
 ```
 
-Dev prints each run as it starts and ends, and in between what its lifts
+Dev prints each run as it starts and ends, and in between what its steps
 print and log, marked with the run and the step:
 
 ```
@@ -91,7 +93,7 @@ print and log, marked with the run and the step:
 
 The web UI shows the same output on the run's page, step by step
 (`hubwagen dev --events` prints the engine's own events instead). The config file: [docs/config.md](docs/config.md).
-Writing hauls and lifts: [sdk/python/README.md](sdk/python/README.md).
+Writing pipelines and steps: [sdk/python/README.md](sdk/python/README.md).
 The example: [pipelines/examples/revenue](pipelines/examples/revenue).
 
 ## Development

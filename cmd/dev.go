@@ -104,7 +104,7 @@ func runDev(cmd *cobra.Command, _ []string) error {
 	select {
 	case <-ctx.Done():
 		if len(procs) > 0 {
-			fmt.Println("stopping workers: running lifts finish, polls end within their wait; Ctrl-C again to kill them")
+			fmt.Println("stopping workers: running steps finish, polls end within their wait; Ctrl-C again to kill them")
 			killOnSignal(kill)
 		}
 		stopWorkers()

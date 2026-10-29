@@ -344,7 +344,7 @@ func TestStalePartitions(t *testing.T) {
 	require.Len(t, stale, 1)
 	assert.Equal(t, "r1", stale[0].Pallet.ID)
 	assert.Equal(t, "build", stale[0].Lift)
-	assert.Equal(t, []string{"input raw.orders 2026-10-01 has a newer pallet o1b"}, stale[0].Reasons)
+	assert.Equal(t, []string{"input raw.orders 2026-10-01 has a newer version o1b"}, stale[0].Reasons)
 
 	// A newer build changes the lift's code: both are stale now.
 	put(t, s, nil, func(tx *Tx) error {
@@ -353,8 +353,8 @@ func TestStalePartitions(t *testing.T) {
 	stale, err = s.StalePartitions(ctx, "t", "")
 	require.NoError(t, err)
 	require.Len(t, stale, 2, "only mart.revenue's pallets have a lift and inputs")
-	assert.Equal(t, []string{"input raw.orders 2026-10-01 has a newer pallet o1b", "lift build: code changed (v1 → v2)"}, stale[0].Reasons)
-	assert.Equal(t, []string{"lift build: code changed (v1 → v2)"}, stale[1].Reasons)
+	assert.Equal(t, []string{"input raw.orders 2026-10-01 has a newer version o1b", "step build: code changed (v1 → v2)"}, stale[0].Reasons)
+	assert.Equal(t, []string{"step build: code changed (v1 → v2)"}, stale[1].Reasons)
 }
 
 func TestExpiryCandidates(t *testing.T) {
