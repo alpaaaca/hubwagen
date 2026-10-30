@@ -307,6 +307,10 @@ each is one PR:
    image, scaled like processes; `launcher: kubernetes` sets a
    Deployment's replicas through the API (service account or `kubectl
    proxy`), from the same desired count.
+   ✅ **Deployments** (projects step 2): `hubwagen deploy` records a
+   project's next version (its build registered with it) and the server
+   runs its pools, replacing the old version's; `hubwagen projects`,
+   `hubwagen delete`. A server on the same machine for now.
    ✅ **`hubwagen deploy --dry-run`** (projects step 1): a repo's
    project file (`kind: Project`), its build worked out in its image or in
    place, and what deploying it would change: steps that run again

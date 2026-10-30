@@ -300,7 +300,9 @@ lets running steps finish. Started by `hubwagen dev`, `server` or `workers`,
 the worker takes its docks and lifts from the worker group in
 `hubwagen.yaml` (`$HUBWAGEN_DOCKS`, `$HUBWAGEN_LIFTS`; flags win), and also
 stops that way when that process is gone (`$HUBWAGEN_SUPERVISOR_PID`). `--worker-id` (or `$HUBWAGEN_WORKER_ID`) names
-the worker in a run's history; the default is `<hostname>-<pid>`.
+the worker in a run's history; the default is `<hostname>-<pid>`. `--build-json` prints what
+the worker registers (its pipelines, steps' code versions, schedules), as
+`hubwagen deploy` sends it with a deployment.
 
 ### Workers on other machines
 

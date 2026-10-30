@@ -19,6 +19,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/alper/hubwagen/internal/clock"
@@ -64,6 +65,7 @@ const StartGrace = time.Minute
 const Every = 2 * time.Second
 
 type Scaler struct {
+	mu     sync.Mutex // Tick and SetPools
 	pools  []Pool
 	launch Launcher
 	src    Source
@@ -90,11 +92,40 @@ type worker struct {
 }
 
 func New(pools []Pool, launch Launcher, src Source, clk clock.Clock, log *slog.Logger) *Scaler {
-	s := &Scaler{pools: pools, launch: launch, src: src, clock: clk, log: log, state: map[string]*poolState{}}
-	for _, p := range pools {
-		s.state[p.Name] = &poolState{workers: map[string]*worker{}, active: map[string]time.Time{}, desired: p.Min, applied: -1}
-	}
+	s := &Scaler{launch: launch, src: src, clock: clk, log: log, state: map[string]*poolState{}}
+	s.SetPools(pools)
 	return s
+}
+
+// SetPools changes the set of pools: new ones start empty (the next pass
+// starts their min), changed ones keep their workers, and those no longer
+// in the set have their workers stopped (SIGTERM: they finish what they
+// run). A project's new version is a new pool and its old one goes: that
+// is the rollout.
+func (s *Scaler) SetPools(pools []Pool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	keep := map[string]bool{}
+	for _, p := range pools {
+		keep[p.Name] = true
+		if s.state[p.Name] == nil {
+			s.state[p.Name] = &poolState{workers: map[string]*worker{}, active: map[string]time.Time{}, desired: p.Min, applied: -1}
+		}
+	}
+	for name, st := range s.state {
+		if keep[name] {
+			continue
+		}
+		ids := slices.Sorted(maps.Keys(st.workers))
+		for _, id := range ids {
+			s.launch.Stop(id)
+		}
+		if len(ids) > 0 {
+			s.log.Info(fmt.Sprintf("worker pool %s: gone; stopped %s", name, strings.Join(ids, ", ")), "pool", name)
+		}
+		delete(s.state, name)
+	}
+	s.pools = slices.Clone(pools)
 }
 
 // Run scales every Every until ctx ends.
@@ -115,6 +146,8 @@ func (s *Scaler) Run(ctx context.Context) {
 
 // Tick scales each pool once, in the config's order.
 func (s *Scaler) Tick(ctx context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	seen, err := s.src.Workers(ctx)
 	if err != nil {
 		return err

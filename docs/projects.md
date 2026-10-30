@@ -1,7 +1,8 @@
 # Projects: `hubwagen deploy` instead of hand-run workers
 
-> **Status:** design note; step 1 (the project file and `hubwagen deploy
-> --dry-run`) is built, the rest is not. Builds on worker pools
+> **Status:** design note; steps 1 (the project file and `hubwagen deploy
+> --dry-run`) and 2 (deployments on a server on the same machine) are
+> built, the rest is not. Builds on worker pools
 > ([worker-pools.md](worker-pools.md), steps 1–4 built), container images
 > ([deploy.md](deploy.md)) and builds (`RegisterBuild`). Decision
 > requested: the shape below, and steps 1–2 first.
@@ -185,11 +186,21 @@ come from its deployment.
    useful on its own in CI ("this PR reruns daily_revenue"). Pipelines
    are compared by name only: builds don't record a pipeline's code
    version.
-2. **Deployments on the server**: `DeployService` (`Deploy`,
+2. ✅ **Deployments on the server**: `DeployService` (`Deploy`,
    `ListProjects`, `DeleteProject`), events (`ProjectDeployed`,
-   `ProjectDeleted`) and their projection; pools from deployments, with
-   the process and container launchers; rollout by draining the old
-   version; `hubwagen deploy`, `projects`, `delete`.
+   `ProjectDeleted`) and a `projects` projection; versions v1, v2, … per
+   project. A deploy registers the project's build in the same batch
+   (`python -m hubwagen.worker --build-json`, run on the deploying side),
+   so its pipelines are accepted and its schedules apply before any
+   worker runs. The server turns each live project's current version
+   into pools named `<project>-<pool>-v<version>` (containers of its
+   image, or processes in its directory); a new version replaces the
+   old one's pools, whose workers get SIGTERM and finish what they run.
+   `hubwagen deploy`, `projects`, `delete [--cancel-runs]`. Limits for
+   now: the server must be on the deploying machine (its local images or
+   directory, no registry yet), `{secret:}` env is refused, one project
+   per pipeline name, and a deleted project's schedules still fire (each
+   start is refused and recorded) until it is deployed again.
 3. **Registries**: push by digest, pull secrets per launcher, `{secret:}`
    env from the server's side.
 4. **Kubernetes**: the server creates, updates and deletes a Deployment

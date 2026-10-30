@@ -119,31 +119,7 @@ class Worker:
         self._lock = threading.Lock()
 
     def register(self) -> None:
-        versions = {name: d.code_version() for name, d in _model.LIFTS.items()}
-        schedules = [{"haul": name, "cron": d.schedule.cron, "timezone": d.schedule.timezone,
-                      "interval": d.schedule.interval, "catchUp": d.schedule.catch_up}
-                     for name, d in sorted(_model.HAULS.items()) if d.schedule]
-        subscriptions = []
-        for name, d in sorted(_model.HAULS.items()):
-            if s := d.subscribe:
-                sub = {"haul": name, "datasets": list(s.datasets), "debounce": _replay._duration(s.debounce),
-                       "maxBatch": s.max_batch}
-                if s.max_wait is not None:
-                    sub["maxWait"] = _replay._duration(s.max_wait)
-                subscriptions.append(sub)
-        retention = []
-        for ds, keep in sorted(datasets().items()):
-            r: dict[str, Any] = {"name": ds}
-            if keep and keep.versions:
-                r["keepVersions"] = keep.versions
-            if keep and keep.age:
-                r["keepFor"] = _replay._duration(keep.age)
-            retention.append(r)
-        self.client.call("WorkerService", "RegisterBuild",
-                         {"buildId": self.build, "hauls": sorted(_model.HAULS), "liftVersions": versions,
-                          "schedules": schedules, "subscriptions": subscriptions, "datasets": retention,
-                          "haulInfo": [{"haul": n, "title": d.title, "description": d.description}
-                                       for n, d in sorted(_model.HAULS.items()) if d.title or d.description]})
+        self.client.call("WorkerService", "RegisterBuild", registration(self.build))
         log.info("registered build %s: %d pipelines, %d steps", self.build, len(_model.HAULS), len(_model.LIFTS))
 
     # --- hauls ---
@@ -364,6 +340,36 @@ def project_modules(directory: Path) -> list[str]:
     return modules
 
 
+def registration(build: str) -> dict[str, Any]:
+    """The RegisterBuild request for the pipelines and steps defined so far:
+    what a worker registers, and what `hubwagen deploy` sends with a
+    deployment (--build-json)."""
+    versions = {name: d.code_version() for name, d in _model.LIFTS.items()}
+    schedules = [{"haul": name, "cron": d.schedule.cron, "timezone": d.schedule.timezone,
+                  "interval": d.schedule.interval, "catchUp": d.schedule.catch_up}
+                 for name, d in sorted(_model.HAULS.items()) if d.schedule]
+    subscriptions = []
+    for name, d in sorted(_model.HAULS.items()):
+        if s := d.subscribe:
+            sub = {"haul": name, "datasets": list(s.datasets), "debounce": _replay._duration(s.debounce),
+                   "maxBatch": s.max_batch}
+            if s.max_wait is not None:
+                sub["maxWait"] = _replay._duration(s.max_wait)
+            subscriptions.append(sub)
+    retention = []
+    for ds, keep in sorted(datasets().items()):
+        r: dict[str, Any] = {"name": ds}
+        if keep and keep.versions:
+            r["keepVersions"] = keep.versions
+        if keep and keep.age:
+            r["keepFor"] = _replay._duration(keep.age)
+        retention.append(r)
+    return {"buildId": build, "hauls": sorted(_model.HAULS), "liftVersions": versions,
+            "schedules": schedules, "subscriptions": subscriptions, "datasets": retention,
+            "haulInfo": [{"haul": n, "title": d.title, "description": d.description}
+                         for n, d in sorted(_model.HAULS.items()) if d.title or d.description]}
+
+
 def print_versions() -> None:
     """What each code version covers, for finding out why a lift reran."""
     from . import _codeversion
@@ -400,6 +406,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                         "remote (through URLs from the server), or auto: local when the worker sees the bucket's "
                         "directory, else remote")
     p.add_argument("--log-level", default="info")
+    p.add_argument("--build-json", action="store_true",
+                   help="print the build's registration (what a worker registers; hubwagen deploy sends it), then exit")
     p.add_argument("--versions", action="store_true",
                    help="print the build ID and what each pipeline's and step's code version covers, then exit")
     args = p.parse_args(argv)
@@ -423,6 +431,9 @@ def main(argv: list[str] | None = None) -> None:
         importlib.import_module(m)
     if args.versions:
         print_versions()
+        return
+    if args.build_json:
+        print(json.dumps(registration(build_id()), indent=2))
         return
     w = Worker(Client(args.server), args.dock, lifts=args.lifts, poll_wait=args.poll_wait,
                worker_id=args.worker_id, data=args.data)

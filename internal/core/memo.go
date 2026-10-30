@@ -50,67 +50,71 @@ type BuildRequest struct {
 // Workers that poll with a build ID get only the haul tasks and lifts their
 // build defines, so projects with different code can share docks.
 func (c *Core) RegisterBuild(ctx context.Context, req BuildRequest) error {
-	_, err := submit(ctx, c, func(c *Core) (struct{}, error) {
-		if req.ID == "" {
-			return struct{}{}, fmt.Errorf("%w: a build needs an ID", ErrInvalid)
-		}
-		hauls := slices.Compact(slices.Sorted(slices.Values(req.Hauls)))
-		if slices.Contains(hauls, "") {
-			return struct{}{}, fmt.Errorf("%w: build %s: haul names must not be empty", ErrInvalid, req.ID)
-		}
-		if old, ok := c.builds[req.ID]; ok {
-			if !mapsEqual(old, req.Lifts) {
-				return struct{}{}, fmt.Errorf("%w: build %s is already registered with other code versions", ErrInvalid, req.ID)
-			}
-			known := c.buildHauls[req.ID]
-			switch {
-			case len(known) == 0 && len(hauls) > 0: // recorded before hauls were
-			case !setEqual(known, hauls):
-				return struct{}{}, fmt.Errorf("%w: build %s is already registered with other hauls", ErrInvalid, req.ID)
-			default:
-				return struct{}{}, nil
-			}
-		}
-		schedules, err := validateSchedules(hauls, req.Schedules)
-		if err != nil {
-			return struct{}{}, fmt.Errorf("build %s: %w", req.ID, err)
-		}
-		subs, err := validateSubscriptions(hauls, req.Subscriptions)
-		if err != nil {
-			return struct{}{}, fmt.Errorf("build %s: %w", req.ID, err)
-		}
-		if err := validateDatasets(req.Datasets); err != nil {
-			return struct{}{}, fmt.Errorf("build %s: %w", req.ID, err)
-		}
-		for name := range req.Info {
-			if !slices.Contains(hauls, name) {
-				return struct{}{}, fmt.Errorf("%w: build %s: info for haul %s, which it does not define", ErrInvalid, req.ID, name)
-			}
-		}
-		lifts := map[string]string{}
-		for k, v := range req.Lifts {
-			if k == "" || v == "" {
-				return struct{}{}, fmt.Errorf("%w: build %s: lift names and code versions must not be empty", ErrInvalid, req.ID)
-			}
-			lifts[k] = v
-		}
-		c.addBuild(req.ID, lifts, hauls)
-		info := map[string]state.HaulInfo{}
-		for name, i := range req.Info {
-			if i != (state.HaulInfo{}) {
-				info[name] = i
-			}
-		}
-		b := state.Build{ID: req.ID, Hauls: hauls, Info: info, Lifts: lifts, RegisteredAt: c.now()}
-		c.b.catalog = append(c.b.catalog, func(tx *state.Tx) error { return tx.PutBuild(b) })
-		c.emit(state.EventBuildRegistered, "", buildRegisteredPayload{ID: req.ID, Hauls: hauls, Info: info, Lifts: lifts})
-		c.applySchedules(req.ID, hauls, schedules)
-		c.applySubscriptions(req.ID, hauls, subs)
-		c.applyRetention(req.ID, req.Datasets)
-		c.resumeStuckHauls()
-		return struct{}{}, nil
-	})
+	_, err := submit(ctx, c, func(c *Core) (struct{}, error) { return struct{}{}, c.registerBuild(req) })
 	return err
+}
+
+// registerBuild records a build in the current batch (RegisterBuild,
+// Deploy).
+func (c *Core) registerBuild(req BuildRequest) error {
+	if req.ID == "" {
+		return fmt.Errorf("%w: a build needs an ID", ErrInvalid)
+	}
+	hauls := slices.Compact(slices.Sorted(slices.Values(req.Hauls)))
+	if slices.Contains(hauls, "") {
+		return fmt.Errorf("%w: build %s: haul names must not be empty", ErrInvalid, req.ID)
+	}
+	if old, ok := c.builds[req.ID]; ok {
+		if !mapsEqual(old, req.Lifts) {
+			return fmt.Errorf("%w: build %s is already registered with other code versions", ErrInvalid, req.ID)
+		}
+		known := c.buildHauls[req.ID]
+		switch {
+		case len(known) == 0 && len(hauls) > 0: // recorded before hauls were
+		case !setEqual(known, hauls):
+			return fmt.Errorf("%w: build %s is already registered with other hauls", ErrInvalid, req.ID)
+		default:
+			return nil
+		}
+	}
+	schedules, err := validateSchedules(hauls, req.Schedules)
+	if err != nil {
+		return fmt.Errorf("build %s: %w", req.ID, err)
+	}
+	subs, err := validateSubscriptions(hauls, req.Subscriptions)
+	if err != nil {
+		return fmt.Errorf("build %s: %w", req.ID, err)
+	}
+	if err := validateDatasets(req.Datasets); err != nil {
+		return fmt.Errorf("build %s: %w", req.ID, err)
+	}
+	for name := range req.Info {
+		if !slices.Contains(hauls, name) {
+			return fmt.Errorf("%w: build %s: info for haul %s, which it does not define", ErrInvalid, req.ID, name)
+		}
+	}
+	lifts := map[string]string{}
+	for k, v := range req.Lifts {
+		if k == "" || v == "" {
+			return fmt.Errorf("%w: build %s: lift names and code versions must not be empty", ErrInvalid, req.ID)
+		}
+		lifts[k] = v
+	}
+	c.addBuild(req.ID, lifts, hauls)
+	info := map[string]state.HaulInfo{}
+	for name, i := range req.Info {
+		if i != (state.HaulInfo{}) {
+			info[name] = i
+		}
+	}
+	b := state.Build{ID: req.ID, Hauls: hauls, Info: info, Lifts: lifts, RegisteredAt: c.now()}
+	c.b.catalog = append(c.b.catalog, func(tx *state.Tx) error { return tx.PutBuild(b) })
+	c.emit(state.EventBuildRegistered, "", buildRegisteredPayload{ID: req.ID, Hauls: hauls, Info: info, Lifts: lifts})
+	c.applySchedules(req.ID, hauls, schedules)
+	c.applySubscriptions(req.ID, hauls, subs)
+	c.applyRetention(req.ID, req.Datasets)
+	c.resumeStuckHauls()
+	return nil
 }
 
 func (c *Core) addBuild(id string, lifts map[string]string, hauls []string) {

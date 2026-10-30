@@ -15,8 +15,13 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/durationpb"
+
+	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
+	"github.com/alper/hubwagen/internal/api/gen/hubwagen/v1/hubwagenv1connect"
 )
 
 // freeListen returns a loopback address with a port nothing listens on.
@@ -147,4 +152,42 @@ esac
 	_, port, _ := net.SplitHostPort(listen)
 	assert.True(t, strings.HasPrefix(read(), "run http://host.docker.internal:"+port+" c-1 remote | run --rm --name hubwagen-c-1 "), read())
 	assert.True(t, strings.HasSuffix(read(), " acme/revenue:1\n"), read())
+}
+
+// A server runs what is deployed to it: here in place, with a fake python3
+// that records how each worker was started and when it got SIGTERM.
+func TestServerRunsDeployedProjects(t *testing.T) {
+	bin, logf, dir := t.TempDir(), filepath.Join(t.TempDir(), "workers.log"), t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "python3"), []byte(`#!/bin/sh
+echo "start $HUBWAGEN_WORKER_ID $HUBWAGEN_DOCKS $HUBWAGEN_LIFTS $GREETING $(pwd)" >> `+logf+`
+trap 'echo "stop $HUBWAGEN_WORKER_ID" >> `+logf+`; exit 0' TERM
+while :; do sleep 0.05; done
+`), 0o755))
+	listen := freeListen(t)
+	done := runServerConfig(t, listen, "")
+	c := hubwagenv1connect.NewDeployServiceClient(http.DefaultClient, "http://"+listen)
+	deploy := func(build string) {
+		t.Helper()
+		_, err := c.Deploy(context.Background(), connect.NewRequest(&hubwagenv1.DeployRequest{
+			Project: "revenue", Dir: dir, Python: filepath.Join(bin, "python3"), Env: map[string]string{"GREETING": "hi"},
+			Build: &hubwagenv1.RegisterBuildRequest{BuildId: build, Hauls: []string{"daily"}},
+			Pools: []*hubwagenv1.DeployedPool{{Name: "default", Docks: []string{"default"}, Min: 1, Max: 2, Lifts: 3, IdleAfter: durationpb.New(time.Minute)}}}))
+		require.NoError(t, err)
+	}
+	read := func() string { b, _ := os.ReadFile(logf); return string(b) }
+	wait := func(s string) {
+		t.Helper()
+		require.Eventually(t, func() bool { return strings.Contains(read(), s) }, 15*time.Second, 50*time.Millisecond, read())
+	}
+	real, _ := filepath.EvalSymlinks(dir)
+
+	deploy("b1")
+	wait("start revenue-default-v1-1 default 3 hi " + real)
+	deploy("b2") // the rollout: v2 starts, v1 stops
+	wait("start revenue-default-v2-1")
+	wait("stop revenue-default-v1-1")
+	_, err := c.DeleteProject(context.Background(), connect.NewRequest(&hubwagenv1.DeleteProjectRequest{Project: "revenue", By: "test"}))
+	require.NoError(t, err)
+	wait("stop revenue-default-v2-1")
+	stopServerCmd(t, done)
 }

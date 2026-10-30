@@ -127,3 +127,60 @@ func TestBuildVersionsSaysWhatWentWrong(t *testing.T) {
 	_, _, err := BuildVersions(context.Background(), project(t, "pools: [{name: default}]\n"), Options{Out: io.Discard})
 	assert.ErrorContains(t, err, "python3 -m hubwagen.worker --versions: not a build's versions: Traceback: no module named hubwagen")
 }
+
+func TestDeployRequest(t *testing.T) {
+	reg := &hubwagenv1.RegisterBuildRequest{BuildId: "b-new", Hauls: []string{"daily"}}
+	p := project(t, "build: {dockerfile: Dockerfile, image: localhost/revenue}\npools:\n  - {name: default, min: 1, max: 4, lifts: 2, idle_after: 90s}\nenv: {LOG_LEVEL: info}\n")
+	req, err := DeployRequest(p, Source{Image: "localhost/revenue:dry-run"}, reg, "python3", "ana@laptop")
+	require.NoError(t, err)
+	assert.Equal(t, "localhost/revenue:b-new", req.Image, "the build's tag")
+	assert.Empty(t, req.Dir)
+	assert.Equal(t, map[string]string{"LOG_LEVEL": "info"}, req.Env)
+	require.Len(t, req.Pools, 1)
+	assert.Equal(t, []any{"default", []string{"default"}, int32(1), int32(4), int32(2), 90 * time.Second},
+		[]any{req.Pools[0].Name, req.Pools[0].Docks, req.Pools[0].Min, req.Pools[0].Max, req.Pools[0].Lifts, req.Pools[0].IdleAfter.AsDuration()})
+
+	// In place: the directory, the interpreter found on PATH, PYTHONPATH as here.
+	fake(t, "python3", "exit 0\n")
+	t.Setenv("PYTHONPATH", "/opt/sdk")
+	req, err = DeployRequest(p, Source{}, reg, "python3", "ana@laptop")
+	require.NoError(t, err)
+	assert.Equal(t, p.Dir, req.Dir)
+	assert.True(t, strings.HasSuffix(req.Python, "/python3"))
+	assert.Equal(t, "/opt/sdk", req.Env["PYTHONPATH"])
+	assert.Equal(t, 5*time.Minute, project(t, "pools: [{name: default}]\n").Pools[0].Idle(), "the default idle_after")
+
+	_, err = DeployRequest(project(t, "pools: [{name: default}]\nenv: {DB: {secret: db}}\n"), Source{}, reg, "python3", "ana")
+	assert.ErrorContains(t, err, "env.DB: {secret: db}: secrets come with step 3")
+}
+
+func TestRegistrationInPlace(t *testing.T) {
+	fake(t, "python3", `[ "$*" = "-m hubwagen.worker --build-json" ] || exit 9
+echo '{"buildId": "b-new", "hauls": ["daily"], "liftVersions": {"load": "py-1"}, "schedules": [{"haul": "daily", "cron": "0 3 * * *", "interval": "daily", "catchUp": "latest"}]}'
+`)
+	reg, err := Registration(context.Background(), project(t, "pools: [{name: default}]\n"), Source{}, Options{Out: io.Discard})
+	require.NoError(t, err)
+	assert.Equal(t, "b-new", reg.BuildId)
+	assert.Equal(t, "py-1", reg.LiftVersions["load"])
+	require.Len(t, reg.Schedules, 1)
+	assert.Equal(t, "latest", reg.Schedules[0].CatchUp)
+
+	fake(t, "python3", "echo 'usage: …' >&2; echo 'python -m hubwagen.worker: error: unrecognized arguments: --build-json' >&2; exit 2\n")
+	_, err = Registration(context.Background(), project(t, "pools: [{name: default}]\n"), Source{}, Options{Out: io.Discard})
+	assert.ErrorContains(t, err, "its hubwagen SDK is older than this hubwagen")
+}
+
+func TestProjectsTable(t *testing.T) {
+	at := timestamppb.New(t0)
+	var b strings.Builder
+	require.NoError(t, Projects(&b, []*hubwagenv1.Deployment{
+		{Project: "revenue", Version: 3, BuildId: "b-new", Image: "localhost/revenue:b-new", By: "ana@laptop", DeployedAt: at,
+			Pools: []*hubwagenv1.DeployedPool{{Name: "default", Min: 0, Max: 3}, {Name: "gpu", Min: 1, Max: 1}}},
+		{Project: "local", Version: 1, BuildId: "b-x", Dir: "/Users/ana/code/examples/local", By: "ana@laptop", DeployedAt: at,
+			Pools: []*hubwagenv1.DeployedPool{{Name: "default", Min: 0, Max: 1}}},
+	}, []*hubwagenv1.Pool{{Name: "revenue-default-v3", Workers: []string{"revenue-default-v3-1", "revenue-default-v3-2"}}, {Name: "revenue-default-v2", Workers: []string{"x"}}}))
+	assert.Equal(t, `PROJECT   VERSION   BUILD   RUNS                            POOLS                            DEPLOYED               BY
+revenue   v3        b-new   image localhost/revenue:b-new   default 2 of 0–3, gpu 0 of 1–1   2026-10-30 18:42 UTC   ana@laptop
+local     v1        b-x     in place, …/examples/local      default 0 of 0–1                 2026-10-30 18:42 UTC   ana@laptop
+`, b.String())
+}

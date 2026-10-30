@@ -129,6 +129,10 @@ func (c *Core) startHaul(req StartHaulRequest) (StartHaulResult, error) {
 		return StartHaulResult{}, fmt.Errorf("%w: no registered build defines haul %q; start a worker whose code has it",
 			ErrUnknownHaul, req.Name)
 	}
+	if p := c.deletedProjectOf(req.Name); p != "" {
+		return StartHaulResult{}, fmt.Errorf("%w: pipeline %s belongs to project %s, which was deleted; deploy it again to run it",
+			ErrUnknownHaul, req.Name, p)
+	}
 	if req.Dock == "" {
 		req.Dock = DefaultDock
 	}

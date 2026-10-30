@@ -85,9 +85,9 @@ esac
 `
 	require.NoError(t, os.WriteFile(filepath.Join(bin, "docker"), []byte(script), 0o755))
 	t.Setenv("PATH", bin+":"+os.Getenv("PATH"))
-	n, err := RemoveLeftovers(context.Background(), config.Worker{Name: "py", Runtime: "docker"}, "/data")
+	n, err := RemoveLeftovers(context.Background(), "docker", "/data", "py")
 	require.NoError(t, err)
 	assert.Equal(t, 2, n)
 	b, _ := os.ReadFile(logf)
-	assert.Equal(t, "ps -aq --filter label=hubwagen.pool=py --filter label=hubwagen.data_dir=/data\nrm -f abc123 def456\n", string(b))
+	assert.Equal(t, "ps -aq --filter label=hubwagen.data_dir=/data --filter label=hubwagen.pool=py\nrm -f abc123 def456\n", string(b))
 }

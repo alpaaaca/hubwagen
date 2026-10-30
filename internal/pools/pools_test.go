@@ -290,3 +290,28 @@ func TestAKubernetesPoolAppliesItsDesiredCount(t *testing.T) {
 	assert.Equal(t, []int{1, 1, 4}, applied, "min, its retry, then pod-a and one per waiting step")
 	assert.Equal(t, 4, e.pool("k8s").Desired)
 }
+
+func TestSetPoolsRollsOut(t *testing.T) {
+	e := newEnv(t)
+	v1 := Pool{Name: "revenue-default-v1", Docks: []string{core.DefaultDock}, Lifts: 2, Min: 1, Max: 3, IdleAfter: time.Minute}
+	s := e.scaler(v1)
+	started, _ := e.tick(s)
+	assert.Equal(t, []string{"revenue-default-v1-1"}, started)
+
+	// A new version: its pool starts, the old one's workers stop.
+	v2 := v1
+	v2.Name = "revenue-default-v2"
+	s.SetPools([]Pool{v2})
+	_, stopped := e.launch.take()
+	assert.Equal(t, []string{"revenue-default-v1-1"}, stopped)
+	started, _ = e.tick(s)
+	assert.Equal(t, []string{"revenue-default-v2-1"}, started)
+
+	// The same pool with other bounds keeps its workers.
+	v2.Max = 5
+	s.SetPools([]Pool{v2})
+	started, stopped = e.launch.take()
+	assert.Empty(t, started)
+	assert.Empty(t, stopped)
+	assert.Equal(t, []string{"revenue-default-v2-1"}, e.pool("revenue-default-v2").Workers)
+}

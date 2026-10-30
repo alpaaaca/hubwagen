@@ -160,6 +160,22 @@ are in `ListPools`, the web UI (on a waiting run) and the server's log
 (`worker pool gpu: started gpu-1: 3 steps wait on gpu`). Design and
 what comes next (containers, Kubernetes): [worker-pools.md](worker-pools.md).
 
+#### Deployed projects
+
+Projects deployed with `hubwagen deploy` ([projects.md](projects.md)) bring
+their own pools, named `<project>-<pool>-v<version>`; the server runs them
+next to the `workers:` of its config, as containers of the project's
+image or processes in its directory. How it runs the containers:
+
+```yaml
+projects:
+  runtime: podman          # default: docker if on PATH, else podman
+  server_url: http://host.containers.internal:7070   # default as for launcher: container
+```
+
+At start the server removes containers an earlier hubwagen on the same
+data directory left running, for its pools and its projects alike.
+
 #### External pools: KEDA, an HPA or anything that polls
 
 With `launcher: external`, hubwagen starts nothing for the group: its

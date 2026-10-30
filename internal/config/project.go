@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -68,6 +69,14 @@ func (p ProjectPool) Bounds() (lo, hi int) {
 		hi = *p.Max
 	}
 	return lo, hi
+}
+
+// Idle is how long a worker above min may have nothing to run.
+func (p ProjectPool) Idle() time.Duration {
+	if p.IdleAfter == 0 {
+		return DefaultIdleAfter
+	}
+	return time.Duration(p.IdleAfter)
 }
 
 // DockList is the docks the pool's workers poll.

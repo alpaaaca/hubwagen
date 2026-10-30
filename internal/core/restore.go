@@ -33,6 +33,9 @@ func (c *Core) restore(ctx context.Context) error {
 		return err
 	}
 	c.restoreSchedules(scheds)
+	if err := c.restoreProjects(ctx); err != nil {
+		return err
+	}
 	subs, err := c.cfg.Store.ListSubscriptions(ctx)
 	if err != nil {
 		return err

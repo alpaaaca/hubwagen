@@ -17,6 +17,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/durationpb"
+
 	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
 	"github.com/alper/hubwagen/internal/config"
 )
@@ -52,22 +55,12 @@ type Options struct {
 // here, never on the server.
 func BuildVersions(ctx context.Context, p *config.Project, opts Options) (Versions, Source, error) {
 	if p.Build.Dockerfile == "" || opts.Local {
-		py := opts.Python
-		if py == "" {
-			py = "python3"
-		}
-		cmd := exec.CommandContext(ctx, py, "-m", "hubwagen.worker", "--versions")
+		cmd := exec.CommandContext(ctx, or(opts.Python, "python3"), "-m", "hubwagen.worker", "--versions")
 		cmd.Dir = p.Dir
 		v, err := run(cmd, opts.Out)
 		return v, Source{}, err
 	}
-	rt := opts.Runtime
-	if rt == "" {
-		rt = "podman"
-		if _, err := exec.LookPath("docker"); err == nil {
-			rt = "docker"
-		}
-	}
+	rt := runtime(opts)
 	image := p.Build.Image + ":dry-run"
 	args := []string{"build", "-t", image, "-f", p.Build.Dockerfile}
 	for _, k := range slices.Sorted(maps.Keys(p.Build.Args)) {
@@ -261,4 +254,139 @@ func stepText(it Item) string {
 		return fmt.Sprintf("not in this code (the server has it from %s)", it.BuildID)
 	}
 	return "unchanged: reused for inputs it ran with before"
+}
+
+// Registration is p's build registration, what its workers register
+// (python -m hubwagen.worker --build-json), worked out where BuildVersions
+// worked out its versions: in src.Image, or in place.
+func Registration(ctx context.Context, p *config.Project, src Source, opts Options) (*hubwagenv1.RegisterBuildRequest, error) {
+	var cmd *exec.Cmd
+	if src.Image == "" {
+		cmd = exec.CommandContext(ctx, or(opts.Python, "python3"), "-m", "hubwagen.worker", "--build-json")
+		cmd.Dir = p.Dir
+	} else {
+		cmd = exec.CommandContext(ctx, runtime(opts), "run", "--rm", src.Image, "python3", "-m", "hubwagen.worker", "--build-json")
+	}
+	var out, errOut bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, io.MultiWriter(opts.Out, &errOut)
+	if err := cmd.Run(); err != nil {
+		if strings.Contains(errOut.String(), "unrecognized arguments: --build-json") {
+			return nil, fmt.Errorf("%s: its hubwagen SDK is older than this hubwagen (no --build-json): build it on a newer hubwagen-worker image, or deploy --local",
+				strings.Join(cmd.Args, " "))
+		}
+		return nil, fmt.Errorf("%s: %w", strings.Join(cmd.Args, " "), err)
+	}
+	var reg hubwagenv1.RegisterBuildRequest
+	if err := protojson.Unmarshal(out.Bytes(), &reg); err != nil || reg.BuildId == "" {
+		return nil, fmt.Errorf("%s: not a build registration: %s", strings.Join(cmd.Args, " "), firstLine(out.String()))
+	}
+	return &reg, nil
+}
+
+func or(s, def string) string {
+	if s == "" {
+		return def
+	}
+	return s
+}
+
+func runtime(opts Options) string {
+	if opts.Runtime != "" {
+		return opts.Runtime
+	}
+	if _, err := exec.LookPath("docker"); err == nil {
+		return "docker"
+	}
+	return "podman"
+}
+
+// DeployRequest is p's deployment of the build reg: its image tagged with
+// the build (Tag it first), or its directory and interpreter in place, with
+// PYTHONPATH as it is here. Secrets in env aren't supported yet.
+func DeployRequest(p *config.Project, src Source, reg *hubwagenv1.RegisterBuildRequest, python, by string) (*hubwagenv1.DeployRequest, error) {
+	req := &hubwagenv1.DeployRequest{Project: p.Name, Build: reg, By: by, Env: map[string]string{}}
+	for _, k := range slices.Sorted(maps.Keys(p.Env)) {
+		e := p.Env[k]
+		if e.Secret != "" {
+			return nil, fmt.Errorf("env.%s: {secret: %s}: secrets come with step 3 of docs/projects.md; use a plain value for now", k, e.Secret)
+		}
+		req.Env[k] = e.Value
+	}
+	if src.Image != "" {
+		req.Image = BuildImage(p, reg.BuildId)
+	} else {
+		py, err := exec.LookPath(python)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", python, err)
+		}
+		req.Dir, req.Python = p.Dir, py
+		if pp := os.Getenv("PYTHONPATH"); pp != "" {
+			if _, set := req.Env["PYTHONPATH"]; !set {
+				req.Env["PYTHONPATH"] = pp
+			}
+		}
+	}
+	for _, pool := range p.Pools {
+		lo, hi := pool.Bounds()
+		req.Pools = append(req.Pools, &hubwagenv1.DeployedPool{Name: pool.Name, Docks: pool.DockList(), Min: int32(lo), Max: int32(hi),
+			Lifts: int32(pool.LiftCount()), IdleAfter: durationpb.New(pool.Idle())})
+	}
+	return req, nil
+}
+
+// BuildImage is the image a build of p is deployed as: <image>:<build>.
+func BuildImage(p *config.Project, build string) string { return p.Build.Image + ":" + build }
+
+// Tag tags the image the versions were worked out in (src.Image) as the
+// build's, BuildImage.
+func Tag(ctx context.Context, p *config.Project, src Source, build string, opts Options) error {
+	cmd := exec.CommandContext(ctx, runtime(opts), "tag", src.Image, BuildImage(p, build))
+	cmd.Stdout, cmd.Stderr = opts.Out, opts.Out
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("%s: %w", strings.Join(cmd.Args, " "), err)
+	}
+	return nil
+}
+
+// Projects writes the server's projects as a table: version, build, where
+// their workers run, and each pool with the workers it runs now
+// (ListPools, pools named <project>-<pool>-v<version>). Times in UTC.
+func Projects(w io.Writer, ps []*hubwagenv1.Deployment, pools []*hubwagenv1.Pool) error {
+	if len(ps) == 0 {
+		_, err := fmt.Fprintln(w, "no projects (hubwagen deploy in a project's directory hands one to the server)")
+		return err
+	}
+	running := map[string]int{}
+	for _, p := range pools {
+		running[p.Name] = len(p.Workers)
+	}
+	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
+	fmt.Fprintln(tw, "PROJECT\tVERSION\tBUILD\tRUNS\tPOOLS\tDEPLOYED\tBY")
+	for _, p := range ps {
+		where := "image " + p.Image
+		if p.Image == "" {
+			where = "in place, " + shortDir(p.Dir)
+		}
+		var pp []string
+		for _, pool := range p.Pools {
+			n := running[fmt.Sprintf("%s-%s-v%d", p.Project, pool.Name, p.Version)]
+			pp = append(pp, fmt.Sprintf("%s %d of %d–%d", pool.Name, n, pool.Min, pool.Max))
+		}
+		version := fmt.Sprintf("v%d", p.Version)
+		if p.DeletedAt != nil {
+			version += " (deleted)"
+		}
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", p.Project, version, p.BuildId, where, strings.Join(pp, ", "),
+			p.DeployedAt.AsTime().UTC().Format("2006-01-02 15:04 UTC"), p.By)
+	}
+	return tw.Flush()
+}
+
+// shortDir is a directory's last two elements, for a table: …/examples/revenue.
+func shortDir(dir string) string {
+	parts := strings.Split(strings.TrimSuffix(dir, "/"), "/")
+	if len(parts) <= 3 {
+		return dir
+	}
+	return "…/" + strings.Join(parts[len(parts)-2:], "/")
 }
