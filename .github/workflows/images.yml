@@ -1,0 +1,90 @@
+# Container images: the server (Dockerfile) and the worker base
+# (sdk/python/Dockerfile), for linux/amd64 and linux/arm64. Built only
+# when asked, never on every commit:
+#
+# - A pull request labelled "build": push :pr-<number> and :sha-<commit>,
+#   again on each new commit while the label is on.
+# - A published GitHub release (tag v1.2.3): push :1.2.3, :1.2 and :latest.
+# - By hand (Actions > images > Run workflow): push :<branch> and
+#   :sha-<commit>.
+#
+# To ghcr.io/<owner>/hubwagen and ghcr.io/<owner>/hubwagen-worker. A new
+# GHCR package is private: make it public in the package's settings once.
+name: images
+
+on:
+  pull_request:
+    types: [labeled, synchronize, reopened]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: images-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  image:
+    name: ${{ matrix.name }}
+    # Pull requests: only labelled "build" (and for "labeled", only when
+    # that label was the one added); not from forks, which can't push.
+    if: >-
+      github.event_name != 'pull_request' ||
+      (contains(github.event.pull_request.labels.*.name, 'build') &&
+       (github.event.action != 'labeled' || github.event.label.name == 'build') &&
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: hubwagen
+            context: .
+            file: Dockerfile
+          - name: hubwagen-worker
+            context: sdk/python
+            file: sdk/python/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
+          flavor: latest=false
+          tags: |
+            type=ref,event=pr
+            type=ref,event=branch,enable=${{ github.event_name == 'workflow_dispatch' }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
+            type=sha,prefix=sha-
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ steps.meta.outputs.version }}
+            COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}

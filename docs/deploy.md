@@ -17,6 +17,31 @@ make images                  # hubwagen:dev, hubwagen-worker:dev, revenue-worker
 make images CONTAINER=podman # docker is the default when installed
 ```
 
+### Published images
+
+[.github/workflows/images.yml](../.github/workflows/images.yml) builds the
+server and worker base images for `linux/amd64` and `linux/arm64` and
+pushes them to `ghcr.io/alpaaaca/hubwagen` and
+`ghcr.io/alpaaaca/hubwagen-worker`, only when asked, never on every
+commit:
+
+| When | Tags |
+|---|---|
+| a pull request gets the label `build` (and each new commit while it has it) | `pr-<number>`, `sha-<commit>` |
+| a GitHub release `v1.2.3` is published | `1.2.3`, `1.2`, `latest` |
+| by hand: Actions → images → Run workflow, on a branch | `<branch>`, `sha-<commit>` |
+
+To try a pull request's images: label it `build`, then
+`helm upgrade … --set image.tag=pr-123`. Remove the label to stop
+rebuilding. Pull requests from forks are never built (they can't push).
+
+The Helm chart's default `image.tag` is its `appVersion` (`0.1.0`), which
+exists once the release `v0.1.0` is published; until then use a `pr-…`
+image or run the workflow by hand. The server image cross-compiles (`--platform=$BUILDPLATFORM`),
+so arm64 needs no emulation; the worker image's arm64 build runs `pip`
+under QEMU. GHCR makes a new package private: make both public in their
+package settings once, or give the cluster a pull secret.
+
 A project's image:
 
 ```dockerfile
@@ -112,8 +137,5 @@ it with a port-forward, or behind something that authenticates.
 
 ## Not here yet
 
-- Published images: there is no CI yet that pushes `ghcr.io/alpaaaca/hubwagen`
-  and `hubwagen-worker`; build and push them yourself (`make images`, then
-  tag and push), and point `image.repository` and the pools at yours.
 - Failover: one server; a restart picks up where it left off
   ([failover.md](failover.md)).
