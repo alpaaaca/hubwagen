@@ -35,7 +35,7 @@ Read before larger changes:
 - [sdk/python/README.md](sdk/python/README.md) — writing hauls and lifts, the worker
 - [docs/config.md](docs/config.md) — instance configuration (`hubwagen.yaml`)
 - [docs/deploy.md](docs/deploy.md) — container images, compose, the Helm chart
-- [docs/projects.md](docs/projects.md) — design: a repo's project file and `hubwagen deploy` (not built)
+- [docs/projects.md](docs/projects.md) — design: a repo's project file and `hubwagen deploy` (step 1, the dry run, built)
 - [docs/remote-storage.md](docs/remote-storage.md) — design: `s3://` buckets, transfer URLs for remote workers (step 1 built)
 
 Planning is lightweight: a design note in `docs/` when a decision needs one,
@@ -55,6 +55,7 @@ spec-kit.
 | `internal/server` | Wires store, bucket, logs, core and API (`/healthz` too) for one process; data-dir lock; `hubwagen server` and `hubwagen dev` both run it |
 | `internal/devmode` | What `hubwagen dev` prints on top of the server (runs and their output; `--events`: event descriptions) |
 | `internal/haulcli` | What `start` and `replay` do: `--param` ranges, starting and waiting over `HaulService`, the replay report |
+| `internal/deploycli` | What `deploy --dry-run` does: a project's build from its code (in its image or in place), compared with `ListCode` |
 | `internal/catalogcli` | What `datasets`, `pallets` and `pallet` print, over `CatalogService` (lineage trees) |
 | `internal/schedule` | Calendar and cron math (DST-correct intervals, what is due since a cursor); the core's haul schedules use it |
 | `internal/clock`, `internal/layout` | Real/fake clock; bucket paths (lift staging under dataset and partition, pallet manifests) |
@@ -63,7 +64,7 @@ spec-kit.
 | `internal/supervise` | Runs and restarts worker processes for `dev`, `server` and `workers` (prefixed output, SIGTERM then kill); a group that grows and shrinks |
 | `internal/launch` | What starts a pool's workers besides processes: a container per worker (`docker`/`podman run`), a Kubernetes Deployment's replicas (scale subresource, plain HTTP) |
 | `internal/pools` | Scales worker pools (`min`/`max`) from the work waiting on their docks (`core.Demand`), or works out the desired count of external ones (`GET /v1/pools`); reports to the core (`SetPools`) |
-| `cmd/` | `dev`, `server`, `workers`, `start`, `replay`, `signal`, `schedules`, `datasets`, `versions` (alias `pallets`), `data` (alias `pallet`; and `data invalidate`), `stale`, `gc`, `version` |
+| `cmd/` | `dev`, `server`, `workers`, `deploy` (`--dry-run`), `start`, `replay`, `signal`, `schedules`, `datasets`, `versions` (alias `pallets`), `data` (alias `pallet`; and `data invalidate`), `stale`, `gc`, `version` |
 | `internal/webui` | Serves the web UI from the binary (embedded `dist/`, filled by `go generate ./internal/webui`; a placeholder page without it) |
 | `ui/` | Web UI: React + TypeScript + Vite on the Connect services (clients generated from `proto/` into `ui/src/gen`); vitest tests |
 | `sdk/python/` | Python SDK (stdlib only, Python ≥ 3.12): `@pipeline`, `@step` (the engine's `@haul`, `@lift` as aliases), replay engine, worker; pytest runs it against a real `hubwagen dev` |

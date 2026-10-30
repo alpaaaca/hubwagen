@@ -269,6 +269,28 @@ func TestBuilds(t *testing.T) {
 	}, builds)
 }
 
+func TestCurrentCode(t *testing.T) {
+	s, _ := openFile(t)
+	put(t, s, nil, func(tx *Tx) error {
+		if err := tx.PutBuild(Build{ID: "b1", Hauls: []string{"daily", "old"}, Lifts: map[string]string{"a": "v1", "b": "v1"}, RegisteredAt: t0}); err != nil {
+			return err
+		}
+		// Newer: changes a, drops b and old, adds c.
+		return tx.PutBuild(Build{ID: "b2", Hauls: []string{"daily"}, Lifts: map[string]string{"a": "v2", "c": "v1"}, RegisteredAt: t0.Add(time.Hour)})
+	})
+	steps, pipelines, err := s.CurrentCode(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, []Code{
+		{Name: "a", Version: "v2", BuildID: "b2", RegisteredAt: t0.Add(time.Hour)},
+		{Name: "b", Version: "v1", BuildID: "b1", RegisteredAt: t0},
+		{Name: "c", Version: "v1", BuildID: "b2", RegisteredAt: t0.Add(time.Hour)},
+	}, steps, "each from the newest build that defines it")
+	assert.Equal(t, []Code{
+		{Name: "daily", BuildID: "b2", RegisteredAt: t0.Add(time.Hour)},
+		{Name: "old", BuildID: "b1", RegisteredAt: t0},
+	}, pipelines)
+}
+
 func TestGetLift(t *testing.T) {
 	s, _ := openFile(t)
 	put(t, s, nil, func(tx *Tx) error { return tx.PutHaul(haul("h1", HaulRunning)) },

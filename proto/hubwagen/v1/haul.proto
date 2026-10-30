@@ -45,6 +45,23 @@ service HaulService {
   // ListPools returns the worker pools the server scales (worker groups
   // with min below max) and their last scaling decision.
   rpc ListPools(ListPoolsRequest) returns (ListPoolsResponse);
+  // ListCode returns the code the server runs now: each step's code
+  // version and each pipeline, from the newest build that defines it.
+  // hubwagen deploy --dry-run compares a project's build with it.
+  rpc ListCode(ListCodeRequest) returns (ListCodeResponse);
+}
+
+message ListCodeRequest {}
+message ListCodeResponse {
+  repeated Code steps = 1;
+  // code_version is empty: builds record which pipelines they define.
+  repeated Code pipelines = 2;
+}
+message Code {
+  string name = 1;
+  string code_version = 2;
+  string build_id = 3;
+  google.protobuf.Timestamp registered_at = 4;
 }
 
 message ListPoolsRequest {}

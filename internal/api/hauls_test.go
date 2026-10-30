@@ -219,3 +219,18 @@ func TestCancelResumeAndChildren(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, []string{older.Msg.Hauls[0].Id}, "zc2", "paging: older than zc2")
 }
+
+func TestListCode(t *testing.T) {
+	s := start(t)
+	mux := http.NewServeMux()
+	path, h := NewHaulHandler(s.core, s.store)
+	mux.Handle(path, h)
+	c := hubwagenv1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
+	require.NoError(t, s.core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Hauls: []string{"daily"}, Lifts: map[string]string{"load": "py-1"}}))
+	res, err := c.ListCode(ctx, connect.NewRequest(&hubwagenv1.ListCodeRequest{}))
+	require.NoError(t, err)
+	require.Len(t, res.Msg.Steps, 1)
+	assert.Equal(t, []string{"load", "py-1", "b1"}, []string{res.Msg.Steps[0].Name, res.Msg.Steps[0].CodeVersion, res.Msg.Steps[0].BuildId})
+	require.Len(t, res.Msg.Pipelines, 1)
+	assert.Equal(t, "daily", res.Msg.Pipelines[0].Name)
+}

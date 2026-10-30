@@ -1,6 +1,7 @@
 # Projects: `hubwagen deploy` instead of hand-run workers
 
-> **Status:** design note, not implemented. Builds on worker pools
+> **Status:** design note; step 1 (the project file and `hubwagen deploy
+> --dry-run`) is built, the rest is not. Builds on worker pools
 > ([worker-pools.md](worker-pools.md), steps 1–4 built), container images
 > ([deploy.md](deploy.md)) and builds (`RegisterBuild`). Decision
 > requested: the shape below, and steps 1–2 first.
@@ -41,7 +42,10 @@ to a server; the server runs and scales its workers.
 ### The project file
 
 The project file is the repo's `hubwagen.yaml`, with `kind: Project`
-(the server's file stays `kind: Config`). It is not the pipelines: those
+(the server's file stays `kind: Config`). Until `hubwagen dev` reads
+project files (step 5), a repo whose `hubwagen.yaml` is still a server
+config keeps its project in `hubwagen.project.yaml`, as the revenue example
+does; `deploy` takes whichever of the two is `kind: Project`. It is not the pipelines: those
 are code, found the way they are today, from the modules listed in
 `pyproject.toml` (`[tool.hubwagen] modules`). The project file says how to
 build and run that code:
@@ -54,6 +58,7 @@ name: revenue
 build:
   dockerfile: Dockerfile             # FROM ghcr.io/alpaaaca/hubwagen-worker + the code
   image: ghcr.io/acme/revenue        # pushed as :<version>; a local server needs no push
+  args: {WORKER_IMAGE: hubwagen-worker:dev}   # --build-arg, optional
 
 pools:
   - name: default                    # the project's default dock
@@ -171,11 +176,15 @@ come from its deployment.
 
 ## Steps (PR-sized)
 
-1. **Project file and `hubwagen deploy --dry-run`**: parse `kind:
-   Project`; build the image (or use the directory, for a local
-   process); run `--versions`; a read API for the builds the server has
-   (`GetBuild`, the newest per pipeline); print the diff. No deployment
-   yet: useful on its own in CI ("this PR reruns daily_revenue").
+1. ✅ **Project file and `hubwagen deploy --dry-run`**: `kind: Project`
+   (strict, `${…}` variables, every problem at once); the build worked out
+   in the project's image (`<image>:dry-run`, with `build.args`) or in
+   place (`--local`, or without a Dockerfile); `ListCode`, the code the
+   server runs (each step's code version and each pipeline, from the
+   newest build that defines it); the diff in words. No deployment yet:
+   useful on its own in CI ("this PR reruns daily_revenue"). Pipelines
+   are compared by name only: builds don't record a pipeline's code
+   version.
 2. **Deployments on the server**: `DeployService` (`Deploy`,
    `ListProjects`, `DeleteProject`), events (`ProjectDeployed`,
    `ProjectDeleted`) and their projection; pools from deployments, with

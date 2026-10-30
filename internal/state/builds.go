@@ -119,3 +119,43 @@ func (s *Store) LoadBuilds(ctx context.Context) (map[string]Build, error) {
 	}
 	return out, hauls.Err()
 }
+
+// Code is a pipeline or step as the newest build that defines it has it:
+// what the server runs now. Version is the step's code version (empty for
+// a pipeline: builds record which pipelines they define, not their code).
+type Code struct {
+	Name         string
+	Version      string
+	BuildID      string
+	RegisteredAt time.Time
+}
+
+// CurrentCode returns every step and pipeline some build defines, by name,
+// from the newest build that defines it.
+func (s *Store) CurrentCode(ctx context.Context) (steps, pipelines []Code, err error) {
+	scan := func(sc interface{ Scan(...any) error }) (Code, error) {
+		var c Code
+		var at string
+		if err := sc.Scan(&c.Name, &c.Version, &c.BuildID, &at); err != nil {
+			return c, err
+		}
+		c.RegisteredAt, err = parseTime(at)
+		return c, err
+	}
+	steps, err = queryAll(ctx, s.r, scan, `
+		SELECT bl.lift, bl.code_version, b.id, b.registered_at FROM build_lifts bl JOIN builds b ON b.id = bl.build_id
+		WHERE (b.registered_at, b.id) = (
+			SELECT b2.registered_at, b2.id FROM build_lifts bl2 JOIN builds b2 ON b2.id = bl2.build_id
+			WHERE bl2.lift = bl.lift ORDER BY b2.registered_at DESC, b2.id DESC LIMIT 1)
+		ORDER BY bl.lift`)
+	if err != nil {
+		return nil, nil, err
+	}
+	pipelines, err = queryAll(ctx, s.r, scan, `
+		SELECT bh.haul, '', b.id, b.registered_at FROM build_hauls bh JOIN builds b ON b.id = bh.build_id
+		WHERE (b.registered_at, b.id) = (
+			SELECT b2.registered_at, b2.id FROM build_hauls bh2 JOIN builds b2 ON b2.id = bh2.build_id
+			WHERE bh2.haul = bh.haul ORDER BY b2.registered_at DESC, b2.id DESC LIMIT 1)
+		ORDER BY bh.haul`)
+	return steps, pipelines, err
+}
