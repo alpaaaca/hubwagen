@@ -85,6 +85,8 @@ still runs none: workers are separate processes, and dev's supervisor is a
 convenience for one machine. With `hubwagen server`, workers are started by
 whatever runs services there (systemd, a Deployment) or by `hubwagen
 workers`, and the server doesn't read the `workers:` section.
+Proposed: the server supervises them too, and scales them by demand
+([worker-pools.md](worker-pools.md)).
 
 ### The bucket
 
