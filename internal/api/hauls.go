@@ -117,6 +117,9 @@ func (s *HaulServer) ListHauls(ctx context.Context, req *connect.Request[hubwage
 		}
 		out.Hauls = append(out.Hauls, hm)
 	}
+	if err := s.addWaiting(ctx, out.Hauls...); err != nil {
+		return nil, connectError(err)
+	}
 	return connect.NewResponse(out), nil
 }
 
@@ -305,6 +308,9 @@ func (s *HaulServer) GetHaul(ctx context.Context, req *connect.Request[hubwagenv
 		}
 	}
 	out.LiftCounts = liftCountsMessage(counts)
+	if err := s.addWaiting(ctx, out); err != nil {
+		return nil, connectError(err)
+	}
 	return connect.NewResponse(&hubwagenv1.GetHaulResponse{Haul: out}), nil
 }
 

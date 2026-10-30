@@ -263,3 +263,20 @@ func TestStartAndWait(t *testing.T) {
 	_, err = c.Wait(ctx, []string{"nope"}, time.Millisecond)
 	assert.ErrorContains(t, err, "not found")
 }
+
+func TestWaitSaysWhyARunWaits(t *testing.T) {
+	s := start(t)
+	c := NewClient(s.url)
+	c.HintAfter = time.Millisecond
+	var hints []string
+	c.Hint = func(h string) { hints = append(hints, h) }
+	id, err := c.Start(ctx, HaulRequest{Tenant: "t", Name: "daily_orders", Dock: "nowhere"}) // the test's worker polls only the default dock
+	require.NoError(t, err)
+
+	waitCtx, cancel := context.WithTimeout(ctx, 300*time.Millisecond)
+	defer cancel()
+	_, err = c.Wait(waitCtx, []string{id}, 20*time.Millisecond)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.Len(t, hints, 1, "each reason once")
+	assert.Contains(t, hints[0], `waiting: no worker is connected on dock "nowhere"`)
+}

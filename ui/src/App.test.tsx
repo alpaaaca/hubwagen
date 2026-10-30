@@ -50,6 +50,13 @@ function fakeServer() {
       create(LiftSchema, { seq: 2, name: "build", status: "failed", reason: "ValueError", message: "no orders", scheduledAt: at(1), finishedAt: at(2), after: [1] }),
     ],
   });
+  const waiter = haul("01M6WWWWWWWWWWWWWWWWWWWWWW", "daily", "running", {
+    paramsJson: '{"day":"2026-10-25"}',
+    waiting: {
+      reason: "no_worker", kind: "haul", name: "daily", dock: "default", since: t0,
+      message: "no worker is connected to run the pipeline's code. Start one with `python -m hubwagen.worker <modules>` (or `hubwagen workers --config hubwagen.yaml`)",
+    },
+  });
   const runLogs: Record<string, { seq: number; lift: string; attempt: number; line: { time: Timestamp; stream: string; level?: string; text: string } }[]> = {
     [daily.id]: [
       { seq: 1, lift: "extract", attempt: 1, line: { time: at(0.1), stream: "stdout", text: "reading 6 orders" } },
@@ -70,7 +77,7 @@ function fakeServer() {
       },
       getHaul(req) {
         record("getHaul", req);
-        return { haul: [daily, done, stuck, broken].find((h) => h.id === req.haulId) };
+        return { haul: [daily, done, stuck, broken, waiter].find((h) => h.id === req.haulId) };
       },
       getHistory(req) {
         record("getHistory", req);
@@ -98,6 +105,10 @@ function fakeServer() {
       signalHaul(req) {
         record("signalHaul", req);
         return { signalId: "s1" };
+      },
+      listWorkers() {
+        record("listWorkers", {});
+        return { workers: [] };
       },
       listPipelines() {
         return { pipelines: [{ name: "daily", title: "Daily revenue", description: "Orders to a report, per day." }, { name: "hourly" }] };
@@ -298,4 +309,19 @@ test("a stuck haul can be resumed", async () => {
   expect(await screen.findByText(/nondeterminism: time.time\(\) called/)).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "Resume" }));
   await waitFor(() => expect(calls.resumeHaul?.[0]).toMatchObject({ haulId: "01M6BBBBBBBBBBBBBBBBBBBBBB" }));
+});
+
+test("a run that waits says why, and which workers are connected", async () => {
+  const { calls } = show("#/hauls/01M6WWWWWWWWWWWWWWWWWWWWWW");
+  const why = await screen.findByText(/^Waiting:/);
+  expect(why).toHaveTextContent("Waiting: no worker is connected to run the pipeline's code. Start one with python -m hubwagen.worker <modules>");
+  expect(why.querySelector("code")).toHaveTextContent("python -m hubwagen.worker <modules>");
+  expect(await screen.findByText("No workers connected.")).toBeInTheDocument();
+  expect(calls.listWorkers).toBeDefined();
+});
+
+test("a run that doesn't wait shows no reason", async () => {
+  show("#/hauls/01M6AAAAAAAAAAAAAAAAAAAAAA");
+  expect(await screen.findByRole("heading", { name: "Daily revenue" })).toBeInTheDocument();
+  expect(screen.queryByText(/^Waiting:/)).not.toBeInTheDocument();
 });

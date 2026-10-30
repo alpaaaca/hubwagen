@@ -145,6 +145,7 @@ type pollInput struct {
 func (in pollInput) apply(c *Core) {
 	if in.withdraw != nil {
 		c.dropPoller(in.p)
+		c.sawHangUp(in.p.req.WorkerID)
 		in.p.finish(pollResult{err: in.withdraw})
 		return
 	}
@@ -154,6 +155,7 @@ func (in pollInput) apply(c *Core) {
 			return
 		}
 	}
+	c.sawPoll(in.p.req)
 	if in.p.req.Wait > 0 {
 		p := in.p
 		p.timer = c.after(p.req.Wait, func(c *Core) {
@@ -167,8 +169,9 @@ func (in pollInput) apply(c *Core) {
 func (in pollInput) reject(err error) { in.p.finish(pollResult{err: err}) }
 
 type queuedTask struct {
-	task  Task
-	order uint64
+	task     Task
+	order    uint64
+	queuedAt time.Time
 	// dispatch runs in the batch that hands the task to workerID: it records
 	// the dispatch and returns the task as the worker receives it.
 	dispatch func(c *Core, workerID string) Task
@@ -197,7 +200,7 @@ func (c *Core) enqueue(t Task, dispatch func(c *Core, workerID string) Task) {
 		dispatch = func(*Core, string) Task { return t }
 	}
 	c.queueOrder++
-	q := &queuedTask{task: t, order: c.queueOrder, dispatch: dispatch}
+	q := &queuedTask{task: t, order: c.queueOrder, queuedAt: c.now(), dispatch: dispatch}
 	d := c.dock(t.Dock)
 	if t.Kind == TaskHaul {
 		d.haulTasks = append(d.haulTasks, q)

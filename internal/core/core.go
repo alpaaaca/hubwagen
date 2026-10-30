@@ -50,6 +50,9 @@ type Config struct {
 	// RetentionEvery is how often the leader expires what retention no
 	// longer keeps: 0 is DefaultRetentionEvery, negative is never.
 	RetentionEvery time.Duration
+	// WorkerExpiry is how long a worker counts as connected after its last
+	// poll or heartbeat (see workers.go): 0 is DefaultWorkerExpiry.
+	WorkerExpiry time.Duration
 	// Docks limits docks by name; a dock not listed has no limits.
 	Docks  map[string]DockConfig
 	NewID  func() string // default: ULID
@@ -77,6 +80,7 @@ type Core struct {
 	retention     map[string]state.Retention    // by dataset name
 	bg            sync.WaitGroup                // background bucket I/O
 	pollers       []*poller                     // waiting, oldest first
+	workers       map[string]*seenWorker        // polled lately, by worker ID (workers.go)
 	b             *batch
 	// queueOrder numbers queued tasks so the oldest across docks goes first.
 	queueOrder uint64
@@ -110,6 +114,7 @@ func New(cfg Config) *Core {
 		schedules:     map[string]*scheduleState{},
 		subscriptions: map[string]*subscriptionState{},
 		retention:     map[string]state.Retention{},
+		workers:       map[string]*seenWorker{},
 	}
 }
 

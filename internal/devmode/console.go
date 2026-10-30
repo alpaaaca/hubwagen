@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/alper/hubwagen/internal/api"
 	"github.com/alper/hubwagen/internal/runlog"
 	"github.com/alper/hubwagen/internal/state"
 )
@@ -21,6 +22,7 @@ import (
 func (e *Engine) Console(ctx context.Context, afterSeq int64, events bool, print func(string)) {
 	c := &console{e: e, print: print, runs: map[string]run{}, announced: map[string]bool{}}
 	e.Logs.OnAppend(c.logs)
+	go c.watchWaiting(ctx, hintAfter)
 	e.Follow(ctx, afterSeq, nil, func(ev state.Event) {
 		if events {
 			if line := Describe(ev); line != "" {
@@ -87,6 +89,49 @@ func (c *console) run(ctx context.Context, haulID string) run {
 	c.runs[haulID] = r
 	c.mu.Unlock()
 	return r
+}
+
+// hintAfter is how long a run waits before the console says why.
+var hintAfter = 3 * time.Second
+
+// watchWaiting prints why runs wait (no worker connected, ...) once they
+// have waited for hintAfter: each reason once, until no run waits.
+func (c *console) watchWaiting(ctx context.Context, hintAfter time.Duration) {
+	t := time.NewTicker(hintAfter / 3)
+	defer t.Stop()
+	hinted := map[string]bool{}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+		hauls, err := c.e.Store.ListHauls(ctx, state.HaulFilter{Statuses: []string{state.HaulRunning}, Limit: 1000})
+		if err != nil || len(hauls) == 0 {
+			clear(hinted)
+			continue
+		}
+		ids := make([]string, len(hauls))
+		for i, h := range hauls {
+			ids[i] = h.ID
+		}
+		ws, err := c.e.Core.Waiting(ctx, ids)
+		if err != nil {
+			continue
+		}
+		if len(ws) == 0 {
+			clear(hinted)
+		}
+		for _, id := range slices.Sorted(maps.Keys(ws)) {
+			w := ws[id]
+			text := api.WaitingText(w)
+			if time.Since(w.Since) < hintAfter || hinted[text] {
+				continue
+			}
+			hinted[text] = true
+			c.print(fmt.Sprintf("… %s is waiting: %s", c.run(ctx, id).label, text))
+		}
+	}
 }
 
 // inputs renders params as k=v pairs, for telling runs apart.

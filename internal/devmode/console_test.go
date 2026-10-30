@@ -3,6 +3,7 @@ package devmode
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -68,4 +69,39 @@ func TestConsolePrintsRunsAndWhatLiftsPrinted(t *testing.T) {
 	for _, l := range got {
 		assert.NotContains(t, l, "scheduled", "engine events stay out")
 	}
+}
+
+func TestConsoleSaysWhyARunWaits(t *testing.T) {
+	defer func(d time.Duration) { hintAfter = d }(hintAfter)
+	hintAfter = 30 * time.Millisecond
+	e, err := Start(ctx, Config{DataDir: t.TempDir()})
+	require.NoError(t, err)
+	defer e.Close()
+	var (
+		mu    sync.Mutex
+		lines []string
+	)
+	cctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go e.Console(cctx, 0, false, func(s string) { mu.Lock(); lines = append(lines, s); mu.Unlock() })
+	printed := func() []string { mu.Lock(); defer mu.Unlock(); return append([]string(nil), lines...) }
+
+	require.NoError(t, e.Core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Hauls: []string{"daily"}}))
+	_, err = e.Core.StartHaul(ctx, core.StartHaulRequest{Tenant: "t", Name: "daily", Params: map[string]any{"day": "2026-10-24"}})
+	require.NoError(t, err)
+
+	waits := func() []string {
+		var out []string
+		for _, l := range printed() {
+			if strings.Contains(l, "is waiting") {
+				out = append(out, l)
+			}
+		}
+		return out
+	}
+	require.Eventually(t, func() bool { return len(waits()) > 0 }, 5*time.Second, 10*time.Millisecond, "%q", printed())
+	time.Sleep(100 * time.Millisecond)
+	got := waits()
+	require.Len(t, got, 1, "once")
+	assert.True(t, strings.HasPrefix(got[0], "… daily day=2026-10-24 is waiting: no worker is connected to run the pipeline's code."), got[0])
 }

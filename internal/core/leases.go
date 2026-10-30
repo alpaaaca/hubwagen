@@ -20,6 +20,7 @@ import (
 // timed out or cancelled.
 func (c *Core) Heartbeat(ctx context.Context, workerID string, taskIDs []string) ([]string, error) {
 	return submit(ctx, c, func(c *Core) ([]string, error) {
+		c.sawHeartbeat(workerID)
 		var stop []string
 		for _, id := range taskIDs {
 			if a := c.liftAttempts[id]; a != nil {

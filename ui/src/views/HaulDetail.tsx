@@ -10,6 +10,7 @@ import { Hint } from "../words";
 import { Dag } from "./Dag";
 import { History } from "./History";
 import { Logs } from "./Logs";
+import { Waiting, Workers } from "./Waiting";
 
 const OPEN = ["running", "stuck"];
 
@@ -63,6 +64,14 @@ export function HaulDetail({ id, step }: { id: string; step?: number }) {
         {h.trigger && <> {trigger(h.trigger)}</>}
         {t !== undefined && <> · {h.finishedAt ? "took" : "running for"} {duration(t)}</>} · {steps(h)}
       </p>
+      {h.status === "running" && h.waiting && (
+        <div className="waiting-box">
+          <p>
+            <Waiting waiting={h.waiting} />
+          </p>
+          <Workers />
+        </div>
+      )}
       {actionError && <p className="error">{actionError}</p>}
       {(h.reason || h.message) && (
         <p className={h.status === "completed" ? "" : "error"}>
