@@ -36,6 +36,10 @@ type Pool struct {
 	// scaler only works out how many it wants (Desired), from the workers
 	// that poll its docks and the work waiting there.
 	External bool
+	// Apply, if set (an external pool), makes the desired count so: it
+	// sets a Kubernetes Deployment's replicas. It is called when the count
+	// changes, and again on the next pass while it fails.
+	Apply func(ctx context.Context, n int) error
 }
 
 // Launcher starts and stops a pool's workers by worker ID (<pool>-<n>).
@@ -76,6 +80,7 @@ type poolState struct {
 	// something (or was first seen), and the desired count.
 	active  map[string]time.Time
 	desired int
+	applied int // what Apply last made so; -1 before the first
 }
 
 type worker struct {
@@ -87,7 +92,7 @@ type worker struct {
 func New(pools []Pool, launch Launcher, src Source, clk clock.Clock, log *slog.Logger) *Scaler {
 	s := &Scaler{pools: pools, launch: launch, src: src, clock: clk, log: log, state: map[string]*poolState{}}
 	for _, p := range pools {
-		s.state[p.Name] = &poolState{workers: map[string]*worker{}, active: map[string]time.Time{}, desired: p.Min}
+		s.state[p.Name] = &poolState{workers: map[string]*worker{}, active: map[string]time.Time{}, desired: p.Min, applied: -1}
 	}
 	return s
 }
@@ -136,7 +141,7 @@ func (s *Scaler) Tick(ctx context.Context) error {
 	for _, p := range s.pools {
 		st := s.state[p.Name]
 		if p.External {
-			status = append(status, s.external(p, st, seen, demand, claimed, counted, now))
+			status = append(status, s.external(ctx, p, st, seen, demand, claimed, counted, now))
 			continue
 		}
 		starting := 0
@@ -210,7 +215,7 @@ func waiting(p Pool, demand map[string]core.DockDemand, claimed map[string]bool,
 // polling its docks that ran something within IdleAfter, plus what the
 // work waiting there takes, between Min and Max. Whatever starts its
 // workers reads it (GET /v1/pools/<name>).
-func (s *Scaler) external(p Pool, st *poolState, seen []core.Worker, demand map[string]core.DockDemand,
+func (s *Scaler) external(ctx context.Context, p Pool, st *poolState, seen []core.Worker, demand map[string]core.DockDemand,
 	claimed, counted map[string]bool, now time.Time) core.PoolStatus {
 	var ids []string
 	active := 0
@@ -246,6 +251,13 @@ func (s *Scaler) external(p Pool, st *poolState, seen []core.Worker, demand map[
 		}
 		s.decide(p, st, now, fmt.Sprintf("wants %s (was %d): %s", plural(desired, "worker"), st.desired, why))
 		st.desired = desired
+	}
+	if p.Apply != nil && st.applied != desired {
+		if err := p.Apply(ctx, desired); err != nil {
+			s.log.Warn("worker pool "+p.Name+": can't apply its desired count", "pool", p.Name, "desired", desired, "err", err)
+		} else {
+			st.applied = desired
+		}
 	}
 	slices.Sort(ids)
 	return core.PoolStatus{Name: p.Name, Docks: p.Docks, Min: p.Min, Max: p.Max, Workers: ids, Desired: desired,

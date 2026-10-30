@@ -98,7 +98,9 @@ func runServer(cmd *cobra.Command, _ []string) error {
 	if !noWorkers {
 		// Step output is kept by the server (the web UI shows it): the
 		// workers' own logs are enough here.
-		groups = startWorkers(workersCtx, g, cfg, e.Core, config.ServerURL(e.APIAddr), log, "HUBWAGEN_ECHO_LOGS=0")
+		if groups, err = startWorkers(workersCtx, g, cfg, e.Core, config.ServerURL(e.APIAddr), log, "HUBWAGEN_ECHO_LOGS=0"); err != nil {
+			return err // it started none
+		}
 	} else if len(cfg.Workers) > 0 {
 		log.Info("starting no workers (--no-workers); run them with hubwagen workers", "groups", len(cfg.Workers))
 	}

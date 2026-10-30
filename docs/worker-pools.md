@@ -1,6 +1,6 @@
 # Worker pools: the leader starts the workers its work needs
 
-> **Status:** design note; steps 1–3 are built (processes, and desired counts for external scalers), the rest is not. Builds on `hubwagen.yaml`'s
+> **Status:** design note; steps 1–4 are built (processes, containers, Kubernetes Deployments, desired counts for external scalers); step 5 is not. Builds on `hubwagen.yaml`'s
 > `workers:` ([config.md](config.md)), `internal/supervise`, the core's
 > record of workers seen lately (`internal/core/workers.go`) and the node
 > design in [failover.md](failover.md). Decision requested: steps 1 and 2
@@ -196,7 +196,14 @@ connected" when one is on its way.
    KEDA's built-in `metrics-api` trigger reads (no gRPC external scaler
    needed); `Pool.desired` in `ListPools`. Example in
    [config.md](config.md#external-pools-keda-an-hpa-or-anything-that-polls).
-4. **Container and Kubernetes launchers**, behind `internal/profile`.
+4. ✅ **Container and Kubernetes launchers** (`internal/launch`):
+   `launcher: container` runs each worker as `docker run`/`podman run` of
+   `image` under the same supervisor and scaler as processes;
+   `launcher: kubernetes` sets a Deployment's replicas to the external
+   desired count through the scale subresource (plain HTTP, the service
+   account or `kubectl proxy`; no client-go). Launchers are per pool, so no
+   `profile` was needed for this. Not built: choosing which pod goes on
+   scale-down (open question below).
 5. **Step resources and pod steps.**
 
 ## Open questions

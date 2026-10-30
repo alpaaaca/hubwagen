@@ -220,6 +220,83 @@ which pod to remove when it scales down, maybe a busy one: give the pods a
 `terminationGracePeriodSeconds` longer than your steps, so a stopped
 worker finishes them (it stops polling on SIGTERM).
 
+#### Container pools: one container per worker
+
+With `launcher: container`, hubwagen runs each worker as a container of
+`image`, with Docker or Podman, and scales them like processes:
+
+```yaml
+workers:
+  - name: revenue
+    launcher: container
+    image: ghcr.io/acme/revenue:2026-10-30   # the project and the SDK, installed
+    command: [python3, -m, hubwagen.worker]  # default: the image's own
+    runtime: podman                          # default: docker if on PATH, else podman
+    min: 0
+    max: 4
+    lifts: 2
+    env: {LOG_LEVEL: info}
+```
+
+- **Each worker is `<runtime> run --rm --name hubwagen-<id>`** in the
+  foreground, so its output is in hubwagen's, SIGTERM reaches the worker,
+  and a crashed one is restarted. `<runtime> rm -f hubwagen-<id>` runs before
+  each start and after each exit, so one left by a killed hubwagen goes.
+- **The server's URL** inside the container is `server_url`, by default
+  the listen address with a loopback host replaced by
+  `host.docker.internal` (Docker) or `host.containers.internal`
+  (Podman). Docker Desktop and Podman reach the host's loopback that way;
+  on Linux with Docker, the server must listen where the bridge reaches it
+  (`0.0.0.0`, and keep it off public networks while there is no
+  authentication).
+- **Data goes through the server** (`HUBWAGEN_DATA=remote`): containers
+  share no files with it and need no bucket credentials.
+- **Variables** (`env`, `HUBWAGEN_SERVER`, `HUBWAGEN_WORKER_ID`,
+  `HUBWAGEN_DOCKS`, `HUBWAGEN_LIFTS`) go in with `-e NAME`, so their values
+  aren't on the command line.
+
+#### Kubernetes pools: a Deployment's replicas
+
+With `launcher: kubernetes`, the server sets the replicas of a Deployment
+that runs the workers, to the same desired count an external pool
+publishes. No KEDA needed:
+
+```yaml
+kubernetes:
+  # api_url: http://127.0.0.1:8001   # kubectl proxy, from outside the cluster;
+  #                                  # default: the pod's service account
+  namespace: hubwagen                # default: the service account's
+workers:
+  - name: revenue
+    launcher: kubernetes
+    deployment: revenue-workers      # runs python -m hubwagen.worker
+    min: 0
+    max: 10
+    lifts: 2
+```
+
+- **It patches** `deployments/<name>/scale` when the count changes (and
+  sets `min` at start), retrying on the next pass if the API refuses.
+  In a pod it uses its service account, which needs:
+
+  ```yaml
+  apiVersion: rbac.authorization.k8s.io/v1
+  kind: Role
+  metadata: {name: hubwagen-scaler, namespace: hubwagen}
+  rules:
+    - apiGroups: [apps]
+      resources: [deployments/scale]
+      verbs: [get, patch]
+  ```
+
+- **The Deployment** sets `HUBWAGEN_SERVER` (the server's Service) and the
+  group's docks and lifts (`HUBWAGEN_DOCKS`, `HUBWAGEN_LIFTS`). As with KEDA,
+  Kubernetes picks the pod it removes: give the pods a
+  `terminationGracePeriodSeconds` longer than your steps.
+- **No client library**: plain HTTP to the API server, so the binary stays
+  pure Go. A server that can't reach the cluster (no service account, no
+  `api_url`) doesn't start.
+
 This doesn't break "the control plane never runs user code". The leader
 still runs none: workers are separate processes, and dev's supervisor is a
 convenience for one machine. `hubwagen server` supervises them the same

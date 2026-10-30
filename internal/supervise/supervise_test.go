@@ -142,7 +142,7 @@ func TestLineGetsOutputAndNotes(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		Run(ctx, []Process{sh("a-1", `echo "hi"; sleep 10`)}, Options{Line: func(id, text string, note bool) {
+		Run(ctx, []Process{sh("a-1", `echo "hi"; while :; do sleep 0.05; done`)}, Options{Line: func(id, text string, note bool) {
 			mu.Lock()
 			lines = append(lines, line{id, text, note})
 			mu.Unlock()

@@ -15,6 +15,7 @@ import (
 	"github.com/alper/hubwagen/internal/clock"
 	"github.com/alper/hubwagen/internal/config"
 	"github.com/alper/hubwagen/internal/core"
+	"github.com/alper/hubwagen/internal/launch"
 	"github.com/alper/hubwagen/internal/pools"
 	"github.com/alper/hubwagen/internal/supervise"
 )
@@ -115,25 +116,43 @@ func workerProcesses(cfg *config.Config, server string, extraEnv ...string) []su
 	return procs
 }
 
-// workerProcess is one process of a worker group.
+// workerProcess is one process of a worker group: the group's command,
+// or for launcher: container, a container of its image.
 func workerProcess(w config.Worker, id, server string, extraEnv ...string) supervise.Process {
-	env := os.Environ()
+	var env []string
 	for k, v := range w.Env {
 		env = append(env, k+"="+v)
 	}
-	env = append(env, config.EnvServer+"="+server, config.EnvWorkerID+"="+id,
-		config.EnvSupervisorPID+"="+strconv.Itoa(os.Getpid()),
+	env = append(env, config.EnvWorkerID+"="+id,
 		config.EnvDocks+"="+strings.Join(w.DockList(), ","), config.EnvLifts+"="+strconv.Itoa(w.LiftCount()))
 	env = append(env, extraEnv...)
-	return supervise.Process{ID: id, Command: w.Command, Dir: w.Dir, Env: env}
+	if w.Launcher == config.LauncherContainer {
+		// No supervisor PID: in the container's PID namespace it means
+		// nothing. A container outliving hubwagen is removed when the
+		// worker starts again (its cleanup).
+		return launch.Container(w, id, server, env)
+	}
+	env = append(env, config.EnvServer+"="+server, config.EnvSupervisorPID+"="+strconv.Itoa(os.Getpid()))
+	return supervise.Process{ID: id, Command: w.Command, Dir: w.Dir, Env: append(os.Environ(), env...)}
 }
 
 // startWorkers starts the config's worker groups in g for a server: fixed
 // groups at their count, and scaled ones (min below max) from min, then by
 // a scaler that runs until ctx ends. It returns how many groups it started.
-func startWorkers(ctx context.Context, g *supervise.Group, cfg *config.Config, c *core.Core, server string, log *slog.Logger, extraEnv ...string) int {
+// Kubernetes pools need the cluster: an error if it can't be reached.
+func startWorkers(ctx context.Context, g *supervise.Group, cfg *config.Config, c *core.Core, server string, log *slog.Logger, extraEnv ...string) (int, error) {
 	groups := map[string]config.Worker{}
 	var scaled []pools.Pool
+	var kube *launch.Kube
+	for _, w := range cfg.Workers { // the cluster first: an error starts nothing
+		if w.Launcher == config.LauncherKubernetes && kube == nil {
+			k, err := launch.NewKube(cfg.Kubernetes, launch.ServiceAccountDir)
+			if err != nil {
+				return 0, fmt.Errorf("workers %s: %w", w.Name, err)
+			}
+			kube = k
+		}
+	}
 	for _, w := range cfg.Workers {
 		groups[w.Name] = w
 		lo, hi := w.Bounds()
@@ -143,22 +162,37 @@ func startWorkers(ctx context.Context, g *supervise.Group, cfg *config.Config, c
 			}
 			continue
 		}
-		scaled = append(scaled, pools.Pool{Name: w.Name, Docks: w.DockList(), Lifts: w.LiftCount(), Min: lo, Max: hi,
-			IdleAfter: w.Idle(), External: w.External()})
+		p := pools.Pool{Name: w.Name, Docks: w.DockList(), Lifts: w.LiftCount(), Min: lo, Max: hi,
+			IdleAfter: w.Idle(), External: w.External()}
 		msg := "scaled by the work waiting on its docks"
-		if w.External() {
+		switch w.Launcher {
+		case config.LauncherExternal:
 			msg = "started elsewhere; its desired count is at GET /v1/pools/" + w.Name
+		case config.LauncherKubernetes:
+			ns, deployment := w.Namespace, w.Deployment
+			p.Apply = func(ctx context.Context, n int) error { return kube.Scale(ctx, ns, deployment, n) }
+			msg = "the replicas of Deployment " + or(ns, kube.Namespace) + "/" + deployment
+		case config.LauncherContainer:
+			msg = "containers of " + w.Image + ", scaled by the work waiting on its docks"
 		}
+		scaled = append(scaled, p)
 		log.Info("worker pool "+w.Name+": "+msg, "pool", w.Name, "min", lo, "max", hi,
 			"docks", strings.Join(w.DockList(), ","), "idle_after", w.Idle())
 	}
 	if len(scaled) > 0 {
-		launch := groupLauncher{g: g, start: func(pool, id string) supervise.Process {
+		launcher := groupLauncher{g: g, start: func(pool, id string) supervise.Process {
 			return workerProcess(groups[pool], id, server, extraEnv...)
 		}}
-		go pools.New(scaled, launch, c, clock.Real{}, log).Run(ctx)
+		go pools.New(scaled, launcher, c, clock.Real{}, log).Run(ctx)
 	}
-	return len(cfg.Workers)
+	return len(cfg.Workers), nil
+}
+
+func or(s, def string) string {
+	if s == "" {
+		return def
+	}
+	return s
 }
 
 // groupLauncher starts and stops a pool's workers as processes of g.

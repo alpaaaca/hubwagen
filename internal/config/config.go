@@ -57,6 +57,9 @@ type Config struct {
 	Bucket     Bucket   `yaml:"bucket"`
 	Server     Server   `yaml:"server"`
 	Workers    []Worker `yaml:"workers"`
+	// Kubernetes is how the server reaches the cluster that runs
+	// launcher: kubernetes pools.
+	Kubernetes Kubernetes `yaml:"kubernetes"`
 
 	// Path is the file the config came from, "" for the defaults. Relative
 	// paths in the file (data_dir, workers[].dir) are resolved against its
@@ -128,6 +131,14 @@ func secret(field, path string) (string, error) {
 	return v, nil
 }
 
+// Kubernetes is the cluster for launcher: kubernetes pools. Without APIURL
+// the server uses its in-cluster service account; with one (kubectl proxy:
+// http://127.0.0.1:8001) it sends no credentials.
+type Kubernetes struct {
+	APIURL    string `yaml:"api_url"`
+	Namespace string `yaml:"namespace"` // default: the service account's, else default
+}
+
 type Server struct {
 	Listen string `yaml:"listen"`
 }
@@ -140,16 +151,28 @@ type Server struct {
 type Worker struct {
 	Name string `yaml:"name"`
 	// Launcher is what starts the group's workers: "process" (default),
-	// hubwagen itself, or "external": something else (KEDA, an HPA, a
-	// person) from the desired count the server publishes (GET
-	// /v1/pools/<name>); then there is no command.
-	Launcher string   `yaml:"launcher"`
-	Command  []string `yaml:"command"`
-	Replicas *int     `yaml:"replicas"` // default 1; 0 turns the group off
-	Min      *int     `yaml:"min"`      // instead of replicas: always running
-	Max      *int     `yaml:"max"`      // instead of replicas: at most, when work waits
-	Docks    []string `yaml:"docks"`    // default [default]
-	Lifts    *int     `yaml:"lifts"`    // steps one worker runs at once; default 4
+	// hubwagen itself; "container": hubwagen, as containers of Image;
+	// "kubernetes": a Deployment whose replicas the server sets; or
+	// "external": something else (KEDA, an HPA, a person) from the desired
+	// count the server publishes (GET /v1/pools/<name>).
+	Launcher string `yaml:"launcher"`
+	// Container: the image, the runtime (docker or podman; default the one
+	// on PATH) and the API's URL as the containers reach it (default: the
+	// listen address with host.docker.internal or host.containers.internal
+	// for a loopback host). Command, if set, replaces the image's.
+	Image     string `yaml:"image"`
+	Runtime   string `yaml:"runtime"`
+	ServerURL string `yaml:"server_url"`
+	// Kubernetes: the Deployment that runs the group's workers, in
+	// Namespace (default: the kubernetes section's).
+	Deployment string   `yaml:"deployment"`
+	Namespace  string   `yaml:"namespace"`
+	Command    []string `yaml:"command"`
+	Replicas   *int     `yaml:"replicas"` // default 1; 0 turns the group off
+	Min        *int     `yaml:"min"`      // instead of replicas: always running
+	Max        *int     `yaml:"max"`      // instead of replicas: at most, when work waits
+	Docks      []string `yaml:"docks"`    // default [default]
+	Lifts      *int     `yaml:"lifts"`    // steps one worker runs at once; default 4
 	// IdleAfter: a worker above min that had nothing to run for this long is
 	// stopped. Default DefaultIdleAfter.
 	IdleAfter Duration          `yaml:"idle_after"`
@@ -192,8 +215,10 @@ func (w Worker) Count() int {
 
 // Launcher values.
 const (
-	LauncherProcess  = "process"
-	LauncherExternal = "external"
+	LauncherProcess    = "process"
+	LauncherExternal   = "external"
+	LauncherContainer  = "container"
+	LauncherKubernetes = "kubernetes"
 )
 
 // Scaled reports whether the server scales the group: min below max, or
@@ -203,9 +228,12 @@ func (w Worker) Scaled() bool {
 	return lo < hi || w.External()
 }
 
-// External reports whether something other than hubwagen starts the
-// group's workers.
-func (w Worker) External() bool { return w.Launcher == LauncherExternal }
+// External reports whether the group's worker count is a desired count
+// for something else to apply (external), or that the server applies to a
+// Deployment (kubernetes), rather than processes hubwagen runs.
+func (w Worker) External() bool {
+	return w.Launcher == LauncherExternal || w.Launcher == LauncherKubernetes
+}
 
 // DockList is the docks the group's workers poll.
 func (w Worker) DockList() []string {
@@ -338,12 +366,28 @@ func Parse(data []byte, dir string) (*Config, error) {
 			if len(w.Command) == 0 || w.Command[0] == "" {
 				add("%s.command: required, e.g. [python3, -m, hubwagen.worker, app.hauls]", at)
 			}
-		case LauncherExternal:
+		case LauncherContainer:
+			if w.Image == "" {
+				add("%s.image: required with launcher: container", at)
+			}
+			if w.Runtime != "" && w.Runtime != "docker" && w.Runtime != "podman" {
+				add("%s.runtime: must be docker or podman, got %q", at, w.Runtime)
+			}
+		case LauncherExternal, LauncherKubernetes:
 			if len(w.Command) > 0 || len(w.Env) > 0 {
-				add("%s: an external pool's workers are started elsewhere: no command or env", at)
+				add("%s: with launcher: %s its workers are started elsewhere: no command or env", at, w.Launcher)
+			}
+			if w.Launcher == LauncherKubernetes && w.Deployment == "" {
+				add("%s.deployment: required with launcher: kubernetes (the Deployment that runs its workers)", at)
 			}
 		default:
-			add("%s.launcher: must be %s or %s, got %q", at, LauncherProcess, LauncherExternal, w.Launcher)
+			add("%s.launcher: must be process, container, kubernetes or external, got %q", at, w.Launcher)
+		}
+		if w.Launcher != LauncherContainer && (w.Image != "" || w.Runtime != "" || w.ServerURL != "") {
+			add("%s: image, runtime and server_url are for launcher: container", at)
+		}
+		if w.Launcher != LauncherKubernetes && (w.Deployment != "" || w.Namespace != "") {
+			add("%s: deployment and namespace are for launcher: kubernetes", at)
 		}
 		lo, hi := w.Bounds()
 		switch {
