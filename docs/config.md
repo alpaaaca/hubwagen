@@ -23,7 +23,7 @@ data_dir: .hubwagen              # state.db, bucket/, lock; default .hubwagen
 server:
   listen: 127.0.0.1:7070         # the API; default 127.0.0.1:7070
 
-workers:                         # started by hubwagen dev and hubwagen workers
+workers:                         # started by hubwagen dev, server and workers
   - name: py                     # IDs are <name>-<n>: py-1, py-2, py-3
     replicas: 3                  # default 1; 0 turns the group off
     command: [python3, -m, hubwagen.worker, --lifts, "2"]   # modules: pyproject.toml
@@ -75,18 +75,21 @@ default). Then it stops the server. A second Ctrl-C kills the workers at
 once. Each worker runs in its own process group, so the terminal's Ctrl-C
 reaches only hubwagen.
 
-- `hubwagen dev --no-workers` starts the server alone.
+- `hubwagen server` starts and restarts them the same way, their output
+  in its log ([below](#running-the-server-as-a-service)).
+- `hubwagen dev --no-workers` and `hubwagen server --no-workers` start the
+  server alone.
 - `hubwagen workers` starts the same workers without a server. They connect
   to `--server` (default: from `server.listen`). Use it to restart the
   server while the workers keep running.
 
 This doesn't break "the control plane never runs user code". The leader
 still runs none: workers are separate processes, and dev's supervisor is a
-convenience for one machine. With `hubwagen server`, workers are started by
-whatever runs services there (systemd, a Deployment) or by `hubwagen
-workers`, and the server doesn't read the `workers:` section.
-Proposed: the server supervises them too, and scales them by demand
-([worker-pools.md](worker-pools.md)).
+convenience for one machine. `hubwagen server` supervises them the same
+way, so a server that starts with queued runs starts the workers to run
+them. Workers on other machines, or run by the service manager itself (a
+Deployment), run with `--no-workers` on the server. Proposed next: scale
+them by demand ([worker-pools.md](worker-pools.md)).
 
 ### The bucket
 
@@ -129,25 +132,36 @@ Design and the reasoning behind it: [remote-storage.md](remote-storage.md).
 
 ### Running the server as a service
 
-`hubwagen server` is the server of `hubwagen dev` without the rest, for a
-service manager (systemd, launchd, a container) to run: the same data
-directory, API and web UI, from the same config and flags, but no workers
-and no runs printed. Its output is its log, on stderr; `--log-format json`
-writes JSON lines for a log collector, and `--log-level` works as for every
-command.
+`hubwagen server` is `hubwagen dev` for a service manager (systemd,
+launchd, a container) to run: the same data directory, API, web UI and
+workers, from the same config and flags, but no runs printed. Its output
+is its log, on stderr; `--log-format json` writes JSON lines for a log
+collector, and `--log-level` works as for every command. What the workers
+print goes into the log too, one record per line with a `worker` field
+(`py-2`); what steps print is kept by the server (the web UI shows it) and
+not echoed.
 
 ```bash
 hubwagen server --config /etc/hubwagen/hubwagen.yaml --log-format json
-hubwagen workers --config /etc/hubwagen/hubwagen.yaml --server http://127.0.0.1:7070
+```
+
+With workers elsewhere (another machine, a separate unit or Deployment):
+
+```bash
+hubwagen server --config /etc/hubwagen/hubwagen.yaml --log-format json --no-workers
+hubwagen workers --config /etc/hubwagen/hubwagen.yaml --server http://10.0.0.5:7070
 ```
 
 - **Health**: `GET /healthz` answers `200 ok` while the server runs and
   `503 stopped` once it has stopped.
-- **Stopping**: SIGTERM or Ctrl-C closes the API (polls in flight end) and
-  stops the server; work that workers are running carries on and is picked
-  up on the next start, as with dev. If the server stops on its own (it
-  couldn't write its state), it exits with an error, for the service
-  manager to restart it.
+- **Stopping**: SIGTERM or Ctrl-C stops the workers first (running steps
+  finish and report, polls end within their wait; a second signal kills
+  them), then closes the API and stops the server. Work that workers
+  elsewhere are running carries on and is picked up on the next start, as
+  with dev. Give the service manager a stop timeout longer than your
+  steps' (systemd: `TimeoutStopSec=`). If the server stops on its own (it
+  couldn't write its state), it stops its workers and exits with an error,
+  for the service manager to restart it.
 - **One per data directory**: the lock that stops a second `hubwagen dev`
   stops a second server too, and dev and server can't share a directory.
 - **No authentication yet**: anyone who can reach the API can start,
@@ -155,13 +169,15 @@ hubwagen workers --config /etc/hubwagen/hubwagen.yaml --server http://127.0.0.1:
   loopback address; keep it on one, or reachable only by people and
   workers you trust. Tokens come later (`server.auth`).
 
-A systemd unit for the server, with the workers in a second unit:
+A systemd unit for the server and its workers:
 
 ```ini
 [Service]
 ExecStart=/usr/local/bin/hubwagen server --config /etc/hubwagen/hubwagen.yaml --log-format json
 Restart=on-failure
 KillSignal=SIGTERM
+KillMode=mixed      # SIGTERM to hubwagen only: it stops the workers in order
+TimeoutStopSec=10min
 ```
 
 ### Trying failures locally

@@ -10,7 +10,8 @@ code, single leader on SQLite (Litestream later); workers in the user's
 environment, Python SDK first.
 
 **Today (M4 done):** `hubwagen dev` serves the API (`hubwagen server`: the
-same server alone, for a service manager, no auth yet); Python workers
+same server for a service manager, logs only, no auth yet; both start the
+config's workers); Python workers
 (`sdk/python`) run hauls and lifts, with code versions from what a lift's
 code reaches and runtime guards in haul code; hauls have signals, version
 markers, fan-out limits, child hauls, continue_as_new, schedules and
@@ -130,6 +131,6 @@ HUBWAGEN_TEST_S3=http://key:secret@127.0.0.1:9000/bucket go test ./internal/blob
 (cd pipelines/examples/revenue && PYTHONPATH=../../../sdk/python/src python3 -m hubwagen.lint)   # lint haul code
 
 ./hubwagen dev --config pipelines/examples/revenue/hubwagen.yaml   # server + 3 workers; API on 127.0.0.1:7070
-./hubwagen server --config pipelines/examples/revenue/hubwagen.yaml --log-format json   # the server alone; workers: ./hubwagen workers --config …
+./hubwagen server --config pipelines/examples/revenue/hubwagen.yaml --log-format json   # for a service manager, with the config's workers (--no-workers: ./hubwagen workers --config …)
 ./hubwagen replay daily --param day=2026-10-01..2026-10-03   # start hauls, report what was reused
 ```

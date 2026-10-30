@@ -13,6 +13,7 @@ import (
 
 	"github.com/alper/hubwagen/internal/config"
 	"github.com/alper/hubwagen/internal/server"
+	"github.com/alper/hubwagen/internal/supervise"
 	"github.com/alper/hubwagen/internal/webui"
 )
 
@@ -21,20 +22,24 @@ var serverCmd = &cobra.Command{
 	Short: "Run the hubwagen server on its own, as a long-running service",
 	Long: `Server runs the hubwagen server: its state, run histories, step logs and
 data versions in --data-dir, the API and web UI on --listen. It is the
-server of hubwagen dev without the rest: it starts no workers and prints no
-runs, only its logs (stderr; --log-format json for a log collector). Run it
-under a service manager (systemd, launchd, a container) and the workers
-next to it, with hubwagen workers --server URL or the same service manager.
+server of hubwagen dev for a service manager (systemd, launchd, a
+container): it prints no runs, only its logs (stderr; --log-format json
+for a log collector), with the workers' output in them.
 
 Settings come from hubwagen.yaml (--config, $HUBWAGEN_CONFIG, else
-./hubwagen.yaml if present); flags override it. The workers: section is
-not used.
+./hubwagen.yaml if present); flags override it. The worker processes listed
+under workers: are started once the API is up and restarted if they exit,
+as hubwagen dev does, so queued runs don't wait for workers nobody starts.
+--no-workers starts the server alone, for workers run elsewhere (hubwagen
+workers --server URL, the service manager, another machine).
 
 GET /healthz answers 200 while the server runs and 503 once it has
-stopped. SIGTERM or Ctrl-C stops it: the API closes, polls in flight end,
-and work that workers are running carries on and is picked up on the next
-start. If the server stops on its own (it couldn't write its state), it
-exits with an error, for the service manager to restart it.
+stopped. SIGTERM or Ctrl-C stops the workers first (running steps finish,
+polls end within their wait; a second signal kills them), then the server:
+the API closes, and work that workers elsewhere are running carries on and
+is picked up on the next start. If the server stops on its own (it
+couldn't write its state), it stops its workers and exits with an error,
+for the service manager to restart it.
 
 The API has no authentication yet: keep --listen on a loopback address, or
 reachable only by people and workers you trust.
@@ -48,6 +53,7 @@ Only one process can use a data directory at a time.`,
 func init() {
 	serverCmd.Flags().StringVar(&dataDir, "data-dir", config.DefaultDataDir, "directory for the server's state, logbooks and pallets (default: from the config)")
 	serverCmd.Flags().StringVar(&listenAddr, "listen", config.DefaultListen, "address to serve the API on (default: from the config)")
+	serverCmd.Flags().BoolVar(&noWorkers, "no-workers", false, "don't start the workers from the config (they run elsewhere)")
 	addConfigFlag(serverCmd)
 	rootCmd.AddCommand(serverCmd)
 }
@@ -76,12 +82,42 @@ func runServer(cmd *cobra.Command, _ []string) error {
 	if !loopback(cfg.Server.Listen) {
 		log.Warn("the API has no authentication: anyone who can reach it can start, cancel and read runs", "listen", cfg.Server.Listen)
 	}
-	if n := len(cfg.Workers); n > 0 {
-		log.Info("hubwagen server starts no workers; run the config's with hubwagen workers", "groups", n)
+
+	// Workers stop before the server, so running steps can still report.
+	var procs []supervise.Process
+	if !noWorkers {
+		// Step output is kept by the server (the web UI shows it): the
+		// workers' own logs are enough here.
+		procs = workerProcesses(cfg, config.ServerURL(e.APIAddr), "HUBWAGEN_ECHO_LOGS=0")
 	}
+	if len(procs) > 0 {
+		log.Info("starting workers", "processes", len(procs))
+	} else if len(cfg.Workers) > 0 {
+		log.Info("starting no workers (--no-workers); run them with hubwagen workers", "groups", len(cfg.Workers))
+	}
+	workersCtx, stopWorkers := context.WithCancel(context.Background())
+	workersDone := make(chan struct{})
+	kill := make(chan struct{})
+	go func() {
+		defer close(workersDone)
+		supervise.Run(workersCtx, procs, supervise.Options{Kill: kill, Line: func(id, text string, note bool) {
+			if note {
+				log.Info("worker "+text, "worker", id)
+				return
+			}
+			log.Info(text, "worker", id)
+		}})
+	}()
+	defer stopWorkers()
 
 	select {
 	case <-ctx.Done():
+		if len(procs) > 0 {
+			log.Info("stopping workers: running steps finish, polls end within their wait; signal again to kill them")
+			killOnSignal(kill)
+		}
+		stopWorkers()
+		<-workersDone
 		log.Info("stopping")
 		if err := e.Close(); err != nil {
 			return err
@@ -89,6 +125,9 @@ func runServer(cmd *cobra.Command, _ []string) error {
 		log.Info("stopped")
 		return nil
 	case err := <-e.Done():
+		close(kill) // the server is gone: nothing for running steps to report to
+		stopWorkers()
+		<-workersDone
 		return fmt.Errorf("server stopped: %w", err)
 	}
 }

@@ -128,3 +128,33 @@ func TestKillDoesntWait(t *testing.T) {
 	<-done
 	assert.Less(t, time.Since(began), 5*time.Second)
 }
+
+func TestLineGetsOutputAndNotes(t *testing.T) {
+	type line struct {
+		id, text string
+		note     bool
+	}
+	var (
+		mu    sync.Mutex
+		lines []line
+	)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		Run(ctx, []Process{sh("a-1", `echo "hi"; sleep 10`)}, Options{Line: func(id, text string, note bool) {
+			mu.Lock()
+			lines = append(lines, line{id, text, note})
+			mu.Unlock()
+		}})
+	}()
+	require.Eventually(t, func() bool { mu.Lock(); defer mu.Unlock(); return len(lines) >= 2 }, 5*time.Second, 10*time.Millisecond)
+	cancel()
+	<-done
+	mu.Lock()
+	defer mu.Unlock()
+	assert.True(t, lines[0].note)
+	assert.True(t, strings.HasPrefix(lines[0].text, "started (pid "), lines[0].text)
+	assert.Equal(t, line{"a-1", "hi", false}, lines[1])
+	assert.Equal(t, line{"a-1", "stopped", true}, lines[len(lines)-1])
+}

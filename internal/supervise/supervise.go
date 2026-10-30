@@ -27,7 +27,10 @@ type Process struct {
 }
 
 type Options struct {
-	Out io.Writer // output lines and supervisor notes
+	Out io.Writer // output lines and supervisor notes, as "<id> | <text>"
+	// Line, if set, gets each line instead of Out: a process's output, or
+	// with note set, the supervisor's (started, exited, restarting).
+	Line func(id, text string, note bool)
 	// StopTimeout is how long a process gets after SIGTERM before it is
 	// killed. Default 30s.
 	StopTimeout time.Duration
@@ -56,7 +59,7 @@ func Run(ctx context.Context, procs []Process, o Options) {
 	if o.StableAfter == 0 {
 		o.StableAfter = 10 * time.Second
 	}
-	out := &lockedWriter{w: o.Out}
+	out := &lockedWriter{w: o.Out, fn: o.Line}
 	var wg sync.WaitGroup
 	for _, p := range procs {
 		wg.Go(func() { keep(ctx, p, o, out) })
@@ -138,15 +141,25 @@ func exitText(err error) string {
 type lockedWriter struct {
 	mu sync.Mutex
 	w  io.Writer
+	fn func(id, text string, note bool)
 }
 
-func (l *lockedWriter) line(id string, text []byte) {
+func (l *lockedWriter) line(id string, text []byte) { l.write(id, string(text), false) }
+
+func (l *lockedWriter) note(id, text string) { l.write(id, text, true) }
+
+func (l *lockedWriter) write(id, text string, note bool) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if l.fn != nil {
+		l.fn(id, text, note)
+		return
+	}
+	if note {
+		text = "▸ " + text
+	}
 	fmt.Fprintf(l.w, "%s | %s\n", id, text)
 }
-
-func (l *lockedWriter) note(id, text string) { l.line(id, []byte("▸ "+text)) }
 
 // prefixWriter splits a process's output into lines.
 type prefixWriter struct {

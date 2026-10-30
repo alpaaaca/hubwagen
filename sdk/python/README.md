@@ -296,7 +296,7 @@ its dock, the connected workers' code doesn't define the pipeline or step
 If the server is down when a step finishes, the worker keeps the result,
 and keeps the attempt's heartbeats going, until the server takes it. A
 restarted leader therefore doesn't rerun the step. Ctrl-C stops polling and
-lets running steps finish. Started by `hubwagen dev` or `hubwagen workers`,
+lets running steps finish. Started by `hubwagen dev`, `server` or `workers`,
 the worker also stops that way when that process is gone
 (`$HUBWAGEN_SUPERVISOR_PID`). `--worker-id` (or `$HUBWAGEN_WORKER_ID`) names
 the worker in a run's history; the default is `<hostname>-<pid>`.

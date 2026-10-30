@@ -1,6 +1,6 @@
 # Worker pools: the leader starts the workers its work needs
 
-> **Status:** design note, not implemented. Builds on `hubwagen.yaml`'s
+> **Status:** design note; step 1 is built, the rest is not. Builds on `hubwagen.yaml`'s
 > `workers:` ([config.md](config.md)), `internal/supervise`, the core's
 > record of workers seen lately (`internal/core/workers.go`) and the node
 > design in [failover.md](failover.md). Decision requested: steps 1 and 2
@@ -11,7 +11,7 @@
 
 A leader that starts with runs in its database waits for workers that
 nothing starts. `hubwagen dev` supervises the config's `workers:`, but
-`hubwagen server`, the production server, deliberately reads none of it:
+`hubwagen server`, the production server, read none of it until step 1:
 workers come from systemd, a Deployment or `hubwagen workers`, configured
 separately. So:
 
@@ -183,7 +183,7 @@ connected" when one is on its way.
 
 ## Steps (PR-sized)
 
-1. **`hubwagen server` supervises `workers:`**, as dev does, with
+1. ✅ **`hubwagen server` supervises `workers:`**, as dev does, with
    `--no-workers` for setups that run them elsewhere. Fixed counts. This
    alone fixes "the leader starts and runs wait for workers nobody starts".
 2. **Pools with the process launcher**: `min`, `max`, `docks`, `lifts`,
