@@ -9,6 +9,8 @@ UTC, for the day that just ended.
 # from the repository root
 go build -o hubwagen .
 ./hubwagen dev --config pipelines/examples/revenue/hubwagen.yaml   # server + 3 workers
+# or, as a service would run it (logs only, the workers' output in them):
+./hubwagen server --config pipelines/examples/revenue/hubwagen.yaml
 
 # in another terminal
 ./hubwagen replay daily --param day=2026-10-01..2026-10-03
@@ -27,10 +29,10 @@ What to try:
 2. Change `daily_revenue` (say, round to whole units: `Decimal("1")`),
    restart the worker and replay: it runs again because "its code changed
    (py-… → py-…)", and `revenue_report` because "an input changed".
-3. Kill a worker (`kill -9 <pid>`; dev prints them): dev restarts it.
-   Run `hubwagen dev --no-workers` and `hubwagen workers` (same
-   `--config`) in two terminals to restart the server while the workers
-   keep going.
+3. Kill a worker (`kill -9 <pid>`; dev and server print them): it is
+   restarted. Run `hubwagen dev --no-workers` (or `server --no-workers`)
+   and `hubwagen workers` (same `--config`) in two terminals to restart the
+   server while the workers keep going.
 4. Add a row for 2026-10-02 to `data/orders.csv` and replay: only that
    day's `daily_revenue` and report run again ("an input changed").
 
