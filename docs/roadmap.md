@@ -390,6 +390,7 @@ Roughly in order of expected need:
 | dbt integration | One lift per project, one pallet per model | Later |
 | Catalog interoperability | OpenLineage export first; Iceberg REST catalog later, if at all | Later |
 | Failover | Nodes that supervise workers and can lead; bucket lease + Litestream first, embedded Raft if no-loss is needed ([failover.md](failover.md)) | Failover |
+| Worker pools | The leader starts and scales workers per pool (`min`/`max`, docks, capacity) from queued work; `hubwagen server` supervises `workers:` first ([worker-pools.md](worker-pools.md)) | Before production use |
 | `standalone` profile | Decided: no separate profile; `hubwagen server` runs the single-node server (no auth yet) | Done |
 | Load target for one leader | 100 lift transitions/s sustained, 2,000 running lifts | S3 |
 | Licence and distribution | Open | Before first release |

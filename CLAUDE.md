@@ -28,6 +28,7 @@ Read before larger changes:
 - [docs/roadmap.md](docs/roadmap.md) — what is done, what is next, open decisions
 - [docs/v2-migration.md](docs/v2-migration.md) — what happened to each v1 package
 - [docs/failover.md](docs/failover.md) — design: nodes, leader election and state handoff (not built)
+- [docs/worker-pools.md](docs/worker-pools.md) — design: the leader starts and scales the workers its queued work needs (not built)
 - [docs/api-simplification.md](docs/api-simplification.md) — design: lifts return values and dataframes, reuse by default (steps 1–2 built)
 - [docs/spikes/](docs/spikes/) — spike findings (S1: Python replay, S2: code versions)
 - [sdk/python/README.md](sdk/python/README.md) — writing hauls and lifts, the worker
