@@ -27,7 +27,7 @@ var (
 )
 
 func addHaulFlags(c *cobra.Command) {
-	c.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev serves it)")
+	c.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev or hubwagen server)")
 	c.Flags().StringVar(&haulTenant, "tenant", "default", "tenant the run belongs to")
 	c.Flags().StringVar(&haulDock, "dock", "", "dock its pipeline code runs from (default: default)")
 	c.Flags().StringArrayVar(&haulParams, "param", nil, "an input as name=value (repeatable); values are JSON if they parse, else strings")
@@ -36,7 +36,7 @@ func addHaulFlags(c *cobra.Command) {
 var startCmd = &cobra.Command{
 	Use:   "start <pipeline>",
 	Short: "Start a run of a pipeline on a running server",
-	Long: `Start starts one run of a pipeline on the server (hubwagen dev by default)
+	Long: `Start starts one run of a pipeline on the server (hubwagen dev or hubwagen server)
 and prints its ID. Workers registered with the server run it. With --wait it
 waits for the run to end (following continue_as_new to the last run), prints
 what each step did, and exits non-zero unless it completed.
@@ -181,10 +181,10 @@ each signal answers one wait. --data is the payload, as JSON.
 }
 
 func init() {
-	signalCmd.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev serves it)")
+	signalCmd.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev or hubwagen server)")
 	signalCmd.Flags().StringVar(&signalData, "data", "", "payload, as JSON (default: null)")
 	rootCmd.AddCommand(signalCmd)
-	schedulesCmd.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev serves it)")
+	schedulesCmd.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev or hubwagen server)")
 	rootCmd.AddCommand(schedulesCmd)
 	addHaulFlags(startCmd)
 	startCmd.Flags().BoolVar(&startWait, "wait", false, "wait for the haul to end and report what its lifts did")

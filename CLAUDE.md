@@ -9,7 +9,8 @@ catalog derived from the event history. One Go server that never runs user
 code, single leader on SQLite (Litestream later); workers in the user's
 environment, Python SDK first.
 
-**Today (M4 done):** `hubwagen dev` serves the API; Python workers
+**Today (M4 done):** `hubwagen dev` serves the API (`hubwagen server`: the
+same server alone, for a service manager, no auth yet); Python workers
 (`sdk/python`) run hauls and lifts, with code versions from what a lift's
 code reaches and runtime guards in haul code; hauls have signals, version
 markers, fan-out limits, child hauls, continue_as_new, schedules and
@@ -44,14 +45,15 @@ spec-kit.
 | `internal/api` | Connect services over HTTP (`WorkerService`, `HaulService`, `CatalogService`, `LogService`); generated code in `gen/` from `proto/` |
 | `internal/history` | A run's events told in plain words (pipeline, run, step, version, reused), for the web UI's "What happened" |
 | `internal/runlog` | What lifts printed and logged, per attempt: files of JSON lines, capped; not state, not in the event log |
-| `internal/devmode` | Wires store, bucket, logs, core and API for one process; data-dir lock; what `hubwagen dev` prints (runs and their output; `--events`: event descriptions) |
+| `internal/server` | Wires store, bucket, logs, core and API (`/healthz` too) for one process; data-dir lock; `hubwagen server` and `hubwagen dev` both run it |
+| `internal/devmode` | What `hubwagen dev` prints on top of the server (runs and their output; `--events`: event descriptions) |
 | `internal/haulcli` | What `start` and `replay` do: `--param` ranges, starting and waiting over `HaulService`, the replay report |
 | `internal/catalogcli` | What `datasets`, `pallets` and `pallet` print, over `CatalogService` (lineage trees) |
 | `internal/schedule` | Calendar and cron math (DST-correct intervals, what is due since a cursor); the core's haul schedules use it |
 | `internal/clock`, `internal/layout`, `internal/blob` | Real/fake clock; bucket paths (lift staging under dataset and partition, pallet manifests); bucket access with atomic create-if-absent |
 | `internal/config` | `hubwagen.yaml`: data dir, listen address, worker processes |
 | `internal/supervise` | Runs and restarts worker processes for `dev` and `workers` (prefixed output, SIGTERM then kill) |
-| `cmd/` | `dev`, `workers`, `start`, `replay`, `signal`, `schedules`, `datasets`, `versions` (alias `pallets`), `data` (alias `pallet`; and `data invalidate`), `stale`, `gc`, `version` |
+| `cmd/` | `dev`, `server`, `workers`, `start`, `replay`, `signal`, `schedules`, `datasets`, `versions` (alias `pallets`), `data` (alias `pallet`; and `data invalidate`), `stale`, `gc`, `version` |
 | `internal/webui` | Serves the web UI from the binary (embedded `dist/`, filled by `go generate ./internal/webui`; a placeholder page without it) |
 | `ui/` | Web UI: React + TypeScript + Vite on the Connect services (clients generated from `proto/` into `ui/src/gen`); vitest tests |
 | `sdk/python/` | Python SDK (stdlib only, Python ≥ 3.12): `@pipeline`, `@step` (the engine's `@haul`, `@lift` as aliases), replay engine, worker; pytest runs it against a real `hubwagen dev` |
@@ -122,5 +124,6 @@ go generate ./internal/webui  # build the web UI into the binary (needs Node; di
 (cd pipelines/examples/revenue && PYTHONPATH=../../../sdk/python/src python3 -m hubwagen.lint)   # lint haul code
 
 ./hubwagen dev --config pipelines/examples/revenue/hubwagen.yaml   # server + 3 workers; API on 127.0.0.1:7070
+./hubwagen server --config pipelines/examples/revenue/hubwagen.yaml --log-format json   # the server alone; workers: ./hubwagen workers --config …
 ./hubwagen replay daily --param day=2026-10-01..2026-10-03   # start hauls, report what was reused
 ```

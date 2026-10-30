@@ -78,9 +78,46 @@ reaches only hubwagen.
 
 This doesn't break "the control plane never runs user code". The leader
 still runs none: workers are separate processes, and dev's supervisor is a
-convenience for one machine. In `standalone` and `kubernetes`, workers are
-started by whatever runs services there (systemd, a Deployment), and the
-`workers:` section doesn't apply.
+convenience for one machine. With `hubwagen server`, workers are started by
+whatever runs services there (systemd, a Deployment) or by `hubwagen
+workers`, and the server doesn't read the `workers:` section.
+
+### Running the server as a service
+
+`hubwagen server` is the server of `hubwagen dev` without the rest, for a
+service manager (systemd, launchd, a container) to run: the same data
+directory, API and web UI, from the same config and flags, but no workers
+and no runs printed. Its output is its log, on stderr; `--log-format json`
+writes JSON lines for a log collector, and `--log-level` works as for every
+command.
+
+```bash
+hubwagen server --config /etc/hubwagen/hubwagen.yaml --log-format json
+hubwagen workers --config /etc/hubwagen/hubwagen.yaml --server http://127.0.0.1:7070
+```
+
+- **Health**: `GET /healthz` answers `200 ok` while the server runs and
+  `503 stopped` once it has stopped.
+- **Stopping**: SIGTERM or Ctrl-C closes the API (polls in flight end) and
+  stops the server; work that workers are running carries on and is picked
+  up on the next start, as with dev. If the server stops on its own (it
+  couldn't write its state), it exits with an error, for the service
+  manager to restart it.
+- **One per data directory**: the lock that stops a second `hubwagen dev`
+  stops a second server too, and dev and server can't share a directory.
+- **No authentication yet**: anyone who can reach the API can start,
+  cancel and read runs. The server warns when `server.listen` isn't a
+  loopback address; keep it on one, or reachable only by people and
+  workers you trust. Tokens come later (`server.auth`).
+
+A systemd unit for the server, with the workers in a second unit:
+
+```ini
+[Service]
+ExecStart=/usr/local/bin/hubwagen server --config /etc/hubwagen/hubwagen.yaml --log-format json
+Restart=on-failure
+KillSignal=SIGTERM
+```
 
 ### Trying failures locally
 
@@ -99,8 +136,10 @@ With one leader and three workers from one file:
 
 Sketched for later milestones, not implemented:
 
-- **`profile`**: `dev | standalone | kubernetes`. It is read only by
+- **`profile`**: `dev | kubernetes`. It is read only by
   `internal/profile`, which turns the config into concrete implementations.
+  A `standalone` profile isn't needed: `hubwagen server` is the single-node
+  server.
 - **`bucket`**: `s3://…`; today the bucket is always `file://<data_dir>/bucket`.
 - **Sections**: `server.auth` (tokens for workers and users), `replication`
   (Litestream), `secrets`, `log`, and limits the server enforces (maximum lift

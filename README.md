@@ -26,8 +26,10 @@ def daily(ctx, day: str):
 
 ## Status
 
-The engine runs on one machine: `hubwagen dev` (server and API), Python
-workers, `file://` storage. Built so far: durable pipelines (replay until
+The engine runs on one machine: `hubwagen dev` (server, API and workers in
+one terminal) or `hubwagen server` (the server alone, as a service, with
+`hubwagen workers` next to it), Python workers, `file://` storage, no
+authentication yet. Built so far: durable pipelines (replay until
 blocked, timers, retries, timeouts, leader restarts), data versions with
 exactly-once commits, memoized steps with single-flight, a catalog with
 lineage, the worker and pipeline APIs, dataframes between steps, code

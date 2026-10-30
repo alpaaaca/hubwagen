@@ -80,7 +80,7 @@ func loadConfig(cmd *cobra.Command) (*config.Config, error) {
 		cfg.DataDir = dataDir
 	}
 	if f.Changed("listen") {
-		cfg.Server.Listen = devListen
+		cfg.Server.Listen = listenAddr
 	}
 	if f.Lookup("server") != nil && !f.Changed("server") {
 		workersServer = config.ServerURL(cfg.Server.Listen)
