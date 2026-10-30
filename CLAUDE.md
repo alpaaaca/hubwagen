@@ -35,6 +35,7 @@ Read before larger changes:
 - [sdk/python/README.md](sdk/python/README.md) — writing hauls and lifts, the worker
 - [docs/config.md](docs/config.md) — instance configuration (`hubwagen.yaml`)
 - [docs/deploy.md](docs/deploy.md) — container images, compose, the Helm chart
+- [docs/projects.md](docs/projects.md) — design: a repo's project file and `hubwagen deploy` (not built)
 - [docs/remote-storage.md](docs/remote-storage.md) — design: `s3://` buckets, transfer URLs for remote workers (step 1 built)
 
 Planning is lightweight: a design note in `docs/` when a decision needs one,
