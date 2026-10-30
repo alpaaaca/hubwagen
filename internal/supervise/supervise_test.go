@@ -158,3 +158,26 @@ func TestLineGetsOutputAndNotes(t *testing.T) {
 	assert.Equal(t, line{"a-1", "hi", false}, lines[1])
 	assert.Equal(t, line{"a-1", "stopped", true}, lines[len(lines)-1])
 }
+
+func TestGroupStartsAndStopsOneAtATime(t *testing.T) {
+	var out syncBuffer
+	ctx, cancel := context.WithCancel(context.Background())
+	g := NewGroup(ctx, Options{Out: &out})
+	g.Start(sh("a-1", `trap 'echo bye; exit 0' TERM; echo up; while :; do sleep 0.05; done`))
+	g.Start(sh("a-2", `trap 'exit 0' TERM; while :; do sleep 0.05; done`))
+	g.Start(sh("a-1", `echo duplicate`)) // already running: ignored
+	require.Eventually(t, func() bool { return strings.Contains(out.String(), "a-1 | up") }, 5*time.Second, 10*time.Millisecond)
+	assert.Equal(t, []string{"a-1", "a-2"}, g.Running())
+
+	g.Stop("a-1")
+	assert.Equal(t, []string{"a-2"}, g.Running())
+	require.Eventually(t, func() bool { return strings.Contains(out.String(), "a-1 | ▸ stopped") }, 5*time.Second, 10*time.Millisecond)
+	assert.Contains(t, out.String(), "a-1 | bye", "stopped with SIGTERM")
+	assert.NotContains(t, out.String(), "duplicate")
+	assert.NotContains(t, out.String(), "restarting", "a stopped process isn't restarted")
+
+	cancel()
+	g.Wait()
+	assert.Contains(t, out.String(), "a-2 | ▸ stopped")
+	assert.Empty(t, g.Running())
+}

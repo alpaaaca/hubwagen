@@ -36,6 +36,8 @@ func WaitingText(w core.Waiting) string {
 		return fmt.Sprintf("%s connected%s, but %s code doesn't define %s (build %s). "+
 			"Restart a worker with code that has it", workersAre(w.Workers), onDock, theirIts(w.Workers), defines,
 			strings.Join(shortBuilds(w.Builds), ", "))
+	case core.WaitStarting:
+		return fmt.Sprintf("a worker is starting in pool %s to run %s", w.Pool, what)
 	case core.WaitDockLimit:
 		return fmt.Sprintf("%s waits for a free slot: dock %q runs as many steps at once as it may", what, w.Dock)
 	default:
@@ -74,7 +76,7 @@ func shortBuilds(builds []string) []string {
 
 func waitingMessage(w core.Waiting) *hubwagenv1.Waiting {
 	return &hubwagenv1.Waiting{Reason: string(w.Reason), Message: WaitingText(w), Kind: string(w.Kind), Name: w.Name,
-		Seq: int32(w.Seq), Dock: w.Dock, Since: timestamppb.New(w.Since), Workers: int32(w.Workers), Builds: w.Builds}
+		Seq: int32(w.Seq), Dock: w.Dock, Since: timestamppb.New(w.Since), Workers: int32(w.Workers), Builds: w.Builds, Pool: w.Pool}
 }
 
 // addWaiting sets why the running ones among hauls wait, if they do.
@@ -107,11 +109,29 @@ func (s *HaulServer) ListWorkers(ctx context.Context, _ *connect.Request[hubwage
 	}
 	out := &hubwagenv1.ListWorkersResponse{}
 	for _, w := range ws {
-		m := &hubwagenv1.Worker{Id: w.ID, BuildId: w.BuildID, Docks: w.Docks, LastSeen: timestamppb.New(w.LastSeen), Polling: w.Polling}
+		m := &hubwagenv1.Worker{Id: w.ID, BuildId: w.BuildID, Docks: w.Docks, LastSeen: timestamppb.New(w.LastSeen), Polling: w.Polling,
+			Running: int32(w.Running)}
 		for _, k := range w.Kinds {
 			m.Kinds = append(m.Kinds, string(k))
 		}
 		out.Workers = append(out.Workers, m)
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (s *HaulServer) ListPools(ctx context.Context, _ *connect.Request[hubwagenv1.ListPoolsRequest]) (*connect.Response[hubwagenv1.ListPoolsResponse], error) {
+	ps, err := s.core.Pools(ctx)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	out := &hubwagenv1.ListPoolsResponse{}
+	for _, p := range ps {
+		m := &hubwagenv1.Pool{Name: p.Name, Docks: p.Docks, Min: int32(p.Min), Max: int32(p.Max), Workers: p.Workers,
+			Starting: int32(p.Starting), Decision: p.Decision}
+		if !p.DecidedAt.IsZero() {
+			m.DecidedAt = timestamppb.New(p.DecidedAt)
+		}
+		out.Pools = append(out.Pools, m)
 	}
 	return connect.NewResponse(out), nil
 }

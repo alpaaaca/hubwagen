@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
@@ -68,9 +69,29 @@ func TestWaitingText(t *testing.T) {
 			"2 workers are connected, but their code doesn't define step load (build b1, b2). Restart a worker with code that has it"},
 		{core.Waiting{Reason: core.WaitBusy, Kind: core.TaskLift, Name: "load", Dock: "default", Workers: 1},
 			"step load waits for a free worker: the workers that can run it are busy"},
+		{core.Waiting{Reason: core.WaitStarting, Kind: core.TaskHaul, Name: "daily", Dock: "default", Pool: "py"},
+			"a worker is starting in pool py to run the pipeline's code"},
 		{core.Waiting{Reason: core.WaitDockLimit, Kind: core.TaskLift, Name: "train", Dock: "gpu", Workers: 1},
 			"step train waits for a free slot: dock \"gpu\" runs as many steps at once as it may"},
 	} {
 		assert.Equal(t, tc.want, WaitingText(tc.w))
 	}
+}
+
+func TestListPools(t *testing.T) {
+	s := start(t)
+	mux := http.NewServeMux()
+	path, h := NewHaulHandler(s.core, s.store)
+	mux.Handle(path, h)
+	c := hubwagenv1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
+	at := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
+	require.NoError(t, s.core.SetPools(ctx, []core.PoolStatus{{Name: "py", Docks: []string{"default"}, Min: 0, Max: 3,
+		Workers: []string{"py-1"}, Starting: 1, Decision: "started py-1: 1 run waits on default", DecidedAt: at}}))
+	res, err := c.ListPools(ctx, connect.NewRequest(&hubwagenv1.ListPoolsRequest{}))
+	require.NoError(t, err)
+	require.Len(t, res.Msg.Pools, 1)
+	p := res.Msg.Pools[0]
+	assert.Equal(t, []any{"py", int32(3), []string{"py-1"}, int32(1), "started py-1: 1 run waits on default"},
+		[]any{p.Name, p.Max, p.Workers, p.Starting, p.Decision})
+	assert.Equal(t, at, p.DecidedAt.AsTime())
 }

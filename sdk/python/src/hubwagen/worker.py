@@ -381,19 +381,18 @@ def print_versions() -> None:
     print(json.dumps(out, indent=2))
 
 
-def main(argv: list[str] | None = None) -> None:
-    argv = sys.argv[1:] if argv is None else argv
-    # Iterating a set of strings must give the same order in every replay, in
-    # every worker process (spike S1): fix the hash seed, re-executing if needed.
-    if os.environ.get("PYTHONHASHSEED") != "0":
-        os.execve(sys.executable, [sys.executable, "-m", "hubwagen.worker", *argv], {**os.environ, "PYTHONHASHSEED": "0"})
-
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    """The worker's options. Started by hubwagen (dev, server, workers), it
+    gets its docks and lifts from $HUBWAGEN_DOCKS and $HUBWAGEN_LIFTS, the
+    worker group's in hubwagen.yaml; flags win."""
     p = argparse.ArgumentParser(prog="python -m hubwagen.worker", description=__doc__.splitlines()[0])
     p.add_argument("modules", nargs="*",
                    help="modules that define pipelines and steps, e.g. app.pipelines (default: [tool.hubwagen] modules in ./pyproject.toml)")
     p.add_argument("--server", default=os.environ.get("HUBWAGEN_SERVER", "http://127.0.0.1:7070"))
-    p.add_argument("--dock", action="append", default=None, help="dock to poll (repeatable; default: default)")
-    p.add_argument("--lifts", type=int, default=4, help="lifts to run at the same time")
+    p.add_argument("--dock", action="append", default=None,
+                   help="dock to poll (repeatable; default: $HUBWAGEN_DOCKS, comma-separated, else default)")
+    p.add_argument("--lifts", type=int, default=int(os.environ.get("HUBWAGEN_LIFTS") or 4),
+                   help="lifts to run at the same time (default: $HUBWAGEN_LIFTS, else 4)")
     p.add_argument("--poll-wait", default=POLL_WAIT, help="how long one poll waits for work, e.g. 20s")
     p.add_argument("--worker-id", default=os.environ.get("HUBWAGEN_WORKER_ID"), help="default: <hostname>-<pid>")
     p.add_argument("--data", choices=_data.MODES, default=os.environ.get("HUBWAGEN_DATA", "auto"),
@@ -404,6 +403,18 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--versions", action="store_true",
                    help="print the build ID and what each pipeline's and step's code version covers, then exit")
     args = p.parse_args(argv)
+    args.dock = args.dock or [d for d in os.environ.get("HUBWAGEN_DOCKS", "").split(",") if d] or ["default"]
+    return args
+
+
+def main(argv: list[str] | None = None) -> None:
+    argv = sys.argv[1:] if argv is None else argv
+    # Iterating a set of strings must give the same order in every replay, in
+    # every worker process (spike S1): fix the hash seed, re-executing if needed.
+    if os.environ.get("PYTHONHASHSEED") != "0":
+        os.execve(sys.executable, [sys.executable, "-m", "hubwagen.worker", *argv], {**os.environ, "PYTHONHASHSEED": "0"})
+
+    args = parse_args(argv)
     logging.basicConfig(level=args.log_level.upper(), format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     utc_logs()
 
@@ -413,7 +424,7 @@ def main(argv: list[str] | None = None) -> None:
     if args.versions:
         print_versions()
         return
-    w = Worker(Client(args.server), args.dock or ["default"], lifts=args.lifts, poll_wait=args.poll_wait,
+    w = Worker(Client(args.server), args.dock, lifts=args.lifts, poll_wait=args.poll_wait,
                worker_id=args.worker_id, data=args.data)
     while True:
         try:

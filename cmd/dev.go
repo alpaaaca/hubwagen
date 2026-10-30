@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -93,15 +94,16 @@ func runDev(cmd *cobra.Command, _ []string) error {
 	// Workers stop before the server, so running lifts can still report.
 	workersCtx, stopWorkers := context.WithCancel(context.Background())
 	workersDone := make(chan struct{})
-	var procs []supervise.Process
+	kill := make(chan struct{})
+	g := supervise.NewGroup(workersCtx, supervise.Options{Out: os.Stdout, Kill: kill})
+	groups := 0
 	if !noWorkers {
 		// dev prints what lifts print, from the server: workers needn't echo it.
-		procs = workerProcesses(cfg, config.ServerURL(e.APIAddr), "HUBWAGEN_ECHO_LOGS=0")
+		groups = startWorkers(workersCtx, g, cfg, e.Core, config.ServerURL(e.APIAddr), slog.Default(), "HUBWAGEN_ECHO_LOGS=0")
 	}
-	kill := make(chan struct{})
 	go func() {
 		defer close(workersDone)
-		supervise.Run(workersCtx, procs, supervise.Options{Out: os.Stdout, Kill: kill})
+		g.Wait()
 	}()
 	defer func() {
 		stopWorkers()
@@ -110,7 +112,7 @@ func runDev(cmd *cobra.Command, _ []string) error {
 
 	select {
 	case <-ctx.Done():
-		if len(procs) > 0 {
+		if groups > 0 {
 			fmt.Println("stopping workers: running steps finish, polls end within their wait; Ctrl-C again to kill them")
 			killOnSignal(kill)
 		}

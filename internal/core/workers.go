@@ -33,6 +33,9 @@ type Worker struct {
 	// Polling: it waits for work right now; otherwise it is busy (or gone,
 	// until it expires).
 	Polling bool
+	// Running is how many tasks it runs: lift attempts and haul tasks
+	// dispatched to it and not finished.
+	Running int
 }
 
 type seenWorker struct {
@@ -91,18 +94,18 @@ func (c *Core) workerExpiry() time.Duration {
 // liveWorkers forgets workers not seen within the expiry and returns the
 // rest, by ID.
 func (c *Core) liveWorkers() []Worker {
-	polling, running := map[string]bool{}, map[string]bool{}
+	polling, running := map[string]bool{}, map[string]int{}
 	for _, p := range c.pollers {
 		if !p.done {
 			polling[p.req.WorkerID] = true
 		}
 	}
 	for _, a := range c.liftAttempts {
-		running[a.rec.WorkerID] = true
+		running[a.rec.WorkerID]++
 	}
 	for _, t := range c.haulTasks {
 		if t.rec.Status == state.HaulTaskDispatched {
-			running[t.rec.WorkerID] = true
+			running[t.rec.WorkerID]++
 		}
 	}
 	now := c.now()
@@ -110,7 +113,7 @@ func (c *Core) liveWorkers() []Worker {
 	for _, id := range slices.Sorted(maps.Keys(c.workers)) {
 		w := c.workers[id]
 		keep := c.workerExpiry()
-		if !running[id] {
+		if running[id] == 0 {
 			keep = min(keep, workerIdleGrace)
 		}
 		if !polling[id] && now.Sub(w.last) > keep {
@@ -120,7 +123,7 @@ func (c *Core) liveWorkers() []Worker {
 		kinds := slices.Collect(maps.Keys(w.kinds))
 		slices.Sort(kinds)
 		out = append(out, Worker{ID: id, BuildID: w.build, Docks: slices.Sorted(maps.Keys(w.docks)), Kinds: kinds,
-			LastSeen: w.last, Polling: polling[id]})
+			LastSeen: w.last, Polling: polling[id], Running: running[id]})
 	}
 	return out
 }
@@ -143,6 +146,9 @@ const (
 	WaitBusy WaitReason = "busy"
 	// WaitDockLimit: the dock runs as many lifts as it may (MaxRunningLifts).
 	WaitDockLimit WaitReason = "dock_limit"
+	// WaitStarting: no worker (or no free one) yet, but a pool is starting
+	// one for the dock (pools.go).
+	WaitStarting WaitReason = "starting"
 )
 
 // Waiting is a haul's queued work and why no worker took it yet.
@@ -158,6 +164,8 @@ type Waiting struct {
 	// (WaitNoBuild: none of them defines Name).
 	Workers int
 	Builds  []string
+	// Pool (WaitStarting): the pool starting a worker.
+	Pool string
 }
 
 // Waiting returns, for each of haulIDs that has queued work, why it waits:
@@ -237,6 +245,11 @@ func (c *Core) waitReason(t Task, workers []Worker) Waiting {
 		w.Reason = WaitDockLimit
 	default:
 		w.Reason = WaitBusy
+	}
+	if w.Reason == WaitNoWorker || w.Reason == WaitBusy {
+		if p := c.startingFor(t.Dock); p != "" {
+			w.Reason, w.Pool = WaitStarting, p
+		}
 	}
 	return w
 }

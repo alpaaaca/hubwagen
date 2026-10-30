@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 
@@ -43,6 +44,10 @@ const (
 	// process, so a supervisor that dies without stopping its workers (kill
 	// -9, a crash) leaves none behind.
 	EnvSupervisorPID = "HUBWAGEN_SUPERVISOR_PID"
+	// EnvDocks and EnvLifts are the group's docks (comma-separated) and
+	// steps per worker: the Python worker's defaults for --dock and --lifts.
+	EnvDocks = "HUBWAGEN_DOCKS"
+	EnvLifts = "HUBWAGEN_LIFTS"
 )
 
 type Config struct {
@@ -127,22 +132,99 @@ type Server struct {
 	Listen string `yaml:"listen"`
 }
 
-// Worker is a group of identical worker processes. Each replica gets
-// HUBWAGEN_SERVER (the API's URL) and HUBWAGEN_WORKER_ID (<name>-<n>).
+// Worker is a group of identical worker processes, a pool: a fixed number
+// (replicas), or between min and max, scaled by the server from the work
+// queued on its docks (internal/pools). Each process gets HUBWAGEN_SERVER
+// (the API's URL), HUBWAGEN_WORKER_ID (<name>-<n>), HUBWAGEN_DOCKS and
+// HUBWAGEN_LIFTS.
 type Worker struct {
-	Name     string            `yaml:"name"`
-	Command  []string          `yaml:"command"`
-	Replicas *int              `yaml:"replicas"` // default 1; 0 turns the group off
-	Dir      string            `yaml:"dir"`      // working directory; default: the config file's
-	Env      map[string]string `yaml:"env"`
+	Name     string   `yaml:"name"`
+	Command  []string `yaml:"command"`
+	Replicas *int     `yaml:"replicas"` // default 1; 0 turns the group off
+	Min      *int     `yaml:"min"`      // instead of replicas: always running
+	Max      *int     `yaml:"max"`      // instead of replicas: at most, when work waits
+	Docks    []string `yaml:"docks"`    // default [default]
+	Lifts    *int     `yaml:"lifts"`    // steps one worker runs at once; default 4
+	// IdleAfter: a worker above min that had nothing to run for this long is
+	// stopped. Default DefaultIdleAfter.
+	IdleAfter Duration          `yaml:"idle_after"`
+	Dir       string            `yaml:"dir"` // working directory; default: the config file's
+	Env       map[string]string `yaml:"env"`
 }
 
-// Count is the number of replicas.
-func (w Worker) Count() int {
-	if w.Replicas == nil {
-		return 1
+const (
+	DefaultLifts     = 4 // the Python worker's default
+	DefaultIdleAfter = 5 * time.Minute
+)
+
+// Bounds is how many processes the group runs: min and max, equal for a
+// fixed count (replicas, default 1).
+func (w Worker) Bounds() (lo, hi int) {
+	if w.Min != nil || w.Max != nil {
+		lo, hi = 0, 1
+		if w.Min != nil {
+			lo = *w.Min
+		}
+		if w.Max != nil {
+			hi = *w.Max
+		} else {
+			hi = max(lo, 1)
+		}
+		return lo, hi
 	}
-	return *w.Replicas
+	if w.Replicas == nil {
+		return 1, 1
+	}
+	return *w.Replicas, *w.Replicas
+}
+
+// Count is the number of processes started for a fixed group, and by
+// hubwagen workers, which can't scale (it doesn't see the queues): max.
+func (w Worker) Count() int {
+	_, hi := w.Bounds()
+	return hi
+}
+
+// Scaled reports whether the server scales the group (min below max).
+func (w Worker) Scaled() bool {
+	lo, hi := w.Bounds()
+	return lo < hi
+}
+
+// DockList is the docks the group's workers poll.
+func (w Worker) DockList() []string {
+	if len(w.Docks) == 0 {
+		return []string{"default"}
+	}
+	return w.Docks
+}
+
+// LiftCount is how many steps one worker runs at once.
+func (w Worker) LiftCount() int {
+	if w.Lifts == nil {
+		return DefaultLifts
+	}
+	return *w.Lifts
+}
+
+// Idle is how long a worker above min may have nothing to run.
+func (w Worker) Idle() time.Duration {
+	if w.IdleAfter == 0 {
+		return DefaultIdleAfter
+	}
+	return time.Duration(w.IdleAfter)
+}
+
+// Duration is a time.Duration written as in Go ("5m", "90s").
+type Duration time.Duration
+
+func (d *Duration) UnmarshalYAML(n *yaml.Node) error {
+	v, err := time.ParseDuration(n.Value)
+	if err != nil {
+		return fmt.Errorf("line %d: %q: want a duration such as 5m or 90s", n.Line, n.Value)
+	}
+	*d = Duration(v)
+	return nil
 }
 
 // Find picks the config file: explicit (--config) if set, else
@@ -238,11 +320,30 @@ func Parse(data []byte, dir string) (*Config, error) {
 		if len(w.Command) == 0 || w.Command[0] == "" {
 			add("%s.command: required, e.g. [python3, -m, hubwagen.worker, app.hauls]", at)
 		}
-		if w.Count() < 0 {
+		lo, hi := w.Bounds()
+		switch {
+		case w.Replicas != nil && (w.Min != nil || w.Max != nil):
+			add("%s: give replicas (a fixed count) or min and max, not both", at)
+		case w.Replicas != nil && *w.Replicas < 0:
 			add("%s.replicas: must be 0 or more", at)
+		case lo < 0 || hi < 0:
+			add("%s: min and max must be 0 or more", at)
+		case lo > hi:
+			add("%s: min %d is more than max %d", at, lo, hi)
+		}
+		if w.LiftCount() < 1 {
+			add("%s.lifts: must be 1 or more", at)
+		}
+		if w.IdleAfter < 0 {
+			add("%s.idle_after: must be positive", at)
+		}
+		for j, d := range w.Docks {
+			if d == "" {
+				add("%s.docks[%d]: empty", at, j)
+			}
 		}
 		for k := range w.Env {
-			if k == EnvServer || k == EnvWorkerID || k == EnvSupervisorPID {
+			if k == EnvServer || k == EnvWorkerID || k == EnvSupervisorPID || k == EnvDocks || k == EnvLifts {
 				add("%s.env.%s: set by hubwagen", at, k)
 			}
 		}

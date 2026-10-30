@@ -84,35 +84,33 @@ func runServer(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Workers stop before the server, so running steps can still report.
-	var procs []supervise.Process
+	workersCtx, stopWorkers := context.WithCancel(context.Background())
+	defer stopWorkers()
+	kill := make(chan struct{})
+	g := supervise.NewGroup(workersCtx, supervise.Options{Kill: kill, Line: func(id, text string, note bool) {
+		if note {
+			log.Info("worker "+text, "worker", id)
+			return
+		}
+		log.Info(text, "worker", id)
+	}})
+	groups := 0
 	if !noWorkers {
 		// Step output is kept by the server (the web UI shows it): the
 		// workers' own logs are enough here.
-		procs = workerProcesses(cfg, config.ServerURL(e.APIAddr), "HUBWAGEN_ECHO_LOGS=0")
-	}
-	if len(procs) > 0 {
-		log.Info("starting workers", "processes", len(procs))
+		groups = startWorkers(workersCtx, g, cfg, e.Core, config.ServerURL(e.APIAddr), log, "HUBWAGEN_ECHO_LOGS=0")
 	} else if len(cfg.Workers) > 0 {
 		log.Info("starting no workers (--no-workers); run them with hubwagen workers", "groups", len(cfg.Workers))
 	}
-	workersCtx, stopWorkers := context.WithCancel(context.Background())
 	workersDone := make(chan struct{})
-	kill := make(chan struct{})
 	go func() {
 		defer close(workersDone)
-		supervise.Run(workersCtx, procs, supervise.Options{Kill: kill, Line: func(id, text string, note bool) {
-			if note {
-				log.Info("worker "+text, "worker", id)
-				return
-			}
-			log.Info(text, "worker", id)
-		}})
+		g.Wait()
 	}()
-	defer stopWorkers()
 
 	select {
 	case <-ctx.Done():
-		if len(procs) > 0 {
+		if groups > 0 {
 			log.Info("stopping workers: running steps finish, polls end within their wait; signal again to kill them")
 			killOnSignal(kill)
 		}
