@@ -42,3 +42,9 @@ What to try:
    with no orders (`--param day=2026-10-20`) for a warning.
 
 `sdk/python/tests/test_example.py` runs exactly this as a test.
+
+What a change would rerun, before running anything: `hubwagen deploy
+--dry-run --local` in this directory (with `PYTHONPATH` to the SDK, and
+the server on 127.0.0.1:7070) compares this code with what the server runs
+(see [hubwagen.project.yaml](hubwagen.project.yaml) and
+[docs/projects.md](../../../docs/projects.md)).

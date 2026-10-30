@@ -1,0 +1,19 @@
+# The revenue example as a project (docs/projects.md): what `hubwagen deploy`
+# reads. (hubwagen.yaml next to it is still the config hubwagen dev reads.)
+#   hubwagen deploy --dry-run --local     # its code in place (PYTHONPATH to the SDK)
+#   HUBWAGEN_WORKER_IMAGE=hubwagen-worker:dev hubwagen deploy --dry-run   # in its image
+apiVersion: hubwagen.dev/v1alpha1
+kind: Project
+name: revenue
+
+build:
+  dockerfile: Dockerfile
+  image: ${REVENUE_IMAGE:-ghcr.io/alpaaaca/revenue}
+  args:
+    WORKER_IMAGE: ${HUBWAGEN_WORKER_IMAGE:-ghcr.io/alpaaaca/hubwagen-worker:latest}
+
+pools:
+  - name: default
+    min: 0
+    max: 3
+    lifts: 2

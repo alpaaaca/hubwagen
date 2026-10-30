@@ -12,7 +12,76 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file hubwagen/v1/haul.proto.
  */
 export const file_hubwagen_v1_haul: GenFile = /*@__PURE__*/
-  fileDesc("ChZodWJ3YWdlbi92MS9oYXVsLnByb3RvEgtodWJ3YWdlbi52MSISChBMaXN0UG9vbHNSZXF1ZXN0IjUKEUxpc3RQb29sc1Jlc3BvbnNlEiAKBXBvb2xzGAEgAygLMhEuaHVid2FnZW4udjEuUG9vbCLFAQoEUG9vbBIMCgRuYW1lGAEgASgJEg0KBWRvY2tzGAIgAygJEgsKA21pbhgDIAEoBRILCgNtYXgYBCABKAUSDwoHd29ya2VycxgFIAMoCRIQCghzdGFydGluZxgGIAEoBRIQCghkZWNpc2lvbhgHIAEoCRIuCgpkZWNpZGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIPCgdkZXNpcmVkGAkgASgFEhAKCGV4dGVybmFsGAogASgIIhQKEkxpc3RXb3JrZXJzUmVxdWVzdCI7ChNMaXN0V29ya2Vyc1Jlc3BvbnNlEiQKB3dvcmtlcnMYASADKAsyEy5odWJ3YWdlbi52MS5Xb3JrZXIilQEKBldvcmtlchIKCgJpZBgBIAEoCRIQCghidWlsZF9pZBgCIAEoCRINCgVkb2NrcxgDIAMoCRINCgVraW5kcxgEIAMoCRItCglsYXN0X3NlZW4YBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg8KB3BvbGxpbmcYBiABKAgSDwoHcnVubmluZxgHIAEoBSIWChRMaXN0UGlwZWxpbmVzUmVxdWVzdCJBChVMaXN0UGlwZWxpbmVzUmVzcG9uc2USKAoJcGlwZWxpbmVzGAEgAygLMhUuaHVid2FnZW4udjEuUGlwZWxpbmUiPAoIUGlwZWxpbmUSDAoEbmFtZRgBIAEoCRINCgV0aXRsZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCSKLAQoQTGlzdEhhdWxzUmVxdWVzdBIOCgZ0ZW5hbnQYASABKAkSDAoEbmFtZRgCIAEoCRIQCghzdGF0dXNlcxgDIAMoCRINCgVsaW1pdBgEIAEoBRIRCglwYXJlbnRfaWQYBSABKAkSEQoJYmVmb3JlX2lkGAYgASgJEhIKCndpdGhfbGlmdHMYByABKAgiMAoRQ2FuY2VsSGF1bFJlcXVlc3QSDwoHaGF1bF9pZBgBIAEoCRIKCgJieRgCIAEoCSIUChJDYW5jZWxIYXVsUmVzcG9uc2UiJAoRUmVzdW1lSGF1bFJlcXVlc3QSDwoHaGF1bF9pZBgBIAEoCSIUChJSZXN1bWVIYXVsUmVzcG9uc2UiNQoRTGlzdEhhdWxzUmVzcG9uc2USIAoFaGF1bHMYASADKAsyES5odWJ3YWdlbi52MS5IYXVsIiQKEUdldExvZ2Jvb2tSZXF1ZXN0Eg8KB2hhdWxfaWQYASABKAkiYQoSR2V0TG9nYm9va1Jlc3BvbnNlEh8KBGhhdWwYASABKAsyES5odWJ3YWdlbi52MS5IYXVsEioKB2xvZ2Jvb2sYAiADKAsyGS5odWJ3YWdlbi52MS5Mb2dib29rRXZlbnQiaQoMTG9nYm9va0V2ZW50EgsKA3NlcRgBIAEoAxIMCgR0eXBlGAIgASgJEigKBHRpbWUYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhQKDHBheWxvYWRfanNvbhgEIAEoCSIkChFHZXRIaXN0b3J5UmVxdWVzdBIPCgdoYXVsX2lkGAEgASgJIkAKEkdldEhpc3RvcnlSZXNwb25zZRIqCgdlbnRyaWVzGAEgAygLMhkuaHVid2FnZW4udjEuSGlzdG9yeUVudHJ5Is0BCgxIaXN0b3J5RW50cnkSKAoEdGltZRgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDAoEa2luZBgCIAEoCRILCgNzZXEYAyABKAUSDAoEc3RlcBgEIAEoCRIMCgR0ZXh0GAUgASgJEg4KBmRldGFpbBgGIAEoCRIPCgdoYXVsX2lkGAcgASgJEhEKCWV2ZW50X3NlcRgIIAEoAxISCgpldmVudF90eXBlGAkgASgJEhQKDHBheWxvYWRfanNvbhgKIAEoCSIWChRMaXN0U2NoZWR1bGVzUmVxdWVzdCJzChVMaXN0U2NoZWR1bGVzUmVzcG9uc2USKAoJc2NoZWR1bGVzGAEgAygLMhUuaHVid2FnZW4udjEuU2NoZWR1bGUSMAoNc3Vic2NyaXB0aW9ucxgCIAMoCzIZLmh1YndhZ2VuLnYxLlN1YnNjcmlwdGlvbiK+AQoMU3Vic2NyaXB0aW9uEgwKBGhhdWwYASABKAkSEAoIZGF0YXNldHMYAiADKAkSKwoIZGVib3VuY2UYAyABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SKwoIbWF4X3dhaXQYBCABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SEQoJbWF4X2JhdGNoGAUgASgFEhAKCGJ1aWxkX2lkGAYgASgJEg8KB3dhaXRpbmcYByABKAUi5AEKCFNjaGVkdWxlEgwKBGhhdWwYASABKAkSDAoEY3JvbhgCIAEoCRIQCgh0aW1lem9uZRgDIAEoCRIQCghpbnRlcnZhbBgEIAEoCRIQCghjYXRjaF91cBgFIAEoCRIQCghidWlsZF9pZBgGIAEoCRIqCgZjdXJzb3IYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiwKCG5leHRfcnVuGAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIaChJsYXRlc3RfcGFyYW1zX2pzb24YCSABKAkiSAoRU2lnbmFsSGF1bFJlcXVlc3QSDwoHaGF1bF9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEhQKDHBheWxvYWRfanNvbhgDIAEoCSInChJTaWduYWxIYXVsUmVzcG9uc2USEQoJc2lnbmFsX2lkGAEgASgJImQKEFN0YXJ0SGF1bFJlcXVlc3QSDgoGdGVuYW50GAEgASgJEgwKBG5hbWUYAiABKAkSDAoEZG9jaxgDIAEoCRITCgtwYXJhbXNfanNvbhgEIAEoCRIPCgd0cmlnZ2VyGAUgASgJIiQKEVN0YXJ0SGF1bFJlc3BvbnNlEg8KB2hhdWxfaWQYASABKAkiIQoOR2V0SGF1bFJlcXVlc3QSDwoHaGF1bF9pZBgBIAEoCSIyCg9HZXRIYXVsUmVzcG9uc2USHwoEaGF1bBgBIAEoCzIRLmh1YndhZ2VuLnYxLkhhdWwinQMKBEhhdWwSCgoCaWQYASABKAkSDgoGdGVuYW50GAIgASgJEgwKBG5hbWUYAyABKAkSDgoGc3RhdHVzGAQgASgJEg4KBnJlYXNvbhgFIAEoCRIPCgdtZXNzYWdlGAYgASgJEhMKC3BhcmFtc19qc29uGAcgASgJEhMKC3Jlc3VsdF9qc29uGAggASgJEi4KCmNyZWF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2ZpbmlzaGVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIgCgVsaWZ0cxgLIAMoCzIRLmh1YndhZ2VuLnYxLkxpZnQSEQoJcGFyZW50X2lkGAwgASgJEhQKDGNvbnRpbnVlZF9hcxgNIAEoCRIPCgd0cmlnZ2VyGA4gASgJEiwKC2xpZnRfY291bnRzGA8gASgLMhcuaHVid2FnZW4udjEuTGlmdENvdW50cxIlCgd3YWl0aW5nGBAgASgLMhQuaHVid2FnZW4udjEuV2FpdGluZyK7AQoHV2FpdGluZxIOCgZyZWFzb24YASABKAkSDwoHbWVzc2FnZRgCIAEoCRIMCgRraW5kGAMgASgJEgwKBG5hbWUYBCABKAkSCwoDc2VxGAUgASgFEgwKBGRvY2sYBiABKAkSKQoFc2luY2UYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg8KB3dvcmtlcnMYCCABKAUSDgoGYnVpbGRzGAkgAygJEgwKBHBvb2wYCiABKAkiYQoKTGlmdENvdW50cxINCgV0b3RhbBgBIAEoBRIRCgljb21wbGV0ZWQYAiABKAUSDgoGcmV1c2VkGAMgASgFEg4KBmZhaWxlZBgEIAEoBRIRCgljYW5jZWxsZWQYBSABKAUivQIKBExpZnQSCwoDc2VxGAEgASgFEgwKBG5hbWUYAiABKAkSDgoGc3RhdHVzGAMgASgJEhIKCnJ1bl9yZWFzb24YBCABKAkSDgoGcmV1c2VkGAUgASgIEhAKCGF0dGVtcHRzGAYgASgFEg4KBnBhbGxldBgHIAEoCRIOCgZyZWFzb24YCCABKAkSDwoHbWVzc2FnZRgJIAEoCRIwCgxzY2hlZHVsZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2ZpbmlzaGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgtyZXN1bHRfanNvbhgMIAEoCRINCgVhZnRlchgNIAMoBRIPCgdkYXRhc2V0GA4gASgJEgsKA3doeRgPIAEoCTLEBwoLSGF1bFNlcnZpY2USSgoJU3RhcnRIYXVsEh0uaHVid2FnZW4udjEuU3RhcnRIYXVsUmVxdWVzdBoeLmh1YndhZ2VuLnYxLlN0YXJ0SGF1bFJlc3BvbnNlEkQKB0dldEhhdWwSGy5odWJ3YWdlbi52MS5HZXRIYXVsUmVxdWVzdBocLmh1YndhZ2VuLnYxLkdldEhhdWxSZXNwb25zZRJNCgpTaWduYWxIYXVsEh4uaHVid2FnZW4udjEuU2lnbmFsSGF1bFJlcXVlc3QaHy5odWJ3YWdlbi52MS5TaWduYWxIYXVsUmVzcG9uc2USTQoKQ2FuY2VsSGF1bBIeLmh1YndhZ2VuLnYxLkNhbmNlbEhhdWxSZXF1ZXN0Gh8uaHVid2FnZW4udjEuQ2FuY2VsSGF1bFJlc3BvbnNlEk0KClJlc3VtZUhhdWwSHi5odWJ3YWdlbi52MS5SZXN1bWVIYXVsUmVxdWVzdBofLmh1YndhZ2VuLnYxLlJlc3VtZUhhdWxSZXNwb25zZRJKCglMaXN0SGF1bHMSHS5odWJ3YWdlbi52MS5MaXN0SGF1bHNSZXF1ZXN0Gh4uaHVid2FnZW4udjEuTGlzdEhhdWxzUmVzcG9uc2USTQoKR2V0TG9nYm9vaxIeLmh1YndhZ2VuLnYxLkdldExvZ2Jvb2tSZXF1ZXN0Gh8uaHVid2FnZW4udjEuR2V0TG9nYm9va1Jlc3BvbnNlEk0KCkdldEhpc3RvcnkSHi5odWJ3YWdlbi52MS5HZXRIaXN0b3J5UmVxdWVzdBofLmh1YndhZ2VuLnYxLkdldEhpc3RvcnlSZXNwb25zZRJWCg1MaXN0U2NoZWR1bGVzEiEuaHVid2FnZW4udjEuTGlzdFNjaGVkdWxlc1JlcXVlc3QaIi5odWJ3YWdlbi52MS5MaXN0U2NoZWR1bGVzUmVzcG9uc2USVgoNTGlzdFBpcGVsaW5lcxIhLmh1YndhZ2VuLnYxLkxpc3RQaXBlbGluZXNSZXF1ZXN0GiIuaHVid2FnZW4udjEuTGlzdFBpcGVsaW5lc1Jlc3BvbnNlElAKC0xpc3RXb3JrZXJzEh8uaHVid2FnZW4udjEuTGlzdFdvcmtlcnNSZXF1ZXN0GiAuaHVid2FnZW4udjEuTGlzdFdvcmtlcnNSZXNwb25zZRJKCglMaXN0UG9vbHMSHS5odWJ3YWdlbi52MS5MaXN0UG9vbHNSZXF1ZXN0Gh4uaHVid2FnZW4udjEuTGlzdFBvb2xzUmVzcG9uc2VCQ1pBZ2l0aHViLmNvbS9hbHBlci9odWJ3YWdlbi9pbnRlcm5hbC9hcGkvZ2VuL2h1YndhZ2VuL3YxO2h1YndhZ2VudjFiBnByb3RvMw", [file_google_protobuf_duration, file_google_protobuf_timestamp]);
+  fileDesc("ChZodWJ3YWdlbi92MS9oYXVsLnByb3RvEgtodWJ3YWdlbi52MSIRCg9MaXN0Q29kZVJlcXVlc3QiWgoQTGlzdENvZGVSZXNwb25zZRIgCgVzdGVwcxgBIAMoCzIRLmh1YndhZ2VuLnYxLkNvZGUSJAoJcGlwZWxpbmVzGAIgAygLMhEuaHVid2FnZW4udjEuQ29kZSJvCgRDb2RlEgwKBG5hbWUYASABKAkSFAoMY29kZV92ZXJzaW9uGAIgASgJEhAKCGJ1aWxkX2lkGAMgASgJEjEKDXJlZ2lzdGVyZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIhIKEExpc3RQb29sc1JlcXVlc3QiNQoRTGlzdFBvb2xzUmVzcG9uc2USIAoFcG9vbHMYASADKAsyES5odWJ3YWdlbi52MS5Qb29sIsUBCgRQb29sEgwKBG5hbWUYASABKAkSDQoFZG9ja3MYAiADKAkSCwoDbWluGAMgASgFEgsKA21heBgEIAEoBRIPCgd3b3JrZXJzGAUgAygJEhAKCHN0YXJ0aW5nGAYgASgFEhAKCGRlY2lzaW9uGAcgASgJEi4KCmRlY2lkZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg8KB2Rlc2lyZWQYCSABKAUSEAoIZXh0ZXJuYWwYCiABKAgiFAoSTGlzdFdvcmtlcnNSZXF1ZXN0IjsKE0xpc3RXb3JrZXJzUmVzcG9uc2USJAoHd29ya2VycxgBIAMoCzITLmh1YndhZ2VuLnYxLldvcmtlciKVAQoGV29ya2VyEgoKAmlkGAEgASgJEhAKCGJ1aWxkX2lkGAIgASgJEg0KBWRvY2tzGAMgAygJEg0KBWtpbmRzGAQgAygJEi0KCWxhc3Rfc2VlbhgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDwoHcG9sbGluZxgGIAEoCBIPCgdydW5uaW5nGAcgASgFIhYKFExpc3RQaXBlbGluZXNSZXF1ZXN0IkEKFUxpc3RQaXBlbGluZXNSZXNwb25zZRIoCglwaXBlbGluZXMYASADKAsyFS5odWJ3YWdlbi52MS5QaXBlbGluZSI8CghQaXBlbGluZRIMCgRuYW1lGAEgASgJEg0KBXRpdGxlGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJIosBChBMaXN0SGF1bHNSZXF1ZXN0Eg4KBnRlbmFudBgBIAEoCRIMCgRuYW1lGAIgASgJEhAKCHN0YXR1c2VzGAMgAygJEg0KBWxpbWl0GAQgASgFEhEKCXBhcmVudF9pZBgFIAEoCRIRCgliZWZvcmVfaWQYBiABKAkSEgoKd2l0aF9saWZ0cxgHIAEoCCIwChFDYW5jZWxIYXVsUmVxdWVzdBIPCgdoYXVsX2lkGAEgASgJEgoKAmJ5GAIgASgJIhQKEkNhbmNlbEhhdWxSZXNwb25zZSIkChFSZXN1bWVIYXVsUmVxdWVzdBIPCgdoYXVsX2lkGAEgASgJIhQKElJlc3VtZUhhdWxSZXNwb25zZSI1ChFMaXN0SGF1bHNSZXNwb25zZRIgCgVoYXVscxgBIAMoCzIRLmh1YndhZ2VuLnYxLkhhdWwiJAoRR2V0TG9nYm9va1JlcXVlc3QSDwoHaGF1bF9pZBgBIAEoCSJhChJHZXRMb2dib29rUmVzcG9uc2USHwoEaGF1bBgBIAEoCzIRLmh1YndhZ2VuLnYxLkhhdWwSKgoHbG9nYm9vaxgCIAMoCzIZLmh1YndhZ2VuLnYxLkxvZ2Jvb2tFdmVudCJpCgxMb2dib29rRXZlbnQSCwoDc2VxGAEgASgDEgwKBHR5cGUYAiABKAkSKAoEdGltZRgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFAoMcGF5bG9hZF9qc29uGAQgASgJIiQKEUdldEhpc3RvcnlSZXF1ZXN0Eg8KB2hhdWxfaWQYASABKAkiQAoSR2V0SGlzdG9yeVJlc3BvbnNlEioKB2VudHJpZXMYASADKAsyGS5odWJ3YWdlbi52MS5IaXN0b3J5RW50cnkizQEKDEhpc3RvcnlFbnRyeRIoCgR0aW1lGAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIMCgRraW5kGAIgASgJEgsKA3NlcRgDIAEoBRIMCgRzdGVwGAQgASgJEgwKBHRleHQYBSABKAkSDgoGZGV0YWlsGAYgASgJEg8KB2hhdWxfaWQYByABKAkSEQoJZXZlbnRfc2VxGAggASgDEhIKCmV2ZW50X3R5cGUYCSABKAkSFAoMcGF5bG9hZF9qc29uGAogASgJIhYKFExpc3RTY2hlZHVsZXNSZXF1ZXN0InMKFUxpc3RTY2hlZHVsZXNSZXNwb25zZRIoCglzY2hlZHVsZXMYASADKAsyFS5odWJ3YWdlbi52MS5TY2hlZHVsZRIwCg1zdWJzY3JpcHRpb25zGAIgAygLMhkuaHVid2FnZW4udjEuU3Vic2NyaXB0aW9uIr4BCgxTdWJzY3JpcHRpb24SDAoEaGF1bBgBIAEoCRIQCghkYXRhc2V0cxgCIAMoCRIrCghkZWJvdW5jZRgDIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIrCghtYXhfd2FpdBgEIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIRCgltYXhfYmF0Y2gYBSABKAUSEAoIYnVpbGRfaWQYBiABKAkSDwoHd2FpdGluZxgHIAEoBSLkAQoIU2NoZWR1bGUSDAoEaGF1bBgBIAEoCRIMCgRjcm9uGAIgASgJEhAKCHRpbWV6b25lGAMgASgJEhAKCGludGVydmFsGAQgASgJEhAKCGNhdGNoX3VwGAUgASgJEhAKCGJ1aWxkX2lkGAYgASgJEioKBmN1cnNvchgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLAoIbmV4dF9ydW4YCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhoKEmxhdGVzdF9wYXJhbXNfanNvbhgJIAEoCSJIChFTaWduYWxIYXVsUmVxdWVzdBIPCgdoYXVsX2lkGAEgASgJEgwKBG5hbWUYAiABKAkSFAoMcGF5bG9hZF9qc29uGAMgASgJIicKElNpZ25hbEhhdWxSZXNwb25zZRIRCglzaWduYWxfaWQYASABKAkiZAoQU3RhcnRIYXVsUmVxdWVzdBIOCgZ0ZW5hbnQYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRkb2NrGAMgASgJEhMKC3BhcmFtc19qc29uGAQgASgJEg8KB3RyaWdnZXIYBSABKAkiJAoRU3RhcnRIYXVsUmVzcG9uc2USDwoHaGF1bF9pZBgBIAEoCSIhCg5HZXRIYXVsUmVxdWVzdBIPCgdoYXVsX2lkGAEgASgJIjIKD0dldEhhdWxSZXNwb25zZRIfCgRoYXVsGAEgASgLMhEuaHVid2FnZW4udjEuSGF1bCKdAwoESGF1bBIKCgJpZBgBIAEoCRIOCgZ0ZW5hbnQYAiABKAkSDAoEbmFtZRgDIAEoCRIOCgZzdGF0dXMYBCABKAkSDgoGcmVhc29uGAUgASgJEg8KB21lc3NhZ2UYBiABKAkSEwoLcGFyYW1zX2pzb24YByABKAkSEwoLcmVzdWx0X2pzb24YCCABKAkSLgoKY3JlYXRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoLZmluaXNoZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiAKBWxpZnRzGAsgAygLMhEuaHVid2FnZW4udjEuTGlmdBIRCglwYXJlbnRfaWQYDCABKAkSFAoMY29udGludWVkX2FzGA0gASgJEg8KB3RyaWdnZXIYDiABKAkSLAoLbGlmdF9jb3VudHMYDyABKAsyFy5odWJ3YWdlbi52MS5MaWZ0Q291bnRzEiUKB3dhaXRpbmcYECABKAsyFC5odWJ3YWdlbi52MS5XYWl0aW5nIrsBCgdXYWl0aW5nEg4KBnJlYXNvbhgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEgwKBGtpbmQYAyABKAkSDAoEbmFtZRgEIAEoCRILCgNzZXEYBSABKAUSDAoEZG9jaxgGIAEoCRIpCgVzaW5jZRgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDwoHd29ya2VycxgIIAEoBRIOCgZidWlsZHMYCSADKAkSDAoEcG9vbBgKIAEoCSJhCgpMaWZ0Q291bnRzEg0KBXRvdGFsGAEgASgFEhEKCWNvbXBsZXRlZBgCIAEoBRIOCgZyZXVzZWQYAyABKAUSDgoGZmFpbGVkGAQgASgFEhEKCWNhbmNlbGxlZBgFIAEoBSK9AgoETGlmdBILCgNzZXEYASABKAUSDAoEbmFtZRgCIAEoCRIOCgZzdGF0dXMYAyABKAkSEgoKcnVuX3JlYXNvbhgEIAEoCRIOCgZyZXVzZWQYBSABKAgSEAoIYXR0ZW1wdHMYBiABKAUSDgoGcGFsbGV0GAcgASgJEg4KBnJlYXNvbhgIIAEoCRIPCgdtZXNzYWdlGAkgASgJEjAKDHNjaGVkdWxlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoLZmluaXNoZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhMKC3Jlc3VsdF9qc29uGAwgASgJEg0KBWFmdGVyGA0gAygFEg8KB2RhdGFzZXQYDiABKAkSCwoDd2h5GA8gASgJMo0ICgtIYXVsU2VydmljZRJKCglTdGFydEhhdWwSHS5odWJ3YWdlbi52MS5TdGFydEhhdWxSZXF1ZXN0Gh4uaHVid2FnZW4udjEuU3RhcnRIYXVsUmVzcG9uc2USRAoHR2V0SGF1bBIbLmh1YndhZ2VuLnYxLkdldEhhdWxSZXF1ZXN0GhwuaHVid2FnZW4udjEuR2V0SGF1bFJlc3BvbnNlEk0KClNpZ25hbEhhdWwSHi5odWJ3YWdlbi52MS5TaWduYWxIYXVsUmVxdWVzdBofLmh1YndhZ2VuLnYxLlNpZ25hbEhhdWxSZXNwb25zZRJNCgpDYW5jZWxIYXVsEh4uaHVid2FnZW4udjEuQ2FuY2VsSGF1bFJlcXVlc3QaHy5odWJ3YWdlbi52MS5DYW5jZWxIYXVsUmVzcG9uc2USTQoKUmVzdW1lSGF1bBIeLmh1YndhZ2VuLnYxLlJlc3VtZUhhdWxSZXF1ZXN0Gh8uaHVid2FnZW4udjEuUmVzdW1lSGF1bFJlc3BvbnNlEkoKCUxpc3RIYXVscxIdLmh1YndhZ2VuLnYxLkxpc3RIYXVsc1JlcXVlc3QaHi5odWJ3YWdlbi52MS5MaXN0SGF1bHNSZXNwb25zZRJNCgpHZXRMb2dib29rEh4uaHVid2FnZW4udjEuR2V0TG9nYm9va1JlcXVlc3QaHy5odWJ3YWdlbi52MS5HZXRMb2dib29rUmVzcG9uc2USTQoKR2V0SGlzdG9yeRIeLmh1YndhZ2VuLnYxLkdldEhpc3RvcnlSZXF1ZXN0Gh8uaHVid2FnZW4udjEuR2V0SGlzdG9yeVJlc3BvbnNlElYKDUxpc3RTY2hlZHVsZXMSIS5odWJ3YWdlbi52MS5MaXN0U2NoZWR1bGVzUmVxdWVzdBoiLmh1YndhZ2VuLnYxLkxpc3RTY2hlZHVsZXNSZXNwb25zZRJWCg1MaXN0UGlwZWxpbmVzEiEuaHVid2FnZW4udjEuTGlzdFBpcGVsaW5lc1JlcXVlc3QaIi5odWJ3YWdlbi52MS5MaXN0UGlwZWxpbmVzUmVzcG9uc2USUAoLTGlzdFdvcmtlcnMSHy5odWJ3YWdlbi52MS5MaXN0V29ya2Vyc1JlcXVlc3QaIC5odWJ3YWdlbi52MS5MaXN0V29ya2Vyc1Jlc3BvbnNlEkoKCUxpc3RQb29scxIdLmh1YndhZ2VuLnYxLkxpc3RQb29sc1JlcXVlc3QaHi5odWJ3YWdlbi52MS5MaXN0UG9vbHNSZXNwb25zZRJHCghMaXN0Q29kZRIcLmh1YndhZ2VuLnYxLkxpc3RDb2RlUmVxdWVzdBodLmh1YndhZ2VuLnYxLkxpc3RDb2RlUmVzcG9uc2VCQ1pBZ2l0aHViLmNvbS9hbHBlci9odWJ3YWdlbi9pbnRlcm5hbC9hcGkvZ2VuL2h1YndhZ2VuL3YxO2h1YndhZ2VudjFiBnByb3RvMw", [file_google_protobuf_duration, file_google_protobuf_timestamp]);
+
+/**
+ * @generated from message hubwagen.v1.ListCodeRequest
+ */
+export type ListCodeRequest = Message<"hubwagen.v1.ListCodeRequest"> & {
+};
+
+/**
+ * Describes the message hubwagen.v1.ListCodeRequest.
+ * Use `create(ListCodeRequestSchema)` to create a new message.
+ */
+export const ListCodeRequestSchema: GenMessage<ListCodeRequest> = /*@__PURE__*/
+  messageDesc(file_hubwagen_v1_haul, 0);
+
+/**
+ * @generated from message hubwagen.v1.ListCodeResponse
+ */
+export type ListCodeResponse = Message<"hubwagen.v1.ListCodeResponse"> & {
+  /**
+   * @generated from field: repeated hubwagen.v1.Code steps = 1;
+   */
+  steps: Code[];
+
+  /**
+   * code_version is empty: builds record which pipelines they define.
+   *
+   * @generated from field: repeated hubwagen.v1.Code pipelines = 2;
+   */
+  pipelines: Code[];
+};
+
+/**
+ * Describes the message hubwagen.v1.ListCodeResponse.
+ * Use `create(ListCodeResponseSchema)` to create a new message.
+ */
+export const ListCodeResponseSchema: GenMessage<ListCodeResponse> = /*@__PURE__*/
+  messageDesc(file_hubwagen_v1_haul, 1);
+
+/**
+ * @generated from message hubwagen.v1.Code
+ */
+export type Code = Message<"hubwagen.v1.Code"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string code_version = 2;
+   */
+  codeVersion: string;
+
+  /**
+   * @generated from field: string build_id = 3;
+   */
+  buildId: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp registered_at = 4;
+   */
+  registeredAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message hubwagen.v1.Code.
+ * Use `create(CodeSchema)` to create a new message.
+ */
+export const CodeSchema: GenMessage<Code> = /*@__PURE__*/
+  messageDesc(file_hubwagen_v1_haul, 2);
 
 /**
  * @generated from message hubwagen.v1.ListPoolsRequest
@@ -25,7 +94,7 @@ export type ListPoolsRequest = Message<"hubwagen.v1.ListPoolsRequest"> & {
  * Use `create(ListPoolsRequestSchema)` to create a new message.
  */
 export const ListPoolsRequestSchema: GenMessage<ListPoolsRequest> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 0);
+  messageDesc(file_hubwagen_v1_haul, 3);
 
 /**
  * @generated from message hubwagen.v1.ListPoolsResponse
@@ -42,7 +111,7 @@ export type ListPoolsResponse = Message<"hubwagen.v1.ListPoolsResponse"> & {
  * Use `create(ListPoolsResponseSchema)` to create a new message.
  */
 export const ListPoolsResponseSchema: GenMessage<ListPoolsResponse> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 1);
+  messageDesc(file_hubwagen_v1_haul, 4);
 
 /**
  * @generated from message hubwagen.v1.Pool
@@ -115,7 +184,7 @@ export type Pool = Message<"hubwagen.v1.Pool"> & {
  * Use `create(PoolSchema)` to create a new message.
  */
 export const PoolSchema: GenMessage<Pool> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 2);
+  messageDesc(file_hubwagen_v1_haul, 5);
 
 /**
  * @generated from message hubwagen.v1.ListWorkersRequest
@@ -128,7 +197,7 @@ export type ListWorkersRequest = Message<"hubwagen.v1.ListWorkersRequest"> & {
  * Use `create(ListWorkersRequestSchema)` to create a new message.
  */
 export const ListWorkersRequestSchema: GenMessage<ListWorkersRequest> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 3);
+  messageDesc(file_hubwagen_v1_haul, 6);
 
 /**
  * @generated from message hubwagen.v1.ListWorkersResponse
@@ -145,7 +214,7 @@ export type ListWorkersResponse = Message<"hubwagen.v1.ListWorkersResponse"> & {
  * Use `create(ListWorkersResponseSchema)` to create a new message.
  */
 export const ListWorkersResponseSchema: GenMessage<ListWorkersResponse> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 4);
+  messageDesc(file_hubwagen_v1_haul, 7);
 
 /**
  * @generated from message hubwagen.v1.Worker
@@ -202,7 +271,7 @@ export type Worker = Message<"hubwagen.v1.Worker"> & {
  * Use `create(WorkerSchema)` to create a new message.
  */
 export const WorkerSchema: GenMessage<Worker> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 5);
+  messageDesc(file_hubwagen_v1_haul, 8);
 
 /**
  * @generated from message hubwagen.v1.ListPipelinesRequest
@@ -215,7 +284,7 @@ export type ListPipelinesRequest = Message<"hubwagen.v1.ListPipelinesRequest"> &
  * Use `create(ListPipelinesRequestSchema)` to create a new message.
  */
 export const ListPipelinesRequestSchema: GenMessage<ListPipelinesRequest> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 6);
+  messageDesc(file_hubwagen_v1_haul, 9);
 
 /**
  * @generated from message hubwagen.v1.ListPipelinesResponse
@@ -232,7 +301,7 @@ export type ListPipelinesResponse = Message<"hubwagen.v1.ListPipelinesResponse">
  * Use `create(ListPipelinesResponseSchema)` to create a new message.
  */
 export const ListPipelinesResponseSchema: GenMessage<ListPipelinesResponse> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 7);
+  messageDesc(file_hubwagen_v1_haul, 10);
 
 /**
  * @generated from message hubwagen.v1.Pipeline
@@ -263,7 +332,7 @@ export type Pipeline = Message<"hubwagen.v1.Pipeline"> & {
  * Use `create(PipelineSchema)` to create a new message.
  */
 export const PipelineSchema: GenMessage<Pipeline> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 8);
+  messageDesc(file_hubwagen_v1_haul, 11);
 
 /**
  * @generated from message hubwagen.v1.ListHaulsRequest
@@ -321,7 +390,7 @@ export type ListHaulsRequest = Message<"hubwagen.v1.ListHaulsRequest"> & {
  * Use `create(ListHaulsRequestSchema)` to create a new message.
  */
 export const ListHaulsRequestSchema: GenMessage<ListHaulsRequest> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 9);
+  messageDesc(file_hubwagen_v1_haul, 12);
 
 /**
  * @generated from message hubwagen.v1.CancelHaulRequest
@@ -345,7 +414,7 @@ export type CancelHaulRequest = Message<"hubwagen.v1.CancelHaulRequest"> & {
  * Use `create(CancelHaulRequestSchema)` to create a new message.
  */
 export const CancelHaulRequestSchema: GenMessage<CancelHaulRequest> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 10);
+  messageDesc(file_hubwagen_v1_haul, 13);
 
 /**
  * @generated from message hubwagen.v1.CancelHaulResponse
@@ -358,7 +427,7 @@ export type CancelHaulResponse = Message<"hubwagen.v1.CancelHaulResponse"> & {
  * Use `create(CancelHaulResponseSchema)` to create a new message.
  */
 export const CancelHaulResponseSchema: GenMessage<CancelHaulResponse> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 11);
+  messageDesc(file_hubwagen_v1_haul, 14);
 
 /**
  * @generated from message hubwagen.v1.ResumeHaulRequest
@@ -375,7 +444,7 @@ export type ResumeHaulRequest = Message<"hubwagen.v1.ResumeHaulRequest"> & {
  * Use `create(ResumeHaulRequestSchema)` to create a new message.
  */
 export const ResumeHaulRequestSchema: GenMessage<ResumeHaulRequest> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 12);
+  messageDesc(file_hubwagen_v1_haul, 15);
 
 /**
  * @generated from message hubwagen.v1.ResumeHaulResponse
@@ -388,7 +457,7 @@ export type ResumeHaulResponse = Message<"hubwagen.v1.ResumeHaulResponse"> & {
  * Use `create(ResumeHaulResponseSchema)` to create a new message.
  */
 export const ResumeHaulResponseSchema: GenMessage<ResumeHaulResponse> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 13);
+  messageDesc(file_hubwagen_v1_haul, 16);
 
 /**
  * @generated from message hubwagen.v1.ListHaulsResponse
@@ -405,7 +474,7 @@ export type ListHaulsResponse = Message<"hubwagen.v1.ListHaulsResponse"> & {
  * Use `create(ListHaulsResponseSchema)` to create a new message.
  */
 export const ListHaulsResponseSchema: GenMessage<ListHaulsResponse> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 14);
+  messageDesc(file_hubwagen_v1_haul, 17);
 
 /**
  * @generated from message hubwagen.v1.GetLogbookRequest
@@ -422,7 +491,7 @@ export type GetLogbookRequest = Message<"hubwagen.v1.GetLogbookRequest"> & {
  * Use `create(GetLogbookRequestSchema)` to create a new message.
  */
 export const GetLogbookRequestSchema: GenMessage<GetLogbookRequest> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 15);
+  messageDesc(file_hubwagen_v1_haul, 18);
 
 /**
  * @generated from message hubwagen.v1.GetLogbookResponse
@@ -446,7 +515,7 @@ export type GetLogbookResponse = Message<"hubwagen.v1.GetLogbookResponse"> & {
  * Use `create(GetLogbookResponseSchema)` to create a new message.
  */
 export const GetLogbookResponseSchema: GenMessage<GetLogbookResponse> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 16);
+  messageDesc(file_hubwagen_v1_haul, 19);
 
 /**
  * @generated from message hubwagen.v1.LogbookEvent
@@ -478,7 +547,7 @@ export type LogbookEvent = Message<"hubwagen.v1.LogbookEvent"> & {
  * Use `create(LogbookEventSchema)` to create a new message.
  */
 export const LogbookEventSchema: GenMessage<LogbookEvent> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 17);
+  messageDesc(file_hubwagen_v1_haul, 20);
 
 /**
  * @generated from message hubwagen.v1.GetHistoryRequest
@@ -495,7 +564,7 @@ export type GetHistoryRequest = Message<"hubwagen.v1.GetHistoryRequest"> & {
  * Use `create(GetHistoryRequestSchema)` to create a new message.
  */
 export const GetHistoryRequestSchema: GenMessage<GetHistoryRequest> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 18);
+  messageDesc(file_hubwagen_v1_haul, 21);
 
 /**
  * @generated from message hubwagen.v1.GetHistoryResponse
@@ -512,7 +581,7 @@ export type GetHistoryResponse = Message<"hubwagen.v1.GetHistoryResponse"> & {
  * Use `create(GetHistoryResponseSchema)` to create a new message.
  */
 export const GetHistoryResponseSchema: GenMessage<GetHistoryResponse> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 19);
+  messageDesc(file_hubwagen_v1_haul, 22);
 
 /**
  * HistoryEntry is one event of a haul, told for people (internal/history).
@@ -589,7 +658,7 @@ export type HistoryEntry = Message<"hubwagen.v1.HistoryEntry"> & {
  * Use `create(HistoryEntrySchema)` to create a new message.
  */
 export const HistoryEntrySchema: GenMessage<HistoryEntry> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 20);
+  messageDesc(file_hubwagen_v1_haul, 23);
 
 /**
  * @generated from message hubwagen.v1.ListSchedulesRequest
@@ -602,7 +671,7 @@ export type ListSchedulesRequest = Message<"hubwagen.v1.ListSchedulesRequest"> &
  * Use `create(ListSchedulesRequestSchema)` to create a new message.
  */
 export const ListSchedulesRequestSchema: GenMessage<ListSchedulesRequest> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 21);
+  messageDesc(file_hubwagen_v1_haul, 24);
 
 /**
  * @generated from message hubwagen.v1.ListSchedulesResponse
@@ -624,7 +693,7 @@ export type ListSchedulesResponse = Message<"hubwagen.v1.ListSchedulesResponse">
  * Use `create(ListSchedulesResponseSchema)` to create a new message.
  */
 export const ListSchedulesResponseSchema: GenMessage<ListSchedulesResponse> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 22);
+  messageDesc(file_hubwagen_v1_haul, 25);
 
 /**
  * @generated from message hubwagen.v1.Subscription
@@ -673,7 +742,7 @@ export type Subscription = Message<"hubwagen.v1.Subscription"> & {
  * Use `create(SubscriptionSchema)` to create a new message.
  */
 export const SubscriptionSchema: GenMessage<Subscription> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 23);
+  messageDesc(file_hubwagen_v1_haul, 26);
 
 /**
  * @generated from message hubwagen.v1.Schedule
@@ -739,7 +808,7 @@ export type Schedule = Message<"hubwagen.v1.Schedule"> & {
  * Use `create(ScheduleSchema)` to create a new message.
  */
 export const ScheduleSchema: GenMessage<Schedule> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 24);
+  messageDesc(file_hubwagen_v1_haul, 27);
 
 /**
  * @generated from message hubwagen.v1.SignalHaulRequest
@@ -770,7 +839,7 @@ export type SignalHaulRequest = Message<"hubwagen.v1.SignalHaulRequest"> & {
  * Use `create(SignalHaulRequestSchema)` to create a new message.
  */
 export const SignalHaulRequestSchema: GenMessage<SignalHaulRequest> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 25);
+  messageDesc(file_hubwagen_v1_haul, 28);
 
 /**
  * @generated from message hubwagen.v1.SignalHaulResponse
@@ -787,7 +856,7 @@ export type SignalHaulResponse = Message<"hubwagen.v1.SignalHaulResponse"> & {
  * Use `create(SignalHaulResponseSchema)` to create a new message.
  */
 export const SignalHaulResponseSchema: GenMessage<SignalHaulResponse> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 26);
+  messageDesc(file_hubwagen_v1_haul, 29);
 
 /**
  * @generated from message hubwagen.v1.StartHaulRequest
@@ -832,7 +901,7 @@ export type StartHaulRequest = Message<"hubwagen.v1.StartHaulRequest"> & {
  * Use `create(StartHaulRequestSchema)` to create a new message.
  */
 export const StartHaulRequestSchema: GenMessage<StartHaulRequest> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 27);
+  messageDesc(file_hubwagen_v1_haul, 30);
 
 /**
  * @generated from message hubwagen.v1.StartHaulResponse
@@ -849,7 +918,7 @@ export type StartHaulResponse = Message<"hubwagen.v1.StartHaulResponse"> & {
  * Use `create(StartHaulResponseSchema)` to create a new message.
  */
 export const StartHaulResponseSchema: GenMessage<StartHaulResponse> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 28);
+  messageDesc(file_hubwagen_v1_haul, 31);
 
 /**
  * @generated from message hubwagen.v1.GetHaulRequest
@@ -866,7 +935,7 @@ export type GetHaulRequest = Message<"hubwagen.v1.GetHaulRequest"> & {
  * Use `create(GetHaulRequestSchema)` to create a new message.
  */
 export const GetHaulRequestSchema: GenMessage<GetHaulRequest> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 29);
+  messageDesc(file_hubwagen_v1_haul, 32);
 
 /**
  * @generated from message hubwagen.v1.GetHaulResponse
@@ -883,7 +952,7 @@ export type GetHaulResponse = Message<"hubwagen.v1.GetHaulResponse"> & {
  * Use `create(GetHaulResponseSchema)` to create a new message.
  */
 export const GetHaulResponseSchema: GenMessage<GetHaulResponse> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 30);
+  messageDesc(file_hubwagen_v1_haul, 33);
 
 /**
  * @generated from message hubwagen.v1.Haul
@@ -990,7 +1059,7 @@ export type Haul = Message<"hubwagen.v1.Haul"> & {
  * Use `create(HaulSchema)` to create a new message.
  */
 export const HaulSchema: GenMessage<Haul> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 31);
+  messageDesc(file_hubwagen_v1_haul, 34);
 
 /**
  * Waiting is a haul's queued work and why no worker runs it yet.
@@ -1071,7 +1140,7 @@ export type Waiting = Message<"hubwagen.v1.Waiting"> & {
  * Use `create(WaitingSchema)` to create a new message.
  */
 export const WaitingSchema: GenMessage<Waiting> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 32);
+  messageDesc(file_hubwagen_v1_haul, 35);
 
 /**
  * @generated from message hubwagen.v1.LiftCounts
@@ -1110,7 +1179,7 @@ export type LiftCounts = Message<"hubwagen.v1.LiftCounts"> & {
  * Use `create(LiftCountsSchema)` to create a new message.
  */
 export const LiftCountsSchema: GenMessage<LiftCounts> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 33);
+  messageDesc(file_hubwagen_v1_haul, 36);
 
 /**
  * @generated from message hubwagen.v1.Lift
@@ -1218,7 +1287,7 @@ export type Lift = Message<"hubwagen.v1.Lift"> & {
  * Use `create(LiftSchema)` to create a new message.
  */
 export const LiftSchema: GenMessage<Lift> = /*@__PURE__*/
-  messageDesc(file_hubwagen_v1_haul, 34);
+  messageDesc(file_hubwagen_v1_haul, 37);
 
 /**
  * HaulService is what people and tools call: start hauls and follow them.
@@ -1357,6 +1426,18 @@ export const HaulService: GenService<{
     methodKind: "unary";
     input: typeof ListPoolsRequestSchema;
     output: typeof ListPoolsResponseSchema;
+  },
+  /**
+   * ListCode returns the code the server runs now: each step's code
+   * version and each pipeline, from the newest build that defines it.
+   * hubwagen deploy --dry-run compares a project's build with it.
+   *
+   * @generated from rpc hubwagen.v1.HaulService.ListCode
+   */
+  listCode: {
+    methodKind: "unary";
+    input: typeof ListCodeRequestSchema;
+    output: typeof ListCodeResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_hubwagen_v1_haul, 0);

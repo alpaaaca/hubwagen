@@ -348,3 +348,21 @@ func haulMessage(h state.Haul) *hubwagenv1.Haul {
 	}
 	return out
 }
+
+func (s *HaulServer) ListCode(ctx context.Context, _ *connect.Request[hubwagenv1.ListCodeRequest]) (*connect.Response[hubwagenv1.ListCodeResponse], error) {
+	steps, pipelines, err := s.store.CurrentCode(ctx)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	msg := func(c state.Code) *hubwagenv1.Code {
+		return &hubwagenv1.Code{Name: c.Name, CodeVersion: c.Version, BuildId: c.BuildID, RegisteredAt: timestamppb.New(c.RegisteredAt)}
+	}
+	out := &hubwagenv1.ListCodeResponse{}
+	for _, c := range steps {
+		out.Steps = append(out.Steps, msg(c))
+	}
+	for _, c := range pipelines {
+		out.Pipelines = append(out.Pipelines, msg(c))
+	}
+	return connect.NewResponse(out), nil
+}

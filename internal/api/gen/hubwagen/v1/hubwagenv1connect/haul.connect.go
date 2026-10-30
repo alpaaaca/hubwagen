@@ -59,6 +59,8 @@ const (
 	HaulServiceListWorkersProcedure = "/hubwagen.v1.HaulService/ListWorkers"
 	// HaulServiceListPoolsProcedure is the fully-qualified name of the HaulService's ListPools RPC.
 	HaulServiceListPoolsProcedure = "/hubwagen.v1.HaulService/ListPools"
+	// HaulServiceListCodeProcedure is the fully-qualified name of the HaulService's ListCode RPC.
+	HaulServiceListCodeProcedure = "/hubwagen.v1.HaulService/ListCode"
 )
 
 // HaulServiceClient is a client for the hubwagen.v1.HaulService service.
@@ -98,6 +100,10 @@ type HaulServiceClient interface {
 	// ListPools returns the worker pools the server scales (worker groups
 	// with min below max) and their last scaling decision.
 	ListPools(context.Context, *connect.Request[v1.ListPoolsRequest]) (*connect.Response[v1.ListPoolsResponse], error)
+	// ListCode returns the code the server runs now: each step's code
+	// version and each pipeline, from the newest build that defines it.
+	// hubwagen deploy --dry-run compares a project's build with it.
+	ListCode(context.Context, *connect.Request[v1.ListCodeRequest]) (*connect.Response[v1.ListCodeResponse], error)
 }
 
 // NewHaulServiceClient constructs a client for the hubwagen.v1.HaulService service. By default, it
@@ -183,6 +189,12 @@ func NewHaulServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(haulServiceMethods.ByName("ListPools")),
 			connect.WithClientOptions(opts...),
 		),
+		listCode: connect.NewClient[v1.ListCodeRequest, v1.ListCodeResponse](
+			httpClient,
+			baseURL+HaulServiceListCodeProcedure,
+			connect.WithSchema(haulServiceMethods.ByName("ListCode")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -200,6 +212,7 @@ type haulServiceClient struct {
 	listPipelines *connect.Client[v1.ListPipelinesRequest, v1.ListPipelinesResponse]
 	listWorkers   *connect.Client[v1.ListWorkersRequest, v1.ListWorkersResponse]
 	listPools     *connect.Client[v1.ListPoolsRequest, v1.ListPoolsResponse]
+	listCode      *connect.Client[v1.ListCodeRequest, v1.ListCodeResponse]
 }
 
 // StartHaul calls hubwagen.v1.HaulService.StartHaul.
@@ -262,6 +275,11 @@ func (c *haulServiceClient) ListPools(ctx context.Context, req *connect.Request[
 	return c.listPools.CallUnary(ctx, req)
 }
 
+// ListCode calls hubwagen.v1.HaulService.ListCode.
+func (c *haulServiceClient) ListCode(ctx context.Context, req *connect.Request[v1.ListCodeRequest]) (*connect.Response[v1.ListCodeResponse], error) {
+	return c.listCode.CallUnary(ctx, req)
+}
+
 // HaulServiceHandler is an implementation of the hubwagen.v1.HaulService service.
 type HaulServiceHandler interface {
 	// StartHaul starts a haul and queues its first replay. A haul no
@@ -299,6 +317,10 @@ type HaulServiceHandler interface {
 	// ListPools returns the worker pools the server scales (worker groups
 	// with min below max) and their last scaling decision.
 	ListPools(context.Context, *connect.Request[v1.ListPoolsRequest]) (*connect.Response[v1.ListPoolsResponse], error)
+	// ListCode returns the code the server runs now: each step's code
+	// version and each pipeline, from the newest build that defines it.
+	// hubwagen deploy --dry-run compares a project's build with it.
+	ListCode(context.Context, *connect.Request[v1.ListCodeRequest]) (*connect.Response[v1.ListCodeResponse], error)
 }
 
 // NewHaulServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -380,6 +402,12 @@ func NewHaulServiceHandler(svc HaulServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(haulServiceMethods.ByName("ListPools")),
 		connect.WithHandlerOptions(opts...),
 	)
+	haulServiceListCodeHandler := connect.NewUnaryHandler(
+		HaulServiceListCodeProcedure,
+		svc.ListCode,
+		connect.WithSchema(haulServiceMethods.ByName("ListCode")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/hubwagen.v1.HaulService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case HaulServiceStartHaulProcedure:
@@ -406,6 +434,8 @@ func NewHaulServiceHandler(svc HaulServiceHandler, opts ...connect.HandlerOption
 			haulServiceListWorkersHandler.ServeHTTP(w, r)
 		case HaulServiceListPoolsProcedure:
 			haulServiceListPoolsHandler.ServeHTTP(w, r)
+		case HaulServiceListCodeProcedure:
+			haulServiceListCodeHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -461,4 +491,8 @@ func (UnimplementedHaulServiceHandler) ListWorkers(context.Context, *connect.Req
 
 func (UnimplementedHaulServiceHandler) ListPools(context.Context, *connect.Request[v1.ListPoolsRequest]) (*connect.Response[v1.ListPoolsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("hubwagen.v1.HaulService.ListPools is not implemented"))
+}
+
+func (UnimplementedHaulServiceHandler) ListCode(context.Context, *connect.Request[v1.ListCodeRequest]) (*connect.Response[v1.ListCodeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("hubwagen.v1.HaulService.ListCode is not implemented"))
 }
