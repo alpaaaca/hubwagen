@@ -245,6 +245,40 @@ func TestExternalPools(t *testing.T) {
 	_, err = Parse([]byte("apiVersion: hubwagen.dev/v1alpha1\nkind: Config\nworkers:\n"+
 		"  - {name: a, launcher: external, command: [w]}\n  - {name: b, launcher: docker, command: [w]}\n"), t.TempDir())
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "workers[0]: an external pool's workers are started elsewhere: no command or env")
-	assert.Contains(t, err.Error(), `workers[1].launcher: must be process or external, got "docker"`)
+	assert.Contains(t, err.Error(), "workers[0]: with launcher: external its workers are started elsewhere: no command or env")
+	assert.Contains(t, err.Error(), `workers[1].launcher: must be process, container, kubernetes or external, got "docker"`)
+}
+
+func TestContainerAndKubernetesPools(t *testing.T) {
+	c, err := Parse([]byte(`
+apiVersion: hubwagen.dev/v1alpha1
+kind: Config
+kubernetes: {api_url: "http://127.0.0.1:8001", namespace: jobs}
+workers:
+  - {name: c, launcher: container, image: "ghcr.io/acme/revenue:1", min: 0, max: 2}
+  - {name: k, launcher: kubernetes, deployment: revenue-workers, min: 0, max: 5}
+`), t.TempDir())
+	require.NoError(t, err)
+	assert.False(t, c.Workers[0].External(), "hubwagen runs the containers")
+	assert.True(t, c.Workers[1].External(), "a desired count, applied to the Deployment")
+	assert.Equal(t, Kubernetes{APIURL: "http://127.0.0.1:8001", Namespace: "jobs"}, c.Kubernetes)
+
+	_, err = Parse([]byte(`
+apiVersion: hubwagen.dev/v1alpha1
+kind: Config
+workers:
+  - {name: a, launcher: container, runtime: lxc}
+  - {name: b, launcher: kubernetes}
+  - {name: c, command: [w], image: x, deployment: y}
+`), t.TempDir())
+	require.Error(t, err)
+	for _, want := range []string{
+		"workers[0].image: required with launcher: container",
+		`workers[0].runtime: must be docker or podman, got "lxc"`,
+		"workers[1].deployment: required with launcher: kubernetes",
+		"workers[2]: image, runtime and server_url are for launcher: container",
+		"workers[2]: deployment and namespace are for launcher: kubernetes",
+	} {
+		assert.Contains(t, err.Error(), want)
+	}
 }

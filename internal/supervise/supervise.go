@@ -25,6 +25,9 @@ type Process struct {
 	Command []string // program and arguments
 	Dir     string
 	Env     []string // the whole environment
+	// Cleanup, if set, runs before each start and after each exit, e.g.
+	// removing a container the process's command left behind.
+	Cleanup []string
 }
 
 type Options struct {
@@ -166,6 +169,8 @@ func keep(ctx context.Context, p Process, o Options, out *lockedWriter) {
 }
 
 func runOnce(ctx context.Context, p Process, o Options, out *lockedWriter) error {
+	cleanup(p, out)
+	defer cleanup(p, out)
 	cmd := exec.CommandContext(ctx, p.Command[0], p.Command[1:]...)
 	cmd.Dir = p.Dir
 	cmd.Env = p.Env
@@ -197,6 +202,20 @@ func runOnce(ctx context.Context, p Process, o Options, out *lockedWriter) error
 	// Whatever is left of the group (children the process started) goes too.
 	_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	return err
+}
+
+// cleanup runs p's Cleanup, if any, whether or not the group is stopping.
+func cleanup(p Process, out *lockedWriter) {
+	if len(p.Cleanup) == 0 {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, p.Cleanup[0], p.Cleanup[1:]...)
+	cmd.Env = p.Env
+	if b, err := cmd.CombinedOutput(); err != nil {
+		out.note(p.ID, fmt.Sprintf("cleanup: %v: %s", err, bytes.TrimSpace(b)))
+	}
 }
 
 func exitText(err error) string {

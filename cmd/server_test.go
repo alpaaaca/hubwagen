@@ -3,11 +3,14 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -38,10 +41,17 @@ func runServerCmd(t *testing.T, out string, args ...string) (string, <-chan erro
 // (YAML lines indented for it).
 func runServerCmdWith(t *testing.T, out, group string, args ...string) (string, <-chan error) {
 	t.Helper()
-	dir := t.TempDir()
 	listen := freeListen(t)
 	script := fmt.Sprintf(`trap 'echo stopped >> %[1]s; exit 0' TERM; echo "$HUBWAGEN_SERVER $HUBWAGEN_WORKER_ID $HUBWAGEN_DOCKS $HUBWAGEN_LIFTS" >> %[1]s; echo hello; while :; do sleep 0.05; done`, out)
-	cfg := fmt.Sprintf("apiVersion: hubwagen.dev/v1alpha1\nkind: Config\ndata_dir: data\nserver:\n  listen: %s\nworkers:\n  - name: sh\n    command: [/bin/sh, -c, %q]\n%s", listen, script, group)
+	return listen, runServerConfig(t, listen, fmt.Sprintf("workers:\n  - name: sh\n    command: [/bin/sh, -c, %q]\n%s", script, group), args...)
+}
+
+// runServerConfig runs `hubwagen server` on listen with rest (YAML) after
+// the config's header, until healthy.
+func runServerConfig(t *testing.T, listen, rest string, args ...string) <-chan error {
+	t.Helper()
+	dir := t.TempDir()
+	cfg := fmt.Sprintf("apiVersion: hubwagen.dev/v1alpha1\nkind: Config\ndata_dir: data\nserver:\n  listen: %s\n%s", listen, rest)
 	path := filepath.Join(dir, "hubwagen.yaml")
 	require.NoError(t, os.WriteFile(path, []byte(cfg), 0o644))
 	noWorkers = false
@@ -56,7 +66,7 @@ func runServerCmdWith(t *testing.T, out, group string, args ...string) (string, 
 		res.Body.Close()
 		return res.StatusCode == http.StatusOK
 	}, 10*time.Second, 20*time.Millisecond)
-	return listen, done
+	return done
 }
 
 func stopServerCmd(t *testing.T, done <-chan error) {
@@ -98,4 +108,43 @@ func TestServerStartsAScaledPoolAtItsMin(t *testing.T) {
 	time.Sleep(3 * time.Second) // a scaler pass: nothing waits, so no more start
 	assert.Equal(t, "http://"+listen+" sh-1 gpu,default 2\n", read())
 	stopServerCmd(t, done)
+}
+
+func TestServerScalesAKubernetesDeployment(t *testing.T) {
+	var mu sync.Mutex
+	var patches []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		mu.Lock()
+		patches = append(patches, r.Method+" "+r.URL.Path+" "+string(b))
+		mu.Unlock()
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer api.Close()
+	done := runServerConfig(t, freeListen(t), fmt.Sprintf(
+		"kubernetes: {api_url: %q, namespace: jobs}\nworkers:\n  - {name: k8s, launcher: kubernetes, deployment: revenue-workers, min: 1, max: 4}\n", api.URL))
+	require.Eventually(t, func() bool { mu.Lock(); defer mu.Unlock(); return len(patches) > 0 }, 10*time.Second, 20*time.Millisecond)
+	stopServerCmd(t, done)
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, `PATCH /apis/apps/v1/namespaces/jobs/deployments/revenue-workers/scale {"spec":{"replicas":1}}`, patches[0], "min")
+}
+
+func TestServerRunsAContainerPool(t *testing.T) {
+	bin, logf := t.TempDir(), filepath.Join(t.TempDir(), "docker.log")
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "docker"), []byte(`#!/bin/sh
+case "$1" in
+run) echo "run $HUBWAGEN_SERVER $HUBWAGEN_WORKER_ID $HUBWAGEN_DATA | $*" >> `+logf+`
+     trap 'exit 0' TERM; while :; do sleep 0.05; done ;;
+esac
+`), 0o755))
+	t.Setenv("PATH", bin+":"+os.Getenv("PATH"))
+	listen := freeListen(t)
+	done := runServerConfig(t, listen, "workers:\n  - {name: c, launcher: container, runtime: docker, image: acme/revenue:1, min: 1, max: 2}\n")
+	read := func() string { b, _ := os.ReadFile(logf); return string(b) }
+	require.Eventually(t, func() bool { return read() != "" }, 10*time.Second, 20*time.Millisecond)
+	stopServerCmd(t, done)
+	_, port, _ := net.SplitHostPort(listen)
+	assert.True(t, strings.HasPrefix(read(), "run http://host.docker.internal:"+port+" c-1 remote | run --rm --name hubwagen-c-1 "), read())
+	assert.True(t, strings.HasSuffix(read(), " acme/revenue:1\n"), read())
 }

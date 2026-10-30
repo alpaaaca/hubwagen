@@ -260,3 +260,33 @@ func TestAnExternalPoolDoesntCountAProcessPoolsWorkers(t *testing.T) {
 	assert.Equal(t, []string{"py-1"}, e.pool("py").Workers)
 	assert.Empty(t, e.pool("k8s").Workers)
 }
+
+func TestAKubernetesPoolAppliesItsDesiredCount(t *testing.T) {
+	e := newEnv(t)
+	var applied []int
+	fail := true
+	k8s := Pool{Name: "k8s", Docks: []string{core.DefaultDock}, Lifts: 1, Min: 1, Max: 5, IdleAfter: time.Minute, External: true,
+		Apply: func(_ context.Context, n int) error {
+			applied = append(applied, n)
+			if fail {
+				return fmt.Errorf("forbidden")
+			}
+			return nil
+		}}
+	s := e.scaler(k8s)
+	e.tick(s) // min: 1, but the API refuses
+	fail = false
+	e.tick(s) // tried again
+	e.tick(s) // unchanged: not sent again
+	// A pod takes a run, which asks for 3 steps: it and 3 more.
+	e.startRun()
+	task := e.take("pod-a")
+	require.NoError(t, e.core.CompleteHaulTask(ctx, core.HaulTaskResult{TaskID: task.ID, BuildID: "b1", Commands: []core.Command{
+		{Seq: 1, Kind: core.CommandLift, Name: "load", Args: json.RawMessage(`1`)},
+		{Seq: 2, Kind: core.CommandLift, Name: "load", Args: json.RawMessage(`2`)},
+		{Seq: 3, Kind: core.CommandLift, Name: "load", Args: json.RawMessage(`3`)},
+	}}))
+	e.tick(s)
+	assert.Equal(t, []int{1, 1, 4}, applied, "min, its retry, then pod-a and one per waiting step")
+	assert.Equal(t, 4, e.pool("k8s").Desired)
+}

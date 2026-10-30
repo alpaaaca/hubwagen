@@ -99,7 +99,10 @@ func runDev(cmd *cobra.Command, _ []string) error {
 	groups := 0
 	if !noWorkers {
 		// dev prints what lifts print, from the server: workers needn't echo it.
-		groups = startWorkers(workersCtx, g, cfg, e.Core, config.ServerURL(e.APIAddr), slog.Default(), "HUBWAGEN_ECHO_LOGS=0")
+		if groups, err = startWorkers(workersCtx, g, cfg, e.Core, config.ServerURL(e.APIAddr), slog.Default(), "HUBWAGEN_ECHO_LOGS=0"); err != nil {
+			stopWorkers() // it started none
+			return err
+		}
 	}
 	go func() {
 		defer close(workersDone)

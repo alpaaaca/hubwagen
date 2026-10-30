@@ -302,6 +302,11 @@ each is one PR:
    groups are started by something else; the server publishes how many
    workers each wants at `GET /v1/pools/<name>`, for KEDA's `metrics-api`
    trigger or an HPA.
+   ✅ **Container and Kubernetes pools** (worker-pools step 4):
+   `launcher: container` runs workers as `docker`/`podman run` of an
+   image, scaled like processes; `launcher: kubernetes` sets a
+   Deployment's replicas through the API (service account or `kubectl
+   proxy`), from the same desired count.
    ✅ **Variables in `hubwagen.yaml`**: `${NAME}` and `${NAME:-default}`
    from the environment, so one committed config serves every machine
    (bucket, port, paths); an unset `${NAME}` is an error with its line.
@@ -403,7 +408,7 @@ Roughly in order of expected need:
 | dbt integration | One lift per project, one pallet per model | Later |
 | Catalog interoperability | OpenLineage export first; Iceberg REST catalog later, if at all | Later |
 | Failover | Nodes that supervise workers and can lead; bucket lease + Litestream first, embedded Raft if no-loss is needed ([failover.md](failover.md)) | Failover |
-| Worker pools | The leader starts and scales workers per pool (`min`/`max`, docks, capacity) from queued work; `hubwagen server` supervises `workers:` (step 1, done); pools of processes with `min`/`max` (step 2, done); desired counts for KEDA (step 3, done) ([worker-pools.md](worker-pools.md)) | Before production use |
+| Worker pools | The leader starts and scales workers per pool (`min`/`max`, docks, capacity) from queued work; `hubwagen server` supervises `workers:` (step 1, done); pools of processes with `min`/`max` (step 2, done); desired counts for KEDA (step 3, done); container and Kubernetes launchers (step 4, done) ([worker-pools.md](worker-pools.md)) | Before production use |
 | `standalone` profile | Decided: no separate profile; `hubwagen server` runs the single-node server (no auth yet) | Done |
 | Load target for one leader | 100 lift transitions/s sustained, 2,000 running lifts | S3 |
 | Licence and distribution | Open | Before first release |
