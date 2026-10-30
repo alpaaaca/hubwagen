@@ -16,10 +16,10 @@ import (
 )
 
 var (
-	dataDir   string
-	devListen string
-	noWorkers bool
-	devEvents bool
+	dataDir    string
+	listenAddr string
+	noWorkers  bool
+	devEvents  bool
 )
 
 var devCmd = &cobra.Command{
@@ -52,7 +52,7 @@ Only one process can use a data directory at a time.`,
 
 func init() {
 	devCmd.Flags().StringVar(&dataDir, "data-dir", config.DefaultDataDir, "directory for the server's state, logbooks and pallets (default: from the config)")
-	devCmd.Flags().StringVar(&devListen, "listen", config.DefaultListen, "address to serve the API on (default: from the config)")
+	devCmd.Flags().StringVar(&listenAddr, "listen", config.DefaultListen, "address to serve the API on (default: from the config)")
 	devCmd.Flags().BoolVar(&noWorkers, "no-workers", false, "don't start the workers from the config")
 	devCmd.Flags().BoolVar(&devEvents, "events", false, "print the engine's events (lifts scheduled, dispatched, ...) instead of runs, for debugging hubwagen")
 	addConfigFlag(devCmd)

@@ -148,17 +148,17 @@ reused, so only the invalid ones run.
 }
 
 func init() {
-	invalidateCmd.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev serves it)")
+	invalidateCmd.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev or hubwagen server)")
 	invalidateCmd.Flags().StringVar(&invalidateReason, "reason", "", "why the data is bad (required)")
 	invalidateCmd.Flags().BoolVar(&invalidateDryRun, "dry-run", false, "only show what would be marked")
 	invalidateCmd.Flags().BoolVarP(&invalidateYes, "yes", "y", false, "don't ask")
 	palletCmd.AddCommand(invalidateCmd)
-	gcCmd.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev serves it)")
+	gcCmd.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev or hubwagen server)")
 	gcCmd.Flags().BoolVar(&gcDryRun, "dry-run", false, "only show what would expire")
 	rootCmd.AddCommand(gcCmd)
 
 	for _, c := range []*cobra.Command{datasetsCmd, palletsCmd, palletCmd, staleCmd} {
-		c.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev serves it)")
+		c.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev or hubwagen server)")
 		if c != palletCmd {
 			c.Flags().StringVar(&catalogTenant, "tenant", "default", "tenant")
 		}

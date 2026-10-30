@@ -1,11 +1,12 @@
-// Package devmode wires the server into one process for the dev profile:
-// the state store and a file:// bucket under one data directory, the core,
-// and the API (worker and haul services).
+// Package server wires the server into one process, for `hubwagen server`
+// and `hubwagen dev`: the state store, a file:// bucket and the run logs
+// under one data directory, the core, and the API (the Connect services,
+// the web UI and /healthz).
 //
 // One process owns a data directory at a time; a lock file enforces that, so
-// a second `hubwagen dev` on the same directory fails with a clear message
-// instead of fencing the first one out.
-package devmode
+// a second server on the same directory fails with a clear message instead
+// of fencing the first one out.
+package server
 
 import (
 	"context"
@@ -16,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -39,8 +41,7 @@ type Config struct {
 	Logger *slog.Logger
 }
 
-// HeartbeatTimeout is how long a worker's task survives without a heartbeat
-// in dev mode.
+// HeartbeatTimeout is how long a worker's task survives without a heartbeat.
 const HeartbeatTimeout = time.Minute
 
 type Engine struct {
@@ -52,11 +53,12 @@ type Engine struct {
 	// APIAddr is the API's address, if it is served.
 	APIAddr string
 
-	api    *http.Server
-	lock   *os.File
-	cancel context.CancelFunc
-	done   chan error
-	closed bool
+	api     *http.Server
+	lock    *os.File
+	cancel  context.CancelFunc
+	done    chan error
+	stopped atomic.Bool // the core has stopped
+	closed  bool
 }
 
 // ErrLocked means another process is using the data directory.
@@ -109,7 +111,11 @@ func Start(ctx context.Context, cfg Config) (*Engine, error) {
 	runCtx, cancel := context.WithCancel(context.Background())
 	e.cancel = cancel
 	e.done = make(chan error, 1)
-	go func() { e.done <- e.Core.Run(runCtx) }()
+	go func() {
+		err := e.Core.Run(runCtx)
+		e.stopped.Store(true)
+		e.done <- err
+	}()
 	if err := e.Core.Barrier(ctx); err != nil {
 		e.Close()
 		return nil, fmt.Errorf("starting core: %w", err)
@@ -136,6 +142,7 @@ func (e *Engine) serveAPI(addr string, log *slog.Logger) error {
 	mux.Handle(path, h)
 	path, h = api.NewLogHandler(e.Store, e.Logs)
 	mux.Handle(path, h)
+	mux.HandleFunc("GET /healthz", e.health)
 	mux.Handle("/", webui.Handler()) // the Connect services' paths above are more specific
 	path, h = api.NewCatalogHandler(e.Core, e.Store, pallet.NewStore(e.Bucket, layout.New(e.Bucket.Base())))
 	mux.Handle(path, h)
@@ -147,6 +154,19 @@ func (e *Engine) serveAPI(addr string, log *slog.Logger) error {
 		}
 	}()
 	return nil
+}
+
+// health answers /healthz: 200 while the core runs, 503 once it has
+// stopped (a failed commit, or shutting down), for a service manager or a
+// load balancer to check.
+func (e *Engine) health(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	if e.stopped.Load() {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		fmt.Fprintln(w, "stopped")
+		return
+	}
+	fmt.Fprintln(w, "ok")
 }
 
 // Done is closed-with-error when the core stops on its own (a failed commit).
@@ -190,7 +210,7 @@ func lockDir(dir string) (*os.File, error) {
 	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		f.Close()
 		if errors.Is(err, syscall.EWOULDBLOCK) {
-			return nil, fmt.Errorf("%w: %s (is `hubwagen dev` running there?)", ErrLocked, dir)
+			return nil, fmt.Errorf("%w: %s (is `hubwagen dev` or `hubwagen server` running there?)", ErrLocked, dir)
 		}
 		return nil, err
 	}

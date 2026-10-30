@@ -274,6 +274,13 @@ each is one PR:
    web UI (times, run history and log clocks, intervals in inputs), the
    CLI, the server's and the worker's logs. Schedules default to UTC (the
    example's `nightly` too); a `timezone` still sets when a cron fires.
+   ✅ **`hubwagen server`**, added to this milestone: the server of
+   `hubwagen dev` on its own, for a service manager: no workers (they run
+   with `hubwagen workers` or the service manager), no console, logs only
+   (`--log-format json`), `GET /healthz`, SIGTERM to stop, an error exit
+   if the core stops. The wiring moved from `internal/devmode` to
+   `internal/server`. No authentication yet: it warns when it listens
+   beyond loopback.
 7. **Web UI: catalog**: datasets, partitions and pallets with stale and
    invalid marked, lineage up and down as a graph, a pallet's files, and
    invalidating from the UI (with the same dry run first);
@@ -306,7 +313,8 @@ Roughly in order of expected need:
 - Object-store buckets (`gs://`, `s3://`) and warehouse/table-format adapters.
 - Pod lifts: local containers in single-node mode, Kubernetes Jobs in a
   cluster (starting from the v1 task contract).
-- Auth, tenants and per-dock budgets; Litestream replication and failover
+- Auth (tokens for workers and users, `server.auth`; `hubwagen server` warns
+  until then), tenants and per-dock budgets; Litestream replication and failover
   (design: [failover.md](failover.md)).
 - `hubwagen deploy --dry-run` (rebuild preview), `hubwagen verify`,
   `keep_fresh`, data modes, build pinning.
@@ -333,6 +341,6 @@ Roughly in order of expected need:
 | dbt integration | One lift per project, one pallet per model | Later |
 | Catalog interoperability | OpenLineage export first; Iceberg REST catalog later, if at all | Later |
 | Failover | Nodes that supervise workers and can lead; bucket lease + Litestream first, embedded Raft if no-loss is needed ([failover.md](failover.md)) | Failover |
-| `standalone` profile | Single-node mode covers it; revisit with auth and multi-host | Later |
+| `standalone` profile | Decided: no separate profile; `hubwagen server` runs the single-node server (no auth yet) | Done |
 | Load target for one leader | 100 lift transitions/s sustained, 2,000 running lifts | S3 |
 | Licence and distribution | Open | Before first release |

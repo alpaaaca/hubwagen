@@ -689,7 +689,10 @@ $ hubwagen start daily_revenue --day 2026-10-24
 $ pytest                                      # hauls against scripted results: hubwagen.testing.run
 ```
 
-Single-node mode is also a supported production setup. Because hauls are
+Single-node mode is also a supported production setup: `hubwagen server`
+runs the same server as dev without its workers and console, under a
+service manager, with `/healthz` and JSON logs; workers run next to it
+([config.md](config.md)). Because hauls are
 deterministic, a test scripts lift results and signals and asserts on the
 lifts called and their order (`hubwagen.testing.run`, which plays the
 server in memory); `python -m hubwagen.testing --replay <haul-id>` replays
@@ -726,8 +729,8 @@ avoids choices that block it.
   Cassandra/ScyllaDB for logbooks only if Postgres is outgrown; closed
   logbooks as Parquet in the bucket.
 - **Profiles.** v1 planned `dev`, `standalone` and `kubernetes`. v2 commits to
-  dev and single-node first; whether `standalone` survives as a separate
-  profile is an open decision in [roadmap.md](roadmap.md).
+  dev and single-node first; `standalone` isn't a separate profile:
+  `hubwagen server` is the single-node server.
 
 ## Comparison
 
