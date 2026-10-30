@@ -1,4 +1,5 @@
-# hubwagen dev reads this: one server and three worker processes.
+# One server and three worker processes, for hubwagen dev (and hubwagen
+# server, the same with logs only, as a service):
 #   ./hubwagen dev --config pipelines/examples/revenue/hubwagen.yaml
 # Relative paths are relative to this file.
 apiVersion: hubwagen.dev/v1alpha1

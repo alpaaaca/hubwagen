@@ -294,6 +294,9 @@ each is one PR:
    UI shows it on the run (with the workers) and in run lists;
    `hubwagen start --wait`, `replay` and `hubwagen dev` print it once a
    run has waited a few seconds.
+   ✅ **Variables in `hubwagen.yaml`**: `${NAME}` and `${NAME:-default}`
+   from the environment, so one committed config serves every machine
+   (bucket, port, paths); an unset `${NAME}` is an error with its line.
 7. **Web UI: catalog**: datasets, partitions and pallets with stale and
    invalid marked, lineage up and down as a graph, a pallet's files, and
    invalidating from the UI (with the same dry run first);
