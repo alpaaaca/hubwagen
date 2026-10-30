@@ -1,30 +1,22 @@
 # Container images: the server (Dockerfile) and the worker base
-# (sdk/python/Dockerfile), for linux/amd64 and linux/arm64.
+# (sdk/python/Dockerfile), for linux/amd64 and linux/arm64. Built only
+# when asked, never on every commit:
 #
-# - Pull requests: build (amd64 only), push nothing: a broken Dockerfile
-#   shows in the PR.
-# - main: push :main, :latest and :sha-<commit>.
-# - Tags v1.2.3: push :1.2.3 and :1.2.
+# - A pull request labelled "build": push :pr-<number> and :sha-<commit>,
+#   again on each new commit while the label is on.
+# - A published GitHub release (tag v1.2.3): push :1.2.3, :1.2 and :latest.
+# - By hand (Actions > images > Run workflow): push :<branch> and
+#   :sha-<commit>.
 #
 # To ghcr.io/<owner>/hubwagen and ghcr.io/<owner>/hubwagen-worker. A new
 # GHCR package is private: make it public in the package's settings once.
 name: images
 
 on:
-  push:
-    branches: [main]
-    tags: ["v*"]
   pull_request:
-    paths:
-      - Dockerfile
-      - .dockerignore
-      - deploy/hubwagen.yaml
-      - sdk/python/**
-      - go.mod
-      - go.sum
-      - "**.go"
-      - ui/**
-      - .github/workflows/images.yml
+    types: [labeled, synchronize, reopened]
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -38,6 +30,13 @@ concurrency:
 jobs:
   image:
     name: ${{ matrix.name }}
+    # Pull requests: only labelled "build" (and for "labeled", only when
+    # that label was the one added); not from forks, which can't push.
+    if: >-
+      github.event_name != 'pull_request' ||
+      (contains(github.event.pull_request.labels.*.name, 'build') &&
+       (github.event.action != 'labeled' || github.event.label.name == 'build') &&
+       github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -56,7 +55,6 @@ jobs:
       - uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -69,19 +67,19 @@ jobs:
           images: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
           flavor: latest=false
           tags: |
-            type=ref,event=branch
             type=ref,event=pr
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch,enable=${{ github.event_name == 'workflow_dispatch' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
             type=sha,prefix=sha-
 
       - uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.file }}
-          platforms: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
-          push: ${{ github.event_name != 'pull_request' }}
+          platforms: linux/amd64,linux/arm64
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |

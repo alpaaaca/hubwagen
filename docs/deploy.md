@@ -22,17 +22,22 @@ make images CONTAINER=podman # docker is the default when installed
 [.github/workflows/images.yml](../.github/workflows/images.yml) builds the
 server and worker base images for `linux/amd64` and `linux/arm64` and
 pushes them to `ghcr.io/alpaaaca/hubwagen` and
-`ghcr.io/alpaaaca/hubwagen-worker`:
+`ghcr.io/alpaaaca/hubwagen-worker`, only when asked, never on every
+commit:
 
-| Pushed on | Tags |
+| When | Tags |
 |---|---|
-| `main` | `main`, `latest`, `sha-<commit>` |
-| a tag `v1.2.3` | `1.2.3`, `1.2` |
-| a pull request | none: built for amd64 only, to catch a broken Dockerfile |
+| a pull request gets the label `build` (and each new commit while it has it) | `pr-<number>`, `sha-<commit>` |
+| a GitHub release `v1.2.3` is published | `1.2.3`, `1.2`, `latest` |
+| by hand: Actions → images → Run workflow, on a branch | `<branch>`, `sha-<commit>` |
+
+To try a pull request's images: label it `build`, then
+`helm upgrade … --set image.tag=pr-123`. Remove the label to stop
+rebuilding. Pull requests from forks are never built (they can't push).
 
 The Helm chart's default `image.tag` is its `appVersion` (`0.1.0`), which
-exists once `v0.1.0` is tagged; until then set `image.tag: main` (or
-`latest`). The server image cross-compiles (`--platform=$BUILDPLATFORM`),
+exists once the release `v0.1.0` is published; until then use a `pr-…`
+image or run the workflow by hand. The server image cross-compiles (`--platform=$BUILDPLATFORM`),
 so arm64 needs no emulation; the worker image's arm64 build runs `pip`
 under QEMU. GHCR makes a new package private: make both public in their
 package settings once, or give the cluster a pull secret.
