@@ -29,8 +29,9 @@ func TestContainerServerURL(t *testing.T) {
 func TestContainerCommand(t *testing.T) {
 	w := config.Worker{Name: "py", Launcher: config.LauncherContainer, Runtime: "docker", Image: "acme/revenue:1",
 		Command: []string{"python3", "-m", "hubwagen.worker"}, Dir: "/srv"}
-	p := Container(w, "py-2", "http://127.0.0.1:7070", []string{"HUBWAGEN_WORKER_ID=py-2", "SECRET=s3cr3t"})
+	p := Container(w, "py-2", "http://127.0.0.1:7070", "/srv/.hubwagen", []string{"HUBWAGEN_WORKER_ID=py-2", "SECRET=s3cr3t"})
 	assert.Equal(t, []string{"docker", "run", "--rm", "--name", "hubwagen-py-2", "--label", "hubwagen.pool=py",
+		"--label", "hubwagen.data_dir=/srv/.hubwagen",
 		"--add-host=host.docker.internal:host-gateway",
 		"-e", "HUBWAGEN_DATA", "-e", "HUBWAGEN_SERVER", "-e", "HUBWAGEN_WORKER_ID", "-e", "SECRET",
 		"acme/revenue:1", "python3", "-m", "hubwagen.worker"}, p.Command)
@@ -59,7 +60,7 @@ esac
 	w := config.Worker{Name: "py", Launcher: config.LauncherContainer, Runtime: "docker", Image: "img", Dir: t.TempDir()}
 	ctx, cancel := context.WithCancel(context.Background())
 	g := supervise.NewGroup(ctx, supervise.Options{Out: io.Discard})
-	g.Start(Container(w, "py-1", "http://127.0.0.1:7070", []string{"HUBWAGEN_WORKER_ID=py-1"}))
+	g.Start(Container(w, "py-1", "http://127.0.0.1:7070", "/data", []string{"HUBWAGEN_WORKER_ID=py-1"}))
 	read := func() string { b, _ := os.ReadFile(logf); return string(b) }
 	require.Eventually(t, func() bool { return strings.Contains(read(), "run ") }, 5*time.Second, 10*time.Millisecond)
 	g.Stop("py-1")
@@ -72,4 +73,21 @@ esac
 	assert.True(t, strings.HasSuffix(lines[1], "| http://host.docker.internal:7070 py-1"), lines[1])
 	assert.Equal(t, "term", lines[2], "SIGTERM reaches the runtime, which passes it on")
 	assert.Equal(t, "rm hubwagen-py-1", lines[3])
+}
+
+func TestRemoveLeftovers(t *testing.T) {
+	bin, logf := t.TempDir(), filepath.Join(t.TempDir(), "docker.log")
+	script := `#!/bin/sh
+echo "$*" >> ` + logf + `
+case "$1" in
+ps) echo abc123; echo def456 ;;
+esac
+`
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "docker"), []byte(script), 0o755))
+	t.Setenv("PATH", bin+":"+os.Getenv("PATH"))
+	n, err := RemoveLeftovers(context.Background(), config.Worker{Name: "py", Runtime: "docker"}, "/data")
+	require.NoError(t, err)
+	assert.Equal(t, 2, n)
+	b, _ := os.ReadFile(logf)
+	assert.Equal(t, "ps -aq --filter label=hubwagen.pool=py --filter label=hubwagen.data_dir=/data\nrm -f abc123 def456\n", string(b))
 }
