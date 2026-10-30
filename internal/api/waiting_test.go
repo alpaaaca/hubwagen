@@ -1,6 +1,7 @@
 package api
 
 import (
+	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -94,4 +95,30 @@ func TestListPools(t *testing.T) {
 	assert.Equal(t, []any{"py", int32(3), []string{"py-1"}, int32(1), "started py-1: 1 run waits on default"},
 		[]any{p.Name, p.Max, p.Workers, p.Starting, p.Decision})
 	assert.Equal(t, at, p.DecidedAt.AsTime())
+}
+
+func TestPoolsAsJSON(t *testing.T) {
+	s := start(t)
+	srv := httptestServer(t, PoolsHandler(s.core))
+	at := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
+	require.NoError(t, s.core.SetPools(ctx, []core.PoolStatus{
+		{Name: "py", Docks: []string{"default"}, Max: 3, Workers: []string{"py-1"}, Desired: 1},
+		{Name: "gpu", Docks: []string{"gpu"}, Max: 4, Desired: 2, External: true, Decision: "wants 2 workers (was 0): 3 steps wait on gpu", DecidedAt: at},
+	}))
+	get := func(path string) (int, string) {
+		res, err := http.Get(srv + path)
+		require.NoError(t, err)
+		defer res.Body.Close()
+		b, _ := io.ReadAll(res.Body)
+		return res.StatusCode, string(b)
+	}
+	code, body := get("/v1/pools/gpu")
+	assert.Equal(t, http.StatusOK, code)
+	assert.JSONEq(t, `{"name":"gpu","launcher":"external","docks":["gpu"],"min":0,"max":4,"desired":2,"workers":0,
+		"decision":"wants 2 workers (was 0): 3 steps wait on gpu","decided_at":"2026-10-30T12:00:00Z"}`, body)
+	code, body = get("/v1/pools")
+	assert.Equal(t, http.StatusOK, code)
+	assert.Contains(t, body, `"name":"py","launcher":"process"`)
+	code, _ = get("/v1/pools/nope")
+	assert.Equal(t, http.StatusNotFound, code)
 }

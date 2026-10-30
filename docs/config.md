@@ -160,6 +160,66 @@ are in `ListPools`, the web UI (on a waiting run) and the server's log
 (`worker pool gpu: started gpu-1: 3 steps wait on gpu`). Design and
 what comes next (containers, Kubernetes): [worker-pools.md](worker-pools.md).
 
+#### External pools: KEDA, an HPA or anything that polls
+
+With `launcher: external`, hubwagen starts nothing for the group: its
+workers run elsewhere (a Kubernetes Deployment, another machine), and the
+server only works out how many it wants. That count is
+`GET /v1/pools/<name>` on the API, as JSON:
+
+```yaml
+workers:
+  - name: revenue
+    launcher: external       # no command or env: they live with the workers
+    min: 0
+    max: 10
+    docks: [default]
+    lifts: 2
+    idle_after: 5m
+```
+
+```json
+{"name": "revenue", "launcher": "external", "docks": ["default"], "min": 0, "max": 10,
+ "desired": 3, "workers": 1, "decision": "wants 3 workers (was 1): 5 steps wait on default",
+ "decided_at": "2026-10-30T17:20:04Z"}
+```
+
+`desired` is the workers polling its docks that ran something within
+`idle_after`, plus one per `lifts` steps (or one for a run) waiting there
+for a worker, between `min` and `max`. Workers that a process pool started
+don't count, and each worker counts for the first external pool whose
+docks it polls. `GET /v1/pools` lists every pool.
+
+KEDA reads it with its `metrics-api` trigger. With a target of 1 per pod,
+the Deployment runs `desired` replicas, from zero:
+
+```yaml
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: hubwagen-revenue
+spec:
+  scaleTargetRef:
+    name: revenue-workers          # the Deployment running python -m hubwagen.worker
+  minReplicaCount: 0
+  maxReplicaCount: 10
+  pollingInterval: 5
+  cooldownPeriod: 60
+  triggers:
+    - type: metrics-api
+      metadata:
+        url: "http://hubwagen.hubwagen.svc:7070/v1/pools/revenue"
+        valueLocation: "desired"
+        targetValue: "1"
+        activationTargetValue: "0"
+```
+
+The workers' Deployment sets `HUBWAGEN_SERVER`, and `--dock`/`--lifts` (or
+`HUBWAGEN_DOCKS`/`HUBWAGEN_LIFTS`) to match the group. Kubernetes picks
+which pod to remove when it scales down, maybe a busy one: give the pods a
+`terminationGracePeriodSeconds` longer than your steps, so a stopped
+worker finishes them (it stops polling on SIGTERM).
+
 This doesn't break "the control plane never runs user code". The leader
 still runs none: workers are separate processes, and dev's supervisor is a
 convenience for one machine. `hubwagen server` supervises them the same

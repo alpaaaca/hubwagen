@@ -127,7 +127,7 @@ func (s *HaulServer) ListPools(ctx context.Context, _ *connect.Request[hubwagenv
 	out := &hubwagenv1.ListPoolsResponse{}
 	for _, p := range ps {
 		m := &hubwagenv1.Pool{Name: p.Name, Docks: p.Docks, Min: int32(p.Min), Max: int32(p.Max), Workers: p.Workers,
-			Starting: int32(p.Starting), Decision: p.Decision}
+			Starting: int32(p.Starting), Decision: p.Decision, Desired: int32(p.Desired), External: p.External}
 		if !p.DecidedAt.IsZero() {
 			m.DecidedAt = timestamppb.New(p.DecidedAt)
 		}

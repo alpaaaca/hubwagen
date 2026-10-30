@@ -138,7 +138,12 @@ type Server struct {
 // (the API's URL), HUBWAGEN_WORKER_ID (<name>-<n>), HUBWAGEN_DOCKS and
 // HUBWAGEN_LIFTS.
 type Worker struct {
-	Name     string   `yaml:"name"`
+	Name string `yaml:"name"`
+	// Launcher is what starts the group's workers: "process" (default),
+	// hubwagen itself, or "external": something else (KEDA, an HPA, a
+	// person) from the desired count the server publishes (GET
+	// /v1/pools/<name>); then there is no command.
+	Launcher string   `yaml:"launcher"`
 	Command  []string `yaml:"command"`
 	Replicas *int     `yaml:"replicas"` // default 1; 0 turns the group off
 	Min      *int     `yaml:"min"`      // instead of replicas: always running
@@ -185,11 +190,22 @@ func (w Worker) Count() int {
 	return hi
 }
 
-// Scaled reports whether the server scales the group (min below max).
+// Launcher values.
+const (
+	LauncherProcess  = "process"
+	LauncherExternal = "external"
+)
+
+// Scaled reports whether the server scales the group: min below max, or
+// started by an external launcher (it publishes the desired count).
 func (w Worker) Scaled() bool {
 	lo, hi := w.Bounds()
-	return lo < hi
+	return lo < hi || w.External()
 }
+
+// External reports whether something other than hubwagen starts the
+// group's workers.
+func (w Worker) External() bool { return w.Launcher == LauncherExternal }
 
 // DockList is the docks the group's workers poll.
 func (w Worker) DockList() []string {
@@ -317,8 +333,17 @@ func Parse(data []byte, dir string) (*Config, error) {
 			add("%s.name: %q is used twice", at, w.Name)
 		}
 		seen[w.Name] = true
-		if len(w.Command) == 0 || w.Command[0] == "" {
-			add("%s.command: required, e.g. [python3, -m, hubwagen.worker, app.hauls]", at)
+		switch w.Launcher {
+		case "", LauncherProcess:
+			if len(w.Command) == 0 || w.Command[0] == "" {
+				add("%s.command: required, e.g. [python3, -m, hubwagen.worker, app.hauls]", at)
+			}
+		case LauncherExternal:
+			if len(w.Command) > 0 || len(w.Env) > 0 {
+				add("%s: an external pool's workers are started elsewhere: no command or env", at)
+			}
+		default:
+			add("%s.launcher: must be %s or %s, got %q", at, LauncherProcess, LauncherExternal, w.Launcher)
 		}
 		lo, hi := w.Bounds()
 		switch {

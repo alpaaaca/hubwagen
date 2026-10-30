@@ -56,13 +56,19 @@ message Pool {
   repeated string docks = 2;
   int32 min = 3;
   int32 max = 4;
-  // The workers it runs, by ID; starting of them haven't polled yet.
+  // The workers it runs, by ID (an external pool: those polling its
+  // docks); starting of them haven't polled yet.
   repeated string workers = 5;
   int32 starting = 6;
   // Its last decision in words ("started py-2: 3 steps wait on default"),
   // and when; empty before the first.
   string decision = 7;
   google.protobuf.Timestamp decided_at = 8;
+  // How many workers it wants: what it runs, or for an external pool, what
+  // its launcher (KEDA, an HPA) should run.
+  int32 desired = 9;
+  // Started by something other than hubwagen (launcher: external).
+  bool external = 10;
 }
 
 message ListWorkersRequest {}
