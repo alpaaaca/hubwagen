@@ -27,8 +27,8 @@ def daily(ctx, day: str):
 ## Status
 
 The engine runs on one machine: `hubwagen dev` (server, API and workers in
-one terminal) or `hubwagen server` (the server alone, as a service, with
-`hubwagen workers` next to it), Python workers, `file://` storage, no
+one terminal) or `hubwagen server` (the same as a service, with JSON logs; it starts the
+config's workers too, or `--no-workers` and `hubwagen workers` elsewhere), Python workers, `file://` storage, no
 authentication yet. Built so far: durable pipelines (replay until
 blocked, timers, retries, timeouts, leader restarts), data versions with
 exactly-once commits, memoized steps with single-flight, a catalog with

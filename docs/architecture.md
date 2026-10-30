@@ -700,9 +700,8 @@ $ pytest                                      # hauls against scripted results: 
 ```
 
 Single-node mode is also a supported production setup: `hubwagen server`
-runs the same server as dev without its workers and console, under a
-service manager, with `/healthz` and JSON logs; workers run next to it
-([config.md](config.md)). Because hauls are
+runs the same server and workers as dev without its console, under a
+service manager, with `/healthz` and JSON logs ([config.md](config.md)). Because hauls are
 deterministic, a test scripts lift results and signals and asserts on the
 lifts called and their order (`hubwagen.testing.run`, which plays the
 server in memory); `python -m hubwagen.testing --replay <haul-id>` replays
