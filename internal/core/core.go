@@ -82,6 +82,7 @@ type Core struct {
 	pollers       []*poller                     // waiting, oldest first
 	workers       map[string]*seenWorker        // polled lately, by worker ID (workers.go)
 	pools         []PoolStatus                  // as the scaler last reported them (pools.go)
+	projects      map[string]*state.Project     // by name, deleted ones too (projects.go)
 	b             *batch
 	// queueOrder numbers queued tasks so the oldest across docks goes first.
 	queueOrder uint64
@@ -116,6 +117,7 @@ func New(cfg Config) *Core {
 		subscriptions: map[string]*subscriptionState{},
 		retention:     map[string]state.Retention{},
 		workers:       map[string]*seenWorker{},
+		projects:      map[string]*state.Project{},
 	}
 }
 

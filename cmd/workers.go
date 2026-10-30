@@ -4,11 +4,16 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"os"
+	"os/exec"
 	"os/signal"
+	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -17,6 +22,7 @@ import (
 	"github.com/alper/hubwagen/internal/core"
 	"github.com/alper/hubwagen/internal/launch"
 	"github.com/alper/hubwagen/internal/pools"
+	"github.com/alper/hubwagen/internal/state"
 	"github.com/alper/hubwagen/internal/supervise"
 )
 
@@ -139,13 +145,12 @@ func workerProcess(w config.Worker, id, server, dataDir string, extraEnv ...stri
 
 // startWorkers starts the config's worker groups in g for a server: fixed
 // groups at their count, and scaled ones (min below max) from min, then by
-// a scaler that runs until ctx ends. It returns how many groups it started.
-// Kubernetes pools need the cluster: an error if it can't be reached.
+// a scaler that runs until ctx ends. The scaler also runs the projects
+// deployed to the server (followProjects). It returns how many groups the
+// config has. Kubernetes pools need the cluster: an error if it can't be
+// reached, before anything starts.
 func startWorkers(ctx context.Context, g *supervise.Group, cfg *config.Config, c *core.Core, server string, log *slog.Logger, extraEnv ...string) (int, error) {
-	groups := map[string]config.Worker{}
-	var scaled []pools.Pool
 	var kube *launch.Kube
-	removeLeftovers(ctx, cfg, log)
 	for _, w := range cfg.Workers { // the cluster first: an error starts nothing
 		if w.Launcher == config.LauncherKubernetes && kube == nil {
 			k, err := launch.NewKube(cfg.Kubernetes, launch.ServiceAccountDir)
@@ -155,8 +160,10 @@ func startWorkers(ctx context.Context, g *supervise.Group, cfg *config.Config, c
 			kube = k
 		}
 	}
+	removeLeftovers(ctx, cfg, log)
+	launcher := &groupLauncher{g: g, start: map[string]func(id string) supervise.Process{}}
+	var static []pools.Pool
 	for _, w := range cfg.Workers {
-		groups[w.Name] = w
 		lo, hi := w.Bounds()
 		if !w.Scaled() {
 			for n := 1; n <= hi; n++ {
@@ -177,17 +184,85 @@ func startWorkers(ctx context.Context, g *supervise.Group, cfg *config.Config, c
 		case config.LauncherContainer:
 			msg = "containers of " + w.Image + ", scaled by the work waiting on its docks"
 		}
-		scaled = append(scaled, p)
+		static = append(static, p)
+		launcher.set(w.Name, func(id string) supervise.Process { return workerProcess(w, id, server, cfg.DataDir, extraEnv...) })
 		log.Info("worker pool "+w.Name+": "+msg, "pool", w.Name, "min", lo, "max", hi,
 			"docks", strings.Join(w.DockList(), ","), "idle_after", w.Idle())
 	}
-	if len(scaled) > 0 {
-		launcher := groupLauncher{g: g, start: func(pool, id string) supervise.Process {
-			return workerProcess(groups[pool], id, server, cfg.DataDir, extraEnv...)
-		}}
-		go pools.New(scaled, launcher, c, clock.Real{}, log).Run(ctx)
-	}
+	sc := pools.New(static, launcher, c, clock.Real{}, log)
+	go sc.Run(ctx)
+	go followProjects(ctx, c, sc, static, launcher, cfg, server, log, extraEnv)
 	return len(cfg.Workers), nil
+}
+
+// followProjects runs the projects deployed to the server (docs/projects.md).
+// Every pass, each live project's current version becomes pools of the
+// scaler, named <project>-<pool>-v<version>, next to the config's own: a new
+// version is a new pool, and the old version's goes (its workers stop and
+// finish what they run).
+func followProjects(ctx context.Context, c *core.Core, sc *pools.Scaler, static []pools.Pool, launcher *groupLauncher,
+	cfg *config.Config, server string, log *slog.Logger, extraEnv []string) {
+	t := time.NewTicker(pools.Every)
+	defer t.Stop()
+	running := map[string]int{} // project → version its pools run
+	first := true
+	for {
+		ps, err := c.Projects(ctx)
+		if err != nil && ctx.Err() == nil {
+			log.Warn("reading projects", "err", err)
+		}
+		want := map[string]int{}
+		all := slices.Clone(static)
+		for _, p := range ps {
+			if p.DeletedAt != nil {
+				continue
+			}
+			want[p.Project] = p.Version
+			for _, dp := range p.Pools {
+				name := fmt.Sprintf("%s-%s-v%d", p.Project, dp.Name, p.Version)
+				w := projectWorker(p, dp, name, cfg)
+				launcher.set(name, func(id string) supervise.Process { return workerProcess(w, id, server, cfg.DataDir, extraEnv...) })
+				all = append(all, pools.Pool{Name: name, Docks: dp.Docks, Lifts: dp.Lifts, Min: dp.Min, Max: dp.Max, IdleAfter: dp.IdleAfter})
+			}
+		}
+		if err == nil && (first || !maps.Equal(want, running)) {
+			for _, name := range slices.Sorted(maps.Keys(want)) {
+				if v, ok := running[name]; !ok || v != want[name] {
+					how := "starts"
+					if ok {
+						how = fmt.Sprintf("replaces v%d, whose workers finish what they run and stop", v)
+					}
+					log.Info(fmt.Sprintf("project %s v%d: %s", name, want[name], how), "project", name, "version", want[name])
+				}
+			}
+			for _, name := range slices.Sorted(maps.Keys(running)) {
+				if _, ok := want[name]; !ok {
+					log.Info(fmt.Sprintf("project %s: deleted; its workers finish what they run and stop", name), "project", name)
+				}
+			}
+			sc.SetPools(all)
+			launcher.keep(all)
+			running, first = want, false
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+	}
+}
+
+// projectWorker is the worker group a deployed pool runs as: containers of
+// the deployment's image, or processes in its directory.
+func projectWorker(p state.Project, dp state.DeployedPool, name string, cfg *config.Config) config.Worker {
+	lifts := dp.Lifts
+	w := config.Worker{Name: name, Docks: dp.Docks, Lifts: &lifts, Env: p.Env}
+	if p.Image != "" {
+		w.Launcher, w.Image, w.Runtime, w.ServerURL = config.LauncherContainer, p.Image, cfg.Projects.Runtime, cfg.Projects.ServerURL
+		return w
+	}
+	w.Command, w.Dir = []string{or(p.Python, "python3"), "-m", "hubwagen.worker"}, p.Dir
+	return w
 }
 
 func or(s, def string) string {
@@ -197,14 +272,41 @@ func or(s, def string) string {
 	return s
 }
 
-// groupLauncher starts and stops a pool's workers as processes of g.
+// groupLauncher starts and stops pools' workers as processes of g, each
+// pool's the way set says.
 type groupLauncher struct {
 	g     *supervise.Group
-	start func(pool, id string) supervise.Process
+	mu    sync.Mutex
+	start map[string]func(id string) supervise.Process
 }
 
-func (l groupLauncher) Start(pool, id string) { l.g.Start(l.start(pool, id)) }
-func (l groupLauncher) Stop(id string)        { l.g.Stop(id) }
+func (l *groupLauncher) set(pool string, start func(id string) supervise.Process) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.start[pool] = start
+}
+
+// keep forgets how to start pools not in ps.
+func (l *groupLauncher) keep(ps []pools.Pool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	for name := range l.start {
+		if !slices.ContainsFunc(ps, func(p pools.Pool) bool { return p.Name == name }) {
+			delete(l.start, name)
+		}
+	}
+}
+
+func (l *groupLauncher) Start(pool, id string) {
+	l.mu.Lock()
+	start := l.start[pool]
+	l.mu.Unlock()
+	if start != nil {
+		l.g.Start(start(id))
+	}
+}
+
+func (l *groupLauncher) Stop(id string) { l.g.Stop(id) }
 
 // killOnSignal closes kill on the next interrupt or SIGTERM.
 func killOnSignal(kill chan struct{}) {
@@ -217,20 +319,27 @@ func killOnSignal(kill chan struct{}) {
 	}()
 }
 
-// removeLeftovers removes the containers of the config's container pools
-// that an earlier hubwagen on the same data directory left running (it was
-// killed): nothing else would stop them.
+// removeLeftovers removes the containers an earlier hubwagen on the same
+// data directory left running (it was killed): nothing else would stop
+// them. With a container runtime on PATH (the projects' or a container
+// pool's), before any pool starts.
 func removeLeftovers(ctx context.Context, cfg *config.Config, log *slog.Logger) {
+	runtimes := map[string]bool{launch.Runtime(config.Worker{Runtime: cfg.Projects.Runtime}): true}
 	for _, w := range cfg.Workers {
-		if w.Launcher != config.LauncherContainer {
+		if w.Launcher == config.LauncherContainer {
+			runtimes[launch.Runtime(w)] = true
+		}
+	}
+	for _, rt := range slices.Sorted(maps.Keys(runtimes)) {
+		if _, err := exec.LookPath(rt); err != nil {
 			continue
 		}
-		n, err := launch.RemoveLeftovers(ctx, w, cfg.DataDir)
+		n, err := launch.RemoveLeftovers(ctx, rt, cfg.DataDir, "")
 		switch {
 		case err != nil:
-			log.Warn("worker pool "+w.Name+": can't look for containers left running", "pool", w.Name, "err", err)
+			log.Warn("can't look for containers left running", "runtime", rt, "err", err)
 		case n > 0:
-			log.Info(fmt.Sprintf("worker pool %s: removed %d container(s) an earlier hubwagen left running", w.Name, n), "pool", w.Name)
+			log.Info(fmt.Sprintf("removed %d container(s) an earlier hubwagen left running", n), "runtime", rt)
 		}
 	}
 }

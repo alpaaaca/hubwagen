@@ -91,14 +91,17 @@ func Container(w config.Worker, id, server, dataDir string, env []string) superv
 		Cleanup: []string{rt, "rm", "-f", name}}
 }
 
-// RemoveLeftovers removes the containers of w's pool that a server on
-// dataDir started and didn't stop: one killed with SIGKILL leaves them
-// running (their runtime process is in its own process group), still
-// polling, and nothing would stop them. Run it before the pool starts.
-func RemoveLeftovers(ctx context.Context, w config.Worker, dataDir string) (int, error) {
-	rt := Runtime(w)
-	out, err := exec.CommandContext(ctx, rt, "ps", "-aq", "--filter", "label="+LabelPool+"="+w.Name,
-		"--filter", "label="+LabelDataDir+"="+dataDir).Output()
+// RemoveLeftovers removes the containers a hubwagen on dataDir started and
+// didn't stop (of pool, or of every pool if pool is ""): one killed with
+// SIGKILL leaves them running (their runtime process is in its own process
+// group), still polling, and nothing would stop them. Run it before any
+// pool starts.
+func RemoveLeftovers(ctx context.Context, rt, dataDir, pool string) (int, error) {
+	args := []string{"ps", "-aq", "--filter", "label=" + LabelDataDir + "=" + dataDir}
+	if pool != "" {
+		args = append(args, "--filter", "label="+LabelPool+"="+pool)
+	}
+	out, err := exec.CommandContext(ctx, rt, args...).Output()
 	if err != nil {
 		return 0, fmt.Errorf("%s ps: %w", rt, err)
 	}

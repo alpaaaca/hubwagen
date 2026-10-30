@@ -42,29 +42,34 @@ func NewWorkerHandler(c *core.Core, maxWait time.Duration, data *Data) (string, 
 var _ hubwagenv1connect.WorkerServiceHandler = (*WorkerServer)(nil)
 
 func (s *WorkerServer) RegisterBuild(ctx context.Context, req *connect.Request[hubwagenv1.RegisterBuildRequest]) (*connect.Response[hubwagenv1.RegisterBuildResponse], error) {
-	b := core.BuildRequest{ID: req.Msg.BuildId, Hauls: req.Msg.Hauls, Lifts: req.Msg.LiftVersions}
-	for _, sc := range req.Msg.Schedules {
+	err := s.core.RegisterBuild(ctx, buildRequest(req.Msg))
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&hubwagenv1.RegisterBuildResponse{}), nil
+}
+
+// buildRequest is a build as the core takes it (RegisterBuild, Deploy).
+func buildRequest(m *hubwagenv1.RegisterBuildRequest) core.BuildRequest {
+	b := core.BuildRequest{ID: m.GetBuildId(), Hauls: m.GetHauls(), Lifts: m.GetLiftVersions()}
+	for _, sc := range m.GetSchedules() {
 		b.Schedules = append(b.Schedules, core.ScheduleSpec{
 			Haul: sc.Haul, Cron: sc.Cron, Timezone: sc.Timezone, Interval: sc.Interval, CatchUp: sc.CatchUp})
 	}
-	for _, sub := range req.Msg.Subscriptions {
+	for _, sub := range m.GetSubscriptions() {
 		b.Subscriptions = append(b.Subscriptions, core.SubscriptionSpec{Haul: sub.Haul, Datasets: sub.Datasets,
 			Debounce: sub.Debounce.AsDuration(), MaxWait: sub.MaxWait.AsDuration(), MaxBatch: int(sub.MaxBatch)})
 	}
-	for _, d := range req.Msg.Datasets {
+	for _, d := range m.GetDatasets() {
 		b.Datasets = append(b.Datasets, core.DatasetSpec{Name: d.Name, Versions: int(d.KeepVersions), Age: d.KeepFor.AsDuration()})
 	}
-	for _, i := range req.Msg.HaulInfo {
+	for _, i := range m.GetHaulInfo() {
 		if b.Info == nil {
 			b.Info = map[string]state.HaulInfo{}
 		}
 		b.Info[i.Haul] = state.HaulInfo{Title: i.Title, Description: i.Description}
 	}
-	err := s.core.RegisterBuild(ctx, b)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	return connect.NewResponse(&hubwagenv1.RegisterBuildResponse{}), nil
+	return b
 }
 
 func (s *WorkerServer) poll(ctx context.Context, worker, build string, docks []string, wait time.Duration, kind core.TaskKind) (core.Task, bool, error) {
@@ -313,7 +318,8 @@ func connectError(err error) error {
 		return connect.NewError(connect.CodeNotFound, err)
 	case errors.Is(err, core.ErrInvalid):
 		return connect.NewError(connect.CodeInvalidArgument, err)
-	case errors.Is(err, core.ErrUnknownHaul), errors.Is(err, core.ErrUnknownBuild), errors.Is(err, core.ErrHaulFinished):
+	case errors.Is(err, core.ErrUnknownHaul), errors.Is(err, core.ErrUnknownBuild), errors.Is(err, core.ErrHaulFinished),
+		errors.Is(err, core.ErrConflict):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	case errors.Is(err, core.ErrStopped):
 		return connect.NewError(connect.CodeUnavailable, err)

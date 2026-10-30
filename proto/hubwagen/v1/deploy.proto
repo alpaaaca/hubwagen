@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+package hubwagen.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "hubwagen/v1/worker.proto";
+
+option go_package = "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1;hubwagenv1";
+
+// DeployService takes projects (docs/projects.md): `hubwagen deploy` hands
+// one over, the server records it and runs its workers.
+service DeployService {
+  // Deploy records a project's next version: it registers the build (so
+  // its pipelines are accepted at once) and the server starts the new
+  // version's workers and drains the old ones. FAILED_PRECONDITION if a
+  // pipeline belongs to another project.
+  rpc Deploy(DeployRequest) returns (DeployResponse);
+  // ListProjects returns each project's current deployment, by name.
+  rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
+  // DeleteProject stops a project's workers; its pipelines take no new
+  // runs; its history and data stay. FAILED_PRECONDITION while it has open
+  // runs, unless cancel_runs.
+  rpc DeleteProject(DeleteProjectRequest) returns (DeleteProjectResponse);
+}
+
+message DeployRequest {
+  string project = 1;
+  // What its workers register (python -m hubwagen.worker --build-json).
+  RegisterBuildRequest build = 2;
+  // Its workers are containers of image, or run in dir with python on
+  // the server's machine. Exactly one of image and dir.
+  string image = 3;
+  string dir = 4;
+  string python = 5;
+  // Variables for its workers (plain values; secrets come later).
+  map<string, string> env = 6;
+  repeated DeployedPool pools = 7;
+  // Who deployed, for the record.
+  string by = 8;
+}
+
+message DeployedPool {
+  string name = 1;
+  repeated string docks = 2;
+  int32 min = 3;
+  int32 max = 4;
+  // Steps one worker runs at once.
+  int32 lifts = 5;
+  google.protobuf.Duration idle_after = 6;
+}
+
+message DeployResponse {
+  Deployment deployment = 1;
+}
+
+message Deployment {
+  string project = 1;
+  // 1, 2, … per project.
+  int32 version = 2;
+  string build_id = 3;
+  string image = 4;
+  string dir = 5;
+  repeated DeployedPool pools = 6;
+  // The pipelines its build defines.
+  repeated string pipelines = 7;
+  string by = 8;
+  google.protobuf.Timestamp deployed_at = 9;
+  // Set if the project was deleted.
+  google.protobuf.Timestamp deleted_at = 10;
+}
+
+message ListProjectsRequest {
+  bool with_deleted = 1;
+}
+
+message ListProjectsResponse {
+  repeated Deployment projects = 1;
+}
+
+message DeleteProjectRequest {
+  string project = 1;
+  string by = 2;
+  bool cancel_runs = 3;
+}
+
+message DeleteProjectResponse {
+  int32 cancelled_runs = 1;
+}

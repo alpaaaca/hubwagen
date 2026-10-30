@@ -60,6 +60,10 @@ type Config struct {
 	// Kubernetes is how the server reaches the cluster that runs
 	// launcher: kubernetes pools.
 	Kubernetes Kubernetes `yaml:"kubernetes"`
+	// Projects is how the server runs deployed projects' workers
+	// (docs/projects.md): containers of their image with Runtime, reaching
+	// the API at ServerURL (defaults as for launcher: container).
+	Projects Projects `yaml:"projects"`
 
 	// Path is the file the config came from, "" for the defaults. Relative
 	// paths in the file (data_dir, workers[].dir) are resolved against its
@@ -129,6 +133,12 @@ func secret(field, path string) (string, error) {
 		return "", fmt.Errorf("%s: %s is empty", field, path)
 	}
 	return v, nil
+}
+
+// Projects is how deployed projects' workers run.
+type Projects struct {
+	Runtime   string `yaml:"runtime"`
+	ServerURL string `yaml:"server_url"`
 }
 
 // Kubernetes is the cluster for launcher: kubernetes pools. Without APIURL
@@ -349,6 +359,9 @@ func Parse(data []byte, dir string) (*Config, error) {
 		}
 	}
 	c.Bucket.validate(add)
+	if r := c.Projects.Runtime; r != "" && r != "docker" && r != "podman" {
+		add("projects.runtime: must be docker or podman, got %q", r)
+	}
 	seen := map[string]bool{}
 	for i, w := range c.Workers {
 		at := fmt.Sprintf("workers[%d]", i)

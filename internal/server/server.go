@@ -198,6 +198,8 @@ func (e *Engine) serveAPI(addr string, log *slog.Logger) error {
 	mux.Handle("/", webui.Handler()) // the Connect services' paths above are more specific
 	path, h = api.NewCatalogHandler(e.Core, e.Store, manifests)
 	mux.Handle(path, h)
+	path, h = api.NewDeployHandler(e.Core)
+	mux.Handle(path, h)
 	e.api = &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	e.APIAddr = ln.Addr().String()
 	go func() {
