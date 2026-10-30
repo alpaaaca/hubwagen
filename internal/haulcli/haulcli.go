@@ -114,7 +114,15 @@ func parseValue(s string) any {
 // Client talks to a server's HaulService.
 type Client struct {
 	hauls hubwagenv1connect.HaulServiceClient
+	// Hint, if set, is told why runs wait (no worker, ...) once they have
+	// waited for HintAfter (default DefaultHintAfter); each reason once
+	// until no run waits any more.
+	Hint      func(string)
+	HintAfter time.Duration
 }
+
+// DefaultHintAfter is how long a run waits before Wait says why.
+const DefaultHintAfter = 3 * time.Second
 
 func NewClient(server string) *Client {
 	return &Client{hauls: hubwagenv1connect.NewHaulServiceClient(http.DefaultClient, strings.TrimSuffix(server, "/"))}
@@ -200,8 +208,14 @@ func (c *Client) Schedules(ctx context.Context, w io.Writer) error {
 func (c *Client) Wait(ctx context.Context, ids []string, every time.Duration) ([]*hubwagenv1.Haul, error) {
 	ids = slices.Clone(ids)
 	got := make([]*hubwagenv1.Haul, len(ids))
+	after := c.HintAfter
+	if after <= 0 {
+		after = DefaultHintAfter
+	}
+	waitingSince := map[string]time.Time{} // by haul ID, on our clock: the server's may differ
+	hinted := map[string]bool{}
 	for {
-		pending := 0
+		pending, waiting := 0, 0
 		for i, id := range ids {
 			if got[i] != nil && got[i].Status != "running" {
 				continue
@@ -217,6 +231,22 @@ func (c *Client) Wait(ctx context.Context, ids []string, every time.Duration) ([
 			if got[i].Status == "running" {
 				pending++
 			}
+			w := got[i].Waiting
+			if w == nil || got[i].Status != "running" {
+				delete(waitingSince, id)
+				continue
+			}
+			waiting++
+			if _, ok := waitingSince[id]; !ok {
+				waitingSince[id] = time.Now()
+			}
+			if c.Hint != nil && time.Since(waitingSince[id]) >= after && !hinted[w.Message] {
+				hinted[w.Message] = true
+				c.Hint("waiting: " + w.Message)
+			}
+		}
+		if waiting == 0 {
+			clear(hinted)
 		}
 		if pending == 0 {
 			return got, nil

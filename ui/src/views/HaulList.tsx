@@ -7,6 +7,7 @@ import { message, usePoll } from "../hooks";
 import { usePipelines, type Pipelines } from "../pipelines";
 import { Link, navigate } from "../router";
 import { Hint } from "../words";
+import { Waiting } from "./Waiting";
 
 const OVERVIEW = 500;
 
@@ -190,6 +191,11 @@ export function RunsTable({ hauls, pipelines }: { hauls: Haul[]; pipelines?: Pip
               </td>
               <td>
                 <Status status={h.status} />
+                {h.status === "running" && h.waiting && (
+                  <div className="small">
+                    <Waiting waiting={h.waiting} short />
+                  </div>
+                )}
               </td>
               <td className="dim">{steps(h)}</td>
               <td title={when(h.createdAt)}>{ago(h.createdAt, now)}</td>

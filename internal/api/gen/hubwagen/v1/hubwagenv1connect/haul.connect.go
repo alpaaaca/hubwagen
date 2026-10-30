@@ -55,6 +55,8 @@ const (
 	// HaulServiceListPipelinesProcedure is the fully-qualified name of the HaulService's ListPipelines
 	// RPC.
 	HaulServiceListPipelinesProcedure = "/hubwagen.v1.HaulService/ListPipelines"
+	// HaulServiceListWorkersProcedure is the fully-qualified name of the HaulService's ListWorkers RPC.
+	HaulServiceListWorkersProcedure = "/hubwagen.v1.HaulService/ListWorkers"
 )
 
 // HaulServiceClient is a client for the hubwagen.v1.HaulService service.
@@ -88,6 +90,9 @@ type HaulServiceClient interface {
 	// ListPipelines returns the hauls the registered builds define, with the
 	// title and description of the newest build that defines each.
 	ListPipelines(context.Context, *connect.Request[v1.ListPipelinesRequest]) (*connect.Response[v1.ListPipelinesResponse], error)
+	// ListWorkers returns the workers that polled lately (the leader's
+	// memory, not state: a new leader learns them from their next polls).
+	ListWorkers(context.Context, *connect.Request[v1.ListWorkersRequest]) (*connect.Response[v1.ListWorkersResponse], error)
 }
 
 // NewHaulServiceClient constructs a client for the hubwagen.v1.HaulService service. By default, it
@@ -161,6 +166,12 @@ func NewHaulServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(haulServiceMethods.ByName("ListPipelines")),
 			connect.WithClientOptions(opts...),
 		),
+		listWorkers: connect.NewClient[v1.ListWorkersRequest, v1.ListWorkersResponse](
+			httpClient,
+			baseURL+HaulServiceListWorkersProcedure,
+			connect.WithSchema(haulServiceMethods.ByName("ListWorkers")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -176,6 +187,7 @@ type haulServiceClient struct {
 	getHistory    *connect.Client[v1.GetHistoryRequest, v1.GetHistoryResponse]
 	listSchedules *connect.Client[v1.ListSchedulesRequest, v1.ListSchedulesResponse]
 	listPipelines *connect.Client[v1.ListPipelinesRequest, v1.ListPipelinesResponse]
+	listWorkers   *connect.Client[v1.ListWorkersRequest, v1.ListWorkersResponse]
 }
 
 // StartHaul calls hubwagen.v1.HaulService.StartHaul.
@@ -228,6 +240,11 @@ func (c *haulServiceClient) ListPipelines(ctx context.Context, req *connect.Requ
 	return c.listPipelines.CallUnary(ctx, req)
 }
 
+// ListWorkers calls hubwagen.v1.HaulService.ListWorkers.
+func (c *haulServiceClient) ListWorkers(ctx context.Context, req *connect.Request[v1.ListWorkersRequest]) (*connect.Response[v1.ListWorkersResponse], error) {
+	return c.listWorkers.CallUnary(ctx, req)
+}
+
 // HaulServiceHandler is an implementation of the hubwagen.v1.HaulService service.
 type HaulServiceHandler interface {
 	// StartHaul starts a haul and queues its first replay. A haul no
@@ -259,6 +276,9 @@ type HaulServiceHandler interface {
 	// ListPipelines returns the hauls the registered builds define, with the
 	// title and description of the newest build that defines each.
 	ListPipelines(context.Context, *connect.Request[v1.ListPipelinesRequest]) (*connect.Response[v1.ListPipelinesResponse], error)
+	// ListWorkers returns the workers that polled lately (the leader's
+	// memory, not state: a new leader learns them from their next polls).
+	ListWorkers(context.Context, *connect.Request[v1.ListWorkersRequest]) (*connect.Response[v1.ListWorkersResponse], error)
 }
 
 // NewHaulServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -328,6 +348,12 @@ func NewHaulServiceHandler(svc HaulServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(haulServiceMethods.ByName("ListPipelines")),
 		connect.WithHandlerOptions(opts...),
 	)
+	haulServiceListWorkersHandler := connect.NewUnaryHandler(
+		HaulServiceListWorkersProcedure,
+		svc.ListWorkers,
+		connect.WithSchema(haulServiceMethods.ByName("ListWorkers")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/hubwagen.v1.HaulService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case HaulServiceStartHaulProcedure:
@@ -350,6 +376,8 @@ func NewHaulServiceHandler(svc HaulServiceHandler, opts ...connect.HandlerOption
 			haulServiceListSchedulesHandler.ServeHTTP(w, r)
 		case HaulServiceListPipelinesProcedure:
 			haulServiceListPipelinesHandler.ServeHTTP(w, r)
+		case HaulServiceListWorkersProcedure:
+			haulServiceListWorkersHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -397,4 +425,8 @@ func (UnimplementedHaulServiceHandler) ListSchedules(context.Context, *connect.R
 
 func (UnimplementedHaulServiceHandler) ListPipelines(context.Context, *connect.Request[v1.ListPipelinesRequest]) (*connect.Response[v1.ListPipelinesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("hubwagen.v1.HaulService.ListPipelines is not implemented"))
+}
+
+func (UnimplementedHaulServiceHandler) ListWorkers(context.Context, *connect.Request[v1.ListWorkersRequest]) (*connect.Response[v1.ListWorkersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("hubwagen.v1.HaulService.ListWorkers is not implemented"))
 }

@@ -281,6 +281,16 @@ each is one PR:
    if the core stops. The wiring moved from `internal/devmode` to
    `internal/server`. No authentication yet: it warns when it listens
    beyond loopback.
+   ✅ **Why a run waits**, added to this milestone: the leader remembers,
+   in memory like leases, which workers polled lately (build, docks,
+   kinds; forgotten when they hang up, after a few seconds idle, or after
+   a minute without a heartbeat while running work). A running haul with
+   queued work says why (`Haul.waiting`): no worker polls its dock, none
+   has a build that defines its pipeline or step, they are all busy, or
+   the dock's limit is reached; `ListWorkers` lists the workers. The web
+   UI shows it on the run (with the workers) and in run lists;
+   `hubwagen start --wait`, `replay` and `hubwagen dev` print it once a
+   run has waited a few seconds.
 7. **Web UI: catalog**: datasets, partitions and pallets with stale and
    invalid marked, lineage up and down as a graph, a pallet's files, and
    invalidating from the UI (with the same dry run first);

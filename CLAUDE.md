@@ -39,7 +39,7 @@ spec-kit.
 
 | Path | What |
 |---|---|
-| `internal/core` | The core: one event loop; hauls (replay until blocked, sequence check, stuck), lifts (retries, timeouts, leases), timers, docks (long-poll), commits, memoization, single-flight, restore |
+| `internal/core` | The core: one event loop; hauls (replay until blocked, sequence check, stuck), lifts (retries, timeouts, leases), timers, docks (long-poll), workers seen lately (why a run waits), commits, memoization, single-flight, restore |
 | `internal/state` | Store: event log + projections (hauls, lifts, timers, catalog, builds), term fencing, leader-start loader |
 | `internal/pallet` | Storage adapter for pallets as files: manifests, content hash, idempotent promote, discard |
 | `internal/api` | Connect services over HTTP (`WorkerService`, `HaulService`, `CatalogService`, `LogService`); generated code in `gen/` from `proto/` |

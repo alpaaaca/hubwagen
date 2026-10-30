@@ -48,6 +48,9 @@ pre { margin: 0; white-space: pre-wrap; }
 .status-reused { color: var(--dim); }
 .status-retrying { color: var(--warn); }
 .small { font-size: 12px; }
+.waiting { color: var(--warn); }
+.waiting code { color: var(--fg); }
+.waiting-box { border-left: 3px solid var(--warn); padding: 4px 12px; margin: 12px 0; }
 .strong { font-weight: 600; }
 .toolbar h2 { margin: 0; }
 

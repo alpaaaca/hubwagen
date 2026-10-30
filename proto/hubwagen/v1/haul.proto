@@ -39,6 +39,26 @@ service HaulService {
   // ListPipelines returns the hauls the registered builds define, with the
   // title and description of the newest build that defines each.
   rpc ListPipelines(ListPipelinesRequest) returns (ListPipelinesResponse);
+  // ListWorkers returns the workers that polled lately (the leader's
+  // memory, not state: a new leader learns them from their next polls).
+  rpc ListWorkers(ListWorkersRequest) returns (ListWorkersResponse);
+}
+
+message ListWorkersRequest {}
+message ListWorkersResponse {
+  repeated Worker workers = 1;
+}
+message Worker {
+  string id = 1;
+  // Empty if it polls without one.
+  string build_id = 2;
+  repeated string docks = 3;
+  // haul, lift.
+  repeated string kinds = 4;
+  // Its last poll or heartbeat.
+  google.protobuf.Timestamp last_seen = 5;
+  // Waiting for work right now; otherwise busy.
+  bool polling = 6;
 }
 
 message ListPipelinesRequest {}
@@ -227,6 +247,30 @@ message Haul {
   string trigger = 14;
   // How many of its lifts are where, so far.
   LiftCounts lift_counts = 15;
+  // A running haul with work queued that no worker took yet: why
+  // (GetHaul and ListHauls, from the leader's memory).
+  Waiting waiting = 16;
+}
+
+// Waiting is a haul's queued work and why no worker runs it yet.
+message Waiting {
+  // no_worker: no worker polls the dock; no_build: workers poll it, but
+  // none has code that defines the haul or lift; busy: those that do are
+  // all busy; dock_limit: the dock runs as many lifts as it may.
+  string reason = 1;
+  // The same, in plain words, with what to do about it.
+  string message = 2;
+  // haul: the haul's own replay waits; lift: one of its lifts.
+  string kind = 3;
+  // The haul or lift function, and the lift's seq.
+  string name = 4;
+  int32 seq = 5;
+  string dock = 6;
+  // When it was queued.
+  google.protobuf.Timestamp since = 7;
+  // The workers that poll the dock for it, and their builds.
+  int32 workers = 8;
+  repeated string builds = 9;
 }
 
 message LiftCounts {

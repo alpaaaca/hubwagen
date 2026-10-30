@@ -288,6 +288,11 @@ no registered build defines, so start a worker for it first. If the server
 doesn't know the worker's build (a leader that lost it), the worker
 registers again.
 
+A run whose work no worker takes says why, in the web UI and in
+`hubwagen start --wait`, `replay` and `dev`: no worker is connected to
+its dock, the connected workers' code doesn't define the pipeline or step
+(restart them with the new code), or they are all busy.
+
 If the server is down when a step finishes, the worker keeps the result,
 and keeps the attempt's heartbeats going, until the server takes it. A
 restarted leader therefore doesn't rerun the step. Ctrl-C stops polling and

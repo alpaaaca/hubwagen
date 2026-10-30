@@ -104,6 +104,7 @@ keep running.`,
 }
 
 func waitAndReport(ctx context.Context, c *haulcli.Client, ids []string) error {
+	c.Hint = func(s string) { fmt.Println(s) }
 	hauls, err := c.Wait(ctx, ids, 500*time.Millisecond)
 	if errors.Is(err, context.Canceled) {
 		fmt.Println("stopped waiting; the runs keep going")
