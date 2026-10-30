@@ -235,3 +235,16 @@ workers:
 	_, err = Parse([]byte("apiVersion: hubwagen.dev/v1alpha1\nkind: Config\nworkers:\n  - {name: a, command: [w], idle_after: soon}\n"), dir)
 	assert.ErrorContains(t, err, `"soon": want a duration such as 5m or 90s`)
 }
+
+func TestExternalPools(t *testing.T) {
+	c, err := Parse([]byte("apiVersion: hubwagen.dev/v1alpha1\nkind: Config\nworkers:\n  - {name: k8s, launcher: external, min: 0, max: 5, docks: [gpu]}\n"), t.TempDir())
+	require.NoError(t, err)
+	assert.True(t, c.Workers[0].External())
+	assert.True(t, c.Workers[0].Scaled())
+
+	_, err = Parse([]byte("apiVersion: hubwagen.dev/v1alpha1\nkind: Config\nworkers:\n"+
+		"  - {name: a, launcher: external, command: [w]}\n  - {name: b, launcher: docker, command: [w]}\n"), t.TempDir())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "workers[0]: an external pool's workers are started elsewhere: no command or env")
+	assert.Contains(t, err.Error(), `workers[1].launcher: must be process or external, got "docker"`)
+}

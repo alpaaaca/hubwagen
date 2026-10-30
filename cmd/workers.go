@@ -105,6 +105,9 @@ func configName(cfg *config.Config) string {
 func workerProcesses(cfg *config.Config, server string, extraEnv ...string) []supervise.Process {
 	var procs []supervise.Process
 	for _, w := range cfg.Workers {
+		if w.External() {
+			continue // started by its own launcher
+		}
 		for n := 1; n <= w.Count(); n++ {
 			procs = append(procs, workerProcess(w, w.Name+"-"+strconv.Itoa(n), server, extraEnv...))
 		}
@@ -140,8 +143,13 @@ func startWorkers(ctx context.Context, g *supervise.Group, cfg *config.Config, c
 			}
 			continue
 		}
-		scaled = append(scaled, pools.Pool{Name: w.Name, Docks: w.DockList(), Lifts: w.LiftCount(), Min: lo, Max: hi, IdleAfter: w.Idle()})
-		log.Info("worker pool "+w.Name+": scaled by the work waiting on its docks", "pool", w.Name, "min", lo, "max", hi,
+		scaled = append(scaled, pools.Pool{Name: w.Name, Docks: w.DockList(), Lifts: w.LiftCount(), Min: lo, Max: hi,
+			IdleAfter: w.Idle(), External: w.External()})
+		msg := "scaled by the work waiting on its docks"
+		if w.External() {
+			msg = "started elsewhere; its desired count is at GET /v1/pools/" + w.Name
+		}
+		log.Info("worker pool "+w.Name+": "+msg, "pool", w.Name, "min", lo, "max", hi,
 			"docks", strings.Join(w.DockList(), ","), "idle_after", w.Idle())
 	}
 	if len(scaled) > 0 {

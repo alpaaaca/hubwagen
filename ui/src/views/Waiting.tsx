@@ -41,7 +41,9 @@ export function Workers() {
     <>
       {(pools.data?.pools ?? []).map((p) => (
         <p key={p.name} className="small">
-          Pool <span className="mono">{p.name}</span> ({p.docks.join(", ")}): {p.workers.length} of {p.min}–{p.max} workers
+          Pool <span className="mono">{p.name}</span> ({p.docks.join(", ")}
+          {p.external && ", started elsewhere"}): {p.workers.length} of {p.min}–{p.max} workers
+          {p.external && p.desired !== p.workers.length && <>, wants {p.desired}</>}
           {p.starting > 0 && <>, {p.starting} starting</>}
           {p.decision && (
             <span className="dim">

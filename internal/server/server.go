@@ -1,7 +1,8 @@
 // Package server wires the server into one process, for `hubwagen server`
 // and `hubwagen dev`: the state store and the run logs under one data
 // directory, the bucket (file:// under it, or s3://), the core, and the API
-// (the Connect services, the data endpoint, the web UI and /healthz).
+// (the Connect services, the data endpoint, /v1/pools, the web UI and
+// /healthz).
 //
 // One process owns a data directory at a time; a lock file enforces that, so
 // a second server on the same directory fails with a clear message instead
@@ -191,6 +192,9 @@ func (e *Engine) serveAPI(addr string, log *slog.Logger) error {
 	path, h = api.NewLogHandler(e.Store, e.Logs)
 	mux.Handle(path, h)
 	mux.HandleFunc("GET /healthz", e.health)
+	pools := api.PoolsHandler(e.Core)
+	mux.Handle(api.PoolsPath, pools)
+	mux.Handle(api.PoolsPath+"/", pools)
 	mux.Handle("/", webui.Handler()) // the Connect services' paths above are more specific
 	path, h = api.NewCatalogHandler(e.Core, e.Store, manifests)
 	mux.Handle(path, h)

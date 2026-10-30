@@ -21,6 +21,10 @@ type PoolStatus struct {
 	// haven't polled yet.
 	Workers  []string
 	Starting int
+	// Desired is how many workers it wants: what it runs, for a pool
+	// hubwagen starts; for an external one, what its launcher should run.
+	Desired  int
+	External bool
 	// Decision is its last scaling decision in words ("started py-3: 4
 	// steps wait on default"), at DecidedAt; "" before the first.
 	Decision  string

@@ -109,13 +109,19 @@ type Pool struct {
 	Docks []string               `protobuf:"bytes,2,rep,name=docks,proto3" json:"docks,omitempty"`
 	Min   int32                  `protobuf:"varint,3,opt,name=min,proto3" json:"min,omitempty"`
 	Max   int32                  `protobuf:"varint,4,opt,name=max,proto3" json:"max,omitempty"`
-	// The workers it runs, by ID; starting of them haven't polled yet.
+	// The workers it runs, by ID (an external pool: those polling its
+	// docks); starting of them haven't polled yet.
 	Workers  []string `protobuf:"bytes,5,rep,name=workers,proto3" json:"workers,omitempty"`
 	Starting int32    `protobuf:"varint,6,opt,name=starting,proto3" json:"starting,omitempty"`
 	// Its last decision in words ("started py-2: 3 steps wait on default"),
 	// and when; empty before the first.
-	Decision      string                 `protobuf:"bytes,7,opt,name=decision,proto3" json:"decision,omitempty"`
-	DecidedAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=decided_at,json=decidedAt,proto3" json:"decided_at,omitempty"`
+	Decision  string                 `protobuf:"bytes,7,opt,name=decision,proto3" json:"decision,omitempty"`
+	DecidedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=decided_at,json=decidedAt,proto3" json:"decided_at,omitempty"`
+	// How many workers it wants: what it runs, or for an external pool, what
+	// its launcher (KEDA, an HPA) should run.
+	Desired int32 `protobuf:"varint,9,opt,name=desired,proto3" json:"desired,omitempty"`
+	// Started by something other than hubwagen (launcher: external).
+	External      bool `protobuf:"varint,10,opt,name=external,proto3" json:"external,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -204,6 +210,20 @@ func (x *Pool) GetDecidedAt() *timestamppb.Timestamp {
 		return x.DecidedAt
 	}
 	return nil
+}
+
+func (x *Pool) GetDesired() int32 {
+	if x != nil {
+		return x.Desired
+	}
+	return 0
+}
+
+func (x *Pool) GetExternal() bool {
+	if x != nil {
+		return x.External
+	}
+	return false
 }
 
 type ListWorkersRequest struct {
@@ -2377,7 +2397,7 @@ const file_hubwagen_v1_haul_proto_rawDesc = "" +
 	"\x16hubwagen/v1/haul.proto\x12\vhubwagen.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x12\n" +
 	"\x10ListPoolsRequest\"<\n" +
 	"\x11ListPoolsResponse\x12'\n" +
-	"\x05pools\x18\x01 \x03(\v2\x11.hubwagen.v1.PoolR\x05pools\"\xe1\x01\n" +
+	"\x05pools\x18\x01 \x03(\v2\x11.hubwagen.v1.PoolR\x05pools\"\x97\x02\n" +
 	"\x04Pool\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
 	"\x05docks\x18\x02 \x03(\tR\x05docks\x12\x10\n" +
@@ -2387,7 +2407,10 @@ const file_hubwagen_v1_haul_proto_rawDesc = "" +
 	"\bstarting\x18\x06 \x01(\x05R\bstarting\x12\x1a\n" +
 	"\bdecision\x18\a \x01(\tR\bdecision\x129\n" +
 	"\n" +
-	"decided_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAt\"\x14\n" +
+	"decided_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAt\x12\x18\n" +
+	"\adesired\x18\t \x01(\x05R\adesired\x12\x1a\n" +
+	"\bexternal\x18\n" +
+	" \x01(\bR\bexternal\"\x14\n" +
 	"\x12ListWorkersRequest\"D\n" +
 	"\x13ListWorkersResponse\x12-\n" +
 	"\aworkers\x18\x01 \x03(\v2\x13.hubwagen.v1.WorkerR\aworkers\"\xcc\x01\n" +

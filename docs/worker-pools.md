@@ -1,6 +1,6 @@
 # Worker pools: the leader starts the workers its work needs
 
-> **Status:** design note; steps 1 and 2 are built (processes only), the rest is not. Builds on `hubwagen.yaml`'s
+> **Status:** design note; steps 1–3 are built (processes, and desired counts for external scalers), the rest is not. Builds on `hubwagen.yaml`'s
 > `workers:` ([config.md](config.md)), `internal/supervise`, the core's
 > record of workers seen lately (`internal/core/workers.go`) and the node
 > design in [failover.md](failover.md). Decision requested: steps 1 and 2
@@ -191,8 +191,11 @@ connected" when one is on its way.
    above is the shape, not the name); the scaler (`internal/pools`);
    `ListPools`; the waiting message names the pool. Not yet: restarting a
    pool's workers on `no_build` ("When the code changed").
-3. **Desired counts for external scalers**: `GET /v1/pools` and a KEDA
-   external scaler.
+3. ✅ **Desired counts for external scalers**: `launcher: external` on a
+   group; `GET /v1/pools` and `/v1/pools/<name>` as plain JSON, which
+   KEDA's built-in `metrics-api` trigger reads (no gRPC external scaler
+   needed); `Pool.desired` in `ListPools`. Example in
+   [config.md](config.md#external-pools-keda-an-hpa-or-anything-that-polls).
 4. **Container and Kubernetes launchers**, behind `internal/profile`.
 5. **Step resources and pod steps.**
 

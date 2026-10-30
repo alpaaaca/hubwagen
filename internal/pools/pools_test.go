@@ -213,3 +213,50 @@ func TestTheFirstPoolOnADockTakesItsWork(t *testing.T) {
 	started, _ := e.tick(s)
 	assert.Equal(t, []string{"py-1"}, started)
 }
+
+func TestAnExternalPoolPublishesHowManyWorkersItWants(t *testing.T) {
+	e := newEnv(t)
+	k8s := Pool{Name: "k8s", Docks: []string{core.DefaultDock}, Lifts: 2, Max: 5, IdleAfter: 5 * time.Minute, External: true}
+	s := e.scaler(k8s)
+	e.tick(s)
+	assert.Equal(t, 0, e.pool("k8s").Desired)
+
+	e.startRun()
+	started, _ := e.tick(s)
+	assert.Empty(t, started, "an external pool starts nothing")
+	assert.Equal(t, 1, e.pool("k8s").Desired)
+	assert.True(t, e.pool("k8s").External)
+	assert.Equal(t, "wants 1 worker (was 0): 1 run waits on default", e.pool("k8s").Decision)
+
+	// A pod starts and takes the run: still 1, the one that runs it.
+	task := e.take("pod-a")
+	e.tick(s)
+	assert.Equal(t, 1, e.pool("k8s").Desired)
+	assert.Equal(t, []string{"pod-a"}, e.pool("k8s").Workers)
+
+	// It finishes and waits for work: wanted until idle for IdleAfter.
+	require.NoError(t, e.core.CompleteHaulTask(ctx, core.HaulTaskResult{TaskID: task.ID, BuildID: "b1",
+		Outcome: &core.HaulOutcome{Status: state.HaulCompleted}}))
+	e.idle("pod-a")
+	e.tick(s)
+	e.clock.Advance(4 * time.Minute)
+	e.tick(s)
+	assert.Equal(t, 1, e.pool("k8s").Desired)
+	e.clock.Advance(time.Minute)
+	e.tick(s)
+	assert.Equal(t, 0, e.pool("k8s").Desired)
+	assert.Equal(t, "wants 0 workers (was 1): workers had nothing to run for 5m0s", e.pool("k8s").Decision)
+}
+
+func TestAnExternalPoolDoesntCountAProcessPoolsWorkers(t *testing.T) {
+	e := newEnv(t)
+	k8s := Pool{Name: "k8s", Docks: []string{core.DefaultDock}, Lifts: 1, Max: 5, IdleAfter: time.Minute, External: true}
+	p := py
+	p.Min = 1
+	s := e.scaler(p, k8s)
+	e.tick(s)
+	e.idle("py-1")
+	e.tick(s)
+	assert.Equal(t, []string{"py-1"}, e.pool("py").Workers)
+	assert.Empty(t, e.pool("k8s").Workers)
+}
