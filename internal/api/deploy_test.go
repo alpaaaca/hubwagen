@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -17,7 +18,7 @@ import (
 func TestDeployService(t *testing.T) {
 	s := start(t)
 	mux := http.NewServeMux()
-	path, h := NewDeployHandler(s.core)
+	path, h := NewDeployHandler(s.core, func(map[string]string) error { return nil })
 	mux.Handle(path, h)
 	path, h = NewHaulHandler(s.core, s.store)
 	mux.Handle(path, h)
@@ -58,4 +59,27 @@ func TestDeployService(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, list.Msg.Projects, 1)
 	assert.NotNil(t, list.Msg.Projects[0].DeletedAt)
+}
+
+func TestDeployChecksSecrets(t *testing.T) {
+	s := start(t)
+	mux := http.NewServeMux()
+	path, h := NewDeployHandler(s.core, func(names map[string]string) error {
+		if names["DB"] != "revenue-db" {
+			return fmt.Errorf("secret %s: no such secret on this server", names["DB"])
+		}
+		return nil
+	})
+	mux.Handle(path, h)
+	c := hubwagenv1connect.NewDeployServiceClient(http.DefaultClient, httptestServer(t, mux))
+	req := &hubwagenv1.DeployRequest{Project: "revenue", Image: "acme/revenue:b1", Secrets: map[string]string{"DB": "nope"},
+		Build: &hubwagenv1.RegisterBuildRequest{BuildId: "b1", Hauls: []string{"daily"}},
+		Pools: []*hubwagenv1.DeployedPool{{Name: "default", Docks: []string{"default"}, Max: 1, Lifts: 1}}}
+	_, err := c.Deploy(ctx, connect.NewRequest(req))
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	assert.ErrorContains(t, err, "secret nope: no such secret on this server")
+	req.Secrets["DB"] = "revenue-db"
+	res, err := c.Deploy(ctx, connect.NewRequest(req))
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"DB": "revenue-db"}, res.Msg.Deployment.Secrets)
 }

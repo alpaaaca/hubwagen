@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file hubwagen/v1/deploy.proto.
  */
 export const file_hubwagen_v1_deploy: GenFile = /*@__PURE__*/
-  fileDesc("ChhodWJ3YWdlbi92MS9kZXBsb3kucHJvdG8SC2h1YndhZ2VuLnYxIpICCg1EZXBsb3lSZXF1ZXN0Eg8KB3Byb2plY3QYASABKAkSMAoFYnVpbGQYAiABKAsyIS5odWJ3YWdlbi52MS5SZWdpc3RlckJ1aWxkUmVxdWVzdBINCgVpbWFnZRgDIAEoCRILCgNkaXIYBCABKAkSDgoGcHl0aG9uGAUgASgJEjAKA2VudhgGIAMoCzIjLmh1YndhZ2VuLnYxLkRlcGxveVJlcXVlc3QuRW52RW50cnkSKAoFcG9vbHMYByADKAsyGS5odWJ3YWdlbi52MS5EZXBsb3llZFBvb2wSCgoCYnkYCCABKAkaKgoIRW52RW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKDAQoMRGVwbG95ZWRQb29sEgwKBG5hbWUYASABKAkSDQoFZG9ja3MYAiADKAkSCwoDbWluGAMgASgFEgsKA21heBgEIAEoBRINCgVsaWZ0cxgFIAEoBRItCgppZGxlX2FmdGVyGAYgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uIj0KDkRlcGxveVJlc3BvbnNlEisKCmRlcGxveW1lbnQYASABKAsyFy5odWJ3YWdlbi52MS5EZXBsb3ltZW50IoYCCgpEZXBsb3ltZW50Eg8KB3Byb2plY3QYASABKAkSDwoHdmVyc2lvbhgCIAEoBRIQCghidWlsZF9pZBgDIAEoCRINCgVpbWFnZRgEIAEoCRILCgNkaXIYBSABKAkSKAoFcG9vbHMYBiADKAsyGS5odWJ3YWdlbi52MS5EZXBsb3llZFBvb2wSEQoJcGlwZWxpbmVzGAcgAygJEgoKAmJ5GAggASgJEi8KC2RlcGxveWVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpkZWxldGVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIrChNMaXN0UHJvamVjdHNSZXF1ZXN0EhQKDHdpdGhfZGVsZXRlZBgBIAEoCCJBChRMaXN0UHJvamVjdHNSZXNwb25zZRIpCghwcm9qZWN0cxgBIAMoCzIXLmh1YndhZ2VuLnYxLkRlcGxveW1lbnQiSAoURGVsZXRlUHJvamVjdFJlcXVlc3QSDwoHcHJvamVjdBgBIAEoCRIKCgJieRgCIAEoCRITCgtjYW5jZWxfcnVucxgDIAEoCCIvChVEZWxldGVQcm9qZWN0UmVzcG9uc2USFgoOY2FuY2VsbGVkX3J1bnMYASABKAUy/wEKDURlcGxveVNlcnZpY2USQQoGRGVwbG95EhouaHVid2FnZW4udjEuRGVwbG95UmVxdWVzdBobLmh1YndhZ2VuLnYxLkRlcGxveVJlc3BvbnNlElMKDExpc3RQcm9qZWN0cxIgLmh1YndhZ2VuLnYxLkxpc3RQcm9qZWN0c1JlcXVlc3QaIS5odWJ3YWdlbi52MS5MaXN0UHJvamVjdHNSZXNwb25zZRJWCg1EZWxldGVQcm9qZWN0EiEuaHVid2FnZW4udjEuRGVsZXRlUHJvamVjdFJlcXVlc3QaIi5odWJ3YWdlbi52MS5EZWxldGVQcm9qZWN0UmVzcG9uc2VCQ1pBZ2l0aHViLmNvbS9hbHBlci9odWJ3YWdlbi9pbnRlcm5hbC9hcGkvZ2VuL2h1YndhZ2VuL3YxO2h1YndhZ2VudjFiBnByb3RvMw", [file_google_protobuf_duration, file_google_protobuf_timestamp, file_hubwagen_v1_worker]);
+  fileDesc("ChhodWJ3YWdlbi92MS9kZXBsb3kucHJvdG8SC2h1YndhZ2VuLnYxIvwCCg1EZXBsb3lSZXF1ZXN0Eg8KB3Byb2plY3QYASABKAkSMAoFYnVpbGQYAiABKAsyIS5odWJ3YWdlbi52MS5SZWdpc3RlckJ1aWxkUmVxdWVzdBINCgVpbWFnZRgDIAEoCRILCgNkaXIYBCABKAkSDgoGcHl0aG9uGAUgASgJEjAKA2VudhgGIAMoCzIjLmh1YndhZ2VuLnYxLkRlcGxveVJlcXVlc3QuRW52RW50cnkSKAoFcG9vbHMYByADKAsyGS5odWJ3YWdlbi52MS5EZXBsb3llZFBvb2wSCgoCYnkYCCABKAkSOAoHc2VjcmV0cxgJIAMoCzInLmh1YndhZ2VuLnYxLkRlcGxveVJlcXVlc3QuU2VjcmV0c0VudHJ5GioKCEVudkVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEaLgoMU2VjcmV0c0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEigwEKDERlcGxveWVkUG9vbBIMCgRuYW1lGAEgASgJEg0KBWRvY2tzGAIgAygJEgsKA21pbhgDIAEoBRILCgNtYXgYBCABKAUSDQoFbGlmdHMYBSABKAUSLQoKaWRsZV9hZnRlchgGIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiI9Cg5EZXBsb3lSZXNwb25zZRIrCgpkZXBsb3ltZW50GAEgASgLMhcuaHVid2FnZW4udjEuRGVwbG95bWVudCLtAgoKRGVwbG95bWVudBIPCgdwcm9qZWN0GAEgASgJEg8KB3ZlcnNpb24YAiABKAUSEAoIYnVpbGRfaWQYAyABKAkSDQoFaW1hZ2UYBCABKAkSCwoDZGlyGAUgASgJEigKBXBvb2xzGAYgAygLMhkuaHVid2FnZW4udjEuRGVwbG95ZWRQb29sEhEKCXBpcGVsaW5lcxgHIAMoCRIKCgJieRgIIAEoCRIvCgtkZXBsb3llZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKZGVsZXRlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASNQoHc2VjcmV0cxgLIAMoCzIkLmh1YndhZ2VuLnYxLkRlcGxveW1lbnQuU2VjcmV0c0VudHJ5Gi4KDFNlY3JldHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIisKE0xpc3RQcm9qZWN0c1JlcXVlc3QSFAoMd2l0aF9kZWxldGVkGAEgASgIIkEKFExpc3RQcm9qZWN0c1Jlc3BvbnNlEikKCHByb2plY3RzGAEgAygLMhcuaHVid2FnZW4udjEuRGVwbG95bWVudCJIChREZWxldGVQcm9qZWN0UmVxdWVzdBIPCgdwcm9qZWN0GAEgASgJEgoKAmJ5GAIgASgJEhMKC2NhbmNlbF9ydW5zGAMgASgIIi8KFURlbGV0ZVByb2plY3RSZXNwb25zZRIWCg5jYW5jZWxsZWRfcnVucxgBIAEoBTL/AQoNRGVwbG95U2VydmljZRJBCgZEZXBsb3kSGi5odWJ3YWdlbi52MS5EZXBsb3lSZXF1ZXN0GhsuaHVid2FnZW4udjEuRGVwbG95UmVzcG9uc2USUwoMTGlzdFByb2plY3RzEiAuaHVid2FnZW4udjEuTGlzdFByb2plY3RzUmVxdWVzdBohLmh1YndhZ2VuLnYxLkxpc3RQcm9qZWN0c1Jlc3BvbnNlElYKDURlbGV0ZVByb2plY3QSIS5odWJ3YWdlbi52MS5EZWxldGVQcm9qZWN0UmVxdWVzdBoiLmh1YndhZ2VuLnYxLkRlbGV0ZVByb2plY3RSZXNwb25zZUJDWkFnaXRodWIuY29tL2FscGVyL2h1YndhZ2VuL2ludGVybmFsL2FwaS9nZW4vaHVid2FnZW4vdjE7aHVid2FnZW52MWIGcHJvdG8z", [file_google_protobuf_duration, file_google_protobuf_timestamp, file_hubwagen_v1_worker]);
 
 /**
  * @generated from message hubwagen.v1.DeployRequest
@@ -51,7 +51,7 @@ export type DeployRequest = Message<"hubwagen.v1.DeployRequest"> & {
   python: string;
 
   /**
-   * Variables for its workers (plain values; secrets come later).
+   * Variables for its workers, plain values.
    *
    * @generated from field: map<string, string> env = 6;
    */
@@ -68,6 +68,16 @@ export type DeployRequest = Message<"hubwagen.v1.DeployRequest"> & {
    * @generated from field: string by = 8;
    */
   by: string;
+
+  /**
+   * Variables whose values are secrets the server holds: env name →
+   * secret name. The server reads them when it starts a worker; values
+   * never pass through the API. FAILED_PRECONDITION if the server has no
+   * such secret.
+   *
+   * @generated from field: map<string, string> secrets = 9;
+   */
+  secrets: { [key: string]: string };
 };
 
 /**
@@ -197,6 +207,13 @@ export type Deployment = Message<"hubwagen.v1.Deployment"> & {
    * @generated from field: google.protobuf.Timestamp deleted_at = 10;
    */
   deletedAt?: Timestamp | undefined;
+
+  /**
+   * Env name → secret name (never values).
+   *
+   * @generated from field: map<string, string> secrets = 11;
+   */
+  secrets: { [key: string]: string };
 };
 
 /**

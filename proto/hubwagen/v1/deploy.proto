@@ -33,11 +33,16 @@ message DeployRequest {
   string image = 3;
   string dir = 4;
   string python = 5;
-  // Variables for its workers (plain values; secrets come later).
+  // Variables for its workers, plain values.
   map<string, string> env = 6;
   repeated DeployedPool pools = 7;
   // Who deployed, for the record.
   string by = 8;
+  // Variables whose values are secrets the server holds: env name →
+  // secret name. The server reads them when it starts a worker; values
+  // never pass through the API. FAILED_PRECONDITION if the server has no
+  // such secret.
+  map<string, string> secrets = 9;
 }
 
 message DeployedPool {
@@ -68,6 +73,8 @@ message Deployment {
   google.protobuf.Timestamp deployed_at = 9;
   // Set if the project was deleted.
   google.protobuf.Timestamp deleted_at = 10;
+  // Env name → secret name (never values).
+  map<string, string> secrets = 11;
 }
 
 message ListProjectsRequest {

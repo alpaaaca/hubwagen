@@ -27,7 +27,10 @@ type Deployment struct {
 	Dir    string            `json:"dir,omitempty"`
 	Python string            `json:"python,omitempty"`
 	Env    map[string]string `json:"env,omitempty"`
-	Pools  []DeployedPool    `json:"pools"`
+	// Secrets: variables whose values the server reads from its secrets
+	// when it starts a worker (env name → secret name). Never the values.
+	Secrets map[string]string `json:"secrets,omitempty"`
+	Pools   []DeployedPool    `json:"pools"`
 	// Hauls are the pipelines its build defines.
 	Hauls      []string  `json:"hauls"`
 	By         string    `json:"by,omitempty"`

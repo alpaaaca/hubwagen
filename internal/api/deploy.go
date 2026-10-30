@@ -16,20 +16,27 @@ import (
 
 // DeployServer implements DeployService: projects (docs/projects.md).
 type DeployServer struct {
-	core *core.Core
+	core    *core.Core
+	secrets func(names map[string]string) error
 }
 
 // NewDeployHandler returns the path and handler to mount DeployService at.
-func NewDeployHandler(c *core.Core) (string, http.Handler) {
-	return hubwagenv1connect.NewDeployServiceHandler(&DeployServer{core: c})
+// secrets checks that the server holds the secrets a deployment names.
+func NewDeployHandler(c *core.Core, secrets func(names map[string]string) error) (string, http.Handler) {
+	return hubwagenv1connect.NewDeployServiceHandler(&DeployServer{core: c, secrets: secrets})
 }
 
 var _ hubwagenv1connect.DeployServiceHandler = (*DeployServer)(nil)
 
 func (s *DeployServer) Deploy(ctx context.Context, req *connect.Request[hubwagenv1.DeployRequest]) (*connect.Response[hubwagenv1.DeployResponse], error) {
 	m := req.Msg
+	if len(m.Secrets) > 0 {
+		if err := s.secrets(m.Secrets); err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+	}
 	r := core.DeployRequest{Project: m.Project, Build: buildRequest(m.Build), Image: m.Image, Dir: m.Dir, Python: m.Python,
-		Env: m.Env, By: m.By}
+		Env: m.Env, Secrets: m.Secrets, By: m.By}
 	for _, p := range m.Pools {
 		r.Pools = append(r.Pools, state.DeployedPool{Name: p.Name, Docks: p.Docks, Min: int(p.Min), Max: int(p.Max),
 			Lifts: int(p.Lifts), IdleAfter: p.IdleAfter.AsDuration()})
@@ -70,7 +77,7 @@ func (s *DeployServer) DeleteProject(ctx context.Context, req *connect.Request[h
 
 func deploymentMessage(p state.Project) *hubwagenv1.Deployment {
 	m := &hubwagenv1.Deployment{Project: p.Project, Version: int32(p.Version), BuildId: p.BuildID, Image: p.Image, Dir: p.Dir,
-		Pipelines: p.Hauls, By: p.By, DeployedAt: timestamppb.New(p.DeployedAt)}
+		Pipelines: p.Hauls, By: p.By, DeployedAt: timestamppb.New(p.DeployedAt), Secrets: p.Secrets}
 	for _, pool := range p.Pools {
 		m.Pools = append(m.Pools, &hubwagenv1.DeployedPool{Name: pool.Name, Docks: pool.Docks, Min: int32(pool.Min),
 			Max: int32(pool.Max), Lifts: int32(pool.Lifts), IdleAfter: durationpb.New(pool.IdleAfter)})

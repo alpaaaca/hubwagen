@@ -68,6 +68,9 @@ type Group struct {
 	wg    sync.WaitGroup
 	mu    sync.Mutex
 	procs map[string]*running // started, not being stopped
+	// closed: Wait is waiting; Start adds no more (a WaitGroup can't grow
+	// while waited on).
+	closed bool
 }
 
 type running struct{ cancel context.CancelFunc }
@@ -83,7 +86,7 @@ func NewGroup(ctx context.Context, o Options) *Group {
 func (g *Group) Start(p Process) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if _, ok := g.procs[p.ID]; ok || g.ctx.Err() != nil {
+	if _, ok := g.procs[p.ID]; ok || g.closed || g.ctx.Err() != nil {
 		return
 	}
 	ctx, cancel := context.WithCancel(g.ctx)
@@ -127,6 +130,9 @@ func (g *Group) Running() []string {
 // stopped.
 func (g *Group) Wait() {
 	<-g.ctx.Done()
+	g.mu.Lock()
+	g.closed = true
+	g.mu.Unlock()
 	g.wg.Wait()
 }
 

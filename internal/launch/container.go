@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -77,6 +78,16 @@ func Container(w config.Worker, id, server, dataDir string, env []string) superv
 	if rt == "docker" {
 		args = append(args, "--add-host=host.docker.internal:host-gateway") // Linux; Docker Desktop has it already
 	}
+	runtimeEnv := os.Environ()
+	if w.AuthFile != "" {
+		if rt == "podman" {
+			args = append(args, "--authfile", w.AuthFile)
+		} else {
+			// Docker reads <DOCKER_CONFIG>/config.json; the runtime's own
+			// variable, not the container's.
+			runtimeEnv = append(runtimeEnv, "DOCKER_CONFIG="+filepath.Dir(w.AuthFile))
+		}
+	}
 	names := map[string]bool{}
 	for _, kv := range env {
 		k, _, _ := strings.Cut(kv, "=")
@@ -87,7 +98,7 @@ func Container(w config.Worker, id, server, dataDir string, env []string) superv
 	}
 	args = append(args, w.Image)
 	args = append(args, w.Command...)
-	return supervise.Process{ID: id, Command: args, Dir: w.Dir, Env: append(os.Environ(), env...),
+	return supervise.Process{ID: id, Command: args, Dir: w.Dir, Env: append(runtimeEnv, env...),
 		Cleanup: []string{rt, "rm", "-f", name}}
 }
 

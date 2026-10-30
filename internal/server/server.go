@@ -29,6 +29,7 @@ import (
 	"github.com/alper/hubwagen/internal/blob"
 	"github.com/alper/hubwagen/internal/clock"
 	"github.com/alper/hubwagen/internal/core"
+	"github.com/alper/hubwagen/internal/launch"
 	"github.com/alper/hubwagen/internal/layout"
 	"github.com/alper/hubwagen/internal/pallet"
 	"github.com/alper/hubwagen/internal/runlog"
@@ -47,7 +48,9 @@ type Config struct {
 	// served on, e.g. 127.0.0.1:7070. Port 0 picks a free port (see
 	// Engine.APIAddr).
 	Listen string
-	Logger *slog.Logger
+	// SecretsDir holds the secrets deployed projects name (launch.Secrets).
+	SecretsDir string
+	Logger     *slog.Logger
 }
 
 // HeartbeatTimeout is how long a worker's task survives without a heartbeat.
@@ -65,13 +68,14 @@ type Engine struct {
 	// APIAddr is the API's address, if it is served.
 	APIAddr string
 
-	api       *http.Server
-	serveData bool
-	lock      *os.File
-	cancel    context.CancelFunc
-	done      chan error
-	stopped   atomic.Bool // the core has stopped
-	closed    bool
+	api        *http.Server
+	serveData  bool
+	secretsDir string
+	lock       *os.File
+	cancel     context.CancelFunc
+	done       chan error
+	stopped    atomic.Bool // the core has stopped
+	closed     bool
 }
 
 // ErrLocked means another process is using the data directory.
@@ -129,6 +133,7 @@ func Start(ctx context.Context, cfg Config) (*Engine, error) {
 		}
 	}
 	e.serveData = cfg.ServeData
+	e.secretsDir = cfg.SecretsDir
 	if e.Logs, err = runlog.Open(filepath.Join(dir, "logs")); err != nil {
 		return fail(err)
 	}
@@ -198,7 +203,7 @@ func (e *Engine) serveAPI(addr string, log *slog.Logger) error {
 	mux.Handle("/", webui.Handler()) // the Connect services' paths above are more specific
 	path, h = api.NewCatalogHandler(e.Core, e.Store, manifests)
 	mux.Handle(path, h)
-	path, h = api.NewDeployHandler(e.Core)
+	path, h = api.NewDeployHandler(e.Core, launch.Secrets{Dir: e.secretsDir}.Check)
 	mux.Handle(path, h)
 	e.api = &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	e.APIAddr = ln.Addr().String()
