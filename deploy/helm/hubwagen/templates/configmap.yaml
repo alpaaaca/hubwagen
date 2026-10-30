@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "hubwagen.fullname" . }}
+  labels: {{- include "hubwagen.labels" . | nindent 4 }}
+data:
+  hubwagen.yaml: |
+    apiVersion: hubwagen.dev/v1alpha1
+    kind: Config
+    data_dir: /data
+    server:
+      listen: 0.0.0.0:{{ .Values.server.port }}
+    {{- with .Values.server.bucket }}
+    {{- if .url }}
+    bucket:
+      url: {{ .url | quote }}
+      {{- with .endpoint }}
+      endpoint: {{ . | quote }}
+      {{- end }}
+      {{- with .region }}
+      region: {{ . | quote }}
+      {{- end }}
+      {{- if .existingSecret }}
+      access_key_id_file: /etc/hubwagen/bucket/access_key_id
+      secret_access_key_file: /etc/hubwagen/bucket/secret_access_key
+      {{- end }}
+    {{- end }}
+    {{- end }}
+    kubernetes:
+      namespace: {{ .Release.Namespace }}
+    {{- if .Values.pools }}
+    workers:
+    {{- range .Values.pools }}
+      - name: {{ .name }}
+        launcher: kubernetes
+        deployment: {{ include "hubwagen.poolName" (dict "root" $ "pool" .) }}
+        min: {{ .min | default 0 }}
+        max: {{ required (printf "pools[%s].max is required" .name) .max }}
+        lifts: {{ .lifts | default 4 }}
+        docks: {{ .docks | default (list "default") | toJson }}
+        idle_after: {{ .idleAfter | default "5m" }}
+    {{- end }}
+    {{- end }}

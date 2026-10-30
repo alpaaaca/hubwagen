@@ -1,0 +1,6 @@
+apiVersion: v2
+name: hubwagen
+description: hubwagen server and worker pools that it scales from the work waiting
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

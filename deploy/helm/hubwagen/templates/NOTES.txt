@@ -1,0 +1,17 @@
+hubwagen {{ .Chart.AppVersion }} is starting in {{ .Release.Namespace }}.
+
+The API and web UI (no authentication yet; reach it through a port-forward):
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "hubwagen.fullname" . }} {{ .Values.server.port }}
+  open http://127.0.0.1:{{ .Values.server.port }}
+{{- if .Values.pools }}
+
+Worker pools, scaled by the server from the work waiting:
+{{- range .Values.pools }}
+  {{ .name }}: Deployment {{ include "hubwagen.poolName" (dict "root" $ "pool" .) }}, {{ .min | default 0 }} to {{ .max }} workers
+{{- end }}
+  hubwagen pools and their last decision: curl http://127.0.0.1:{{ .Values.server.port }}/v1/pools
+{{- else }}
+
+No worker pools: add them under pools: in the values, or run workers
+elsewhere against {{ include "hubwagen.serverURL" . }}.
+{{- end }}

@@ -1,0 +1,34 @@
+# hubwagen on one machine with containers: the server and the revenue
+# example's workers. Build the images first (make images), then:
+#   docker compose -f deploy/compose.yaml up     (or podman compose)
+# The web UI and API: http://127.0.0.1:7070
+name: hubwagen
+
+services:
+  server:
+    image: ${HUBWAGEN_IMAGE:-hubwagen:dev}
+    ports:
+      - "127.0.0.1:${HUBWAGEN_PORT:-7070}:7070"   # loopback only: the API has no authentication yet
+    volumes:
+      - data:/data
+    environment:
+      # An S3 bucket, if set; else data versions stay in the volume.
+      HUBWAGEN_BUCKET: ${HUBWAGEN_BUCKET:-}
+      HUBWAGEN_S3_ENDPOINT: ${HUBWAGEN_S3_ENDPOINT:-}
+      HUBWAGEN_S3_REGION: ${HUBWAGEN_S3_REGION:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+    stop_grace_period: 30s
+
+  revenue:
+    image: ${REVENUE_IMAGE:-revenue-worker:dev}
+    environment:
+      HUBWAGEN_SERVER: http://server:7070
+      HUBWAGEN_LIFTS: "2"
+    depends_on: [server]   # the workers retry until the server answers
+    deploy:
+      replicas: ${REVENUE_WORKERS:-2}
+    stop_grace_period: 1m  # running steps finish on SIGTERM
+
+volumes:
+  data:
