@@ -42,6 +42,43 @@ workers:                         # started by hubwagen dev, server and workers
 - **Strict**: unknown fields, wrong types and duplicate keys are errors.
   Every problem is reported at once, with its location:
   `hubwagen.yaml: workers[1].replicas: must be 0 or more`.
+- **Variables**: values may come from the environment, for what differs per
+  machine (see below).
+
+### Variables
+
+`${NAME}` is replaced with the environment variable `NAME`, and
+`${NAME:-default}` with its default when `NAME` is unset or empty, before
+the file is parsed. So one committed file serves every machine, with a
+`.env` or the service manager setting the values:
+
+```yaml
+server:
+  listen: ${HUBWAGEN_LISTEN:-127.0.0.1:7070}
+bucket:
+  url: ${HUBWAGEN_BUCKET:-}          # unset: no bucket section, <data_dir>/bucket
+  endpoint: ${HUBWAGEN_S3_ENDPOINT:-}
+workers:
+  - name: py
+    replicas: ${WORKERS:-3}          # still a number
+    command: [python3, -m, hubwagen.worker]
+    env:
+      PYTHONPATH: ${HUBWAGEN_SDK}    # must be set
+```
+
+- **`${NAME}` must be set**, even if empty; an unset one is an error with
+  its line (`hubwagen.yaml: line 12: ${HUBWAGEN_SDK} is not set`), all of
+  them at once.
+- **A bucket section of empty values is no bucket**, so
+  `${HUBWAGEN_BUCKET:-}` makes the bucket optional.
+- **Only `${…}`**: a bare `$NAME` is left alone, so a worker command such
+  as `[sh, -c, "echo $HOME"]` means what it says; `$${` stands for a literal
+  `${`. Lines that are only a comment aren't expanded.
+- **Textual**: the value is put in as is, so line numbers stay right. Quote
+  the field (`"${NAME}"`) if a value may hold YAML characters such as `: `
+  or ` #`. A value can't hold a line break.
+- **Not for secrets**: credentials still come from `*_file` paths or the
+  usual `AWS_*` variables, never values in the config, expanded or not.
 
 ### Workers
 
@@ -208,8 +245,10 @@ Sketched for later milestones, not implemented:
   timeout). Retention is declared per dataset in code
   (`hw.Dataset(keep=...)`); the expiry interval is the core's
   `RetentionEvery` (an hour), a config field later.
-- **Environment variables**: an explicit list (`HUBWAGEN_DATA_DIR`,
-  `HUBWAGEN_LOG_LEVEL`, …), not a generic mapping of every field.
+- **Environment variables** as overrides without touching the file: an
+  explicit list (`HUBWAGEN_DATA_DIR`, `HUBWAGEN_LOG_LEVEL`, …), not a
+  generic mapping of every field. Values from the environment inside the
+  file are `${NAME}` (above).
 - **Commands**: `hubwagen config check` and `hubwagen config show`, which
   shows where each value came from.
 - **Secrets**: the file never holds secret values, only `*_file` paths to

@@ -4,6 +4,7 @@
 //
 // The file is decoded strictly: unknown fields, wrong types and duplicate
 // keys are errors, and every problem is reported at once with its location.
+// Values may come from the environment: ${NAME}, ${NAME:-default}.
 package config
 
 import (
@@ -193,9 +194,14 @@ func Load(path string) (*Config, error) {
 
 var workerName = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 
-// Parse decodes and validates a config file; relative paths are resolved
+// Parse decodes and validates a config file, after replacing its
+// variables from the environment (expand.go); relative paths are resolved
 // against dir.
 func Parse(data []byte, dir string) (*Config, error) {
+	data, err := expand(data, os.LookupEnv)
+	if err != nil {
+		return nil, err
+	}
 	var c Config
 	dec := yaml.NewDecoder(bytes.NewReader(data))
 	dec.KnownFields(true)
