@@ -28,8 +28,10 @@ def daily(ctx, day: str):
 
 The engine runs on one machine: `hubwagen dev` (server, API and workers in
 one terminal) or `hubwagen server` (the same as a service, with JSON logs; it starts the
-config's workers too, or `--no-workers` and `hubwagen workers` elsewhere), Python workers, `file://` storage, no
-authentication yet. Built so far: durable pipelines (replay until
+config's workers too, or `--no-workers` and `hubwagen workers` elsewhere), in containers
+(`make images && make up`), or on Kubernetes with the Helm chart, which scales
+worker Deployments from the work waiting ([docs/deploy.md](docs/deploy.md)).
+Python workers, `file://` or S3 storage, no authentication yet. Built so far: durable pipelines (replay until
 blocked, timers, retries, timeouts, leader restarts), data versions with
 exactly-once commits, memoized steps with single-flight, a catalog with
 lineage, the worker and pipeline APIs, dataframes between steps, code

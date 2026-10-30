@@ -1,0 +1,8 @@
+.git
+**/node_modules
+**/.hubwagen
+**/__pycache__
+internal/webui/dist/*
+!internal/webui/dist/.gitkeep
+/hubwagen
+deploy/helm

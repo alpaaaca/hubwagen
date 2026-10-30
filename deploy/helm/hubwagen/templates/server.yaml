@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "hubwagen.fullname" . }}
+  labels: {{- include "hubwagen.labels" . | nindent 4 }}
+  {{- with .Values.server.serviceAccount.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "hubwagen.fullname" . }}-data
+  labels: {{- include "hubwagen.labels" . | nindent 4 }}
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- with .Values.server.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.server.persistence.size }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "hubwagen.fullname" . }}
+  labels: {{- include "hubwagen.labels" . | nindent 4 }}
+    app.kubernetes.io/component: server
+spec:
+  replicas: 1                # one leader: SQLite, one writer
+  strategy:
+    type: Recreate           # never two on the same data
+  selector:
+    matchLabels: {{- include "hubwagen.serverSelector" . | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "hubwagen.serverSelector" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ include "hubwagen.fullname" . }}
+      securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: server
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: [server, --config, /etc/hubwagen/hubwagen.yaml, --log-format, json, --log-level, {{ .Values.server.logLevel | quote }}]
+          ports:
+            - name: api
+              containerPort: {{ .Values.server.port }}
+          readinessProbe:
+            httpGet: {path: /healthz, port: api}
+          livenessProbe:
+            httpGet: {path: /healthz, port: api}
+            periodSeconds: 20
+            failureThreshold: 6
+          volumeMounts:
+            - {name: data, mountPath: /data}
+            - {name: config, mountPath: /etc/hubwagen/hubwagen.yaml, subPath: hubwagen.yaml}
+            {{- if .Values.server.bucket.existingSecret }}
+            - {name: bucket, mountPath: /etc/hubwagen/bucket, readOnly: true}
+            {{- end }}
+          {{- with .Values.server.resources }}
+          resources: {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "hubwagen.fullname" . }}-data
+        - name: config
+          configMap:
+            name: {{ include "hubwagen.fullname" . }}
+        {{- with .Values.server.bucket.existingSecret }}
+        - name: bucket
+          secret:
+            secretName: {{ . }}
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "hubwagen.fullname" . }}
+  labels: {{- include "hubwagen.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  selector: {{- include "hubwagen.serverSelector" . | nindent 4 }}
+  ports:
+    - name: api
+      port: {{ .Values.server.port }}
+      targetPort: api

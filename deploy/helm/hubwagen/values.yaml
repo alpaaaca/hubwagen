@@ -1,0 +1,47 @@
+# The server: one replica (a single leader on SQLite), its data on a PVC.
+image:
+  repository: ghcr.io/alpaaaca/hubwagen
+  tag: ""                 # default: the chart's appVersion
+  pullPolicy: IfNotPresent
+
+server:
+  port: 7070
+  logLevel: info
+  resources: {}
+  persistence:
+    size: 5Gi
+    storageClass: ""      # default: the cluster's
+  # Where data versions go: an S3 bucket (recommended), else the PVC.
+  bucket:
+    url: ""               # s3://bucket[/prefix]
+    endpoint: ""          # S3-compatible stores (MinIO, R2); empty for AWS
+    region: ""
+    # A Secret with keys access_key_id and secret_access_key; empty: the
+    # pod's role (IRSA, Workload Identity) or the AWS defaults.
+    existingSecret: ""
+  serviceAccount:
+    annotations: {}       # e.g. eks.amazonaws.com/role-arn for the bucket
+
+service:
+  type: ClusterIP         # the API has no authentication yet: keep it inside the cluster
+
+# Worker pools: a Deployment each, whose replicas the server sets between
+# min and max from the work waiting on the pool's docks (launcher:
+# kubernetes). The image is a project's: FROM ghcr.io/alpaaaca/hubwagen-worker
+# plus its code.
+pools: []
+#  - name: revenue
+#    image: ghcr.io/acme/revenue:2026-10-30
+#    min: 0
+#    max: 5
+#    lifts: 2              # steps one worker runs at once
+#    docks: [default]
+#    idleAfter: 5m         # a worker with nothing to run this long goes
+#    command: []           # default: the image's
+#    env: {}
+#    resources: {}
+#    terminationGracePeriodSeconds: 600   # longer than your steps: a stopped worker finishes them
+
+podSecurityContext:
+  runAsNonRoot: true
+  fsGroup: 65532

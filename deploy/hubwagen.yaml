@@ -1,0 +1,18 @@
+# The server image's default config (see ../Dockerfile and docs/deploy.md).
+# Values come from the environment, with defaults for a container.
+apiVersion: hubwagen.dev/v1alpha1
+kind: Config
+
+data_dir: ${HUBWAGEN_DATA_DIR:-/data}
+server:
+  # Every interface, so other containers reach it; the API has no
+  # authentication yet: publish the port on loopback only, or keep it on
+  # a private network.
+  listen: ${HUBWAGEN_LISTEN:-0.0.0.0:7070}
+
+# Without HUBWAGEN_BUCKET, data versions stay in /data/bucket. Credentials
+# come from the usual AWS variables or a pod role.
+bucket:
+  url: ${HUBWAGEN_BUCKET:-}
+  endpoint: ${HUBWAGEN_S3_ENDPOINT:-}
+  region: ${HUBWAGEN_S3_REGION:-}

@@ -307,6 +307,11 @@ each is one PR:
    image, scaled like processes; `launcher: kubernetes` sets a
    Deployment's replicas through the API (service account or `kubectl
    proxy`), from the same desired count.
+   ✅ **Container images and a Helm chart**: images for the server and
+   the worker base (plus the example's), `deploy/compose.yaml` for one
+   machine, and `deploy/helm/hubwagen` (server on a PVC, a Deployment per
+   pool scaled by the server); [deploy.md](deploy.md). Not yet: CI that
+   publishes the images.
    ✅ **Variables in `hubwagen.yaml`**: `${NAME}` and `${NAME:-default}`
    from the environment, so one committed config serves every machine
    (bucket, port, paths); an unset `${NAME}` is an error with its line.

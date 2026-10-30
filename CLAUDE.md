@@ -34,6 +34,7 @@ Read before larger changes:
 - [docs/spikes/](docs/spikes/) — spike findings (S1: Python replay, S2: code versions)
 - [sdk/python/README.md](sdk/python/README.md) — writing hauls and lifts, the worker
 - [docs/config.md](docs/config.md) — instance configuration (`hubwagen.yaml`)
+- [docs/deploy.md](docs/deploy.md) — container images, compose, the Helm chart
 - [docs/remote-storage.md](docs/remote-storage.md) — design: `s3://` buckets, transfer URLs for remote workers (step 1 built)
 
 Planning is lightweight: a design note in `docs/` when a decision needs one,
@@ -67,6 +68,7 @@ spec-kit.
 | `sdk/python/` | Python SDK (stdlib only, Python ≥ 3.12): `@pipeline`, `@step` (the engine's `@haul`, `@lift` as aliases), replay engine, worker; pytest runs it against a real `hubwagen dev` |
 | `pipelines/examples/revenue/` | Example Python project; `sdk/python/tests/test_example.py` is its demo |
 | `tests/` | Cross-package end-to-end tests (leader restarts) |
+| `Dockerfile`, `sdk/python/Dockerfile`, `deploy/` | Images (server; worker base), `deploy/compose.yaml`, the Helm chart `deploy/helm/hubwagen`; `make images` |
 
 ## Words
 
@@ -135,4 +137,5 @@ HUBWAGEN_TEST_S3=http://key:secret@127.0.0.1:9000/bucket go test ./internal/blob
 ./hubwagen dev --config pipelines/examples/revenue/hubwagen.yaml   # server + 3 workers; API on 127.0.0.1:7070
 ./hubwagen server --config pipelines/examples/revenue/hubwagen.yaml --log-format json   # for a service manager, with the config's workers (--no-workers: ./hubwagen workers --config …)
 ./hubwagen replay daily --param day=2026-10-01..2026-10-03   # start hauls, report what was reused
+make images && make up    # server + example workers in containers (deploy/compose.yaml); CONTAINER=podman to choose
 ```

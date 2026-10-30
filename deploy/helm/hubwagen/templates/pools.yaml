@@ -1,0 +1,73 @@
+{{- if .Values.pools }}
+# The server sets these Deployments' replicas (launcher: kubernetes): it may
+# patch their scale subresource, and nothing else.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "hubwagen.fullname" . }}-scaler
+  labels: {{- include "hubwagen.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [apps]
+    resources: [deployments/scale]
+    verbs: [get, patch]
+    resourceNames:
+      {{- range .Values.pools }}
+      - {{ include "hubwagen.poolName" (dict "root" $ "pool" .) }}
+      {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "hubwagen.fullname" . }}-scaler
+  labels: {{- include "hubwagen.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "hubwagen.fullname" . }}-scaler
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "hubwagen.fullname" . }}
+    namespace: {{ .Release.Namespace }}
+{{- range .Values.pools }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "hubwagen.poolName" (dict "root" $ "pool" .) }}
+  labels: {{- include "hubwagen.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: worker
+    hubwagen.dev/pool: {{ .name }}
+spec:
+  # No replicas: the server sets them (min to max); an upgrade leaves them be.
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+      hubwagen.dev/pool: {{ .name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: {{ $.Release.Name }}
+        app.kubernetes.io/component: worker
+        hubwagen.dev/pool: {{ .name }}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: {{ .terminationGracePeriodSeconds | default 600 }}
+      containers:
+        - name: worker
+          image: {{ required (printf "pools[%s].image is required" .name) .image | quote }}
+          {{- with .command }}
+          command: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            - {name: HUBWAGEN_SERVER, value: {{ include "hubwagen.serverURL" $ | quote }}}
+            - {name: HUBWAGEN_DOCKS, value: {{ join "," (.docks | default (list "default")) | quote }}}
+            - {name: HUBWAGEN_LIFTS, value: {{ .lifts | default 4 | quote }}}
+            - {name: HUBWAGEN_DATA, value: remote}
+            {{- range $k, $v := .env }}
+            - {name: {{ $k }}, value: {{ $v | quote }}}
+            {{- end }}
+          {{- with .resources }}
+          resources: {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}
+{{- end }}
