@@ -110,7 +110,7 @@ func start(t *testing.T) *server {
 	mux := http.NewServeMux()
 	path, h := api.NewHaulHandler(c, st)
 	mux.Handle(path, h)
-	path, h = api.NewWorkerHandler(c, time.Second)
+	path, h = api.NewWorkerHandler(c, time.Second, nil)
 	mux.Handle(path, h)
 	srv := httptest.NewServer(mux)
 

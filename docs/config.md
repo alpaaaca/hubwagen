@@ -16,6 +16,10 @@ apiVersion: hubwagen.dev/v1alpha1
 kind: Config
 
 data_dir: .hubwagen              # state.db, bucket/, lock; default .hubwagen
+# bucket:                        # where data versions go; default <data_dir>/bucket
+#   url: s3://acme-hubwagen/prod
+#   access_key_id_file: /run/secrets/s3_key_id
+#   secret_access_key_file: /run/secrets/s3_secret
 server:
   listen: 127.0.0.1:7070         # the API; default 127.0.0.1:7070
 
@@ -28,8 +32,8 @@ workers:                         # started by hubwagen dev and hubwagen workers
       PYTHONPATH: src
 ```
 
-- **Relative paths** (`data_dir`, `workers[].dir`) are relative to the
-  config file, so a project's `hubwagen.yaml` works from any directory.
+- **Relative paths** (`data_dir`, `workers[].dir`, the bucket's credential
+  files) are relative to the config file, so a project's `hubwagen.yaml` works from any directory.
 - **Where the file comes from**: `--config <path>`, else `$HUBWAGEN_CONFIG`,
   else `./hubwagen.yaml` if it exists, else the defaults. A file named by
   `--config` or `$HUBWAGEN_CONFIG` must exist.
@@ -81,6 +85,45 @@ still runs none: workers are separate processes, and dev's supervisor is a
 convenience for one machine. With `hubwagen server`, workers are started by
 whatever runs services there (systemd, a Deployment) or by `hubwagen
 workers`, and the server doesn't read the `workers:` section.
+
+### The bucket
+
+Data versions (their files and manifests) go to the bucket. Without a
+`bucket:` section it is the directory `<data_dir>/bucket`; with one, an
+S3 bucket or an S3-compatible store (MinIO, Cloudflare R2, Google Cloud
+Storage's XML API):
+
+```yaml
+bucket:
+  url: s3://acme-hubwagen/prod              # bucket and optional prefix
+  endpoint: https://minio.internal:9000     # S3-compatible stores; omit for AWS
+  public_endpoint: https://s3.acme.example  # what workers reach the store as, if not endpoint
+  region: eu-central-1                      # default: asked of the store
+  path_style: true                          # bucket in the path (MinIO)
+  access_key_id_file: /run/secrets/s3_key_id
+  secret_access_key_file: /run/secrets/s3_secret
+  transfers: presigned                      # or server
+```
+
+- **Credentials** are files, never values in the config (trailing
+  newlines don't count). Without them the usual AWS sources apply:
+  `AWS_ACCESS_KEY_ID` and friends, `~/.aws/credentials`, the instance or
+  pod role.
+- **Only the server uses the bucket.** Workers get URLs from the server for
+  what a step writes and reads: presigned URLs of the store
+  (`transfers: presigned`, the default), or URLs of the server itself,
+  which streams the bytes (`transfers: server`, for workers that can't
+  reach the store). With the directory bucket, workers on the server's
+  machine read and write it directly, and others go through the server. So
+  workers need no shared filesystem and no storage credentials.
+- **Conditional writes are required**: committing a data version creates
+  its manifest only if it doesn't exist (`If-None-Match: *`). The server
+  checks this at start and refuses a store without it.
+- **One bucket per data directory**: the catalog in `state.db` points to
+  manifests in the bucket, so the server refuses to start a data directory
+  with another bucket than the one it was first used with.
+
+Design and the reasoning behind it: [remote-storage.md](remote-storage.md).
 
 ### Running the server as a service
 
@@ -140,7 +183,8 @@ Sketched for later milestones, not implemented:
   `internal/profile`, which turns the config into concrete implementations.
   A `standalone` profile isn't needed: `hubwagen server` is the single-node
   server.
-- **`bucket`**: `s3://…`; today the bucket is always `file://<data_dir>/bucket`.
+- **`bucket`**: `gs://` natively; today Google Cloud Storage works through
+  its S3-compatible XML API.
 - **Sections**: `server.auth` (tokens for workers and users), `replication`
   (Litestream), `secrets`, `log`, and limits the server enforces (maximum lift
   timeout). Retention is declared per dataset in code

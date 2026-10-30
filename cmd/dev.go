@@ -67,7 +67,11 @@ func runDev(cmd *cobra.Command, _ []string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	e, err := devmode.Start(ctx, devmode.Config{DataDir: cfg.DataDir, Listen: cfg.Server.Listen})
+	scfg, err := serverConfig(cfg)
+	if err != nil {
+		return err
+	}
+	e, err := devmode.Start(ctx, scfg)
 	if err != nil {
 		return err
 	}
@@ -75,6 +79,9 @@ func runDev(cmd *cobra.Command, _ []string) error {
 	from := e.LastSeq(ctx)
 	fmt.Printf("hubwagen dev: config %s\n", configName(cfg))
 	fmt.Printf("hubwagen dev: data in %s; Ctrl-C to stop\n", e.DataDir)
+	if scfg.S3 != nil {
+		fmt.Printf("hubwagen dev: bucket %s\n", e.Bucket.Base())
+	}
 	fmt.Printf("hubwagen dev: API on http://%s\n", e.APIAddr)
 	if webui.Built() {
 		fmt.Printf("hubwagen dev: web UI on http://%s/\n", e.APIAddr)

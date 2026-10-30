@@ -40,12 +40,15 @@ def hubwagen_bin(tmp_path_factory) -> str:
     return str(out)
 
 
-def start_dev(hubwagen_bin: str, tmp: Path, url: str | None = None) -> tuple[str, subprocess.Popen]:
-    """A `hubwagen dev` with the API on url (default: a free port), data under tmp."""
+def start_dev(hubwagen_bin: str, tmp: Path, url: str | None = None,
+              config: Path | None = None) -> tuple[str, subprocess.Popen]:
+    """A `hubwagen dev` with the API on url (default: a free port), data under
+    tmp, and the config file's other settings (its workers are not started)."""
     url = url or f"http://127.0.0.1:{_free_port()}"
     log = open(tmp / "dev.log", "a")
     proc = subprocess.Popen([hubwagen_bin, "dev", "--data-dir", str(tmp / "data"),
-                             "--listen", url.removeprefix("http://")],
+                             "--listen", url.removeprefix("http://"),
+                             *(["--config", str(config), "--no-workers"] if config else [])],
                             cwd=tmp, stdout=log, stderr=subprocess.STDOUT)
     client = hw.Client(url)
     for _ in range(100):
@@ -53,18 +56,20 @@ def start_dev(hubwagen_bin: str, tmp: Path, url: str | None = None) -> tuple[str
             client.call("WorkerService", "Heartbeat", {"workerId": "probe"})
             return url, proc
         except hw.ConnectError:
+            if proc.poll() is not None:
+                break
             time.sleep(0.1)
     proc.kill()
     pytest.fail(f"hubwagen dev didn't come up; see {tmp / 'dev.log'}")
 
 
-def start_worker(server: str, module: str | None, cwd: Path, log: Path) -> subprocess.Popen:
-    """`python -m hubwagen.worker [module]` from cwd against server, once it
-    has registered its build (the server starts only hauls a build defines).
-    No module: the worker reads them from cwd/pyproject.toml."""
+def start_worker(server: str, module: str | None, cwd: Path, log: Path, *args: str) -> subprocess.Popen:
+    """`python -m hubwagen.worker [module] [args]` from cwd against server,
+    once it has registered its build (the server starts only hauls a build
+    defines). No module: the worker reads them from cwd/pyproject.toml."""
     env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(SDK / "src"), str(cwd)])}
     proc = subprocess.Popen([sys.executable, "-m", "hubwagen.worker", *([module] if module else []), "--server", server,
-                             "--poll-wait", "1s", "--log-level", "info"],
+                             "--poll-wait", "1s", "--log-level", "info", *args],
                             cwd=cwd, env=env, stdout=open(log, "w"), stderr=subprocess.STDOUT)
     for _ in range(200):
         if "registered build" in log.read_text():
@@ -74,6 +79,22 @@ def start_worker(server: str, module: str | None, cwd: Path, log: Path) -> subpr
         time.sleep(0.05)
     proc.kill()
     pytest.fail(f"worker didn't register; see {log}:\n{log.read_text()}")
+
+
+@pytest.fixture(scope="session")
+def s3fake_bin(tmp_path_factory) -> str:
+    """internal/blob/s3fake as a program: an S3-compatible server in memory."""
+    if not shutil.which("go"):
+        pytest.skip("needs Go to build s3fake")
+    out = tmp_path_factory.mktemp("bin") / "s3fake"
+    subprocess.run(["go", "build", "-o", str(out), "./internal/blob/s3fake/cmd/s3fake"], cwd=REPO, check=True)
+    return str(out)
+
+
+def start_s3fake(s3fake_bin: str, bucket: str) -> tuple[str, subprocess.Popen]:
+    """An S3-compatible endpoint with one bucket; returns its URL."""
+    proc = subprocess.Popen([s3fake_bin, "-bucket", bucket], stdout=subprocess.PIPE, text=True)
+    return proc.stdout.readline().strip(), proc
 
 
 def stop(proc: subprocess.Popen, sig=signal.SIGTERM) -> None:

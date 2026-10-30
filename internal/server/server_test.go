@@ -4,10 +4,14 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/alper/hubwagen/internal/blob"
+	"github.com/alper/hubwagen/internal/blob/s3fake"
 	"github.com/alper/hubwagen/internal/core"
 	"github.com/alper/hubwagen/internal/state"
 	"github.com/stretchr/testify/assert"
@@ -91,4 +95,35 @@ func TestHealth(t *testing.T) {
 	code, body = get()
 	assert.Equal(t, http.StatusServiceUnavailable, code)
 	assert.Equal(t, "stopped", body)
+}
+
+func TestBuckets(t *testing.T) {
+	_, endpoint := s3fake.Start(t, "hwb")
+	s3 := &blob.S3Config{URL: "s3://hwb/prod", Endpoint: endpoint, PathStyle: true, AccessKeyID: "k", SecretAccessKey: "s"}
+
+	dir := t.TempDir()
+	e, err := Start(ctx, Config{DataDir: dir, S3: s3})
+	require.NoError(t, err)
+	assert.Equal(t, "s3://hwb/prod", e.Bucket.Base())
+	assert.Empty(t, e.BucketID, "only file buckets have an ID for workers to find")
+	require.NoError(t, e.Close())
+
+	_, err = Start(ctx, Config{DataDir: dir})
+	assert.ErrorContains(t, err, "keeps its data versions in s3://hwb/prod", "a data dir stays with its bucket")
+
+	dir = t.TempDir()
+	e, err = Start(ctx, Config{DataDir: dir})
+	require.NoError(t, err)
+	id := e.BucketID
+	assert.NotEmpty(t, id)
+	marker, err := os.ReadFile(filepath.Join(dir, "bucket", ".hubwagen-bucket"))
+	require.NoError(t, err)
+	assert.Equal(t, id, string(marker))
+	require.NoError(t, e.Close())
+	e, err = Start(ctx, Config{DataDir: dir})
+	require.NoError(t, err)
+	assert.Equal(t, id, e.BucketID, "the ID stays")
+	require.NoError(t, e.Close())
+	_, err = Start(ctx, Config{DataDir: dir, S3: s3})
+	assert.ErrorContains(t, err, "a data directory works with one bucket")
 }

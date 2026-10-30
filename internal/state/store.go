@@ -254,3 +254,38 @@ func parseTimePtr(ns sql.NullString) (*time.Time, error) {
 	}
 	return &t, nil
 }
+
+// ClaimBucket ties the store to one bucket: its pallets' manifests and
+// files are there, so a store opened with another bucket would point
+// workers at data they can't read. The first claim records base, or
+// legacy (where a store from before this check kept its data) if it already
+// has pallets; it returns the recorded bucket, which the caller compares.
+func (s *Store) ClaimBucket(ctx context.Context, base, legacy string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	tx, err := s.w.BeginTx(ctx, nil)
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback()
+	var v string
+	err = tx.QueryRowContext(ctx, `SELECT value FROM meta WHERE key = 'bucket'`).Scan(&v)
+	if err == nil {
+		return v, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return "", err
+	}
+	var n int
+	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM pallets`).Scan(&n); err != nil {
+		return "", err
+	}
+	v = base
+	if n > 0 {
+		v = legacy
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO meta (key, value) VALUES ('bucket', ?)`, v); err != nil {
+		return "", err
+	}
+	return v, tx.Commit()
+}

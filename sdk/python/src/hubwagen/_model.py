@@ -143,23 +143,34 @@ class DataVersion:
     # The version was reused (same inputs and code), not written by this run.
     reused: bool = False
 
+    # How the worker reaches the data (_data.Remote), when it doesn't share
+    # the server's bucket directory.
+    _remote: Any = field(default=None, repr=False, compare=False)
+
     # Reading a version's data: inside a step that got it as an argument.
 
     def manifest(self) -> dict:
         """The version's manifest: its data prefix and files (path, size,
         sha256)."""
+        if self._remote is not None:
+            return self._remote.manifest(self.id)
         if not self.location:
             raise RuntimeError(f"data version {self.id}: no location; read data versions inside the step they were passed to")
         return json.loads(local_path(self.location).read_text())
 
     def files(self) -> list[Path]:
-        """The version's files as local paths, in path order."""
+        """The version's files as local paths, in path order (downloaded
+        first by a worker on another machine than the server)."""
+        if self._remote is not None:
+            return self._remote.files(self.id)
         m = self.manifest()
         base = local_path(m["data"])
         return [base / f["path"] for f in m["files"]]
 
     def path(self, name: str) -> Path:
         """One of the version's files, by its path within the version."""
+        if self._remote is not None:
+            return self._remote.file(self.id, name)
         m = self.manifest()
         if not any(f["path"] == name for f in m["files"]):
             raise FileNotFoundError(f"data version {self.id} has no file {name!r}")
@@ -173,7 +184,7 @@ class DataVersion:
         m = self.manifest()
         if not any(f["path"] == _codecs.FILE for f in m["files"]):
             raise FileNotFoundError(f"data version {self.id} holds no dataframe (no {_codecs.FILE})")
-        return _codecs.load(local_path(m["data"]) / _codecs.FILE, _codecs.frame_tag(m.get("result")), as_)
+        return _codecs.load(self.path(_codecs.FILE), _codecs.frame_tag(m.get("result")), as_)
 
 
 Pallet = DataVersion  # the engine's name

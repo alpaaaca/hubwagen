@@ -32,6 +32,14 @@ service WorkerService {
   // Heartbeat keeps the leases of a worker's running tasks alive and tells it
   // which ones to stop.
   rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+  // GetUploadURLs and GetDownloadURLs are for workers that can't reach the
+  // bucket as a local directory (see LiftTask.bucket_id): URLs to PUT a
+  // running attempt's output files to its staging prefix, and to GET the
+  // files of its inputs. They are presigned URLs of the object store, or
+  // paths on this server (relative URLs, resolved against the server's).
+  // They expire; ask again for new ones.
+  rpc GetUploadURLs(GetUploadURLsRequest) returns (GetUploadURLsResponse);
+  rpc GetDownloadURLs(GetDownloadURLsRequest) returns (GetDownloadURLsResponse);
 }
 
 message RegisterBuildRequest {
@@ -310,6 +318,13 @@ message LiftTask {
   string staging = 8;
   // The pallets passed to the lift, by argument name.
   repeated InputRef inputs = 9;
+  // The bucket's base URI, and the ID in its .hubwagen-bucket file when it
+  // is a file:// bucket. A worker that finds that file with that ID under
+  // the bucket's path shares the server's filesystem and may read and write
+  // staging and inputs directly; any other worker uses GetUploadURLs and
+  // GetDownloadURLs.
+  string bucket = 10;
+  string bucket_id = 11;
 }
 
 message CompleteLiftTaskRequest {
@@ -354,4 +369,34 @@ message HeartbeatRequest {
 message HeartbeatResponse {
   // Tasks to stop: finished elsewhere, timed out, cancelled or unknown.
   repeated string stop = 1;
+}
+
+// Transfer is one file to PUT or GET: the request carries headers.
+message Transfer {
+  string path = 1;
+  string url = 2;
+  map<string, string> headers = 3;
+}
+
+message GetUploadURLsRequest {
+  string attempt_id = 1;
+  // The files the attempt wrote, as CompleteLiftTask will report them.
+  repeated File files = 2;
+}
+
+message GetUploadURLsResponse {
+  repeated Transfer files = 1;
+}
+
+message GetDownloadURLsRequest {
+  string attempt_id = 1;
+  // One of the attempt's input pallets.
+  string pallet = 2;
+}
+
+message GetDownloadURLsResponse {
+  // The pallet's manifest, as stored.
+  string manifest_json = 1;
+  // One per file in the manifest.
+  repeated Transfer files = 2;
 }

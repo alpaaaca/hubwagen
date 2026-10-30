@@ -50,6 +50,12 @@ const (
 	WorkerServiceCompleteLiftTaskProcedure = "/hubwagen.v1.WorkerService/CompleteLiftTask"
 	// WorkerServiceHeartbeatProcedure is the fully-qualified name of the WorkerService's Heartbeat RPC.
 	WorkerServiceHeartbeatProcedure = "/hubwagen.v1.WorkerService/Heartbeat"
+	// WorkerServiceGetUploadURLsProcedure is the fully-qualified name of the WorkerService's
+	// GetUploadURLs RPC.
+	WorkerServiceGetUploadURLsProcedure = "/hubwagen.v1.WorkerService/GetUploadURLs"
+	// WorkerServiceGetDownloadURLsProcedure is the fully-qualified name of the WorkerService's
+	// GetDownloadURLs RPC.
+	WorkerServiceGetDownloadURLsProcedure = "/hubwagen.v1.WorkerService/GetDownloadURLs"
 )
 
 // WorkerServiceClient is a client for the hubwagen.v1.WorkerService service.
@@ -70,6 +76,14 @@ type WorkerServiceClient interface {
 	// Heartbeat keeps the leases of a worker's running tasks alive and tells it
 	// which ones to stop.
 	Heartbeat(context.Context, *connect.Request[v1.HeartbeatRequest]) (*connect.Response[v1.HeartbeatResponse], error)
+	// GetUploadURLs and GetDownloadURLs are for workers that can't reach the
+	// bucket as a local directory (see LiftTask.bucket_id): URLs to PUT a
+	// running attempt's output files to its staging prefix, and to GET the
+	// files of its inputs. They are presigned URLs of the object store, or
+	// paths on this server (relative URLs, resolved against the server's).
+	// They expire; ask again for new ones.
+	GetUploadURLs(context.Context, *connect.Request[v1.GetUploadURLsRequest]) (*connect.Response[v1.GetUploadURLsResponse], error)
+	GetDownloadURLs(context.Context, *connect.Request[v1.GetDownloadURLsRequest]) (*connect.Response[v1.GetDownloadURLsResponse], error)
 }
 
 // NewWorkerServiceClient constructs a client for the hubwagen.v1.WorkerService service. By default,
@@ -119,6 +133,18 @@ func NewWorkerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(workerServiceMethods.ByName("Heartbeat")),
 			connect.WithClientOptions(opts...),
 		),
+		getUploadURLs: connect.NewClient[v1.GetUploadURLsRequest, v1.GetUploadURLsResponse](
+			httpClient,
+			baseURL+WorkerServiceGetUploadURLsProcedure,
+			connect.WithSchema(workerServiceMethods.ByName("GetUploadURLs")),
+			connect.WithClientOptions(opts...),
+		),
+		getDownloadURLs: connect.NewClient[v1.GetDownloadURLsRequest, v1.GetDownloadURLsResponse](
+			httpClient,
+			baseURL+WorkerServiceGetDownloadURLsProcedure,
+			connect.WithSchema(workerServiceMethods.ByName("GetDownloadURLs")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -130,6 +156,8 @@ type workerServiceClient struct {
 	pollLiftTask     *connect.Client[v1.PollLiftTaskRequest, v1.PollLiftTaskResponse]
 	completeLiftTask *connect.Client[v1.CompleteLiftTaskRequest, v1.CompleteLiftTaskResponse]
 	heartbeat        *connect.Client[v1.HeartbeatRequest, v1.HeartbeatResponse]
+	getUploadURLs    *connect.Client[v1.GetUploadURLsRequest, v1.GetUploadURLsResponse]
+	getDownloadURLs  *connect.Client[v1.GetDownloadURLsRequest, v1.GetDownloadURLsResponse]
 }
 
 // RegisterBuild calls hubwagen.v1.WorkerService.RegisterBuild.
@@ -162,6 +190,16 @@ func (c *workerServiceClient) Heartbeat(ctx context.Context, req *connect.Reques
 	return c.heartbeat.CallUnary(ctx, req)
 }
 
+// GetUploadURLs calls hubwagen.v1.WorkerService.GetUploadURLs.
+func (c *workerServiceClient) GetUploadURLs(ctx context.Context, req *connect.Request[v1.GetUploadURLsRequest]) (*connect.Response[v1.GetUploadURLsResponse], error) {
+	return c.getUploadURLs.CallUnary(ctx, req)
+}
+
+// GetDownloadURLs calls hubwagen.v1.WorkerService.GetDownloadURLs.
+func (c *workerServiceClient) GetDownloadURLs(ctx context.Context, req *connect.Request[v1.GetDownloadURLsRequest]) (*connect.Response[v1.GetDownloadURLsResponse], error) {
+	return c.getDownloadURLs.CallUnary(ctx, req)
+}
+
 // WorkerServiceHandler is an implementation of the hubwagen.v1.WorkerService service.
 type WorkerServiceHandler interface {
 	// RegisterBuild announces a worker build: the hauls it defines and the
@@ -180,6 +218,14 @@ type WorkerServiceHandler interface {
 	// Heartbeat keeps the leases of a worker's running tasks alive and tells it
 	// which ones to stop.
 	Heartbeat(context.Context, *connect.Request[v1.HeartbeatRequest]) (*connect.Response[v1.HeartbeatResponse], error)
+	// GetUploadURLs and GetDownloadURLs are for workers that can't reach the
+	// bucket as a local directory (see LiftTask.bucket_id): URLs to PUT a
+	// running attempt's output files to its staging prefix, and to GET the
+	// files of its inputs. They are presigned URLs of the object store, or
+	// paths on this server (relative URLs, resolved against the server's).
+	// They expire; ask again for new ones.
+	GetUploadURLs(context.Context, *connect.Request[v1.GetUploadURLsRequest]) (*connect.Response[v1.GetUploadURLsResponse], error)
+	GetDownloadURLs(context.Context, *connect.Request[v1.GetDownloadURLsRequest]) (*connect.Response[v1.GetDownloadURLsResponse], error)
 }
 
 // NewWorkerServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -225,6 +271,18 @@ func NewWorkerServiceHandler(svc WorkerServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(workerServiceMethods.ByName("Heartbeat")),
 		connect.WithHandlerOptions(opts...),
 	)
+	workerServiceGetUploadURLsHandler := connect.NewUnaryHandler(
+		WorkerServiceGetUploadURLsProcedure,
+		svc.GetUploadURLs,
+		connect.WithSchema(workerServiceMethods.ByName("GetUploadURLs")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workerServiceGetDownloadURLsHandler := connect.NewUnaryHandler(
+		WorkerServiceGetDownloadURLsProcedure,
+		svc.GetDownloadURLs,
+		connect.WithSchema(workerServiceMethods.ByName("GetDownloadURLs")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/hubwagen.v1.WorkerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case WorkerServiceRegisterBuildProcedure:
@@ -239,6 +297,10 @@ func NewWorkerServiceHandler(svc WorkerServiceHandler, opts ...connect.HandlerOp
 			workerServiceCompleteLiftTaskHandler.ServeHTTP(w, r)
 		case WorkerServiceHeartbeatProcedure:
 			workerServiceHeartbeatHandler.ServeHTTP(w, r)
+		case WorkerServiceGetUploadURLsProcedure:
+			workerServiceGetUploadURLsHandler.ServeHTTP(w, r)
+		case WorkerServiceGetDownloadURLsProcedure:
+			workerServiceGetDownloadURLsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -270,4 +332,12 @@ func (UnimplementedWorkerServiceHandler) CompleteLiftTask(context.Context, *conn
 
 func (UnimplementedWorkerServiceHandler) Heartbeat(context.Context, *connect.Request[v1.HeartbeatRequest]) (*connect.Response[v1.HeartbeatResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("hubwagen.v1.WorkerService.Heartbeat is not implemented"))
+}
+
+func (UnimplementedWorkerServiceHandler) GetUploadURLs(context.Context, *connect.Request[v1.GetUploadURLsRequest]) (*connect.Response[v1.GetUploadURLsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("hubwagen.v1.WorkerService.GetUploadURLs is not implemented"))
+}
+
+func (UnimplementedWorkerServiceHandler) GetDownloadURLs(context.Context, *connect.Request[v1.GetDownloadURLsRequest]) (*connect.Response[v1.GetDownloadURLsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("hubwagen.v1.WorkerService.GetDownloadURLs is not implemented"))
 }

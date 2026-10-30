@@ -296,6 +296,27 @@ the worker also stops that way when that process is gone
 (`$HUBWAGEN_SUPERVISOR_PID`). `--worker-id` (or `$HUBWAGEN_WORKER_ID`) names
 the worker in a run's history; the default is `<hostname>-<pid>`.
 
+### Workers on other machines
+
+A worker needs to reach only the server's API: no shared filesystem and no
+storage credentials. On the server's machine it reads and writes the
+server's bucket directory directly. Anywhere else (or with an `s3://`
+bucket) it moves data through URLs the server hands out for each running
+step: what a step writes to `hw.output().path` (a local directory) is
+uploaded when it returns, and a data version's `files()`, `path()` and
+`load()` download what they read into a local directory first, checked
+against the version's manifest. Both directories are removed when the step
+ends. Step code is the same either way.
+
+`--data auto` (the default; or `$HUBWAGEN_DATA`) picks: `local` when the
+worker finds the server's bucket directory (it holds a `.hubwagen-bucket`
+file with the ID the task names), else `remote`. Pass `--data remote` to
+force URLs, `--data local` to insist on the directory.
+
+```bash
+python -m hubwagen.worker --server http://hubwagen.internal:7070
+```
+
 ## Testing pipelines
 
 ```python

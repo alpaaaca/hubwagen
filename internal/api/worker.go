@@ -26,15 +26,17 @@ const DefaultMaxWait = 30 * time.Second
 type WorkerServer struct {
 	core    *core.Core
 	maxWait time.Duration
+	data    *Data // nil: no bucket
 }
 
 // NewWorkerHandler returns the path and handler to mount WorkerService at.
-// maxWait caps long polls (0: DefaultMaxWait).
-func NewWorkerHandler(c *core.Core, maxWait time.Duration) (string, http.Handler) {
+// maxWait caps long polls (0: DefaultMaxWait). data hands out transfer URLs
+// (nil: the server has no bucket).
+func NewWorkerHandler(c *core.Core, maxWait time.Duration, data *Data) (string, http.Handler) {
 	if maxWait <= 0 {
 		maxWait = DefaultMaxWait
 	}
-	return hubwagenv1connect.NewWorkerServiceHandler(&WorkerServer{core: c, maxWait: maxWait})
+	return hubwagenv1connect.NewWorkerServiceHandler(&WorkerServer{core: c, maxWait: maxWait, data: data})
 }
 
 var _ hubwagenv1connect.WorkerServiceHandler = (*WorkerServer)(nil)
@@ -220,6 +222,9 @@ func (s *WorkerServer) PollLiftTask(ctx context.Context, req *connect.Request[hu
 	out := &hubwagenv1.LiftTask{
 		Id: t.ID, HaulId: t.HaulID, Seq: int32(t.Seq), Name: t.Name, Dock: t.Dock,
 		ArgsJson: string(t.Args), Staging: t.Staging,
+	}
+	if s.data != nil {
+		out.Bucket, out.BucketId = s.data.bucket.Base(), s.data.id
 	}
 	if o := t.Output; o != nil {
 		out.Output = &hubwagenv1.Output{Dataset: o.Dataset, Partition: o.Partition, PartitionKey: o.PartitionKey}
