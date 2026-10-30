@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -172,4 +173,65 @@ bucket:
 	assert.ErrorContains(t, err, "bucket.url: required")
 	_, err = Parse([]byte("apiVersion: hubwagen.dev/v1alpha1\nkind: Config\nbucket:\n  secret_access_key: x\n"), dir)
 	assert.ErrorContains(t, err, "secret_access_key not found", "secret values themselves aren't fields")
+}
+
+func TestPools(t *testing.T) {
+	dir := t.TempDir()
+	c, err := Parse([]byte(`
+apiVersion: hubwagen.dev/v1alpha1
+kind: Config
+workers:
+  - name: fixed
+    command: [w]
+    replicas: 2
+  - name: gpu
+    command: [w]
+    min: 0
+    max: 3
+    docks: [gpu, default]
+    lifts: 1
+    idle_after: 90s
+  - name: atleast
+    command: [w]
+    min: 2
+`), dir)
+	require.NoError(t, err)
+	type bounds struct {
+		lo, hi int
+		scaled bool
+	}
+	b := func(i int) bounds { lo, hi := c.Workers[i].Bounds(); return bounds{lo, hi, c.Workers[i].Scaled()} }
+	assert.Equal(t, bounds{2, 2, false}, b(0))
+	assert.Equal(t, bounds{0, 3, true}, b(1))
+	assert.Equal(t, bounds{2, 2, false}, b(2), "max defaults to min")
+	assert.Equal(t, 3, c.Workers[1].Count(), "hubwagen workers runs max")
+	assert.Equal(t, []string{"gpu", "default"}, c.Workers[1].DockList())
+	assert.Equal(t, []string{"default"}, c.Workers[0].DockList())
+	assert.Equal(t, 1, c.Workers[1].LiftCount())
+	assert.Equal(t, DefaultLifts, c.Workers[0].LiftCount())
+	assert.Equal(t, 90*time.Second, c.Workers[1].Idle())
+	assert.Equal(t, DefaultIdleAfter, c.Workers[0].Idle())
+
+	_, err = Parse([]byte(`
+apiVersion: hubwagen.dev/v1alpha1
+kind: Config
+workers:
+  - {name: a, command: [w], replicas: 1, max: 2}
+  - {name: b, command: [w], min: 3, max: 2}
+  - {name: c, command: [w], lifts: 0, docks: [""]}
+  - {name: d, command: [w], env: {HUBWAGEN_DOCKS: x}}
+`), dir)
+	require.Error(t, err)
+	for _, want := range []string{
+		"workers[0]: give replicas (a fixed count) or min and max, not both",
+		"workers[1]: min 3 is more than max 2",
+		"workers[2].lifts: must be 1 or more",
+		"workers[2].docks[0]: empty",
+		"workers[3].env.HUBWAGEN_DOCKS: set by hubwagen",
+	} {
+		assert.Contains(t, err.Error(), want)
+	}
+
+	_, err = Parse([]byte("apiVersion: hubwagen.dev/v1alpha1\nkind: Config\nworkers:\n  - {name: a, command: [w], idle_after: soon}\n"), dir)
+	assert.ErrorContains(t, err, `"soon": want a duration such as 5m or 90s`)
 }

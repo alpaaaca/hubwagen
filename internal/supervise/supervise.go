@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"slices"
 	"sync"
 	"syscall"
 	"time"
@@ -47,6 +48,86 @@ type Options struct {
 
 // Run runs procs until ctx ends, then stops them and returns.
 func Run(ctx context.Context, procs []Process, o Options) {
+	g := NewGroup(ctx, o)
+	for _, p := range procs {
+		g.Start(p)
+	}
+	g.Wait()
+}
+
+// Group runs a changing set of processes, each kept running like Run's:
+// Start adds one, Stop takes one away for good. When the group's context
+// ends, every process is stopped.
+type Group struct {
+	ctx   context.Context
+	o     Options
+	out   *lockedWriter
+	wg    sync.WaitGroup
+	mu    sync.Mutex
+	procs map[string]*running // started, not being stopped
+}
+
+type running struct{ cancel context.CancelFunc }
+
+// NewGroup returns an empty group whose processes stop when ctx ends.
+func NewGroup(ctx context.Context, o Options) *Group {
+	o = o.withDefaults()
+	return &Group{ctx: ctx, o: o, out: &lockedWriter{w: o.Out, fn: o.Line}, procs: map[string]*running{}}
+}
+
+// Start starts p and keeps it running until Stop(p.ID) or the group's
+// context ends. An ID already running is left as is.
+func (g *Group) Start(p Process) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if _, ok := g.procs[p.ID]; ok || g.ctx.Err() != nil {
+		return
+	}
+	ctx, cancel := context.WithCancel(g.ctx)
+	r := &running{cancel: cancel}
+	g.procs[p.ID] = r
+	g.wg.Go(func() {
+		keep(ctx, p, g.o, g.out)
+		cancel()
+		g.mu.Lock()
+		if g.procs[p.ID] == r { // not a newer process with the same ID
+			delete(g.procs, p.ID)
+		}
+		g.mu.Unlock()
+	})
+}
+
+// Stop stops the process id as on shutdown (SIGTERM, then a kill after
+// StopTimeout) and doesn't restart it. It returns at once.
+func (g *Group) Stop(id string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if r, ok := g.procs[id]; ok {
+		r.cancel()
+		delete(g.procs, id)
+	}
+}
+
+// Running returns the IDs of the processes started and not stopped.
+func (g *Group) Running() []string {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	ids := make([]string, 0, len(g.procs))
+	for id := range g.procs {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+	return ids
+}
+
+// Wait returns once the group's context has ended and every process has
+// stopped.
+func (g *Group) Wait() {
+	<-g.ctx.Done()
+	g.wg.Wait()
+}
+
+func (o Options) withDefaults() Options {
 	if o.StopTimeout == 0 {
 		o.StopTimeout = 30 * time.Second
 	}
@@ -59,12 +140,7 @@ func Run(ctx context.Context, procs []Process, o Options) {
 	if o.StableAfter == 0 {
 		o.StableAfter = 10 * time.Second
 	}
-	out := &lockedWriter{w: o.Out, fn: o.Line}
-	var wg sync.WaitGroup
-	for _, p := range procs {
-		wg.Go(func() { keep(ctx, p, o, out) })
-	}
-	wg.Wait()
+	return o
 }
 
 func keep(ctx context.Context, p Process, o Options, out *lockedWriter) {

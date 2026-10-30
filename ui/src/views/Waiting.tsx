@@ -1,4 +1,4 @@
-import type { Waiting as WaitingMsg } from "../gen/hubwagen/v1/haul_pb";
+import type { Waiting as WaitingMsg, Worker } from "../gen/hubwagen/v1/haul_pb";
 import { ago, when } from "../format";
 import { useApi } from "../api";
 import { usePoll } from "../hooks";
@@ -29,13 +29,34 @@ function Code({ text }: { text: string }) {
   );
 }
 
-// Workers lists the workers the server saw lately, for a run that waits.
+// Workers lists the worker pools the server scales and the workers it saw
+// lately, for a run that waits.
 export function Workers() {
   const api = useApi();
   const workers = usePoll(() => api.hauls.listWorkers({}), []);
+  const pools = usePoll(() => api.hauls.listPools({}), []);
   const ws = workers.data?.workers;
   if (!ws) return null;
-  if (ws.length === 0) return <p className="dim small">No workers connected.</p>;
+  return (
+    <>
+      {(pools.data?.pools ?? []).map((p) => (
+        <p key={p.name} className="small">
+          Pool <span className="mono">{p.name}</span> ({p.docks.join(", ")}): {p.workers.length} of {p.min}–{p.max} workers
+          {p.starting > 0 && <>, {p.starting} starting</>}
+          {p.decision && (
+            <span className="dim">
+              {" "}
+              · {p.decision} <span title={when(p.decidedAt)}>{ago(p.decidedAt)}</span>
+            </span>
+          )}
+        </p>
+      ))}
+      {ws.length === 0 ? <p className="dim small">No workers connected.</p> : <WorkerTable workers={ws} />}
+    </>
+  );
+}
+
+function WorkerTable({ workers: ws }: { workers: Worker[] }) {
   return (
     <table className="small">
       <thead>
@@ -54,7 +75,7 @@ export function Workers() {
             <td>{w.docks.join(", ")}</td>
             <td className="mono">{w.buildId ? w.buildId.slice(0, 12) : "–"}</td>
             <td title={when(w.lastSeen)}>{ago(w.lastSeen)}</td>
-            <td>{w.polling ? "waiting for work" : "busy"}</td>
+            <td>{w.running > 0 ? `running ${w.running}` : w.polling ? "waiting for work" : "busy"}</td>
           </tr>
         ))}
       </tbody>

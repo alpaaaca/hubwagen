@@ -110,6 +110,9 @@ function fakeServer() {
         record("listWorkers", {});
         return { workers: [] };
       },
+      listPools() {
+        return { pools: [{ name: "py", docks: ["default"], min: 0, max: 3, workers: ["py-1"], starting: 1, decision: "started py-1: 1 run waits on default", decidedAt: t0 }] };
+      },
       listPipelines() {
         return { pipelines: [{ name: "daily", title: "Daily revenue", description: "Orders to a report, per day." }, { name: "hourly" }] };
       },
@@ -317,6 +320,7 @@ test("a run that waits says why, and which workers are connected", async () => {
   expect(why).toHaveTextContent("Waiting: no worker is connected to run the pipeline's code. Start one with python -m hubwagen.worker <modules>");
   expect(why.querySelector("code")).toHaveTextContent("python -m hubwagen.worker <modules>");
   expect(await screen.findByText("No workers connected.")).toBeInTheDocument();
+  expect(await screen.findByText(/^Pool/)).toHaveTextContent("Pool py (default): 1 of 0–3 workers, 1 starting · started py-1: 1 run waits on default");
   expect(calls.listWorkers).toBeDefined();
 });
 

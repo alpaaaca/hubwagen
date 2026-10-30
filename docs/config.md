@@ -26,10 +26,18 @@ server:
 workers:                         # started by hubwagen dev, server and workers
   - name: py                     # IDs are <name>-<n>: py-1, py-2, py-3
     replicas: 3                  # default 1; 0 turns the group off
-    command: [python3, -m, hubwagen.worker, --lifts, "2"]   # modules: pyproject.toml
+    command: [python3, -m, hubwagen.worker]   # modules: pyproject.toml
+    lifts: 2                     # steps one worker runs at once; default 4
     dir: .                       # working directory; default the file's
     env:                         # added to hubwagen's own environment
       PYTHONPATH: src
+  - name: gpu                    # a pool: scaled by the work waiting on its docks
+    min: 0                       # none while nothing waits
+    max: 2
+    docks: [gpu]                 # default [default]
+    lifts: 1
+    idle_after: 10m              # stop one with nothing to run this long; default 5m
+    command: [python3, -m, hubwagen.worker]
 ```
 
 - **Relative paths** (`data_dir`, `workers[].dir`, the bucket's credential
@@ -88,7 +96,7 @@ Which hauls a worker runs is up to its code: the Python worker imports the
 modules its project lists under `[tool.hubwagen]` in `pyproject.toml`. It
 registers the hauls they define, and the server sends it only those. One
 group per project (its own `dir` and virtualenv) is enough for any number
-of pipelines in it, and several projects can share the server. Every process gets three variables, which its `env`
+of pipelines in it, and several projects can share the server. Every process gets these variables, which its `env`
 can't set:
 
 | Variable | Value |
@@ -96,6 +104,8 @@ can't set:
 | `HUBWAGEN_SERVER` | the API's URL, e.g. `http://127.0.0.1:7070` (an unspecified listen host such as `0.0.0.0` becomes `127.0.0.1`) |
 | `HUBWAGEN_WORKER_ID` | `<name>-<n>`; the logbook records it on every dispatch |
 | `HUBWAGEN_SUPERVISOR_PID` | the hubwagen process that started it; a worker stops once its parent is no longer this process |
+| `HUBWAGEN_DOCKS` | the group's `docks`, comma-separated: the Python worker's default for `--dock` |
+| `HUBWAGEN_LIFTS` | the group's `lifts`: the Python worker's default for `--lifts` |
 
 The Python worker (`python -m hubwagen.worker`) reads all three. The last
 one covers a supervisor that dies without stopping its workers (`kill -9`, a
@@ -119,6 +129,36 @@ reaches only hubwagen.
 - `hubwagen workers` starts the same workers without a server. They connect
   to `--server` (default: from `server.listen`). Use it to restart the
   server while the workers keep running.
+
+#### Pools: scaled by the work that waits
+
+A group with `min` and `max` instead of `replicas` is a **pool**: `hubwagen
+server` and `hubwagen dev` scale it between the two from the work queued
+on its `docks`. Every two seconds:
+
+- **Up**: when runs or steps on its docks wait because no worker polls
+  them or all are busy, it starts workers, one per `lifts` waiting steps
+  (one for a waiting run), up to `max`. It starts no more until those
+  have polled (or a minute passed), so a burst of work doesn't start
+  `max` at once. Meanwhile a waiting run says "a worker is starting in
+  pool gpu".
+- **Down**: a worker above `min` that waited for work, with nothing to
+  run, for `idle_after` is stopped (SIGTERM: like any stop, it finishes
+  what it runs), highest number first.
+- **Not**: for work no worker's code defines, or held by a dock's limit:
+  more workers wouldn't run it.
+- **Pools sharing a dock**: the first in the file with room takes its
+  work.
+
+`min: 0` starts nothing until work waits. That needs the pipeline's code
+registered once (a build is kept across restarts): the server only
+accepts runs of pipelines some worker registered. Scaling is the
+leader's memory, not state: a restarted server starts each pool at its
+`min` and scales from what waits. `hubwagen workers` can't see the
+queues, so it runs each pool at `max`. The pools and their last decision
+are in `ListPools`, the web UI (on a waiting run) and the server's log
+(`worker pool gpu: started gpu-1: 3 steps wait on gpu`). Design and
+what comes next (containers, Kubernetes): [worker-pools.md](worker-pools.md).
 
 This doesn't break "the control plane never runs user code". The leader
 still runs none: workers are separate processes, and dev's supervisor is a

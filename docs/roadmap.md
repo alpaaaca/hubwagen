@@ -294,6 +294,10 @@ each is one PR:
    UI shows it on the run (with the workers) and in run lists;
    `hubwagen start --wait`, `replay` and `hubwagen dev` print it once a
    run has waited a few seconds.
+   ✅ **Worker pools** (worker-pools step 2): a `workers:` group with
+   `min` and `max` is scaled by `hubwagen server` and `dev` from the work
+   waiting on its `docks` (`lifts` per worker), down after `idle_after`;
+   `ListPools`, and "a worker is starting in pool …" on a waiting run.
    ✅ **Variables in `hubwagen.yaml`**: `${NAME}` and `${NAME:-default}`
    from the environment, so one committed config serves every machine
    (bucket, port, paths); an unset `${NAME}` is an error with its line.
@@ -395,7 +399,7 @@ Roughly in order of expected need:
 | dbt integration | One lift per project, one pallet per model | Later |
 | Catalog interoperability | OpenLineage export first; Iceberg REST catalog later, if at all | Later |
 | Failover | Nodes that supervise workers and can lead; bucket lease + Litestream first, embedded Raft if no-loss is needed ([failover.md](failover.md)) | Failover |
-| Worker pools | The leader starts and scales workers per pool (`min`/`max`, docks, capacity) from queued work; `hubwagen server` supervises `workers:` (step 1, done) ([worker-pools.md](worker-pools.md)) | Before production use |
+| Worker pools | The leader starts and scales workers per pool (`min`/`max`, docks, capacity) from queued work; `hubwagen server` supervises `workers:` (step 1, done); pools of processes with `min`/`max` (step 2, done) ([worker-pools.md](worker-pools.md)) | Before production use |
 | `standalone` profile | Decided: no separate profile; `hubwagen server` runs the single-node server (no auth yet) | Done |
 | Load target for one leader | 100 lift transitions/s sustained, 2,000 running lifts | S3 |
 | Licence and distribution | Open | Before first release |

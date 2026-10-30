@@ -1,6 +1,6 @@
 # Worker pools: the leader starts the workers its work needs
 
-> **Status:** design note; step 1 is built, the rest is not. Builds on `hubwagen.yaml`'s
+> **Status:** design note; steps 1 and 2 are built (processes only), the rest is not. Builds on `hubwagen.yaml`'s
 > `workers:` ([config.md](config.md)), `internal/supervise`, the core's
 > record of workers seen lately (`internal/core/workers.go`) and the node
 > design in [failover.md](failover.md). Decision requested: steps 1 and 2
@@ -186,9 +186,11 @@ connected" when one is on its way.
 1. ✅ **`hubwagen server` supervises `workers:`**, as dev does, with
    `--no-workers` for setups that run them elsewhere. Fixed counts. This
    alone fixes "the leader starts and runs wait for workers nobody starts".
-2. **Pools with the process launcher**: `min`, `max`, `docks`, `lifts`,
-   `idle_after`; the scaler; `ListPools`; the waiting message names the
-   pool. Tests with the fake clock and real subprocesses.
+2. ✅ **Pools with the process launcher**: `min`, `max`, `docks`, `lifts`,
+   `idle_after` on a `workers:` group (the key stays `workers:`; `pools:`
+   above is the shape, not the name); the scaler (`internal/pools`);
+   `ListPools`; the waiting message names the pool. Not yet: restarting a
+   pool's workers on `no_build` ("When the code changed").
 3. **Desired counts for external scalers**: `GET /v1/pools` and a KEDA
    external scaler.
 4. **Container and Kubernetes launchers**, behind `internal/profile`.

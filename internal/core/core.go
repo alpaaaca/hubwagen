@@ -81,6 +81,7 @@ type Core struct {
 	bg            sync.WaitGroup                // background bucket I/O
 	pollers       []*poller                     // waiting, oldest first
 	workers       map[string]*seenWorker        // polled lately, by worker ID (workers.go)
+	pools         []PoolStatus                  // as the scaler last reported them (pools.go)
 	b             *batch
 	// queueOrder numbers queued tasks so the oldest across docks goes first.
 	queueOrder uint64

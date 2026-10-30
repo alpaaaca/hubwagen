@@ -58,7 +58,8 @@ spec-kit.
 | `internal/clock`, `internal/layout` | Real/fake clock; bucket paths (lift staging under dataset and partition, pallet manifests) |
 | `internal/blob` | The bucket: `file://` and `s3://` (minio-go; conditional writes for atomic create-if-absent, presigned URLs); `s3fake/` is an S3-compatible server in memory for tests |
 | `internal/config` | `hubwagen.yaml`: data dir, listen address, worker processes |
-| `internal/supervise` | Runs and restarts worker processes for `dev` and `workers` (prefixed output, SIGTERM then kill) |
+| `internal/supervise` | Runs and restarts worker processes for `dev`, `server` and `workers` (prefixed output, SIGTERM then kill); a group that grows and shrinks |
+| `internal/pools` | Scales worker pools (`min`/`max`) from the work waiting on their docks (`core.Demand`); reports to the core (`SetPools`) |
 | `cmd/` | `dev`, `server`, `workers`, `start`, `replay`, `signal`, `schedules`, `datasets`, `versions` (alias `pallets`), `data` (alias `pallet`; and `data invalidate`), `stale`, `gc`, `version` |
 | `internal/webui` | Serves the web UI from the binary (embedded `dist/`, filled by `go generate ./internal/webui`; a placeholder page without it) |
 | `ui/` | Web UI: React + TypeScript + Vite on the Connect services (clients generated from `proto/` into `ui/src/gen`); vitest tests |

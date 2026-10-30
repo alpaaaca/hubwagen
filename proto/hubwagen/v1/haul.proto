@@ -42,6 +42,27 @@ service HaulService {
   // ListWorkers returns the workers that polled lately (the leader's
   // memory, not state: a new leader learns them from their next polls).
   rpc ListWorkers(ListWorkersRequest) returns (ListWorkersResponse);
+  // ListPools returns the worker pools the server scales (worker groups
+  // with min below max) and their last scaling decision.
+  rpc ListPools(ListPoolsRequest) returns (ListPoolsResponse);
+}
+
+message ListPoolsRequest {}
+message ListPoolsResponse {
+  repeated Pool pools = 1;
+}
+message Pool {
+  string name = 1;
+  repeated string docks = 2;
+  int32 min = 3;
+  int32 max = 4;
+  // The workers it runs, by ID; starting of them haven't polled yet.
+  repeated string workers = 5;
+  int32 starting = 6;
+  // Its last decision in words ("started py-2: 3 steps wait on default"),
+  // and when; empty before the first.
+  string decision = 7;
+  google.protobuf.Timestamp decided_at = 8;
 }
 
 message ListWorkersRequest {}
@@ -59,6 +80,8 @@ message Worker {
   google.protobuf.Timestamp last_seen = 5;
   // Waiting for work right now; otherwise busy.
   bool polling = 6;
+  // Tasks it runs: steps and pipeline replays.
+  int32 running = 7;
 }
 
 message ListPipelinesRequest {}
@@ -256,7 +279,8 @@ message Haul {
 message Waiting {
   // no_worker: no worker polls the dock; no_build: workers poll it, but
   // none has code that defines the haul or lift; busy: those that do are
-  // all busy; dock_limit: the dock runs as many lifts as it may.
+  // all busy; dock_limit: the dock runs as many lifts as it may;
+  // starting: a worker pool is starting a worker for it.
   string reason = 1;
   // The same, in plain words, with what to do about it.
   string message = 2;
@@ -271,6 +295,8 @@ message Waiting {
   // The workers that poll the dock for it, and their builds.
   int32 workers = 8;
   repeated string builds = 9;
+  // starting: the pool.
+  string pool = 10;
 }
 
 message LiftCounts {

@@ -31,10 +31,17 @@ func freeListen(t *testing.T) string {
 // on SIGTERM. It returns the listen address and the command's result.
 func runServerCmd(t *testing.T, out string, args ...string) (string, <-chan error) {
 	t.Helper()
+	return runServerCmdWith(t, out, "", args...)
+}
+
+// runServerCmdWith is runServerCmd with more settings for the worker group
+// (YAML lines indented for it).
+func runServerCmdWith(t *testing.T, out, group string, args ...string) (string, <-chan error) {
+	t.Helper()
 	dir := t.TempDir()
 	listen := freeListen(t)
-	script := fmt.Sprintf(`trap 'echo stopped >> %[1]s; exit 0' TERM; echo "$HUBWAGEN_SERVER $HUBWAGEN_WORKER_ID" >> %[1]s; echo hello; while :; do sleep 0.05; done`, out)
-	cfg := fmt.Sprintf("apiVersion: hubwagen.dev/v1alpha1\nkind: Config\ndata_dir: data\nserver:\n  listen: %s\nworkers:\n  - name: sh\n    command: [/bin/sh, -c, %q]\n", listen, script)
+	script := fmt.Sprintf(`trap 'echo stopped >> %[1]s; exit 0' TERM; echo "$HUBWAGEN_SERVER $HUBWAGEN_WORKER_ID $HUBWAGEN_DOCKS $HUBWAGEN_LIFTS" >> %[1]s; echo hello; while :; do sleep 0.05; done`, out)
+	cfg := fmt.Sprintf("apiVersion: hubwagen.dev/v1alpha1\nkind: Config\ndata_dir: data\nserver:\n  listen: %s\nworkers:\n  - name: sh\n    command: [/bin/sh, -c, %q]\n%s", listen, script, group)
 	path := filepath.Join(dir, "hubwagen.yaml")
 	require.NoError(t, os.WriteFile(path, []byte(cfg), 0o644))
 	noWorkers = false
@@ -68,7 +75,7 @@ func TestServerStartsAndStopsTheConfigsWorkers(t *testing.T) {
 	listen, done := runServerCmd(t, out)
 	read := func() string { b, _ := os.ReadFile(out); return string(b) }
 	require.Eventually(t, func() bool { return read() != "" }, 10*time.Second, 20*time.Millisecond)
-	assert.Equal(t, "http://"+listen+" sh-1\n", read())
+	assert.Equal(t, "http://"+listen+" sh-1 default 4\n", read())
 
 	stopServerCmd(t, done)
 	assert.True(t, strings.HasSuffix(read(), "stopped\n"), "the worker got SIGTERM before the server stopped: %q", read())
@@ -81,4 +88,14 @@ func TestServerWithoutWorkers(t *testing.T) {
 	stopServerCmd(t, done)
 	_, err := os.Stat(out)
 	assert.True(t, os.IsNotExist(err), "no worker started")
+}
+
+func TestServerStartsAScaledPoolAtItsMin(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "worker.txt")
+	listen, done := runServerCmdWith(t, out, "    min: 1\n    max: 3\n    docks: [gpu, default]\n    lifts: 2\n")
+	read := func() string { b, _ := os.ReadFile(out); return string(b) }
+	require.Eventually(t, func() bool { return read() != "" }, 10*time.Second, 20*time.Millisecond)
+	time.Sleep(3 * time.Second) // a scaler pass: nothing waits, so no more start
+	assert.Equal(t, "http://"+listen+" sh-1 gpu,default 2\n", read())
+	stopServerCmd(t, done)
 }
