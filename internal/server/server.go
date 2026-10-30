@@ -1,7 +1,7 @@
 // Package server wires the server into one process, for `hubwagen server`
-// and `hubwagen dev`: the state store, a file:// bucket and the run logs
-// under one data directory, the core, and the API (the Connect services,
-// the web UI and /healthz).
+// and `hubwagen dev`: the state store and the run logs under one data
+// directory, the bucket (file:// under it, or s3://), the core, and the API
+// (the Connect services, the data endpoint, the web UI and /healthz).
 //
 // One process owns a data directory at a time; a lock file enforces that, so
 // a second server on the same directory fails with a clear message instead
@@ -17,9 +17,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"github.com/oklog/ulid/v2"
 
 	"github.com/alper/hubwagen/internal/api"
 	"github.com/alper/hubwagen/internal/blob"
@@ -34,6 +37,11 @@ import (
 
 type Config struct {
 	DataDir string // holds state.db, bucket/, logs/ and the lock; created if missing
+	// S3, if set, is the bucket; else it is file://<DataDir>/bucket.
+	S3 *blob.S3Config
+	// ServeData sends workers' data through the server even when the bucket
+	// could give them presigned URLs.
+	ServeData bool
 	// Listen, if set, is the address the API (worker and haul services) is
 	// served on, e.g. 127.0.0.1:7070. Port 0 picks a free port (see
 	// Engine.APIAddr).
@@ -45,20 +53,24 @@ type Config struct {
 const HeartbeatTimeout = time.Minute
 
 type Engine struct {
-	Store   *state.Store
-	Bucket  blob.Bucket
-	Logs    *runlog.Store // what lifts printed and logged
-	Core    *core.Core
-	DataDir string
+	Store  *state.Store
+	Bucket blob.Bucket
+	// BucketID is a file:// bucket's ID, in its .hubwagen-bucket file:
+	// workers that find it there share the bucket's filesystem.
+	BucketID string
+	Logs     *runlog.Store // what lifts printed and logged
+	Core     *core.Core
+	DataDir  string
 	// APIAddr is the API's address, if it is served.
 	APIAddr string
 
-	api     *http.Server
-	lock    *os.File
-	cancel  context.CancelFunc
-	done    chan error
-	stopped atomic.Bool // the core has stopped
-	closed  bool
+	api       *http.Server
+	serveData bool
+	lock      *os.File
+	cancel    context.CancelFunc
+	done      chan error
+	stopped   atomic.Bool // the core has stopped
+	closed    bool
 }
 
 // ErrLocked means another process is using the data directory.
@@ -94,9 +106,28 @@ func Start(ctx context.Context, cfg Config) (*Engine, error) {
 	if err != nil {
 		return fail(err)
 	}
-	if e.Bucket, err = blob.Open(blob.FileURI(filepath.Join(dir, "bucket"))); err != nil {
+	fileBucket := blob.FileURI(filepath.Join(dir, "bucket"))
+	if cfg.S3 != nil {
+		e.Bucket, err = blob.OpenS3(ctx, *cfg.S3)
+	} else {
+		e.Bucket, err = blob.Open(fileBucket)
+	}
+	if err != nil {
+		return fail(fmt.Errorf("opening the bucket: %w", err))
+	}
+	claimed, err := e.Store.ClaimBucket(ctx, e.Bucket.Base(), fileBucket)
+	if err != nil {
 		return fail(err)
 	}
+	if claimed != e.Bucket.Base() {
+		return fail(fmt.Errorf("data directory %s keeps its data versions in %s, not %s: a data directory works with one bucket", dir, claimed, e.Bucket.Base()))
+	}
+	if _, local := e.Bucket.LocalPath(e.Bucket.Base()); local {
+		if e.BucketID, err = bucketID(ctx, e.Bucket); err != nil {
+			return fail(err)
+		}
+	}
+	e.serveData = cfg.ServeData
 	if e.Logs, err = runlog.Open(filepath.Join(dir, "logs")); err != nil {
 		return fail(err)
 	}
@@ -129,6 +160,20 @@ func Start(ctx context.Context, cfg Config) (*Engine, error) {
 	return e, nil
 }
 
+// bucketMarker names the file in a file:// bucket that holds its ID.
+const bucketMarker = ".hubwagen-bucket"
+
+// bucketID reads a file bucket's ID, making one the first time.
+func bucketID(ctx context.Context, b blob.Bucket) (string, error) {
+	uri := b.Base() + "/" + bucketMarker
+	err := b.PutIfAbsent(ctx, uri, []byte(ulid.Make().String()))
+	if err != nil && !errors.Is(err, blob.ErrExists) {
+		return "", err
+	}
+	id, err := b.Get(ctx, uri)
+	return strings.TrimSpace(string(id)), err
+}
+
 // serveAPI starts the API. Long polls end when the engine closes.
 func (e *Engine) serveAPI(addr string, log *slog.Logger) error {
 	ln, err := net.Listen("tcp", addr)
@@ -136,15 +181,18 @@ func (e *Engine) serveAPI(addr string, log *slog.Logger) error {
 		return fmt.Errorf("API: %w", err)
 	}
 	mux := http.NewServeMux()
-	path, h := api.NewWorkerHandler(e.Core, 0)
+	manifests := pallet.NewStore(e.Bucket, layout.New(e.Bucket.Base()))
+	data := api.NewData(e.Bucket, e.BucketID, manifests, e.serveData, log)
+	path, h := api.NewWorkerHandler(e.Core, 0, data)
 	mux.Handle(path, h)
+	mux.Handle(api.DataPath, data.Handler())
 	path, h = api.NewHaulHandler(e.Core, e.Store)
 	mux.Handle(path, h)
 	path, h = api.NewLogHandler(e.Store, e.Logs)
 	mux.Handle(path, h)
 	mux.HandleFunc("GET /healthz", e.health)
 	mux.Handle("/", webui.Handler()) // the Connect services' paths above are more specific
-	path, h = api.NewCatalogHandler(e.Core, e.Store, pallet.NewStore(e.Bucket, layout.New(e.Bucket.Base())))
+	path, h = api.NewCatalogHandler(e.Core, e.Store, manifests)
 	mux.Handle(path, h)
 	e.api = &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	e.APIAddr = ln.Addr().String()

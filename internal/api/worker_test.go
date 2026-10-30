@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -40,18 +41,28 @@ type server struct {
 	url    string
 	client hubwagenv1connect.WorkerServiceClient
 	logs   hubwagenv1connect.LogServiceClient
+	// viaURLs: work moves lift data with GetUploadURLs and GetDownloadURLs,
+	// like a worker on another machine.
+	viaURLs bool
 }
 
 // start runs a core on a file-backed store and serves the worker API over a
 // real HTTP listener.
 func start(t *testing.T) *server {
 	t.Helper()
+	b, err := blob.Open(blob.FileURI(filepath.Join(t.TempDir(), "bucket")))
+	require.NoError(t, err)
+	return startWith(t, b, true)
+}
+
+// startWith serves the worker API on bucket b; serve: data goes through
+// the server even if b can presign URLs.
+func startWith(t *testing.T, b blob.Bucket, serve bool) *server {
+	t.Helper()
 	dir := t.TempDir()
 	st, err := state.Open(filepath.Join(dir, "state.db"))
 	require.NoError(t, err)
 	term, err := st.StartTerm(ctx, 0)
-	require.NoError(t, err)
-	b, err := blob.Open(blob.FileURI(filepath.Join(dir, "bucket")))
 	require.NoError(t, err)
 	lay := layout.New(b.Base())
 	c := core.New(core.Config{Store: st, Term: term, Clock: clock.Real{}, Layout: lay, Pallets: pallet.NewStore(b, lay)})
@@ -63,8 +74,10 @@ func start(t *testing.T) *server {
 	logs, err := runlog.Open(filepath.Join(dir, "logs"))
 	require.NoError(t, err)
 	mux := http.NewServeMux()
-	path, h := NewWorkerHandler(c, 2*time.Second)
+	data := NewData(b, "bucket-id", pallet.NewStore(b, lay), serve, slog.Default())
+	path, h := NewWorkerHandler(c, 2*time.Second, data)
 	mux.Handle(path, h)
+	mux.Handle(DataPath, data.Handler())
 	path, h = NewLogHandler(st, logs)
 	mux.Handle(path, h)
 	srv := httptest.NewServer(mux)
@@ -143,8 +156,13 @@ func (s *server) work(t *testing.T, haulID string) []string {
 			require.NoError(t, err)
 
 			content := []byte(task.Name + " data\n")
-			require.NoError(t, s.bucket.Put(ctx, task.Staging+"part-0.csv", content))
 			sum := sha256.Sum256(content)
+			if s.viaURLs {
+				s.checkInputs(t, task)
+				s.upload(t, task.Id, "part-0.csv", content)
+			} else {
+				require.NoError(t, s.bucket.Put(ctx, task.Staging+"part-0.csv", content))
+			}
 			_, err = s.client.CompleteLiftTask(ctx, connect.NewRequest(&hubwagenv1.CompleteLiftTaskRequest{
 				AttemptId: task.Id, Status: hubwagenv1.CompleteLiftTaskRequest_STATUS_SUCCEEDED,
 				ResultJson: `{"rows":1}`,

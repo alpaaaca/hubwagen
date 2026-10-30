@@ -31,6 +31,7 @@ that only matters at scale waits.
 | M3c: Worker API + minimal Python SDK | **Done** |
 | M4: Full haul surface (fan-out, signals, triggers, testing) | **Done** |
 | M5: Catalog in the UI, invalidation, staleness | **In progress** |
+| Remote storage: object-store buckets, remote workers | **In progress** |
 | Later | — |
 
 M3a → M3b → M3c are sequential; the end of M3c is the first demo. M4 and M5
@@ -304,17 +305,55 @@ Open questions, to settle in the step that needs them:
   the lift; a stale pallet from an old build may still be what an older
   worker would produce.
 
+## Remote storage
+
+Goal: workers run anywhere, with no filesystem shared with the server, and
+pallets live in an object store. Design:
+[remote-storage.md](remote-storage.md). Steps, each one PR:
+
+1. ✅ **`s3://` buckets and transfer URLs**: `internal/blob` opens `s3://`
+   (AWS and S3-compatible stores; conditional writes required, checked at
+   start); `hubwagen.yaml` `bucket:` with credential files; the worker API
+   hands a running attempt URLs to upload its output and download its
+   inputs (presigned, or through the server's `/v1/data/` for `file://`
+   buckets and `transfers: server`); the Python worker uses them unless it
+   sees the server's bucket directory (`--data auto|local|remote`). A data
+   directory is tied to one bucket. Tests: `s3fake`, an S3-compatible server
+   in memory; a real store with `HUBWAGEN_TEST_S3`.
+2. **MinIO in CI**: run the `internal/blob` and `internal/api` tests
+   against a MinIO container (`HUBWAGEN_TEST_S3`, and the API and SDK tests
+   too), so signatures, checksums
+   and conditional writes are checked by a real store on every PR.
+3. **Large files**: presigned multipart uploads for files over a part size
+   (one PUT is capped at 5 GB on S3), and ranged downloads, so Parquet
+   readers can read only what they need.
+4. **Input cache on workers**: keep downloaded input files across attempts
+   (pallets never change), bounded by size, so a fan-out over one input
+   downloads it once per worker.
+5. **`gs://`**: Google Cloud Storage natively (signed URLs,
+   `ifGenerationMatch=0`), for setups without HMAC keys for its XML API.
+
+Done when: a worker on another machine runs the revenue example against a
+server whose bucket is an object store, and reruns reuse unchanged steps
+(step 1, tested with s3fake; a real store checks signatures from step 2).
+
+Open questions:
+
+- Workers with their own store credentials (reading inputs straight from
+  the store, e.g. a warehouse engine scanning Parquet in place): an opt-in
+  mode later, if transfer URLs turn out too slow for some lifts.
+
 ## Later
 
 Roughly in order of expected need:
 
 - OpenLineage export.
 - SQL lifts (`lift.sql`) and a dbt lift.
-- Object-store buckets (`gs://`, `s3://`) and warehouse/table-format adapters.
+- Warehouse and table-format adapters (object-store buckets: see "Remote storage").
 - Pod lifts: local containers in single-node mode, Kubernetes Jobs in a
   cluster (starting from the v1 task contract).
 - Auth (tokens for workers and users, `server.auth`; `hubwagen server` warns
-  until then), tenants and per-dock budgets; Litestream replication and failover
+  until then; it also guards the transfer URLs), tenants and per-dock budgets; Litestream replication and failover
   (design: [failover.md](failover.md)).
 - `hubwagen deploy --dry-run` (rebuild preview), `hubwagen verify`,
   `keep_fresh`, data modes, build pinning.

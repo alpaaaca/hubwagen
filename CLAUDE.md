@@ -15,7 +15,9 @@ same server alone, for a service manager, no auth yet); Python workers
 code reaches and runtime guards in haul code; hauls have signals, version
 markers, fan-out limits, child hauls, continue_as_new, schedules and
 dataset subscriptions; `hubwagen start`/`replay` start them and report
-reuse; the SDK has a linter and testing tools. The v1 engine (compiled YAML pipelines) was
+reuse; the SDK has a linter and testing tools. The bucket is a local
+directory or `s3://` (`bucket:` in hubwagen.yaml); only the server opens it,
+and workers on other machines move data through URLs it hands out. The v1 engine (compiled YAML pipelines) was
 removed in M3c; it is in git history up to commit 33ca1ba. **Next:** M5
 (catalog UI, invalidation, staleness); the reuse-by-default decision in
 docs/api-simplification.md.
@@ -30,6 +32,7 @@ Read before larger changes:
 - [docs/spikes/](docs/spikes/) — spike findings (S1: Python replay, S2: code versions)
 - [sdk/python/README.md](sdk/python/README.md) — writing hauls and lifts, the worker
 - [docs/config.md](docs/config.md) — instance configuration (`hubwagen.yaml`)
+- [docs/remote-storage.md](docs/remote-storage.md) — design: `s3://` buckets, transfer URLs for remote workers (step 1 built)
 
 Planning is lightweight: a design note in `docs/` when a decision needs one,
 the next milestone broken into PR-sized steps in `docs/roadmap.md`. No
@@ -42,7 +45,7 @@ spec-kit.
 | `internal/core` | The core: one event loop; hauls (replay until blocked, sequence check, stuck), lifts (retries, timeouts, leases), timers, docks (long-poll), commits, memoization, single-flight, restore |
 | `internal/state` | Store: event log + projections (hauls, lifts, timers, catalog, builds), term fencing, leader-start loader |
 | `internal/pallet` | Storage adapter for pallets as files: manifests, content hash, idempotent promote, discard |
-| `internal/api` | Connect services over HTTP (`WorkerService`, `HaulService`, `CatalogService`, `LogService`); generated code in `gen/` from `proto/` |
+| `internal/api` | Connect services over HTTP (`WorkerService`, `HaulService`, `CatalogService`, `LogService`) and the data endpoint (`/v1/data/`, transfer URLs for workers); generated code in `gen/` from `proto/` |
 | `internal/history` | A run's events told in plain words (pipeline, run, step, version, reused), for the web UI's "What happened" |
 | `internal/runlog` | What lifts printed and logged, per attempt: files of JSON lines, capped; not state, not in the event log |
 | `internal/server` | Wires store, bucket, logs, core and API (`/healthz` too) for one process; data-dir lock; `hubwagen server` and `hubwagen dev` both run it |
@@ -50,7 +53,8 @@ spec-kit.
 | `internal/haulcli` | What `start` and `replay` do: `--param` ranges, starting and waiting over `HaulService`, the replay report |
 | `internal/catalogcli` | What `datasets`, `pallets` and `pallet` print, over `CatalogService` (lineage trees) |
 | `internal/schedule` | Calendar and cron math (DST-correct intervals, what is due since a cursor); the core's haul schedules use it |
-| `internal/clock`, `internal/layout`, `internal/blob` | Real/fake clock; bucket paths (lift staging under dataset and partition, pallet manifests); bucket access with atomic create-if-absent |
+| `internal/clock`, `internal/layout` | Real/fake clock; bucket paths (lift staging under dataset and partition, pallet manifests) |
+| `internal/blob` | The bucket: `file://` and `s3://` (minio-go; conditional writes for atomic create-if-absent, presigned URLs); `s3fake/` is an S3-compatible server in memory for tests |
 | `internal/config` | `hubwagen.yaml`: data dir, listen address, worker processes |
 | `internal/supervise` | Runs and restarts worker processes for `dev` and `workers` (prefixed output, SIGTERM then kill) |
 | `cmd/` | `dev`, `server`, `workers`, `start`, `replay`, `signal`, `schedules`, `datasets`, `versions` (alias `pallets`), `data` (alias `pallet`; and `data invalidate`), `stale`, `gc`, `version` |
@@ -121,6 +125,7 @@ go generate ./internal/webui  # build the web UI into the binary (needs Node; di
 (cd ui && npm ci && npm test && npm run typecheck)   # UI tests
 (cd ui && npm run dev)        # UI dev server, proxying the API to a running hubwagen dev
 (cd sdk/python && uv run --no-project --with pytest --with polars --with pandas --with pyarrow --python 3.12 pytest -q)   # Python SDK, incl. against hubwagen dev and dataframes
+HUBWAGEN_TEST_S3=http://key:secret@127.0.0.1:9000/bucket go test ./internal/blob   # the bucket tests also against a real S3-compatible store (MinIO)
 (cd pipelines/examples/revenue && PYTHONPATH=../../../sdk/python/src python3 -m hubwagen.lint)   # lint haul code
 
 ./hubwagen dev --config pipelines/examples/revenue/hubwagen.yaml   # server + 3 workers; API on 127.0.0.1:7070

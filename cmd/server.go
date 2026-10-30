@@ -61,13 +61,18 @@ func runServer(cmd *cobra.Command, _ []string) error {
 	defer stop()
 
 	log := slog.Default()
-	e, err := server.Start(ctx, server.Config{DataDir: cfg.DataDir, Listen: cfg.Server.Listen, Logger: log})
+	scfg, err := serverConfig(cfg)
+	if err != nil {
+		return err
+	}
+	scfg.Logger = log
+	e, err := server.Start(ctx, scfg)
 	if err != nil {
 		return err
 	}
 	defer e.Close()
 	log.Info("hubwagen server started", "version", Version, "commit", CommitSHA, "config", configName(cfg), "data_dir", e.DataDir,
-		"listen", e.APIAddr, "web_ui", webui.Built())
+		"bucket", e.Bucket.Base(), "listen", e.APIAddr, "web_ui", webui.Built())
 	if !loopback(cfg.Server.Listen) {
 		log.Warn("the API has no authentication: anyone who can reach it can start, cancel and read runs", "listen", cfg.Server.Listen)
 	}
@@ -100,4 +105,15 @@ func loopback(listen string) bool {
 	}
 	ip := net.ParseIP(host)
 	return ip != nil && ip.IsLoopback()
+}
+
+// serverConfig is what server.Start needs from the config file: the data
+// dir, the listen address and the bucket, with its credentials read.
+func serverConfig(cfg *config.Config) (server.Config, error) {
+	s3, err := cfg.Bucket.S3()
+	if err != nil {
+		return server.Config{}, fmt.Errorf("%s: %w", configName(cfg), err)
+	}
+	return server.Config{DataDir: cfg.DataDir, Listen: cfg.Server.Listen, S3: s3,
+		ServeData: cfg.Bucket.Transfers == config.TransfersServer}, nil
 }

@@ -2,21 +2,25 @@
 // task outputs, commit markers and results. Objects are addressed by full
 // URIs as produced by internal/layout.
 //
-// Only file:// is implemented so far (dev mode and single-host standalone).
-// Object stores (gs://, s3://) come with the profiles that need them; their
-// create-if-absent semantics are spike R2 in docs/roadmap.md.
+// Two kinds: file:// (a local directory) and s3:// (AWS S3 or an
+// S3-compatible store; see OpenS3). Only the server opens the bucket;
+// workers that can't reach it as a local directory move files through URLs
+// the server hands them (Presigner, or the server's own data endpoint).
 package blob
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 var (
@@ -28,11 +32,16 @@ type Bucket interface {
 	// Base is the bucket's root URI, without a trailing slash.
 	Base() string
 	Put(ctx context.Context, uri string, data []byte) error
+	// PutStream is Put from a reader of size bytes. Readers never see a
+	// partial object.
+	PutStream(ctx context.Context, uri string, r io.Reader, size int64) error
 	// PutIfAbsent atomically creates uri with data, or returns ErrExists if
 	// it already exists. Concurrent callers: exactly one succeeds. This is
 	// what makes output commits exactly-once.
 	PutIfAbsent(ctx context.Context, uri string, data []byte) error
 	Get(ctx context.Context, uri string) ([]byte, error)
+	// GetStream is Get as a reader; the caller closes it.
+	GetStream(ctx context.Context, uri string) (io.ReadCloser, error)
 	// List returns the URIs of all objects under prefix (a "directory" URI
 	// ending in /), sorted.
 	List(ctx context.Context, prefix string) ([]string, error)
@@ -44,7 +53,22 @@ type Bucket interface {
 	LocalPath(uri string) (string, bool)
 }
 
-// Open opens the bucket rooted at base.
+// Presigner is a bucket that can hand out URLs for one object, which work
+// without credentials until they expire.
+type Presigner interface {
+	PresignGet(ctx context.Context, uri string, expires time.Duration) (Transfer, error)
+	// PresignPut's URL accepts only the bytes with this sha256 (hex).
+	PresignPut(ctx context.Context, uri string, sha256 string, expires time.Duration) (Transfer, error)
+}
+
+// Transfer is a URL to GET or PUT one object, with the headers the request
+// must carry.
+type Transfer struct {
+	URL     string
+	Headers map[string]string
+}
+
+// Open opens the file:// bucket rooted at base; OpenS3 opens s3:// ones.
 func Open(base string) (Bucket, error) {
 	u, err := url.Parse(base)
 	if err != nil {
@@ -59,8 +83,10 @@ func Open(base string) (Bucket, error) {
 			return nil, err
 		}
 		return &fileBucket{base: strings.TrimSuffix(base, "/"), root: filepath.Clean(u.Path)}, nil
+	case "s3":
+		return nil, fmt.Errorf("blob: %q: open s3:// buckets with OpenS3", base)
 	default:
-		return nil, fmt.Errorf("blob: scheme %q is not supported yet (only file://)", u.Scheme)
+		return nil, fmt.Errorf("blob: scheme %q is not supported (file:// or s3://)", u.Scheme)
 	}
 }
 
@@ -103,7 +129,20 @@ func (b *fileBucket) Put(_ context.Context, uri string, data []byte) error {
 	if err != nil {
 		return err
 	}
-	tmp, err := writeTemp(p, data)
+	return b.rename(p, bytes.NewReader(data), int64(len(data)))
+}
+
+func (b *fileBucket) PutStream(_ context.Context, uri string, r io.Reader, size int64) error {
+	p, err := b.path(uri)
+	if err != nil {
+		return err
+	}
+	return b.rename(p, r, size)
+}
+
+// rename writes a complete temp file and renames it into place.
+func (b *fileBucket) rename(p string, r io.Reader, size int64) error {
+	tmp, err := writeTemp(p, r, size)
 	if err != nil {
 		return err
 	}
@@ -122,7 +161,7 @@ func (b *fileBucket) PutIfAbsent(_ context.Context, uri string, data []byte) err
 	if err != nil {
 		return err
 	}
-	tmp, err := writeTemp(p, data)
+	tmp, err := writeTemp(p, bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		return err
 	}
@@ -146,6 +185,18 @@ func (b *fileBucket) Get(_ context.Context, uri string) ([]byte, error) {
 		return nil, ErrNotExist
 	}
 	return data, err
+}
+
+func (b *fileBucket) GetStream(_ context.Context, uri string) (io.ReadCloser, error) {
+	p, err := b.path(uri)
+	if err != nil {
+		return nil, err
+	}
+	f, err := os.Open(p)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, ErrNotExist
+	}
+	return f, err
 }
 
 func (b *fileBucket) List(_ context.Context, prefix string) ([]string, error) {
@@ -192,8 +243,8 @@ func (b *fileBucket) DeletePrefix(_ context.Context, prefix string) error {
 	return os.RemoveAll(dir)
 }
 
-// writeTemp writes data to a fsynced temp file next to p.
-func writeTemp(p string, data []byte) (string, error) {
+// writeTemp writes size bytes from r to a fsynced temp file next to p.
+func writeTemp(p string, r io.Reader, size int64) (string, error) {
 	dir := filepath.Dir(p)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
@@ -202,7 +253,10 @@ func writeTemp(p string, data []byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	_, err = f.Write(data)
+	n, err := io.Copy(f, io.LimitReader(r, size+1))
+	if err == nil && n != size {
+		err = fmt.Errorf("blob: got %d bytes, want %d", n, size)
+	}
 	if err == nil {
 		err = f.Sync()
 	}

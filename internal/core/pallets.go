@@ -289,3 +289,31 @@ func (c *Core) background(f func()) {
 		}()
 	})
 }
+
+// AttemptIO is what a running lift attempt may write and read in the
+// bucket: its staging prefix and its input pallets.
+type AttemptIO struct {
+	Staging string
+	Inputs  []TaskInput
+}
+
+// AttemptIO returns what attempt id may write and read, while it runs; an
+// attempt that isn't running gets ErrNotFound. The API hands workers URLs
+// for these and nothing else.
+func (c *Core) AttemptIO(ctx context.Context, id string) (AttemptIO, error) {
+	return submit(ctx, c, func(c *Core) (AttemptIO, error) {
+		a := c.liftAttempts[id]
+		if a == nil {
+			return AttemptIO{}, fmt.Errorf("%w: lift attempt %s is not running", ErrNotFound, id)
+		}
+		io := AttemptIO{Staging: c.staging(a)}
+		for _, in := range a.lift.inputs {
+			ti := TaskInput{Name: in.Name, Pallet: in.Pallet}
+			if p, err := c.cfg.Store.GetPallet(c.ctx, in.Pallet); err == nil {
+				ti.Location = p.Location
+			}
+			io.Inputs = append(io.Inputs, ti)
+		}
+		return io, nil
+	})
+}

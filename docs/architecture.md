@@ -432,7 +432,10 @@ loop.
    Attempts dispatched before this layout keep their old paths
    (`lifts/<tenant>/<haul>/<seq>/<attempt>/`).
 2. The lift writes its output only to staging and reports `completed` with an
-   output descriptor.
+   output descriptor. A worker that doesn't share the server's filesystem
+   uploads the files first, with URLs the server hands out for the
+   attempt; only the server opens the bucket
+   ([remote-storage.md](remote-storage.md)).
 3. The server records completion in the logbook, then runs the commit: an
    atomic promote, through the dataset's storage adapter.
 4. The pallet becomes visible in the catalog only after the commit succeeds.
@@ -461,8 +464,10 @@ deleted outside hubwagen. A pallet that fails the check isn't reused; the
 lift runs again ("the earlier run's output can't be read: its files are
 gone"), and its new pallet stands in from then on.
 
-v1 has one adapter, `file://` with pallet manifests: atomic, and every version
-stays readable until retention removes it. Warehouse and table-format adapters
+v1 has one adapter, pallet manifests in the bucket (`file://` or `s3://`):
+atomic (create-if-absent; on an object store a conditional PUT, which the
+server checks the store supports), and every version stays readable until
+retention removes it. Warehouse and table-format adapters
 come later; their capabilities are documented with each adapter.
 
 ### Retention
@@ -715,7 +720,7 @@ production catalog read-only and commits to a personal namespace;
 | `Store` (events + projections) | `internal/state` (SQLite); Postgres later behind the same interface |
 | `Replicator` | `litestream`, `noop` |
 | `Elector` | `single`; `bucketlease`, `k8slease` later ([failover.md](failover.md)) |
-| `Blob` (incl. `PutIfAbsent`) | `internal/blob`: `file://`; `gs://`/`s3://` later |
+| `Blob` (incl. `PutIfAbsent`, presigned URLs) | `internal/blob`: `file://`, `s3://` (S3-compatible); `gs://` later ([remote-storage.md](remote-storage.md)) |
 | Storage adapter (promote, readability) | `file://` manifests; others later |
 | Pod launcher | local subprocess/container; Kubernetes Jobs later |
 | `Clock` | real, fake |

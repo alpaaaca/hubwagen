@@ -28,6 +28,7 @@ import os
 import signal
 import socket
 import sys
+import tempfile
 import threading
 import time
 import tomllib
@@ -35,7 +36,7 @@ import traceback
 from pathlib import Path
 from typing import Any
 
-from . import _codecs, _logs, _model, _output, _replay
+from . import _codecs, _data, _logs, _model, _output, _replay
 from .client import Client, ConnectError
 
 log = logging.getLogger("hubwagen.worker")
@@ -101,8 +102,11 @@ def build_id() -> str:
 
 class Worker:
     def __init__(self, client: Client, docks: list[str], lifts: int = 4, worker_id: str | None = None,
-                 poll_wait: str = POLL_WAIT):
+                 poll_wait: str = POLL_WAIT, data: str = "auto"):
+        if data not in _data.MODES:
+            raise ValueError(f"data: want one of {', '.join(_data.MODES)}, got {data!r}")
         self.client = client
+        self.data = data
         self.docks = docks
         self.lift_threads = lifts
         self.id = worker_id or f"{socket.gethostname()}-{os.getpid()}"
@@ -188,6 +192,8 @@ class Worker:
             with self._lock:
                 self._captures.pop(task["id"], None)
             capture.flush(final=True)
+            if remote := body.pop("_remote", None):
+                remote.close()
         if body.get("status") == "STATUS_FAILED":
             log.warning("lift %s failed: %s: %s", task["name"], body["reason"], body["message"])
         try:
@@ -200,13 +206,23 @@ class Worker:
         try:
             if d is None:
                 raise _model.NonRetryable(f"no step {task['name']!r} in build {self.build}")
-            pallets = {i["name"]: _model.Pallet(id=i["pallet"], location=i.get("location", ""))
+            remote = None
+            if (task.get("staging") or task.get("inputs")) and _data.is_remote(self.data, task):
+                remote = _data.Remote(self.client, task["id"], Path(tempfile.mkdtemp(prefix=f"hubwagen-{task['id']}-")))
+                body["_remote"] = remote  # its files go once the lift has run
+
+            def output_dir() -> Path:
+                if not task.get("staging"):
+                    raise _model.NonRetryable("returning a dataframe needs a server with a bucket for data versions")
+                return remote.output_dir if remote else _output.local_dir(task["staging"])
+
+            pallets = {i["name"]: _model.Pallet(id=i["pallet"], location=i.get("location", ""), _remote=remote)
                        for i in task.get("inputs", [])}
             kwargs = load_inputs(d.fn, _model.decode(json.loads(task.get("argsJson") or "{}"), pallets))
             out = None
             token = None
             if d.output is not None:
-                out = _output.Output(path=_output.local_dir(task["staging"]))
+                out = _output.Output(path=output_dir())
                 out.path.mkdir(parents=True, exist_ok=True)
                 token = _output._current.set(out)
             try:
@@ -216,14 +232,14 @@ class Worker:
                     _output._current.reset(token)
             if _codecs.for_value(result) is not None:
                 if out is None:
-                    if not task.get("staging"):
-                        raise _model.NonRetryable("returning a dataframe needs a server with a bucket for data versions")
-                    out = _output.Output(path=_output.local_dir(task["staging"]))
+                    out = _output.Output(path=output_dir())
                 result = _codecs.write(result, out.path)
             body["status"] = "STATUS_SUCCEEDED"
             body["resultJson"] = json.dumps(_model.encode(result))
             if out is not None:
                 body["output"] = _output.describe(out)
+                if remote is not None:
+                    remote.upload(body["output"]["files"])
         except Exception as e:  # noqa: BLE001 - the lift failed
             body.update(status="STATUS_FAILED", reason=type(e).__name__, message=str(e),
                         noRetry=isinstance(e, _model.NonRetryable))
@@ -380,6 +396,10 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--lifts", type=int, default=4, help="lifts to run at the same time")
     p.add_argument("--poll-wait", default=POLL_WAIT, help="how long one poll waits for work, e.g. 20s")
     p.add_argument("--worker-id", default=os.environ.get("HUBWAGEN_WORKER_ID"), help="default: <hostname>-<pid>")
+    p.add_argument("--data", choices=_data.MODES, default=os.environ.get("HUBWAGEN_DATA", "auto"),
+                   help="how steps reach the server's bucket: local (its directory, on the server's machine), "
+                        "remote (through URLs from the server), or auto: local when the worker sees the bucket's "
+                        "directory, else remote")
     p.add_argument("--log-level", default="info")
     p.add_argument("--versions", action="store_true",
                    help="print the build ID and what each pipeline's and step's code version covers, then exit")
@@ -394,7 +414,7 @@ def main(argv: list[str] | None = None) -> None:
         print_versions()
         return
     w = Worker(Client(args.server), args.dock or ["default"], lifts=args.lifts, poll_wait=args.poll_wait,
-               worker_id=args.worker_id)
+               worker_id=args.worker_id, data=args.data)
     while True:
         try:
             w.register()
