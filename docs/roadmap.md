@@ -388,7 +388,8 @@ Roughly in order of expected need:
 - Auth (tokens for workers and users, `server.auth`; `hubwagen server` warns
   until then; it also guards the transfer URLs), tenants and per-dock budgets; Litestream replication and failover
   (design: [failover.md](failover.md)).
-- `hubwagen deploy --dry-run` (rebuild preview), `hubwagen verify`,
+- `hubwagen deploy` and projects, with `--dry-run` as the rebuild preview
+  ([projects.md](projects.md)); `hubwagen verify`,
   `keep_fresh`, data modes, build pinning.
 - Go SDK.
 - Sharding, Postgres, Kubernetes Lease election.
@@ -413,6 +414,7 @@ Roughly in order of expected need:
 | dbt integration | One lift per project, one pallet per model | Later |
 | Catalog interoperability | OpenLineage export first; Iceberg REST catalog later, if at all | Later |
 | Failover | Nodes that supervise workers and can lead; bucket lease + Litestream first, embedded Raft if no-loss is needed ([failover.md](failover.md)) | Failover |
+| Projects | A repo's `hubwagen.yaml` (`kind: Project`: build, pools, env) and `hubwagen deploy`: build and push an image, show what reruns, the server runs and scales its workers; `hubwagen delete` ([projects.md](projects.md)) | Before production use |
 | Worker pools | The leader starts and scales workers per pool (`min`/`max`, docks, capacity) from queued work; `hubwagen server` supervises `workers:` (step 1, done); pools of processes with `min`/`max` (step 2, done); desired counts for KEDA (step 3, done); container and Kubernetes launchers (step 4, done) ([worker-pools.md](worker-pools.md)) | Before production use |
 | `standalone` profile | Decided: no separate profile; `hubwagen server` runs the single-node server (no auth yet) | Done |
 | Load target for one leader | 100 lift transitions/s sustained, 2,000 running lifts | S3 |
