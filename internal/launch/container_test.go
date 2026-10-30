@@ -91,3 +91,31 @@ esac
 	b, _ := os.ReadFile(logf)
 	assert.Equal(t, "ps -aq --filter label=hubwagen.data_dir=/data --filter label=hubwagen.pool=py\nrm -f abc123 def456\n", string(b))
 }
+
+func TestContainerAuthFile(t *testing.T) {
+	w := config.Worker{Name: "py", Launcher: config.LauncherContainer, Image: "registry.acme.dev/revenue@sha256:abc", AuthFile: "/etc/hubwagen/auth/config.json"}
+	w.Runtime = "podman"
+	p := Container(w, "py-1", "http://127.0.0.1:7070", "/data", nil)
+	assert.Contains(t, strings.Join(p.Command, " "), " --authfile /etc/hubwagen/auth/config.json ")
+	w.Runtime = "docker"
+	p = Container(w, "py-1", "http://127.0.0.1:7070", "/data", nil)
+	assert.NotContains(t, strings.Join(p.Command, " "), "authfile")
+	assert.Contains(t, p.Env, "DOCKER_CONFIG=/etc/hubwagen/auth", "docker's own variable")
+	assert.NotContains(t, strings.Join(p.Command, " "), "DOCKER_CONFIG", "not passed into the container")
+}
+
+func TestSecrets(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "revenue-db"), []byte("s3cr3t\n"), 0o600))
+	s := Secrets{Dir: dir}
+	v, err := s.Get("revenue-db")
+	require.NoError(t, err)
+	assert.Equal(t, "s3cr3t", v, "without the trailing newline")
+	_, err = s.Get("../etc/passwd")
+	assert.ErrorContains(t, err, "not a secret name")
+	err = s.Check(map[string]string{"DB": "revenue-db", "A": "missing-a", "B": "missing-b"})
+	assert.ErrorContains(t, err, "secret missing-a: no such secret on this server")
+	assert.ErrorContains(t, err, "secret missing-b", "every problem")
+	_, err = Secrets{}.Get("x")
+	assert.ErrorContains(t, err, "set projects.secrets_dir")
+}

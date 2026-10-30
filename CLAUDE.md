@@ -35,7 +35,7 @@ Read before larger changes:
 - [sdk/python/README.md](sdk/python/README.md) — writing hauls and lifts, the worker
 - [docs/config.md](docs/config.md) — instance configuration (`hubwagen.yaml`)
 - [docs/deploy.md](docs/deploy.md) — container images, compose, the Helm chart
-- [docs/projects.md](docs/projects.md) — design: a repo's project file and `hubwagen deploy` (steps 1–2 built: the dry run, deployments on a local server)
+- [docs/projects.md](docs/projects.md) — design: a repo's project file and `hubwagen deploy` (steps 1–3 built: the dry run, deployments, registries and secrets)
 - [docs/remote-storage.md](docs/remote-storage.md) — design: `s3://` buckets, transfer URLs for remote workers (step 1 built)
 
 Planning is lightweight: a design note in `docs/` when a decision needs one,
@@ -62,7 +62,7 @@ spec-kit.
 | `internal/blob` | The bucket: `file://` and `s3://` (minio-go; conditional writes for atomic create-if-absent, presigned URLs); `s3fake/` is an S3-compatible server in memory for tests |
 | `internal/config` | `hubwagen.yaml`: data dir, listen address, worker processes |
 | `internal/supervise` | Runs and restarts worker processes for `dev`, `server` and `workers` (prefixed output, SIGTERM then kill); a group that grows and shrinks |
-| `internal/launch` | What starts a pool's workers besides processes: a container per worker (`docker`/`podman run`), a Kubernetes Deployment's replicas (scale subresource, plain HTTP) |
+| `internal/launch` | What starts a pool's workers besides processes: a container per worker (`docker`/`podman run`), a Kubernetes Deployment's replicas (scale subresource, plain HTTP); the server's secrets (a file each) |
 | `internal/pools` | Scales worker pools (`min`/`max`) from the work waiting on their docks (`core.Demand`), or works out the desired count of external ones (`GET /v1/pools`); reports to the core (`SetPools`) |
 | `cmd/` | `dev`, `server`, `workers`, `deploy` (`--dry-run`), `projects`, `delete`, `start`, `replay`, `signal`, `schedules`, `datasets`, `versions` (alias `pallets`), `data` (alias `pallet`; and `data invalidate`), `stale`, `gc`, `version` |
 | `internal/webui` | Serves the web UI from the binary (embedded `dist/`, filled by `go generate ./internal/webui`; a placeholder page without it) |

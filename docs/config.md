@@ -171,7 +171,27 @@ image or processes in its directory. How it runs the containers:
 projects:
   runtime: podman          # default: docker if on PATH, else podman
   server_url: http://host.containers.internal:7070   # default as for launcher: container
+  auth_file: /etc/hubwagen/registry/config.json      # pull credentials, see below
+  secrets_dir: /etc/hubwagen/secrets                 # see below
 ```
+
+- **Images by digest**: a deploy to a server elsewhere (or `hubwagen deploy
+  --push`) pushes the project's image with the deploying machine's login
+  and deploys it as `<image>@sha256:…`; the server pulls exactly that.
+  For a private registry it needs pull credentials: `auth_file`, a
+  `docker`/`podman login` credentials file (`config.json`, or podman's
+  `auth.json`): Podman gets `--authfile`, Docker `DOCKER_CONFIG` (the
+  file must be named `config.json`). Without one, the runtime's own login
+  on the server's machine applies. `auth_file` works on `launcher:
+  container` groups too.
+- **Secrets**: a project's `env: {DB_URL: {secret: revenue-db}}` sends only
+  the name. The server reads `<secrets_dir>/revenue-db` (one value per
+  file, trailing newlines dropped) when it starts a worker and puts it in
+  the worker's environment. Values never reach events, state, the API or
+  a command line. A deploy naming a secret the server doesn't have is
+  refused; a secret removed later stops new workers from starting
+  (logged; tried again on the next pass). Keep the directory readable by
+  the server only.
 
 At start the server removes containers an earlier hubwagen on the same
 data directory left running, for its pools and its projects alike.

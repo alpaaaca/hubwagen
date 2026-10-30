@@ -1,8 +1,7 @@
 # Projects: `hubwagen deploy` instead of hand-run workers
 
-> **Status:** design note; steps 1 (the project file and `hubwagen deploy
-> --dry-run`) and 2 (deployments on a server on the same machine) are
-> built, the rest is not. Builds on worker pools
+> **Status:** design note; steps 1–3 are built (the dry run, deployments,
+> registries and secrets); 4–6 are not. Builds on worker pools
 > ([worker-pools.md](worker-pools.md), steps 1–4 built), container images
 > ([deploy.md](deploy.md)) and builds (`RegisterBuild`). Decision
 > requested: the shape below, and steps 1–2 first.
@@ -196,13 +195,18 @@ come from its deployment.
    into pools named `<project>-<pool>-v<version>` (containers of its
    image, or processes in its directory); a new version replaces the
    old one's pools, whose workers get SIGTERM and finish what they run.
-   `hubwagen deploy`, `projects`, `delete [--cancel-runs]`. Limits for
-   now: the server must be on the deploying machine (its local images or
-   directory, no registry yet), `{secret:}` env is refused, one project
-   per pipeline name, and a deleted project's schedules still fire (each
-   start is refused and recorded) until it is deployed again.
-3. **Registries**: push by digest, pull secrets per launcher, `{secret:}`
-   env from the server's side.
+   `hubwagen deploy`, `projects`, `delete [--cancel-runs]`. Limits: an
+   in-place deployment needs the server on the deploying machine, one
+   project per pipeline name, and a deleted project's schedules still
+   fire (each start is refused and recorded) until it is deployed again.
+3. ✅ **Registries and secrets**: to a server elsewhere (or with
+   `--push`), `deploy` pushes the image with the deploying machine's
+   login and deploys it by digest; the server pulls with its own
+   credentials (`projects.auth_file`: Podman `--authfile`, Docker
+   `DOCKER_CONFIG`). `{secret: name}` env travels as the name; the server
+   checks it has the secret at deploy (`projects.secrets_dir`, a file per
+   secret) and reads the value only when a worker starts. Kubernetes
+   Secrets come with step 4.
 4. **Kubernetes**: the server creates, updates and deletes a Deployment
    per pool of a project; the Helm chart shrinks to the server.
 5. **`hubwagen dev` on deploy**: a local server, the process launcher,

@@ -33,11 +33,16 @@ type DeployRequest struct {
 	Image  string `protobuf:"bytes,3,opt,name=image,proto3" json:"image,omitempty"`
 	Dir    string `protobuf:"bytes,4,opt,name=dir,proto3" json:"dir,omitempty"`
 	Python string `protobuf:"bytes,5,opt,name=python,proto3" json:"python,omitempty"`
-	// Variables for its workers (plain values; secrets come later).
+	// Variables for its workers, plain values.
 	Env   map[string]string `protobuf:"bytes,6,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	Pools []*DeployedPool   `protobuf:"bytes,7,rep,name=pools,proto3" json:"pools,omitempty"`
 	// Who deployed, for the record.
-	By            string `protobuf:"bytes,8,opt,name=by,proto3" json:"by,omitempty"`
+	By string `protobuf:"bytes,8,opt,name=by,proto3" json:"by,omitempty"`
+	// Variables whose values are secrets the server holds: env name →
+	// secret name. The server reads them when it starts a worker; values
+	// never pass through the API. FAILED_PRECONDITION if the server has no
+	// such secret.
+	Secrets       map[string]string `protobuf:"bytes,9,rep,name=secrets,proto3" json:"secrets,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -126,6 +131,13 @@ func (x *DeployRequest) GetBy() string {
 		return x.By
 	}
 	return ""
+}
+
+func (x *DeployRequest) GetSecrets() map[string]string {
+	if x != nil {
+		return x.Secrets
+	}
+	return nil
 }
 
 type DeployedPool struct {
@@ -271,7 +283,9 @@ type Deployment struct {
 	By         string                 `protobuf:"bytes,8,opt,name=by,proto3" json:"by,omitempty"`
 	DeployedAt *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=deployed_at,json=deployedAt,proto3" json:"deployed_at,omitempty"`
 	// Set if the project was deleted.
-	DeletedAt     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
+	DeletedAt *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
+	// Env name → secret name (never values).
+	Secrets       map[string]string `protobuf:"bytes,11,rep,name=secrets,proto3" json:"secrets,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -372,6 +386,13 @@ func (x *Deployment) GetDeployedAt() *timestamppb.Timestamp {
 func (x *Deployment) GetDeletedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.DeletedAt
+	}
+	return nil
+}
+
+func (x *Deployment) GetSecrets() map[string]string {
+	if x != nil {
+		return x.Secrets
 	}
 	return nil
 }
@@ -572,7 +593,7 @@ var File_hubwagen_v1_deploy_proto protoreflect.FileDescriptor
 
 const file_hubwagen_v1_deploy_proto_rawDesc = "" +
 	"\n" +
-	"\x18hubwagen/v1/deploy.proto\x12\vhubwagen.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x18hubwagen/v1/worker.proto\"\xd2\x02\n" +
+	"\x18hubwagen/v1/deploy.proto\x12\vhubwagen.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x18hubwagen/v1/worker.proto\"\xd1\x03\n" +
 	"\rDeployRequest\x12\x18\n" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x127\n" +
 	"\x05build\x18\x02 \x01(\v2!.hubwagen.v1.RegisterBuildRequestR\x05build\x12\x14\n" +
@@ -581,8 +602,12 @@ const file_hubwagen_v1_deploy_proto_rawDesc = "" +
 	"\x06python\x18\x05 \x01(\tR\x06python\x125\n" +
 	"\x03env\x18\x06 \x03(\v2#.hubwagen.v1.DeployRequest.EnvEntryR\x03env\x12/\n" +
 	"\x05pools\x18\a \x03(\v2\x19.hubwagen.v1.DeployedPoolR\x05pools\x12\x0e\n" +
-	"\x02by\x18\b \x01(\tR\x02by\x1a6\n" +
+	"\x02by\x18\b \x01(\tR\x02by\x12A\n" +
+	"\asecrets\x18\t \x03(\v2'.hubwagen.v1.DeployRequest.SecretsEntryR\asecrets\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a:\n" +
+	"\fSecretsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xac\x01\n" +
 	"\fDeployedPool\x12\x12\n" +
@@ -596,7 +621,7 @@ const file_hubwagen_v1_deploy_proto_rawDesc = "" +
 	"\x0eDeployResponse\x127\n" +
 	"\n" +
 	"deployment\x18\x01 \x01(\v2\x17.hubwagen.v1.DeploymentR\n" +
-	"deployment\"\xda\x02\n" +
+	"deployment\"\xd6\x03\n" +
 	"\n" +
 	"Deployment\x12\x18\n" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x12\x18\n" +
@@ -611,7 +636,11 @@ const file_hubwagen_v1_deploy_proto_rawDesc = "" +
 	"deployedAt\x129\n" +
 	"\n" +
 	"deleted_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\tdeletedAt\"8\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tdeletedAt\x12>\n" +
+	"\asecrets\x18\v \x03(\v2$.hubwagen.v1.Deployment.SecretsEntryR\asecrets\x1a:\n" +
+	"\fSecretsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"8\n" +
 	"\x13ListProjectsRequest\x12!\n" +
 	"\fwith_deleted\x18\x01 \x01(\bR\vwithDeleted\"K\n" +
 	"\x14ListProjectsResponse\x123\n" +
@@ -640,7 +669,7 @@ func file_hubwagen_v1_deploy_proto_rawDescGZIP() []byte {
 	return file_hubwagen_v1_deploy_proto_rawDescData
 }
 
-var file_hubwagen_v1_deploy_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_hubwagen_v1_deploy_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_hubwagen_v1_deploy_proto_goTypes = []any{
 	(*DeployRequest)(nil),         // 0: hubwagen.v1.DeployRequest
 	(*DeployedPool)(nil),          // 1: hubwagen.v1.DeployedPool
@@ -651,31 +680,35 @@ var file_hubwagen_v1_deploy_proto_goTypes = []any{
 	(*DeleteProjectRequest)(nil),  // 6: hubwagen.v1.DeleteProjectRequest
 	(*DeleteProjectResponse)(nil), // 7: hubwagen.v1.DeleteProjectResponse
 	nil,                           // 8: hubwagen.v1.DeployRequest.EnvEntry
-	(*RegisterBuildRequest)(nil),  // 9: hubwagen.v1.RegisterBuildRequest
-	(*durationpb.Duration)(nil),   // 10: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil), // 11: google.protobuf.Timestamp
+	nil,                           // 9: hubwagen.v1.DeployRequest.SecretsEntry
+	nil,                           // 10: hubwagen.v1.Deployment.SecretsEntry
+	(*RegisterBuildRequest)(nil),  // 11: hubwagen.v1.RegisterBuildRequest
+	(*durationpb.Duration)(nil),   // 12: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil), // 13: google.protobuf.Timestamp
 }
 var file_hubwagen_v1_deploy_proto_depIdxs = []int32{
-	9,  // 0: hubwagen.v1.DeployRequest.build:type_name -> hubwagen.v1.RegisterBuildRequest
+	11, // 0: hubwagen.v1.DeployRequest.build:type_name -> hubwagen.v1.RegisterBuildRequest
 	8,  // 1: hubwagen.v1.DeployRequest.env:type_name -> hubwagen.v1.DeployRequest.EnvEntry
 	1,  // 2: hubwagen.v1.DeployRequest.pools:type_name -> hubwagen.v1.DeployedPool
-	10, // 3: hubwagen.v1.DeployedPool.idle_after:type_name -> google.protobuf.Duration
-	3,  // 4: hubwagen.v1.DeployResponse.deployment:type_name -> hubwagen.v1.Deployment
-	1,  // 5: hubwagen.v1.Deployment.pools:type_name -> hubwagen.v1.DeployedPool
-	11, // 6: hubwagen.v1.Deployment.deployed_at:type_name -> google.protobuf.Timestamp
-	11, // 7: hubwagen.v1.Deployment.deleted_at:type_name -> google.protobuf.Timestamp
-	3,  // 8: hubwagen.v1.ListProjectsResponse.projects:type_name -> hubwagen.v1.Deployment
-	0,  // 9: hubwagen.v1.DeployService.Deploy:input_type -> hubwagen.v1.DeployRequest
-	4,  // 10: hubwagen.v1.DeployService.ListProjects:input_type -> hubwagen.v1.ListProjectsRequest
-	6,  // 11: hubwagen.v1.DeployService.DeleteProject:input_type -> hubwagen.v1.DeleteProjectRequest
-	2,  // 12: hubwagen.v1.DeployService.Deploy:output_type -> hubwagen.v1.DeployResponse
-	5,  // 13: hubwagen.v1.DeployService.ListProjects:output_type -> hubwagen.v1.ListProjectsResponse
-	7,  // 14: hubwagen.v1.DeployService.DeleteProject:output_type -> hubwagen.v1.DeleteProjectResponse
-	12, // [12:15] is the sub-list for method output_type
-	9,  // [9:12] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	9,  // 3: hubwagen.v1.DeployRequest.secrets:type_name -> hubwagen.v1.DeployRequest.SecretsEntry
+	12, // 4: hubwagen.v1.DeployedPool.idle_after:type_name -> google.protobuf.Duration
+	3,  // 5: hubwagen.v1.DeployResponse.deployment:type_name -> hubwagen.v1.Deployment
+	1,  // 6: hubwagen.v1.Deployment.pools:type_name -> hubwagen.v1.DeployedPool
+	13, // 7: hubwagen.v1.Deployment.deployed_at:type_name -> google.protobuf.Timestamp
+	13, // 8: hubwagen.v1.Deployment.deleted_at:type_name -> google.protobuf.Timestamp
+	10, // 9: hubwagen.v1.Deployment.secrets:type_name -> hubwagen.v1.Deployment.SecretsEntry
+	3,  // 10: hubwagen.v1.ListProjectsResponse.projects:type_name -> hubwagen.v1.Deployment
+	0,  // 11: hubwagen.v1.DeployService.Deploy:input_type -> hubwagen.v1.DeployRequest
+	4,  // 12: hubwagen.v1.DeployService.ListProjects:input_type -> hubwagen.v1.ListProjectsRequest
+	6,  // 13: hubwagen.v1.DeployService.DeleteProject:input_type -> hubwagen.v1.DeleteProjectRequest
+	2,  // 14: hubwagen.v1.DeployService.Deploy:output_type -> hubwagen.v1.DeployResponse
+	5,  // 15: hubwagen.v1.DeployService.ListProjects:output_type -> hubwagen.v1.ListProjectsResponse
+	7,  // 16: hubwagen.v1.DeployService.DeleteProject:output_type -> hubwagen.v1.DeleteProjectResponse
+	14, // [14:17] is the sub-list for method output_type
+	11, // [11:14] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_hubwagen_v1_deploy_proto_init() }
@@ -690,7 +723,7 @@ func file_hubwagen_v1_deploy_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hubwagen_v1_deploy_proto_rawDesc), len(file_hubwagen_v1_deploy_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

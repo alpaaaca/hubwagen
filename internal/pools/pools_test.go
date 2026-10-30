@@ -35,10 +35,19 @@ type launcher struct {
 	mu      sync.Mutex
 	started []string
 	stopped []string
+	fail    error // Start fails with it
 }
 
-func (l *launcher) Start(_, id string) { l.mu.Lock(); l.started = append(l.started, id); l.mu.Unlock() }
-func (l *launcher) Stop(id string)     { l.mu.Lock(); l.stopped = append(l.stopped, id); l.mu.Unlock() }
+func (l *launcher) Start(_, id string) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.fail != nil {
+		return l.fail
+	}
+	l.started = append(l.started, id)
+	return nil
+}
+func (l *launcher) Stop(id string) { l.mu.Lock(); l.stopped = append(l.stopped, id); l.mu.Unlock() }
 
 func (l *launcher) take() (started, stopped []string) {
 	l.mu.Lock()
@@ -314,4 +323,20 @@ func TestSetPoolsRollsOut(t *testing.T) {
 	assert.Empty(t, started)
 	assert.Empty(t, stopped)
 	assert.Equal(t, []string{"revenue-default-v2-1"}, e.pool("revenue-default-v2").Workers)
+}
+
+func TestAWorkerThatCantStartIsTriedAgain(t *testing.T) {
+	e := newEnv(t)
+	p := py
+	p.Min = 1
+	s := e.scaler(p)
+	e.launch.fail = fmt.Errorf("secret db: no such secret on this server")
+	started, _ := e.tick(s)
+	assert.Empty(t, started)
+	assert.Equal(t, "can't start py-1: secret db: no such secret on this server", e.pool("py").Decision)
+	assert.Empty(t, e.pool("py").Workers)
+
+	e.launch.fail = nil // the secret was added
+	started, _ = e.tick(s)
+	assert.Equal(t, []string{"py-1"}, started)
 }

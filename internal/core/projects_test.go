@@ -122,3 +122,21 @@ func TestProjectsSurviveARestart(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, d.Version, "versions go on after a restart")
 }
+
+func TestDeploySecretReferences(t *testing.T) {
+	h := newHarness(t)
+	req := deployReq("revenue", "b1", "weekly")
+	req.Secrets = map[string]string{"DB_URL": "revenue-db"}
+	d, err := h.core.Deploy(h.ctx, req)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"DB_URL": "revenue-db"}, d.Secrets)
+
+	req = deployReq("revenue", "b2", "weekly")
+	req.Env = map[string]string{"DB_URL": "x"}
+	req.Secrets = map[string]string{"DB_URL": "revenue-db"}
+	_, err = h.core.Deploy(h.ctx, req)
+	assert.ErrorContains(t, err, "not also in env")
+	req.Env, req.Secrets = nil, map[string]string{"DB_URL": "../x"}
+	_, err = h.core.Deploy(h.ctx, req)
+	assert.ErrorIs(t, err, ErrInvalid)
+}

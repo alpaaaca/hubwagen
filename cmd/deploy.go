@@ -26,6 +26,7 @@ var (
 	deployLocal      bool
 	deployPython     string
 	deployRuntime    string
+	deployPush       bool
 	deleteCancelRuns bool
 )
 
@@ -45,11 +46,18 @@ starts the new version's pools (min workers, more when work waits) and
 stops the old version's workers, which finish what they run.
 
 Its workers are containers of its image, built from build.dockerfile with
-docker or podman and tagged <build.image>:<build>; or, without a
-Dockerfile or with --local, its code in place: python3 -m hubwagen.worker
-in this directory, with PYTHONPATH as it is here. Either way the server
-must be on this machine for now (pushing to a registry comes next). The
-project's code runs here and in its workers, never in the server.
+docker or podman and tagged <build.image>:<build>. A server on this machine
+uses the image as it is here; to a server elsewhere (or with --push) the
+image is pushed to its registry with this machine's login and deployed by
+digest, <build.image>@sha256:…, which the server pulls with its own
+credentials (projects.auth_file). Without a Dockerfile, or with --local,
+its code runs in place instead: python3 -m hubwagen.worker in this
+directory, with PYTHONPATH as it is here, on a server on this machine.
+
+env: {NAME: {secret: name}} in the project file sends only the secret's
+name; the server holds the value (projects.secrets_dir) and refuses a
+deploy that names a secret it doesn't have. The project's code runs here
+and in its workers, never in the server.
 
 --dry-run stops after showing what would change.`,
 	Example: `  hubwagen deploy --dry-run
@@ -74,8 +82,10 @@ func runDeploy(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	opts := deploycli.Options{Local: deployLocal, Python: deployPython, Runtime: deployRuntime, Out: os.Stderr}
-	if !deployDryRun && !localServer(deployServer) {
-		return fmt.Errorf("--server %s: deploying needs a server on this machine for now: it runs this machine's image or directory (pushing to a registry comes with step 3 of docs/projects.md); --dry-run works with any", deployServer)
+	local := localServer(deployServer)
+	inPlace := p.Build.Dockerfile == "" || deployLocal
+	if !deployDryRun && !local && inPlace {
+		return fmt.Errorf("--server %s: an in-place deploy runs this directory, so the server must be on this machine; deploy an image (build.dockerfile, without --local) to a server elsewhere", deployServer)
 	}
 	v, src, err := deploycli.BuildVersions(ctx, p, opts)
 	if err != nil {
@@ -104,6 +114,13 @@ func runDeploy(cmd *cobra.Command, _ []string) error {
 	req, err := deploycli.DeployRequest(p, src, reg, deployPython, deployer())
 	if err != nil {
 		return err
+	}
+	if src.Image != "" && (deployPush || !local) {
+		// A server elsewhere pulls it from the registry, by digest.
+		fmt.Fprintf(os.Stderr, "pushing %s\n", deploycli.BuildImage(p, reg.BuildId))
+		if req.Image, err = deploycli.Push(ctx, p, reg.BuildId, opts); err != nil {
+			return err
+		}
 	}
 	res, err := hubwagenv1connect.NewDeployServiceClient(http.DefaultClient, server).Deploy(ctx, connect.NewRequest(req))
 	if err != nil {
@@ -206,6 +223,7 @@ func init() {
 	deployCmd.Flags().BoolVar(&deployLocal, "local", false, "run the code in place, not in the project's image")
 	deployCmd.Flags().StringVar(&deployPython, "python", "python3", "the interpreter in place (--local)")
 	deployCmd.Flags().StringVar(&deployRuntime, "runtime", "", "docker or podman (default: the one on PATH)")
+	deployCmd.Flags().BoolVar(&deployPush, "push", false, "push the image to its registry and deploy it by digest (always, to a server elsewhere)")
 	projectsCmd.Flags().Bool("deleted", false, "also list deleted projects")
 	deleteCmd.Flags().BoolVar(&deleteCancelRuns, "cancel-runs", false, "cancel the project's open runs")
 }
