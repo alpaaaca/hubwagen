@@ -104,13 +104,14 @@ func configName(cfg *config.Config) string {
 // workerProcesses expands the config's worker groups into processes, max
 // of each: without a server, nothing scales them.
 func workerProcesses(cfg *config.Config, server string, extraEnv ...string) []supervise.Process {
+	removeLeftovers(context.Background(), cfg, slog.Default())
 	var procs []supervise.Process
 	for _, w := range cfg.Workers {
 		if w.External() {
 			continue // started by its own launcher
 		}
 		for n := 1; n <= w.Count(); n++ {
-			procs = append(procs, workerProcess(w, w.Name+"-"+strconv.Itoa(n), server, extraEnv...))
+			procs = append(procs, workerProcess(w, w.Name+"-"+strconv.Itoa(n), server, cfg.DataDir, extraEnv...))
 		}
 	}
 	return procs
@@ -118,7 +119,7 @@ func workerProcesses(cfg *config.Config, server string, extraEnv ...string) []su
 
 // workerProcess is one process of a worker group: the group's command,
 // or for launcher: container, a container of its image.
-func workerProcess(w config.Worker, id, server string, extraEnv ...string) supervise.Process {
+func workerProcess(w config.Worker, id, server, dataDir string, extraEnv ...string) supervise.Process {
 	var env []string
 	for k, v := range w.Env {
 		env = append(env, k+"="+v)
@@ -130,7 +131,7 @@ func workerProcess(w config.Worker, id, server string, extraEnv ...string) super
 		// No supervisor PID: in the container's PID namespace it means
 		// nothing. A container outliving hubwagen is removed when the
 		// worker starts again (its cleanup).
-		return launch.Container(w, id, server, env)
+		return launch.Container(w, id, server, dataDir, env)
 	}
 	env = append(env, config.EnvServer+"="+server, config.EnvSupervisorPID+"="+strconv.Itoa(os.Getpid()))
 	return supervise.Process{ID: id, Command: w.Command, Dir: w.Dir, Env: append(os.Environ(), env...)}
@@ -144,6 +145,7 @@ func startWorkers(ctx context.Context, g *supervise.Group, cfg *config.Config, c
 	groups := map[string]config.Worker{}
 	var scaled []pools.Pool
 	var kube *launch.Kube
+	removeLeftovers(ctx, cfg, log)
 	for _, w := range cfg.Workers { // the cluster first: an error starts nothing
 		if w.Launcher == config.LauncherKubernetes && kube == nil {
 			k, err := launch.NewKube(cfg.Kubernetes, launch.ServiceAccountDir)
@@ -158,7 +160,7 @@ func startWorkers(ctx context.Context, g *supervise.Group, cfg *config.Config, c
 		lo, hi := w.Bounds()
 		if !w.Scaled() {
 			for n := 1; n <= hi; n++ {
-				g.Start(workerProcess(w, w.Name+"-"+strconv.Itoa(n), server, extraEnv...))
+				g.Start(workerProcess(w, w.Name+"-"+strconv.Itoa(n), server, cfg.DataDir, extraEnv...))
 			}
 			continue
 		}
@@ -181,7 +183,7 @@ func startWorkers(ctx context.Context, g *supervise.Group, cfg *config.Config, c
 	}
 	if len(scaled) > 0 {
 		launcher := groupLauncher{g: g, start: func(pool, id string) supervise.Process {
-			return workerProcess(groups[pool], id, server, extraEnv...)
+			return workerProcess(groups[pool], id, server, cfg.DataDir, extraEnv...)
 		}}
 		go pools.New(scaled, launcher, c, clock.Real{}, log).Run(ctx)
 	}
@@ -213,4 +215,22 @@ func killOnSignal(kill chan struct{}) {
 		signal.Stop(sig)
 		close(kill)
 	}()
+}
+
+// removeLeftovers removes the containers of the config's container pools
+// that an earlier hubwagen on the same data directory left running (it was
+// killed): nothing else would stop them.
+func removeLeftovers(ctx context.Context, cfg *config.Config, log *slog.Logger) {
+	for _, w := range cfg.Workers {
+		if w.Launcher != config.LauncherContainer {
+			continue
+		}
+		n, err := launch.RemoveLeftovers(ctx, w, cfg.DataDir)
+		switch {
+		case err != nil:
+			log.Warn("worker pool "+w.Name+": can't look for containers left running", "pool", w.Name, "err", err)
+		case n > 0:
+			log.Info(fmt.Sprintf("worker pool %s: removed %d container(s) an earlier hubwagen left running", w.Name, n), "pool", w.Name)
+		}
+	}
 }

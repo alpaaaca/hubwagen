@@ -241,11 +241,16 @@ workers:
 - **Each worker is `<runtime> run --rm --name hubwagen-<id>`** in the
   foreground, so its output is in hubwagen's, SIGTERM reaches the worker,
   and a crashed one is restarted. `<runtime> rm -f hubwagen-<id>` runs before
-  each start and after each exit, so one left by a killed hubwagen goes.
+  each start and after each exit.
+- **Leftovers**: containers are labelled with their pool and the
+  server's data directory (`hubwagen.pool`, `hubwagen.data_dir`). A
+  hubwagen killed with SIGKILL leaves its containers running and still
+  polling; when it starts again it removes them (those of its own data
+  directory only) before starting the pool.
 - **The server's URL** inside the container is `server_url`, by default
   the listen address with a loopback host replaced by
   `host.docker.internal` (Docker) or `host.containers.internal`
-  (Podman). Docker Desktop and Podman reach the host's loopback that way;
+  (Podman). Docker Desktop and Podman (macOS) reach the host's loopback that way;
   on Linux with Docker, the server must listen where the bridge reaches it
   (`0.0.0.0`, and keep it off public networks while there is no
   authentication).
