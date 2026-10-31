@@ -150,9 +150,10 @@ on its `docks`. Every two seconds:
 - **Pools sharing a dock**: the first in the file with room takes its
   work.
 
-`min: 0` starts nothing until work waits. That needs the pipeline's code
-registered once (a build is kept across restarts): the server only
-accepts runs of pipelines some worker registered. Scaling is the
+`min: 0` runs nothing while nothing waits, after one worker at server
+start: the server only accepts runs of pipelines some worker registered,
+so each such pool starts one to register its code, and stops it as soon
+as it has. Scaling is the
 leader's memory, not state: a restarted server starts each pool at its
 `min` and scales from what waits. `hubwagen workers` can't see the
 queues, so it runs each pool at `max`. The pools and their last decision

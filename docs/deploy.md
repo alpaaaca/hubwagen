@@ -116,6 +116,10 @@ kubectl -n hubwagen port-forward svc/hubwagen 7070
 hubwagen start daily --param day=2026-10-01 --wait
 ```
 
+The server runs only pipelines some worker has registered, so when it
+starts, a pool with `min: 0` runs one worker briefly to register its code
+([worker-pools.md](worker-pools.md#scaling-from-zero)).
+
 What it creates:
 
 - **The server**: one replica (a single leader on SQLite) with `Recreate`,
@@ -125,8 +129,9 @@ What it creates:
   per pool with `launcher: kubernetes`. A change restarts the server.
 - **A Role** that lets the server's service account patch
   `deployments/scale` of the pools' Deployments, and nothing else.
-- **A Deployment per pool** without `replicas`: the server sets them
-  between `min` and `max`, and `helm upgrade` leaves them be. Its pods get
+- **A Deployment per pool** whose replicas the server sets between `min`
+  and `max`: it is created with `min`, and `helm upgrade` keeps the count
+  the server last set (the chart looks it up). Its pods get
   `HUBWAGEN_SERVER`, the pool's docks and lifts, and no service account
   token. Give `terminationGracePeriodSeconds` (default 600) more time than
   your steps take: Kubernetes picks which pod to remove when it scales
