@@ -154,5 +154,5 @@ func serverConfig(cfg *config.Config) (server.Config, error) {
 		return server.Config{}, fmt.Errorf("%s: %w", configName(cfg), err)
 	}
 	return server.Config{DataDir: cfg.DataDir, Listen: cfg.Server.Listen, S3: s3,
-		ServeData: cfg.Bucket.Transfers == config.TransfersServer}, nil
+		ServeData: cfg.Bucket.Transfers == config.TransfersServer, SecretsDir: cfg.Projects.SecretsDir}, nil
 }

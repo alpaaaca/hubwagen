@@ -301,14 +301,19 @@ func runtime(opts Options) string {
 }
 
 // DeployRequest is p's deployment of the build reg: its image tagged with
-// the build (Tag it first), or its directory and interpreter in place, with
-// PYTHONPATH as it is here. Secrets in env aren't supported yet.
+// the build (Tag it first; Push replaces it with the pushed digest), or its
+// directory and interpreter in place, with PYTHONPATH as it is here.
+// {secret: name} env goes as the secret's name only.
 func DeployRequest(p *config.Project, src Source, reg *hubwagenv1.RegisterBuildRequest, python, by string) (*hubwagenv1.DeployRequest, error) {
 	req := &hubwagenv1.DeployRequest{Project: p.Name, Build: reg, By: by, Env: map[string]string{}}
 	for _, k := range slices.Sorted(maps.Keys(p.Env)) {
 		e := p.Env[k]
 		if e.Secret != "" {
-			return nil, fmt.Errorf("env.%s: {secret: %s}: secrets come with step 3 of docs/projects.md; use a plain value for now", k, e.Secret)
+			if req.Secrets == nil {
+				req.Secrets = map[string]string{}
+			}
+			req.Secrets[k] = e.Secret
+			continue
 		}
 		req.Env[k] = e.Value
 	}
@@ -389,4 +394,52 @@ func shortDir(dir string) string {
 		return dir
 	}
 	return "…/" + strings.Join(parts[len(parts)-2:], "/")
+}
+
+// Push pushes the build's image (BuildImage) to its registry and returns
+// it by digest, <image>@sha256:…: what the server pulls is exactly what was
+// built and compared. Pushing uses this machine's credentials (docker or
+// podman login); the server pulls with its own.
+func Push(ctx context.Context, p *config.Project, build string, opts Options) (string, error) {
+	rt, ref := runtime(opts), BuildImage(p, build)
+	if rt == "podman" {
+		f, err := os.CreateTemp("", "hubwagen-digest-")
+		if err != nil {
+			return "", err
+		}
+		f.Close()
+		defer os.Remove(f.Name())
+		if err := runOut(ctx, opts, rt, "push", "--digestfile", f.Name(), ref); err != nil {
+			return "", err
+		}
+		d, err := os.ReadFile(f.Name())
+		if err != nil || !strings.HasPrefix(strings.TrimSpace(string(d)), "sha256:") {
+			return "", fmt.Errorf("%s push %s: no digest", rt, ref)
+		}
+		return p.Build.Image + "@" + strings.TrimSpace(string(d)), nil
+	}
+	if err := runOut(ctx, opts, rt, "push", ref); err != nil {
+		return "", err
+	}
+	out, err := exec.CommandContext(ctx, rt, "inspect", "--format", "{{json .RepoDigests}}", ref).Output()
+	if err != nil {
+		return "", fmt.Errorf("%s inspect %s: %w", rt, ref, err)
+	}
+	var digests []string
+	_ = json.Unmarshal(out, &digests)
+	for _, d := range digests {
+		if strings.HasPrefix(d, p.Build.Image+"@sha256:") {
+			return d, nil
+		}
+	}
+	return "", fmt.Errorf("%s push %s: no digest for %s among %s", rt, ref, p.Build.Image, strings.TrimSpace(string(out)))
+}
+
+func runOut(ctx context.Context, opts Options, name string, args ...string) error {
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Stdout, cmd.Stderr = opts.Out, opts.Out
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("%s: %w", strings.Join(cmd.Args, " "), err)
+	}
+	return nil
 }

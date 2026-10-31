@@ -139,6 +139,12 @@ func secret(field, path string) (string, error) {
 type Projects struct {
 	Runtime   string `yaml:"runtime"`
 	ServerURL string `yaml:"server_url"`
+	// AuthFile: the registry credentials the runtime pulls their images
+	// with (podman --authfile; Docker: a config.json, as DOCKER_CONFIG).
+	AuthFile string `yaml:"auth_file"`
+	// SecretsDir: a file per secret ({secret: name} in a project file),
+	// read when a worker starts.
+	SecretsDir string `yaml:"secrets_dir"`
 }
 
 // Kubernetes is the cluster for launcher: kubernetes pools. Without APIURL
@@ -173,6 +179,7 @@ type Worker struct {
 	Image     string `yaml:"image"`
 	Runtime   string `yaml:"runtime"`
 	ServerURL string `yaml:"server_url"`
+	AuthFile  string `yaml:"auth_file"` // registry credentials (podman --authfile; Docker: a config.json)
 	// Kubernetes: the Deployment that runs the group's workers, in
 	// Namespace (default: the kubernetes section's).
 	Deployment string   `yaml:"deployment"`
@@ -396,8 +403,8 @@ func Parse(data []byte, dir string) (*Config, error) {
 		default:
 			add("%s.launcher: must be process, container, kubernetes or external, got %q", at, w.Launcher)
 		}
-		if w.Launcher != LauncherContainer && (w.Image != "" || w.Runtime != "" || w.ServerURL != "") {
-			add("%s: image, runtime and server_url are for launcher: container", at)
+		if w.Launcher != LauncherContainer && (w.Image != "" || w.Runtime != "" || w.ServerURL != "" || w.AuthFile != "") {
+			add("%s: image, runtime, server_url and auth_file are for launcher: container", at)
 		}
 		if w.Launcher != LauncherKubernetes && (w.Deployment != "" || w.Namespace != "") {
 			add("%s: deployment and namespace are for launcher: kubernetes", at)
@@ -480,6 +487,14 @@ func (c *Config) resolve(dir string) {
 	}
 	for i := range c.Workers {
 		c.Workers[i].Dir = abs(dir, c.Workers[i].Dir)
+		if c.Workers[i].AuthFile != "" {
+			c.Workers[i].AuthFile = abs(dir, c.Workers[i].AuthFile)
+		}
+	}
+	for _, p := range []*string{&c.Projects.AuthFile, &c.Projects.SecretsDir} {
+		if *p != "" {
+			*p = abs(dir, *p)
+		}
 	}
 }
 

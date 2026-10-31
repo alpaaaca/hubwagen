@@ -150,8 +150,11 @@ func TestDeployRequest(t *testing.T) {
 	assert.Equal(t, "/opt/sdk", req.Env["PYTHONPATH"])
 	assert.Equal(t, 5*time.Minute, project(t, "pools: [{name: default}]\n").Pools[0].Idle(), "the default idle_after")
 
-	_, err = DeployRequest(project(t, "pools: [{name: default}]\nenv: {DB: {secret: db}}\n"), Source{}, reg, "python3", "ana")
-	assert.ErrorContains(t, err, "env.DB: {secret: db}: secrets come with step 3")
+	req, err = DeployRequest(project(t, "pools: [{name: default}]\nenv: {DB: {secret: revenue-db}, LEVEL: info}\n"), Source{}, reg, "python3", "ana")
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"DB": "revenue-db"}, req.Secrets, "the secret's name only")
+	assert.Equal(t, "info", req.Env["LEVEL"])
+	assert.NotContains(t, req.Env, "DB")
 }
 
 func TestRegistrationInPlace(t *testing.T) {
@@ -183,4 +186,34 @@ func TestProjectsTable(t *testing.T) {
 revenue   v3        b-new   image localhost/revenue:b-new   default 2 of 0–3, gpu 0 of 1–1   2026-10-30 18:42 UTC   ana@laptop
 local     v1        b-x     in place, …/examples/local      default 0 of 0–1                 2026-10-30 18:42 UTC   ana@laptop
 `, b.String())
+}
+
+func TestPushReturnsTheDigest(t *testing.T) {
+	p := project(t, "build: {dockerfile: Dockerfile, image: registry.acme.dev/revenue}\npools: [{name: default}]\n")
+	logf := filepath.Join(t.TempDir(), "rt.log")
+
+	fake(t, "podman", `echo "$*" >> `+logf+`
+[ "$1" = push ] && [ "$2" = --digestfile ] && echo "sha256:abc123" > "$3"
+`)
+	ref, err := Push(context.Background(), p, "b-new", Options{Runtime: "podman", Out: io.Discard})
+	require.NoError(t, err)
+	assert.Equal(t, "registry.acme.dev/revenue@sha256:abc123", ref)
+
+	fake(t, "docker", `echo "$*" >> `+logf+`
+[ "$1" = inspect ] && echo '["other/revenue@sha256:zzz","registry.acme.dev/revenue@sha256:def456"]'
+true
+`)
+	ref, err = Push(context.Background(), p, "b-new", Options{Runtime: "docker", Out: io.Discard})
+	require.NoError(t, err)
+	assert.Equal(t, "registry.acme.dev/revenue@sha256:def456", ref)
+	b, _ := os.ReadFile(logf)
+	lines := strings.Split(strings.TrimSpace(string(b)), "\n")
+	require.Len(t, lines, 3)
+	assert.True(t, strings.HasSuffix(lines[0], " registry.acme.dev/revenue:b-new"), lines[0])
+	assert.Equal(t, "push registry.acme.dev/revenue:b-new", lines[1])
+	assert.Equal(t, "inspect --format {{json .RepoDigests}} registry.acme.dev/revenue:b-new", lines[2])
+
+	fake(t, "docker", "exit 1\n")
+	_, err = Push(context.Background(), p, "b-new", Options{Runtime: "docker", Out: io.Discard})
+	assert.ErrorContains(t, err, "docker push registry.acme.dev/revenue:b-new")
 }

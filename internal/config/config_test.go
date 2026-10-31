@@ -276,7 +276,7 @@ workers:
 		"workers[0].image: required with launcher: container",
 		`workers[0].runtime: must be docker or podman, got "lxc"`,
 		"workers[1].deployment: required with launcher: kubernetes",
-		"workers[2]: image, runtime and server_url are for launcher: container",
+		"workers[2]: image, runtime, server_url and auth_file are for launcher: container",
 		"workers[2]: deployment and namespace are for launcher: kubernetes",
 	} {
 		assert.Contains(t, err.Error(), want)

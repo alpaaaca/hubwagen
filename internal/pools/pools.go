@@ -45,7 +45,9 @@ type Pool struct {
 
 // Launcher starts and stops a pool's workers by worker ID (<pool>-<n>).
 type Launcher interface {
-	Start(pool, workerID string)
+	// Start starts a worker; an error (it can't, e.g. a secret is
+	// missing) leaves it unstarted, to try again on a later pass.
+	Start(pool, workerID string) error
 	Stop(workerID string)
 }
 
@@ -319,13 +321,17 @@ func (s *Scaler) starting(st *poolState, now time.Time) int {
 // start starts k workers, numbered from the lowest free number.
 func (s *Scaler) start(p Pool, st *poolState, k int, now time.Time, why string) {
 	var ids []string
-	for i := 1; len(ids) < k; i++ {
+	for i, tried := 1, 0; tried < k; i++ {
 		id := p.Name + "-" + strconv.Itoa(i)
 		if _, ok := st.workers[id]; ok {
 			continue
 		}
+		tried++
+		if err := s.launch.Start(p.Name, id); err != nil {
+			s.decide(p, st, now, fmt.Sprintf("can't start %s: %v", id, err))
+			return
+		}
 		st.workers[id] = &worker{started: now}
-		s.launch.Start(p.Name, id)
 		ids = append(ids, id)
 	}
 	s.decide(p, st, now, fmt.Sprintf("started %s: %s", strings.Join(ids, ", "), why))

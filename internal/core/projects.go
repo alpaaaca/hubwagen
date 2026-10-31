@@ -30,11 +30,16 @@ type DeployRequest struct {
 	Dir    string
 	Python string
 	Env    map[string]string
-	Pools  []state.DeployedPool
-	By     string
+	// Secrets: env name → the name of a secret the server holds.
+	Secrets map[string]string
+	Pools   []state.DeployedPool
+	By      string
 }
 
-var projectName = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
+var (
+	projectName = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
+	secretName  = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9._-]*$`)
+)
 
 // Deploy records a project's next version and returns it.
 func (c *Core) Deploy(ctx context.Context, req DeployRequest) (state.Deployment, error) {
@@ -50,7 +55,7 @@ func (c *Core) Deploy(ctx context.Context, req DeployRequest) (state.Deployment,
 			version = p.Version + 1
 		}
 		d := state.Deployment{Project: req.Project, Version: version, BuildID: req.Build.ID, Image: req.Image,
-			Dir: req.Dir, Python: req.Python, Env: req.Env, Pools: req.Pools,
+			Dir: req.Dir, Python: req.Python, Env: req.Env, Secrets: req.Secrets, Pools: req.Pools,
 			Hauls: slices.Compact(slices.Sorted(slices.Values(req.Build.Hauls))), By: req.By, DeployedAt: c.now()}
 		p := &state.Project{Deployment: d}
 		c.projects[req.Project] = p
@@ -69,6 +74,12 @@ func (c *Core) checkDeploy(req DeployRequest) error {
 	}
 	if len(req.Pools) == 0 {
 		return fmt.Errorf("%w: project %s: at least one pool", ErrInvalid, req.Project)
+	}
+	for k, name := range req.Secrets {
+		if _, both := req.Env[k]; both || k == "" || !secretName.MatchString(name) {
+			return fmt.Errorf("%w: project %s: secret %s=%q: a variable not also in env, and a secret name of letters, digits, '.', '_' and '-'",
+				ErrInvalid, req.Project, k, name)
+		}
 	}
 	seen := map[string]bool{}
 	for _, p := range req.Pools {

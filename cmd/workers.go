@@ -161,7 +161,7 @@ func startWorkers(ctx context.Context, g *supervise.Group, cfg *config.Config, c
 		}
 	}
 	removeLeftovers(ctx, cfg, log)
-	launcher := &groupLauncher{g: g, start: map[string]func(id string) supervise.Process{}}
+	launcher := &groupLauncher{g: g, log: log, start: map[string]func(id string) (supervise.Process, error){}}
 	var static []pools.Pool
 	for _, w := range cfg.Workers {
 		lo, hi := w.Bounds()
@@ -185,7 +185,9 @@ func startWorkers(ctx context.Context, g *supervise.Group, cfg *config.Config, c
 			msg = "containers of " + w.Image + ", scaled by the work waiting on its docks"
 		}
 		static = append(static, p)
-		launcher.set(w.Name, func(id string) supervise.Process { return workerProcess(w, id, server, cfg.DataDir, extraEnv...) })
+		launcher.set(w.Name, func(id string) (supervise.Process, error) {
+			return workerProcess(w, id, server, cfg.DataDir, extraEnv...), nil
+		})
 		log.Info("worker pool "+w.Name+": "+msg, "pool", w.Name, "min", lo, "max", hi,
 			"docks", strings.Join(w.DockList(), ","), "idle_after", w.Idle())
 	}
@@ -220,8 +222,26 @@ func followProjects(ctx context.Context, c *core.Core, sc *pools.Scaler, static 
 			want[p.Project] = p.Version
 			for _, dp := range p.Pools {
 				name := fmt.Sprintf("%s-%s-v%d", p.Project, dp.Name, p.Version)
-				w := projectWorker(p, dp, name, cfg)
-				launcher.set(name, func(id string) supervise.Process { return workerProcess(w, id, server, cfg.DataDir, extraEnv...) })
+				w, secrets := projectWorker(p, dp, name, cfg), p.Secrets
+				launcher.set(name, func(id string) (supervise.Process, error) {
+					// Secrets are read now, as the worker starts: their values
+					// live only in its environment.
+					if len(secrets) > 0 {
+						w.Env = maps.Clone(w.Env)
+						if w.Env == nil {
+							w.Env = map[string]string{}
+						}
+						store := launch.Secrets{Dir: cfg.Projects.SecretsDir}
+						for k, name := range secrets {
+							v, err := store.Get(name)
+							if err != nil {
+								return supervise.Process{}, err
+							}
+							w.Env[k] = v
+						}
+					}
+					return workerProcess(w, id, server, cfg.DataDir, extraEnv...), nil
+				})
 				all = append(all, pools.Pool{Name: name, Docks: dp.Docks, Lifts: dp.Lifts, Min: dp.Min, Max: dp.Max, IdleAfter: dp.IdleAfter})
 			}
 		}
@@ -259,6 +279,7 @@ func projectWorker(p state.Project, dp state.DeployedPool, name string, cfg *con
 	w := config.Worker{Name: name, Docks: dp.Docks, Lifts: &lifts, Env: p.Env}
 	if p.Image != "" {
 		w.Launcher, w.Image, w.Runtime, w.ServerURL = config.LauncherContainer, p.Image, cfg.Projects.Runtime, cfg.Projects.ServerURL
+		w.AuthFile = cfg.Projects.AuthFile
 		return w
 	}
 	w.Command, w.Dir = []string{or(p.Python, "python3"), "-m", "hubwagen.worker"}, p.Dir
@@ -276,11 +297,12 @@ func or(s, def string) string {
 // pool's the way set says.
 type groupLauncher struct {
 	g     *supervise.Group
+	log   *slog.Logger
 	mu    sync.Mutex
-	start map[string]func(id string) supervise.Process
+	start map[string]func(id string) (supervise.Process, error)
 }
 
-func (l *groupLauncher) set(pool string, start func(id string) supervise.Process) {
+func (l *groupLauncher) set(pool string, start func(id string) (supervise.Process, error)) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.start[pool] = start
@@ -297,13 +319,22 @@ func (l *groupLauncher) keep(ps []pools.Pool) {
 	}
 }
 
-func (l *groupLauncher) Start(pool, id string) {
+// Start starts worker id of pool; if it can't (a secret is missing), it
+// says so and starts nothing: the scaler tries again on a later pass.
+func (l *groupLauncher) Start(pool, id string) error {
 	l.mu.Lock()
 	start := l.start[pool]
 	l.mu.Unlock()
-	if start != nil {
-		l.g.Start(start(id))
+	if start == nil {
+		return fmt.Errorf("no way to start pool %s", pool)
 	}
+	p, err := start(id)
+	if err != nil {
+		l.log.Error("worker pool "+pool+": can't start "+id, "pool", pool, "err", err)
+		return err
+	}
+	l.g.Start(p)
+	return nil
 }
 
 func (l *groupLauncher) Stop(id string) { l.g.Stop(id) }

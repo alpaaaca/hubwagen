@@ -191,3 +191,33 @@ while :; do sleep 0.05; done
 	wait("stop revenue-default-v2-1")
 	stopServerCmd(t, done)
 }
+
+// A deployed project's secret reaches its workers' environment, read from
+// the server's secrets directory when the worker starts.
+func TestServerGivesDeployedWorkersTheirSecrets(t *testing.T) {
+	bin, logf, dir, secrets := t.TempDir(), filepath.Join(t.TempDir(), "workers.log"), t.TempDir(), t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "python3"), []byte(`#!/bin/sh
+echo "start $HUBWAGEN_WORKER_ID db=$DB_PASSWORD args=$*" >> `+logf+`
+trap 'exit 0' TERM
+while :; do sleep 0.05; done
+`), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(secrets, "revenue-db"), []byte("s3cr3t\n"), 0o600))
+	listen := freeListen(t)
+	done := runServerConfig(t, listen, fmt.Sprintf("projects: {secrets_dir: %q}\n", secrets))
+	c := hubwagenv1connect.NewDeployServiceClient(http.DefaultClient, "http://"+listen)
+	req := &hubwagenv1.DeployRequest{Project: "revenue", Dir: dir, Python: filepath.Join(bin, "python3"),
+		Secrets: map[string]string{"DB_PASSWORD": "revenue-db"},
+		Build:   &hubwagenv1.RegisterBuildRequest{BuildId: "b1", Hauls: []string{"daily"}},
+		Pools:   []*hubwagenv1.DeployedPool{{Name: "default", Docks: []string{"default"}, Min: 1, Max: 1, Lifts: 1, IdleAfter: durationpb.New(time.Minute)}}}
+	_, err := c.Deploy(context.Background(), connect.NewRequest(req))
+	require.NoError(t, err)
+	read := func() string { b, _ := os.ReadFile(logf); return string(b) }
+	require.Eventually(t, func() bool { return strings.Contains(read(), "start revenue-default-v1-1") }, 15*time.Second, 50*time.Millisecond)
+	assert.Contains(t, read(), "db=s3cr3t args=-m hubwagen.worker\n", "the value in its environment, not its arguments")
+
+	// A secret the server doesn't have: refused at deploy.
+	req.Secrets["DB_PASSWORD"] = "nope"
+	_, err = c.Deploy(context.Background(), connect.NewRequest(req))
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	stopServerCmd(t, done)
+}
