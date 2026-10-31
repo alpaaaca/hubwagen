@@ -242,7 +242,8 @@ func followProjects(ctx context.Context, c *core.Core, sc *pools.Scaler, static 
 					}
 					return workerProcess(w, id, server, cfg.DataDir, extraEnv...), nil
 				})
-				all = append(all, pools.Pool{Name: name, Docks: dp.Docks, Lifts: dp.Lifts, Min: dp.Min, Max: dp.Max, IdleAfter: dp.IdleAfter})
+				all = append(all, pools.Pool{Name: name, Docks: dp.Docks, Lifts: dp.Lifts, Min: dp.Min, Max: dp.Max, IdleAfter: dp.IdleAfter,
+					Registered: true}) // deploying registered its build
 			}
 		}
 		if err == nil && (first || !maps.Equal(want, running)) {

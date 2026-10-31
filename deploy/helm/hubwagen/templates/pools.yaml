@@ -38,7 +38,10 @@ metadata:
     app.kubernetes.io/component: worker
     hubwagen.dev/pool: {{ .name }}
 spec:
-  # No replicas: the server sets them (min to max); an upgrade leaves them be.
+  # The server sets the replicas (min to max). A new Deployment starts at
+  # min, not Kubernetes' 1; an upgrade keeps what the server last set.
+  {{- $live := lookup "apps/v1" "Deployment" $.Release.Namespace (include "hubwagen.poolName" (dict "root" $ "pool" .)) }}
+  replicas: {{ if $live }}{{ $live.spec.replicas }}{{ else }}{{ .min | default 0 }}{{ end }}
   selector:
     matchLabels:
       app.kubernetes.io/instance: {{ $.Release.Name }}

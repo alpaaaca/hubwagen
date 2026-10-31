@@ -9,6 +9,11 @@
 // like the core's record of workers, scaling is not state. A new leader
 // starts from min and scales from what queues. Design:
 // docs/worker-pools.md.
+//
+// The server runs only pipelines some worker registered, so a pool with
+// min 0 starts one worker when the scaler starts, and lets it go once it
+// has registered its code and has nothing to run; a pool added later or a
+// new image registers at the next server start without a manual step.
 package pools
 
 import (
@@ -41,6 +46,9 @@ type Pool struct {
 	// sets a Kubernetes Deployment's replicas. It is called when the count
 	// changes, and again on the next pass while it fails.
 	Apply func(ctx context.Context, n int) error
+	// Registered: its code is registered already (a deployed project's
+	// build), so a pool with min 0 starts no worker to register it.
+	Registered bool
 }
 
 // Launcher starts and stops a pool's workers by worker ID (<pool>-<n>).
@@ -85,6 +93,10 @@ type poolState struct {
 	active  map[string]time.Time
 	desired int
 	applied int // what Apply last made so; -1 before the first
+	// registered: a worker of the pool has been seen since the scaler
+	// started (workers register their code before they poll). warming: the
+	// pool runs a worker only so that it registers.
+	registered, warming bool
 }
 
 type worker struct {
@@ -111,7 +123,7 @@ func (s *Scaler) SetPools(pools []Pool) {
 	for _, p := range pools {
 		keep[p.Name] = true
 		if s.state[p.Name] == nil {
-			s.state[p.Name] = &poolState{workers: map[string]*worker{}, active: map[string]time.Time{}, desired: p.Min, applied: -1}
+			s.state[p.Name] = &poolState{workers: map[string]*worker{}, active: map[string]time.Time{}, desired: p.Min, applied: -1, registered: p.Registered}
 		}
 	}
 	for name, st := range s.state {
@@ -199,6 +211,9 @@ func (s *Scaler) Tick(ctx context.Context) error {
 		}
 
 		n := len(st.workers)
+		for _, w := range st.workers {
+			st.registered = st.registered || w.seen
+		}
 		haulTasks, lifts, need, docks := waiting(p, demand, claimed, n)
 		waits := need > 0
 
@@ -207,8 +222,17 @@ func (s *Scaler) Tick(ctx context.Context) error {
 			s.start(p, st, p.Min-n, now, fmt.Sprintf("below min %d", p.Min))
 		case waits && starting == 0 && n < p.Max:
 			s.start(p, st, min(need, p.Max-n), now, waitsText(haulTasks, lifts, docks))
+		case !st.registered && n == 0 && p.Max > 0:
+			st.warming = true
+			s.start(p, st, 1, now, registerText)
+		case !waits && st.warming && st.registered:
+			st.warming = false
+			s.stopIdle(p, st, now, 0, "its code is registered")
 		case !waits && n > p.Min:
-			s.stopIdle(p, st, now)
+			s.stopIdle(p, st, now, p.IdleAfter, "nothing to run for "+p.IdleAfter.String())
+		}
+		if waits {
+			st.warming = false
 		}
 
 		status = append(status, core.PoolStatus{Name: p.Name, Docks: p.Docks, Min: p.Min, Max: p.Max,
@@ -261,7 +285,12 @@ func (s *Scaler) external(ctx context.Context, p Pool, st *poolState, seen []cor
 		counted[w.ID] = true
 		ids = append(ids, w.ID)
 		last, ok := st.active[w.ID]
-		if !ok || w.Running > 0 || !w.Polling {
+		switch {
+		case !ok && st.warming && w.Polling && w.Running == 0:
+			// Started only to register, which it did: not wanted any more.
+			last = now.Add(-p.IdleAfter)
+			st.active[w.ID] = last
+		case !ok || w.Running > 0 || !w.Polling:
 			last = now
 			st.active[w.ID] = now
 		}
@@ -274,19 +303,29 @@ func (s *Scaler) external(ctx context.Context, p Pool, st *poolState, seen []cor
 			delete(st.active, id)
 		}
 	}
+	st.registered = st.registered || len(ids) > 0
 	haulTasks, lifts, need, docks := waiting(p, demand, claimed, active)
 	desired := min(max(active+need, p.Min), p.Max)
+	warming := !st.registered && desired == 0 && p.Max > 0
+	if warming {
+		desired = 1
+	}
 	if desired != st.desired {
 		why := "workers had nothing to run for " + p.IdleAfter.String()
 		switch {
 		case need > 0:
 			why = waitsText(haulTasks, lifts, docks)
+		case warming:
+			why = registerText
+		case st.warming:
+			why = "its code is registered"
 		case desired > st.desired:
 			why = "workers are busy"
 		}
 		s.decide(p, st, now, fmt.Sprintf("wants %s (was %d): %s", plural(desired, "worker"), st.desired, why))
 		st.desired = desired
 	}
+	st.warming = warming
 	if p.Apply != nil && st.applied != desired {
 		if err := p.Apply(ctx, desired); err != nil {
 			s.log.Warn("worker pool "+p.Name+": can't apply its desired count", "pool", p.Name, "desired", desired, "err", err)
@@ -337,9 +376,11 @@ func (s *Scaler) start(p Pool, st *poolState, k int, now time.Time, why string) 
 	s.decide(p, st, now, fmt.Sprintf("started %s: %s", strings.Join(ids, ", "), why))
 }
 
-// stopIdle stops workers idle for IdleAfter, highest number first, down to
-// Min.
-func (s *Scaler) stopIdle(p Pool, st *poolState, now time.Time) {
+// registerText is why a pool with min 0 runs a worker while nothing waits.
+const registerText = "to register its code"
+
+// stopIdle stops workers idle for after, highest number first, down to Min.
+func (s *Scaler) stopIdle(p Pool, st *poolState, now time.Time, after time.Duration, why string) {
 	ids := slices.Sorted(maps.Keys(st.workers))
 	slices.SortStableFunc(ids, func(a, b string) int { return number(b) - number(a) })
 	var stopped []string
@@ -348,7 +389,7 @@ func (s *Scaler) stopIdle(p Pool, st *poolState, now time.Time) {
 			break
 		}
 		w := st.workers[id]
-		if !w.idleSince.IsZero() && now.Sub(w.idleSince) >= p.IdleAfter {
+		if !w.idleSince.IsZero() && now.Sub(w.idleSince) >= after {
 			stopped = append(stopped, id)
 		}
 	}
@@ -360,7 +401,7 @@ func (s *Scaler) stopIdle(p Pool, st *poolState, now time.Time) {
 		delete(st.workers, id)
 	}
 	slices.SortFunc(stopped, func(a, b string) int { return number(a) - number(b) })
-	s.decide(p, st, now, fmt.Sprintf("stopped %s: nothing to run for %s", strings.Join(stopped, ", "), p.IdleAfter))
+	s.decide(p, st, now, fmt.Sprintf("stopped %s: %s", strings.Join(stopped, ", "), why))
 }
 
 func (s *Scaler) decide(p Pool, st *poolState, now time.Time, text string) {

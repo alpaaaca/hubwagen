@@ -78,6 +78,16 @@ func (e *env) scaler(pools ...Pool) *Scaler {
 	return New(pools, e.launch, e.core, e.clock, slog.New(slog.NewTextHandler(io.Discard, nil)))
 }
 
+// registered is a scaler whose pools have already had a worker register
+// their code, as after the first minutes of a server's life.
+func (e *env) registered(pools ...Pool) *Scaler {
+	s := e.scaler(pools...)
+	for _, st := range s.state {
+		st.registered = true
+	}
+	return s
+}
+
 func (e *env) tick(s *Scaler) (started, stopped []string) {
 	e.t.Helper()
 	require.NoError(e.t, s.Tick(ctx))
@@ -138,7 +148,7 @@ var py = Pool{Name: "py", Docks: []string{core.DefaultDock}, Lifts: 2, Min: 0, M
 
 func TestScalesFromZeroForAWaitingRun(t *testing.T) {
 	e := newEnv(t)
-	s := e.scaler(py)
+	s := e.registered(py)
 	started, _ := e.tick(s)
 	assert.Empty(t, started, "nothing waits")
 
@@ -217,7 +227,7 @@ func TestStopsIdleWorkersDownToMin(t *testing.T) {
 func TestTheFirstPoolOnADockTakesItsWork(t *testing.T) {
 	e := newEnv(t)
 	other := Pool{Name: "other", Docks: []string{core.DefaultDock, "gpu"}, Lifts: 1, Max: 1, IdleAfter: time.Minute}
-	s := e.scaler(py, other)
+	s := e.registered(py, other)
 	e.startRun()
 	started, _ := e.tick(s)
 	assert.Equal(t, []string{"py-1"}, started)
@@ -226,7 +236,7 @@ func TestTheFirstPoolOnADockTakesItsWork(t *testing.T) {
 func TestAnExternalPoolPublishesHowManyWorkersItWants(t *testing.T) {
 	e := newEnv(t)
 	k8s := Pool{Name: "k8s", Docks: []string{core.DefaultDock}, Lifts: 2, Max: 5, IdleAfter: 5 * time.Minute, External: true}
-	s := e.scaler(k8s)
+	s := e.registered(k8s)
 	e.tick(s)
 	assert.Equal(t, 0, e.pool("k8s").Desired)
 
@@ -339,4 +349,78 @@ func TestAWorkerThatCantStartIsTriedAgain(t *testing.T) {
 	e.launch.fail = nil // the secret was added
 	started, _ = e.tick(s)
 	assert.Equal(t, []string{"py-1"}, started)
+}
+
+func TestAPoolWithMinZeroStartsAWorkerToRegisterItsCode(t *testing.T) {
+	e := newEnv(t)
+	s := e.scaler(py)
+	started, _ := e.tick(s)
+	assert.Equal(t, []string{"py-1"}, started, "nothing waits, but its code may not be registered")
+	assert.Equal(t, "started py-1: to register its code", e.pool("py").Decision)
+	started, _ = e.tick(s)
+	assert.Empty(t, started, "one is enough")
+
+	// It registers and polls: let go at once, not after IdleAfter.
+	e.idle("py-1")
+	_, stopped := e.tick(s)
+	assert.Equal(t, []string{"py-1"}, stopped)
+	assert.Equal(t, "stopped py-1: its code is registered", e.pool("py").Decision)
+	started, stopped = e.tick(s)
+	assert.Empty(t, started, "not again")
+	assert.Empty(t, stopped)
+}
+
+func TestADeployedPoolStartsNoWorkerToRegister(t *testing.T) {
+	e := newEnv(t)
+	p := py
+	p.Registered = true
+	s := e.scaler(p)
+	started, _ := e.tick(s)
+	assert.Empty(t, started, "deploying registered its code")
+
+	v2 := p
+	v2.Name = "py-v2"
+	s.SetPools([]Pool{v2})
+	started, _ = e.tick(s)
+	assert.Empty(t, started, "nor for a new version")
+}
+
+func TestAWorkerStartedToRegisterKeepsTheWorkThatWaits(t *testing.T) {
+	e := newEnv(t)
+	s := e.scaler(py)
+	e.tick(s)
+	e.startRun()
+	task := e.take("py-1")
+	_, stopped := e.tick(s)
+	assert.Empty(t, stopped, "it runs something")
+
+	// Done: from now on the pool scales as usual, idle for IdleAfter.
+	require.NoError(t, e.core.CompleteHaulTask(ctx, core.HaulTaskResult{TaskID: task.ID, BuildID: "b1",
+		Outcome: &core.HaulOutcome{Status: state.HaulCompleted}}))
+	e.idle("py-1")
+	_, stopped = e.tick(s)
+	assert.Empty(t, stopped)
+	e.clock.Advance(py.IdleAfter)
+	_, stopped = e.tick(s)
+	assert.Equal(t, []string{"py-1"}, stopped)
+	assert.Equal(t, "stopped py-1: nothing to run for 5m0s", e.pool("py").Decision)
+}
+
+func TestAnExternalPoolWithMinZeroWantsAWorkerToRegisterItsCode(t *testing.T) {
+	e := newEnv(t)
+	var applied []int
+	k8s := Pool{Name: "k8s", Docks: []string{core.DefaultDock}, Lifts: 2, Max: 5, IdleAfter: 5 * time.Minute, External: true,
+		Apply: func(_ context.Context, n int) error { applied = append(applied, n); return nil }}
+	s := e.scaler(k8s)
+	e.tick(s)
+	assert.Equal(t, 1, e.pool("k8s").Desired)
+	assert.Equal(t, "wants 1 worker (was 0): to register its code", e.pool("k8s").Decision)
+
+	// A pod registers and polls: not wanted any more.
+	e.idle("pod-a")
+	e.tick(s)
+	assert.Equal(t, 0, e.pool("k8s").Desired)
+	assert.Equal(t, "wants 0 workers (was 1): its code is registered", e.pool("k8s").Decision)
+	e.tick(s)
+	assert.Equal(t, []int{1, 0}, applied, "not asked for again")
 }

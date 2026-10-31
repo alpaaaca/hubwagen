@@ -133,11 +133,27 @@ waits: restarting again wouldn't help.
 
 ### Scaling from zero
 
-`StartHaul` already accepts only pipelines some registered build defines,
-and builds stay in the database across restarts. So a pool with `min: 0`
-that ran once can be started for queued work after any restart. A pipeline
-no worker ever registered still needs one worker to run first, which
-`min: 1` or a one-off `hubwagen workers` gives.
+`StartHaul` accepts only pipelines some registered build defines, and
+builds stay in the database across restarts. A pipeline no worker ever
+registered can't be started, so nothing would wait for a pool with
+`min: 0` to scale up for: a fresh install, a pool added for a new project,
+or a new image whose pipelines are new.
+
+So when the server starts, each pool with `min: 0` starts one worker to
+register its code ("started py-1: to register its code"; an external pool
+wants 1). As soon as a worker of the pool has been seen (workers register
+before they poll) and nothing waits, the scaler lets it go at once ("its
+code is registered"), not after `idle_after`; if it took work, the pool
+scales as usual from there. A deployed project's pools skip this:
+`hubwagen deploy` registers their build.
+
+Why on each start, and not once: builds don't say which pool registered
+them, and scaling is the leader's memory, so the server can't tell which
+pools' code it knows. The price is one short-lived worker per `min: 0`
+pool per server start (for a GPU pool, maybe a node spin-up). The
+alternatives were worse: only on a fresh install (no build at all) leaves
+a pool added later stuck; queueing runs of unknown pipelines turns a typo
+in a pipeline name into a run that waits forever instead of an error.
 
 ## Resources (later, with pod steps)
 

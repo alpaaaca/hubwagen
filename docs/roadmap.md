@@ -306,7 +306,9 @@ each is one PR:
    `launcher: container` runs workers as `docker`/`podman run` of an
    image, scaled like processes; `launcher: kubernetes` sets a
    Deployment's replicas through the API (service account or `kubectl
-   proxy`), from the same desired count.
+   proxy`), from the same desired count. A pool with `min: 0` runs one
+   worker at server start until its code is registered, so a fresh
+   install needs no manual step.
    ✅ **Registries and secrets** (projects step 3): `deploy` pushes the
    image and deploys it by digest to a server elsewhere; the server pulls
    with `projects.auth_file`; `{secret:}` env is read from

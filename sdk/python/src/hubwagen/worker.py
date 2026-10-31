@@ -422,6 +422,13 @@ def main(argv: list[str] | None = None) -> None:
     if os.environ.get("PYTHONHASHSEED") != "0":
         os.execve(sys.executable, [sys.executable, "-m", "hubwagen.worker", *argv], {**os.environ, "PYTHONHASHSEED": "0"})
 
+    # Handle stop signals from the start: as PID 1 in a container, a signal
+    # with no handler is ignored, and a pod stopped while its worker imports
+    # or waits for the server would run on until killed.
+    stopping = threading.Event()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        signal.signal(sig, lambda *_: stopping.set())
+
     args = parse_args(argv)
     logging.basicConfig(level=args.log_level.upper(), format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     utc_logs()
@@ -437,16 +444,18 @@ def main(argv: list[str] | None = None) -> None:
         return
     w = Worker(Client(args.server), args.dock, lifts=args.lifts, poll_wait=args.poll_wait,
                worker_id=args.worker_id, data=args.data)
-    while True:
+    w.stopping = stopping
+    while not stopping.is_set():
         try:
             w.register()
             break
         except ConnectError as e:
             log.warning("can't register with %s (%s); retrying", args.server, e)
-            time.sleep(2)
+            stopping.wait(2)
+    if stopping.is_set():
+        log.info("stopped before registering")
+        return
 
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        signal.signal(sig, lambda *_: w.stopping.set())
     threads = w.start()
     if os.environ.get("HUBWAGEN_SUPERVISOR_PID"):
         w.watch_supervisor(int(os.environ["HUBWAGEN_SUPERVISOR_PID"]))
