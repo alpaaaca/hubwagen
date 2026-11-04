@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/alper/hubwagen/internal/catalogcli"
+	"github.com/alper/moksha/internal/catalogcli"
 )
 
 var (
@@ -41,9 +41,9 @@ many versions it has. With --partition, --state or --all it lists the
 versions themselves, newest first. (The engine calls a data version a
 pallet; "pallets" works too.)
 
-  hubwagen versions mart.daily_revenue
-  hubwagen versions mart.daily_revenue --partition 2026-10-01
-  hubwagen versions raw.orders --state invalid`,
+  moksha versions mart.daily_revenue
+  moksha versions mart.daily_revenue --partition 2026-10-01
+  moksha versions raw.orders --state invalid`,
 	Args:         cobra.ExactArgs(1),
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -77,8 +77,8 @@ its inputs' partitions has a newer version with other content, or the newest
 build has another code version of the step that wrote it. Then it prints
 the runs to start again: their unchanged steps are reused.
 
-  hubwagen stale
-  hubwagen stale mart.daily_revenue`,
+  moksha stale
+  moksha stale mart.daily_revenue`,
 	Args:         cobra.MaximumNArgs(1),
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -121,7 +121,7 @@ what it will mark and asks first (--yes skips the question, --dry-run only
 shows), then prints the runs to start again: their memoized steps are
 reused, so only the invalid ones run.
 
-  hubwagen data invalidate 01M6... --reason "orders export was truncated"`,
+  moksha data invalidate 01M6... --reason "orders export was truncated"`,
 	Args:         cobra.ExactArgs(1),
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -148,17 +148,17 @@ reused, so only the invalid ones run.
 }
 
 func init() {
-	invalidateCmd.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev or hubwagen server)")
+	invalidateCmd.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "moksha API to talk to (moksha dev or moksha server)")
 	invalidateCmd.Flags().StringVar(&invalidateReason, "reason", "", "why the data is bad (required)")
 	invalidateCmd.Flags().BoolVar(&invalidateDryRun, "dry-run", false, "only show what would be marked")
 	invalidateCmd.Flags().BoolVarP(&invalidateYes, "yes", "y", false, "don't ask")
 	palletCmd.AddCommand(invalidateCmd)
-	gcCmd.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev or hubwagen server)")
+	gcCmd.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "moksha API to talk to (moksha dev or moksha server)")
 	gcCmd.Flags().BoolVar(&gcDryRun, "dry-run", false, "only show what would expire")
 	rootCmd.AddCommand(gcCmd)
 
 	for _, c := range []*cobra.Command{datasetsCmd, palletsCmd, palletCmd, staleCmd} {
-		c.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev or hubwagen server)")
+		c.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "moksha API to talk to (moksha dev or moksha server)")
 		if c != palletCmd {
 			c.Flags().StringVar(&catalogTenant, "tenant", "default", "tenant")
 		}

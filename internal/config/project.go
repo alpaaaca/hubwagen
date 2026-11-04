@@ -13,15 +13,15 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// KindProject is a project file: a repo's application, as `hubwagen deploy`
+// KindProject is a project file: a repo's application, as `moksha deploy`
 // hands it to a server (docs/projects.md). Its pipelines are code, found
 // from pyproject.toml; the file says how to build and run that code.
 const KindProject = "Project"
 
-// ProjectFiles are the names `hubwagen deploy` looks for in a repo, in
-// order: hubwagen.yaml if it is a project file, else hubwagen.project.yaml
-// (while a repo's hubwagen.yaml is still a server config for hubwagen dev).
-var ProjectFiles = []string{FileName, "hubwagen.project.yaml"}
+// ProjectFiles are the names `moksha deploy` looks for in a repo, in
+// order: moksha.yaml if it is a project file, else moksha.project.yaml
+// (while a repo's moksha.yaml is still a server config for moksha dev).
+var ProjectFiles = []string{FileName, "moksha.project.yaml"}
 
 type Project struct {
 	APIVersion string                `yaml:"apiVersion"`
@@ -228,8 +228,8 @@ func ParseProject(data []byte, dir string) (*Project, error) {
 		}
 	}
 	for k := range p.Env {
-		if k == "" || strings.HasPrefix(k, "HUBWAGEN_") {
-			add("env.%s: names starting with HUBWAGEN_ are set by hubwagen", k)
+		if k == "" || strings.HasPrefix(k, "MOKSHA_") {
+			add("env.%s: names starting with MOKSHA_ are set by moksha", k)
 		}
 	}
 	if len(errs) > 0 {

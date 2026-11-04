@@ -1,21 +1,21 @@
-# hubwagen on one machine with containers: the server and the revenue
+# moksha on one machine with containers: the server and the revenue
 # example's workers. Build the images first (make images), then:
 #   docker compose -f deploy/compose.yaml up     (or podman compose)
 # The web UI and API: http://127.0.0.1:7070
-name: hubwagen
+name: moksha
 
 services:
   server:
-    image: ${HUBWAGEN_IMAGE:-hubwagen:dev}
+    image: ${MOKSHA_IMAGE:-moksha:dev}
     ports:
-      - "127.0.0.1:${HUBWAGEN_PORT:-7070}:7070"   # loopback only: the API has no authentication yet
+      - "127.0.0.1:${MOKSHA_PORT:-7070}:7070"   # loopback only: the API has no authentication yet
     volumes:
       - data:/data
     environment:
       # An S3 bucket, if set; else data versions stay in the volume.
-      HUBWAGEN_BUCKET: ${HUBWAGEN_BUCKET:-}
-      HUBWAGEN_S3_ENDPOINT: ${HUBWAGEN_S3_ENDPOINT:-}
-      HUBWAGEN_S3_REGION: ${HUBWAGEN_S3_REGION:-}
+      MOKSHA_BUCKET: ${MOKSHA_BUCKET:-}
+      MOKSHA_S3_ENDPOINT: ${MOKSHA_S3_ENDPOINT:-}
+      MOKSHA_S3_REGION: ${MOKSHA_S3_REGION:-}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
     stop_grace_period: 30s
@@ -23,8 +23,8 @@ services:
   revenue:
     image: ${REVENUE_IMAGE:-revenue-worker:dev}
     environment:
-      HUBWAGEN_SERVER: http://server:7070
-      HUBWAGEN_LIFTS: "2"
+      MOKSHA_SERVER: http://server:7070
+      MOKSHA_LIFTS: "2"
     depends_on: [server]   # the workers retry until the server answers
     deploy:
       replicas: ${REVENUE_WORKERS:-2}

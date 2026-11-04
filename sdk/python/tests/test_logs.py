@@ -1,11 +1,11 @@
-"""Capturing a lift's output per thread (hubwagen._logs)."""
+"""Capturing a lift's output per thread (moksha._logs)."""
 
 import io
 import logging
 import sys
 import threading
 
-from hubwagen import _logs
+from moksha import _logs
 
 
 def test_a_capture_takes_its_threads_output_only(monkeypatch, capsys):
@@ -71,7 +71,7 @@ def test_flush_sends_only_new_lines():
 def test_worker_logs_are_utc():
     import time
 
-    from hubwagen import worker
+    from moksha import worker
 
     h = logging.StreamHandler(io.StringIO())
     h.setFormatter(logging.Formatter("%(asctime)s %(message)s"))

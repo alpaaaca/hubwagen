@@ -11,26 +11,26 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/alper/hubwagen/internal/config"
-	"github.com/alper/hubwagen/internal/server"
-	"github.com/alper/hubwagen/internal/supervise"
-	"github.com/alper/hubwagen/internal/webui"
+	"github.com/alper/moksha/internal/config"
+	"github.com/alper/moksha/internal/server"
+	"github.com/alper/moksha/internal/supervise"
+	"github.com/alper/moksha/internal/webui"
 )
 
 var serverCmd = &cobra.Command{
 	Use:   "server",
-	Short: "Run the hubwagen server on its own, as a long-running service",
-	Long: `Server runs the hubwagen server: its state, run histories, step logs and
+	Short: "Run the moksha server on its own, as a long-running service",
+	Long: `Server runs the moksha server: its state, run histories, step logs and
 data versions in --data-dir, the API and web UI on --listen. It is the
-server of hubwagen dev for a service manager (systemd, launchd, a
+server of moksha dev for a service manager (systemd, launchd, a
 container): it prints no runs, only its logs (stderr; --log-format json
 for a log collector), with the workers' output in them.
 
-Settings come from hubwagen.yaml (--config, $HUBWAGEN_CONFIG, else
-./hubwagen.yaml if present); flags override it. The worker processes listed
+Settings come from moksha.yaml (--config, $MOKSHA_CONFIG, else
+./moksha.yaml if present); flags override it. The worker processes listed
 under workers: are started once the API is up and restarted if they exit,
-as hubwagen dev does, so queued runs don't wait for workers nobody starts.
---no-workers starts the server alone, for workers run elsewhere (hubwagen
+as moksha dev does, so queued runs don't wait for workers nobody starts.
+--no-workers starts the server alone, for workers run elsewhere (moksha
 workers --server URL, the service manager, another machine).
 
 GET /healthz answers 200 while the server runs and 503 once it has
@@ -77,7 +77,7 @@ func runServer(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	defer e.Close()
-	log.Info("hubwagen server started", "version", Version, "commit", CommitSHA, "config", configName(cfg), "data_dir", e.DataDir,
+	log.Info("moksha server started", "version", Version, "commit", CommitSHA, "config", configName(cfg), "data_dir", e.DataDir,
 		"bucket", e.Bucket.Base(), "listen", e.APIAddr, "web_ui", webui.Built())
 	if !loopback(cfg.Server.Listen) {
 		log.Warn("the API has no authentication: anyone who can reach it can start, cancel and read runs", "listen", cfg.Server.Listen)
@@ -98,11 +98,11 @@ func runServer(cmd *cobra.Command, _ []string) error {
 	if !noWorkers {
 		// Step output is kept by the server (the web UI shows it): the
 		// workers' own logs are enough here.
-		if groups, err = startWorkers(workersCtx, g, cfg, e.Core, config.ServerURL(e.APIAddr), log, "HUBWAGEN_ECHO_LOGS=0"); err != nil {
+		if groups, err = startWorkers(workersCtx, g, cfg, e.Core, config.ServerURL(e.APIAddr), log, "MOKSHA_ECHO_LOGS=0"); err != nil {
 			return err // it started none
 		}
 	} else if len(cfg.Workers) > 0 {
-		log.Info("starting no workers (--no-workers); run them with hubwagen workers", "groups", len(cfg.Workers))
+		log.Info("starting no workers (--no-workers); run them with moksha workers", "groups", len(cfg.Workers))
 	}
 	workersDone := make(chan struct{})
 	go func() {

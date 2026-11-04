@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/alper/hubwagen/internal/core"
+	"github.com/alper/moksha/internal/core"
 )
 
 // PoolsPath serves the worker pools as plain JSON, for autoscalers that

@@ -1,4 +1,4 @@
-// Package blob is hubwagen's object storage: the bucket that holds logs,
+// Package blob is moksha's object storage: the bucket that holds logs,
 // task outputs, commit markers and results. Objects are addressed by full
 // URIs as produced by internal/layout.
 //

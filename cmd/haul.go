@@ -13,8 +13,8 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 
-	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
-	"github.com/alper/hubwagen/internal/haulcli"
+	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
+	"github.com/alper/moksha/internal/haulcli"
 )
 
 // Flags shared by start and replay.
@@ -27,7 +27,7 @@ var (
 )
 
 func addHaulFlags(c *cobra.Command) {
-	c.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev or hubwagen server)")
+	c.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "moksha API to talk to (moksha dev or moksha server)")
 	c.Flags().StringVar(&haulTenant, "tenant", "default", "tenant the run belongs to")
 	c.Flags().StringVar(&haulDock, "dock", "", "dock its pipeline code runs from (default: default)")
 	c.Flags().StringArrayVar(&haulParams, "param", nil, "an input as name=value (repeatable); values are JSON if they parse, else strings")
@@ -36,12 +36,12 @@ func addHaulFlags(c *cobra.Command) {
 var startCmd = &cobra.Command{
 	Use:   "start <pipeline>",
 	Short: "Start a run of a pipeline on a running server",
-	Long: `Start starts one run of a pipeline on the server (hubwagen dev or hubwagen server)
+	Long: `Start starts one run of a pipeline on the server (moksha dev or moksha server)
 and prints its ID. Workers registered with the server run it. With --wait it
 waits for the run to end (following continue_as_new to the last run), prints
 what each step did, and exits non-zero unless it completed.
 
-  hubwagen start daily_revenue --param day=2026-10-24 --wait`,
+  moksha start daily_revenue --param day=2026-10-24 --wait`,
 	Args:         cobra.ExactArgs(1),
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -50,7 +50,7 @@ what each step did, and exits non-zero unless it completed.
 			return err
 		}
 		if len(sets) != 1 {
-			return fmt.Errorf("start takes no ranges (a..b); use hubwagen replay")
+			return fmt.Errorf("start takes no ranges (a..b); use moksha replay")
 		}
 		ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
@@ -76,7 +76,7 @@ and reports per step how many were reused and how many ran, and why. A
 ranges multiply. Memoized steps whose code, inputs and arguments are
 unchanged are reused, so replays and backfills only run what changed.
 
-  hubwagen replay daily_revenue --param day=2026-03-01..2026-03-31
+  moksha replay daily_revenue --param day=2026-03-01..2026-03-31
 
 Exits non-zero unless every run completed. Ctrl-C stops waiting; the runs
 keep running.`,
@@ -122,7 +122,7 @@ func waitAndReport(ctx context.Context, c *haulcli.Client, ids []string) error {
 	return nil
 }
 
-func countNot(hauls []*hubwagenv1.Haul, status string) int {
+func countNot(hauls []*mokshav1.Haul, status string) int {
 	n := 0
 	for _, h := range hauls {
 		if h.Status != status {
@@ -135,7 +135,7 @@ func countNot(hauls []*hubwagenv1.Haul, status string) int {
 // serverError explains the usual reason a call fails: no server.
 func serverError(err error) error {
 	if connect.CodeOf(err) == connect.CodeUnavailable {
-		return fmt.Errorf("%w (is hubwagen dev running at %s?)", err, haulServer)
+		return fmt.Errorf("%w (is moksha dev running at %s?)", err, haulServer)
 	}
 	return err
 }
@@ -165,7 +165,7 @@ var signalCmd = &cobra.Command{
 signal the run isn't waiting for yet is kept until it waits for that name;
 each signal answers one wait. --data is the payload, as JSON.
 
-  hubwagen signal 01M6... approve --data '{"by": "ana"}'`,
+  moksha signal 01M6... approve --data '{"by": "ana"}'`,
 	Args:         cobra.ExactArgs(2),
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -182,10 +182,10 @@ each signal answers one wait. --data is the payload, as JSON.
 }
 
 func init() {
-	signalCmd.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev or hubwagen server)")
+	signalCmd.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "moksha API to talk to (moksha dev or moksha server)")
 	signalCmd.Flags().StringVar(&signalData, "data", "", "payload, as JSON (default: null)")
 	rootCmd.AddCommand(signalCmd)
-	schedulesCmd.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "hubwagen API to talk to (hubwagen dev or hubwagen server)")
+	schedulesCmd.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "moksha API to talk to (moksha dev or moksha server)")
 	rootCmd.AddCommand(schedulesCmd)
 	addHaulFlags(startCmd)
 	startCmd.Flags().BoolVar(&startWait, "wait", false, "wait for the haul to end and report what its lifts did")

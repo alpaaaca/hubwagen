@@ -1,4 +1,4 @@
-// Package api serves hubwagen's Connect services over HTTP. The service
+// Package api serves moksha's Connect services over HTTP. The service
 // definitions are in proto/; the generated code is in gen/ and committed.
 package api
 

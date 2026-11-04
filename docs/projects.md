@@ -1,4 +1,4 @@
-# Projects: `hubwagen deploy` instead of hand-run workers
+# Projects: `moksha deploy` instead of hand-run workers
 
 > **Status:** design note; steps 1–3 are built (the dry run, deployments,
 > registries and secrets); 4–6 are not. Builds on worker pools
@@ -8,7 +8,7 @@
 
 ## Problem
 
-Today one `hubwagen.yaml` mixes two things:
+Today one `moksha.yaml` mixes two things:
 
 - **The instance**: where the server keeps its data, its bucket, what it
   listens on. That belongs to whoever runs the server.
@@ -16,7 +16,7 @@ Today one `hubwagen.yaml` mixes two things:
   (`workers:`: a command, a directory, a `PYTHONPATH`). That belongs to
   the repo.
 
-So `hubwagen dev --config pipelines/examples/revenue/hubwagen.yaml` starts
+So `moksha dev --config pipelines/examples/revenue/moksha.yaml` starts
 a server *and* worker processes from the repo's file, and a production
 server has to be told about every project's workers in its own config,
 by hand. There is no step where a repo says "here is my application, run
@@ -24,15 +24,15 @@ it", and nothing that shows what a change will rerun before it runs.
 
 ## Shape
 
-A repo describes itself in a **project file**; `hubwagen deploy` hands it
+A repo describes itself in a **project file**; `moksha deploy` hands it
 to a server; the server runs and scales its workers.
 
 ```
   repo (or CI)                              server
   ┌──────────────────────────┐   Deploy    ┌───────────────────────────────┐
-  │ hubwagen.yaml (Project)  │ ──────────► │ records the deployment (event)│
+  │ moksha.yaml (Project)  │ ──────────► │ records the deployment (event)│
   │ Dockerfile, code         │             │ launcher starts its pools     │
-  │ hubwagen deploy:         │             │ scaler sizes them from work   │
+  │ moksha deploy:         │             │ scaler sizes them from work   │
   │  build, diff, push image │             │ old version drains            │
   └──────────────────────────┘             └───────────────────────────────┘
            │ push                                    │ pull
@@ -41,24 +41,24 @@ to a server; the server runs and scales its workers.
 
 ### The project file
 
-The project file is the repo's `hubwagen.yaml`, with `kind: Project`
-(the server's file stays `kind: Config`). Until `hubwagen dev` reads
-project files (step 5), a repo whose `hubwagen.yaml` is still a server
-config keeps its project in `hubwagen.project.yaml`, as the revenue example
+The project file is the repo's `moksha.yaml`, with `kind: Project`
+(the server's file stays `kind: Config`). Until `moksha dev` reads
+project files (step 5), a repo whose `moksha.yaml` is still a server
+config keeps its project in `moksha.project.yaml`, as the revenue example
 does; `deploy` takes whichever of the two is `kind: Project`. It is not the pipelines: those
 are code, found the way they are today, from the modules listed in
-`pyproject.toml` (`[tool.hubwagen] modules`). The project file says how to
+`pyproject.toml` (`[tool.moksha] modules`). The project file says how to
 build and run that code:
 
 ```yaml
-apiVersion: hubwagen.dev/v1alpha1
+apiVersion: moksha.dev/v1alpha1
 kind: Project
 name: revenue
 
 build:
-  dockerfile: Dockerfile             # FROM ghcr.io/alpaaaca/hubwagen-worker + the code
+  dockerfile: Dockerfile             # FROM ghcr.io/alpaaaca/moksha-worker + the code
   image: ghcr.io/acme/revenue        # pushed as :<version>; a local server needs no push
-  args: {WORKER_IMAGE: hubwagen-worker:dev}   # --build-arg, optional
+  args: {WORKER_IMAGE: moksha-worker:dev}   # --build-arg, optional
 
 pools:
   - name: default                    # the project's default dock
@@ -81,18 +81,18 @@ env:                                 # names and where values come from, never v
   server adds up to `max` from the work waiting; `min: max` is a fixed
   count. This is the pool of worker-pools step 2, now declared by the
   project instead of the server.
-- **Why YAML next to `pyproject.toml`**, not a `[tool.hubwagen]` table:
+- **Why YAML next to `pyproject.toml`**, not a `[tool.moksha]` table:
   workers may not be Python forever, and the server's config is YAML too.
   The modules stay in `pyproject.toml`, where Python tools expect them.
 - **No secrets** in the file: `{secret: name}` names a secret the server's
   side holds (a Kubernetes Secret, a file under the server's secrets
   directory); the value never passes through the CLI.
 
-### `hubwagen deploy`
+### `moksha deploy`
 
 Run in the repo, by a person or by CI:
 
-1. **Read** `hubwagen.yaml` and `pyproject.toml`.
+1. **Read** `moksha.yaml` and `pyproject.toml`.
 2. **Build** the image (`docker` or `podman build`), tagged with the
    deployment's version.
 3. **Work out the build**: run the worker's `--versions` in the image
@@ -139,18 +139,18 @@ Yes, a registry, for any server that isn't on the deploying machine:
 
 ### Other commands
 
-- `hubwagen projects`: each project, its current version, when and by
+- `moksha projects`: each project, its current version, when and by
   whom it was deployed, its pools (running/min/max).
-- `hubwagen delete revenue`: stops the project's workers (draining, as on
+- `moksha delete revenue`: stops the project's workers (draining, as on
   a new version) and records the project deleted. Its pipelines stop
   accepting new runs; its history, data versions and catalog stay. Runs
   still open are refused unless `--cancel-runs`.
 - The web UI gets a projects page: versions, what each deploy changed,
   pools and their last scaling decision.
 
-### `hubwagen dev` becomes a deploy
+### `moksha dev` becomes a deploy
 
-`hubwagen dev` in a repo starts a server in the process (as now) and
+`moksha dev` in a repo starts a server in the process (as now) and
 deploys the current directory to it with the **process launcher**: no
 image, the workers run the code in place, in the project's environment.
 It redeploys when the code changes. The repo's file is the project file;
@@ -176,7 +176,7 @@ come from its deployment.
 
 ## Steps (PR-sized)
 
-1. ✅ **Project file and `hubwagen deploy --dry-run`**: `kind: Project`
+1. ✅ **Project file and `moksha deploy --dry-run`**: `kind: Project`
    (strict, `${…}` variables, every problem at once); the build worked out
    in the project's image (`<image>:dry-run`, with `build.args`) or in
    place (`--local`, or without a Dockerfile); `ListCode`, the code the
@@ -189,13 +189,13 @@ come from its deployment.
    `ListProjects`, `DeleteProject`), events (`ProjectDeployed`,
    `ProjectDeleted`) and a `projects` projection; versions v1, v2, … per
    project. A deploy registers the project's build in the same batch
-   (`python -m hubwagen.worker --build-json`, run on the deploying side),
+   (`python -m moksha.worker --build-json`, run on the deploying side),
    so its pipelines are accepted and its schedules apply before any
    worker runs. The server turns each live project's current version
    into pools named `<project>-<pool>-v<version>` (containers of its
    image, or processes in its directory); a new version replaces the
    old one's pools, whose workers get SIGTERM and finish what they run.
-   `hubwagen deploy`, `projects`, `delete [--cancel-runs]`. Limits: an
+   `moksha deploy`, `projects`, `delete [--cancel-runs]`. Limits: an
    in-place deployment needs the server on the deploying machine, one
    project per pipeline name, and a deleted project's schedules still
    fire (each start is refused and recorded) until it is deployed again.
@@ -209,7 +209,7 @@ come from its deployment.
    Secrets come with step 4.
 4. **Kubernetes**: the server creates, updates and deletes a Deployment
    per pool of a project; the Helm chart shrinks to the server.
-5. **`hubwagen dev` on deploy**: a local server, the process launcher,
+5. **`moksha dev` on deploy**: a local server, the process launcher,
    redeploy on change; `workers:` in the examples goes away.
 6. **The web UI**: projects, versions and what each deploy changed.
 

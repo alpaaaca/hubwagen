@@ -6,8 +6,8 @@ import userEvent from "@testing-library/user-event";
 
 import { ApiProvider, apiFor } from "./api";
 import { App } from "./App";
-import { HaulSchema, HaulService, LiftCountsSchema, LiftSchema } from "./gen/hubwagen/v1/haul_pb";
-import { LogService } from "./gen/hubwagen/v1/log_pb";
+import { HaulSchema, HaulService, LiftCountsSchema, LiftSchema } from "./gen/moksha/v1/haul_pb";
+import { LogService } from "./gen/moksha/v1/log_pb";
 
 const start = new Date(2026, 9, 24, 3, 0, 0);
 const at = (seconds: number) => timestampFromDate(new Date(start.getTime() + seconds * 1000));
@@ -54,7 +54,7 @@ function fakeServer() {
     paramsJson: '{"day":"2026-10-25"}',
     waiting: {
       reason: "no_worker", kind: "haul", name: "daily", dock: "default", since: t0,
-      message: "no worker is connected to run the pipeline's code. Start one with `python -m hubwagen.worker <modules>` (or `hubwagen workers --config hubwagen.yaml`)",
+      message: "no worker is connected to run the pipeline's code. Start one with `python -m moksha.worker <modules>` (or `moksha workers --config moksha.yaml`)",
     },
   });
   const runLogs: Record<string, { seq: number; lift: string; attempt: number; line: { time: Timestamp; stream: string; level?: string; text: string } }[]> = {
@@ -322,8 +322,8 @@ test("a stuck haul can be resumed", async () => {
 test("a run that waits says why, and which workers are connected", async () => {
   const { calls } = show("#/hauls/01M6WWWWWWWWWWWWWWWWWWWWWW");
   const why = await screen.findByText(/^Waiting:/);
-  expect(why).toHaveTextContent("Waiting: no worker is connected to run the pipeline's code. Start one with python -m hubwagen.worker <modules>");
-  expect(why.querySelector("code")).toHaveTextContent("python -m hubwagen.worker <modules>");
+  expect(why).toHaveTextContent("Waiting: no worker is connected to run the pipeline's code. Start one with python -m moksha.worker <modules>");
+  expect(why.querySelector("code")).toHaveTextContent("python -m moksha.worker <modules>");
   expect(await screen.findByText("No workers connected.")).toBeInTheDocument();
   const pools = await screen.findAllByText(/^Pool/);
   expect(pools[0]).toHaveTextContent("Pool py (default): 1 of 0–3 workers, 1 starting · started py-1: 1 run waits on default");

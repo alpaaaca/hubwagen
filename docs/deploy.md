@@ -1,4 +1,4 @@
-# Deploying hubwagen with containers
+# Deploying moksha with containers
 
 Three images, a compose file for one machine and a Helm chart for
 Kubernetes. Settings are in [config.md](config.md); worker pools in
@@ -8,12 +8,12 @@ Kubernetes. Settings are in [config.md](config.md); worker pools in
 
 | Image | Built from | What |
 |---|---|---|
-| `hubwagen` | [Dockerfile](../Dockerfile) (repository root) | The server, with the web UI built in: a static binary on distroless, as a non-root user. `hubwagen server` with [deploy/hubwagen.yaml](../deploy/hubwagen.yaml): listens on `0.0.0.0:7070`, data in the `/data` volume, the bucket from `HUBWAGEN_BUCKET` (empty: `/data/bucket`). |
-| `hubwagen-worker` | [sdk/python/Dockerfile](../sdk/python/Dockerfile) | Python 3.12 and the SDK: the base of a project's workers. Runs `python -m hubwagen.worker` in `/app` as a non-root user, data through the server (`HUBWAGEN_DATA=remote`). |
-| your project's | e.g. [pipelines/examples/revenue/Dockerfile](../pipelines/examples/revenue/Dockerfile) | `FROM hubwagen-worker`, then your code in `/app` (its `pyproject.toml` lists the modules) and its dependencies. |
+| `moksha` | [Dockerfile](../Dockerfile) (repository root) | The server, with the web UI built in: a static binary on distroless, as a non-root user. `moksha server` with [deploy/moksha.yaml](../deploy/moksha.yaml): listens on `0.0.0.0:7070`, data in the `/data` volume, the bucket from `MOKSHA_BUCKET` (empty: `/data/bucket`). |
+| `moksha-worker` | [sdk/python/Dockerfile](../sdk/python/Dockerfile) | Python 3.12 and the SDK: the base of a project's workers. Runs `python -m moksha.worker` in `/app` as a non-root user, data through the server (`MOKSHA_DATA=remote`). |
+| your project's | e.g. [pipelines/examples/revenue/Dockerfile](../pipelines/examples/revenue/Dockerfile) | `FROM moksha-worker`, then your code in `/app` (its `pyproject.toml` lists the modules) and its dependencies. |
 
 ```bash
-make images                  # hubwagen:dev, hubwagen-worker:dev, revenue-worker:dev
+make images                  # moksha:dev, moksha-worker:dev, revenue-worker:dev
 make images CONTAINER=podman # docker is the default when installed
 ```
 
@@ -21,8 +21,8 @@ make images CONTAINER=podman # docker is the default when installed
 
 [.github/workflows/images.yml](../.github/workflows/images.yml) builds the
 server and worker base images for `linux/amd64` and `linux/arm64` and
-pushes them to `ghcr.io/alpaaaca/hubwagen` and
-`ghcr.io/alpaaaca/hubwagen-worker`, only when asked, never on every
+pushes them to `ghcr.io/alpaaaca/moksha` and
+`ghcr.io/alpaaaca/moksha-worker`, only when asked, never on every
 commit:
 
 | When | Tags |
@@ -45,7 +45,7 @@ package settings once, or give the cluster a pull secret.
 A project's image:
 
 ```dockerfile
-FROM ghcr.io/alpaaaca/hubwagen-worker:latest   # or hubwagen-worker:dev, built locally
+FROM ghcr.io/alpaaaca/moksha-worker:latest   # or moksha-worker:dev, built locally
 COPY --chown=worker requirements.txt /app/
 RUN pip install --no-cache-dir -r /app/requirements.txt
 COPY --chown=worker . /app
@@ -62,14 +62,14 @@ revenue example's workers (two by default):
 ```bash
 make images
 make up                      # docker compose (or podman compose) -f deploy/compose.yaml up
-hubwagen start daily --param day=2026-10-01 --wait
+moksha start daily --param day=2026-10-01 --wait
 open http://127.0.0.1:7070
 make down
 ```
 
 - The API is published on `127.0.0.1` only: it has no authentication yet.
 - Data stays in the `data` volume (`docker compose -f deploy/compose.yaml
-  down -v` removes it), or in a bucket: set `HUBWAGEN_BUCKET` (and
+  down -v` removes it), or in a bucket: set `MOKSHA_BUCKET` (and
   `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`) in the environment or an
   `.env` file next to the compose file.
 - More workers: `REVENUE_WORKERS=4 make up` (Docker Compose; `podman-compose`
@@ -83,19 +83,19 @@ or use Kubernetes.
 
 ## Kubernetes: the Helm chart
 
-[deploy/helm/hubwagen](../deploy/helm/hubwagen) installs the server and a
+[deploy/helm/moksha](../deploy/helm/moksha) installs the server and a
 Deployment per worker pool, whose replicas the server sets from the work
 waiting (`launcher: kubernetes`, [config.md](config.md#kubernetes-pools-a-deployments-replicas)):
 
 ```yaml
 # values.yaml
 image:
-  repository: ghcr.io/alpaaaca/hubwagen
+  repository: ghcr.io/alpaaaca/moksha
 server:
   bucket:
-    url: s3://acme-hubwagen/prod
+    url: s3://acme-moksha/prod
     region: eu-central-1
-    existingSecret: hubwagen-s3     # keys access_key_id, secret_access_key; or a pod role
+    existingSecret: moksha-s3     # keys access_key_id, secret_access_key; or a pod role
 pools:
   - name: revenue
     image: ghcr.io/acme/revenue:2026-10-30
@@ -111,9 +111,9 @@ pools:
 ```
 
 ```bash
-helm install hubwagen deploy/helm/hubwagen -n hubwagen --create-namespace -f values.yaml
-kubectl -n hubwagen port-forward svc/hubwagen 7070
-hubwagen start daily --param day=2026-10-01 --wait
+helm install moksha deploy/helm/moksha -n moksha --create-namespace -f values.yaml
+kubectl -n moksha port-forward svc/moksha 7070
+moksha start daily --param day=2026-10-01 --wait
 ```
 
 The server runs only pipelines some worker has registered, so when it
@@ -125,14 +125,14 @@ What it creates:
 - **The server**: one replica (a single leader on SQLite) with `Recreate`,
   so two never share the data; `/data` on a PVC; `/healthz` as its
   probes; a ClusterIP Service.
-- **A ConfigMap** with `hubwagen.yaml`: the bucket, and a `workers:` group
+- **A ConfigMap** with `moksha.yaml`: the bucket, and a `workers:` group
   per pool with `launcher: kubernetes`. A change restarts the server.
 - **A Role** that lets the server's service account patch
   `deployments/scale` of the pools' Deployments, and nothing else.
 - **A Deployment per pool** whose replicas the server sets between `min`
   and `max`: it is created with `min`, and `helm upgrade` keeps the count
   the server last set (the chart looks it up). Its pods get
-  `HUBWAGEN_SERVER`, the pool's docks and lifts, and no service account
+  `MOKSHA_SERVER`, the pool's docks and lifts, and no service account
   token. Give `terminationGracePeriodSeconds` (default 600) more time than
   your steps take: Kubernetes picks which pod to remove when it scales
   down, and a stopped worker finishes what it runs.

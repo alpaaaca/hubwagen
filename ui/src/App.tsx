@@ -9,7 +9,7 @@ export function App() {
     <>
       <header>
         <a href="#/hauls" className="brand">
-          hubwagen
+          moksha
         </a>
         <nav>
           <a href="#/hauls" className="active">

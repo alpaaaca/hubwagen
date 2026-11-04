@@ -1,6 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 
-import { LiftSchema } from "../gen/hubwagen/v1/haul_pb";
+import { LiftSchema } from "../gen/moksha/v1/haul_pb";
 import { layout } from "./Dag";
 
 const lift = (seq: number, name: string, after: number[] = []) => create(LiftSchema, { seq, name, after });

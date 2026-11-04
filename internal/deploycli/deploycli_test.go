@@ -13,19 +13,19 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
-	"github.com/alper/hubwagen/internal/config"
+	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
+	"github.com/alper/moksha/internal/config"
 )
 
 var t0 = time.Date(2026, 10, 30, 18, 42, 0, 0, time.UTC)
 
-func code(name, version, build string, at time.Time) *hubwagenv1.Code {
-	return &hubwagenv1.Code{Name: name, CodeVersion: version, BuildId: build, RegisteredAt: timestamppb.New(at)}
+func code(name, version, build string, at time.Time) *mokshav1.Code {
+	return &mokshav1.Code{Name: name, CodeVersion: version, BuildId: build, RegisteredAt: timestamppb.New(at)}
 }
 
 func project(t *testing.T, yaml string) *config.Project {
 	t.Helper()
-	p, err := config.ParseProject([]byte("apiVersion: hubwagen.dev/v1alpha1\nkind: Project\nname: revenue\n"+yaml), t.TempDir())
+	p, err := config.ParseProject([]byte("apiVersion: moksha.dev/v1alpha1\nkind: Project\nname: revenue\n"+yaml), t.TempDir())
 	require.NoError(t, err)
 	return p
 }
@@ -36,13 +36,13 @@ const versionsJSON = `{"build": "b-new", "hauls": {"daily": {"version": "py-h1"}
 func TestCompareAndReport(t *testing.T) {
 	var v Versions
 	require.NoError(t, jsonUnmarshal(versionsJSON, &v))
-	server := &hubwagenv1.ListCodeResponse{
-		Steps: []*hubwagenv1.Code{
+	server := &mokshav1.ListCodeResponse{
+		Steps: []*mokshav1.Code{
 			code("build", "py-2a", "b-old", t0),
 			code("extract", "py-1", "b-old", t0),
 			code("legacy", "py-7", "b-older", t0.Add(-time.Hour)),
 		},
-		Pipelines: []*hubwagenv1.Code{code("daily", "", "b-old", t0), code("gone", "", "b-older", t0.Add(-time.Hour))},
+		Pipelines: []*mokshav1.Code{code("daily", "", "b-old", t0), code("gone", "", "b-older", t0.Add(-time.Hour))},
 	}
 	d := Compare(v, server)
 	assert.Equal(t, map[Change]int{Changed: 1, Unchanged: 1, Added: 1, Removed: 1}, d.Counts())
@@ -73,7 +73,7 @@ Pools
 func TestReportForAServerWithoutBuilds(t *testing.T) {
 	var v Versions
 	require.NoError(t, jsonUnmarshal(versionsJSON, &v))
-	out := Report(project(t, "pools: [{name: default}]\n"), Source{}, Compare(v, &hubwagenv1.ListCodeResponse{}))
+	out := Report(project(t, "pools: [{name: default}]\n"), Source{}, Compare(v, &mokshav1.ListCodeResponse{}))
 	assert.Contains(t, out, "(from its code in place)")
 	assert.Contains(t, out, "The server has no builds yet: every step and pipeline is new.")
 	assert.Contains(t, out, "Steps: 3 new")
@@ -88,7 +88,7 @@ func fake(t *testing.T, name, script string) {
 }
 
 func TestBuildVersionsInPlace(t *testing.T) {
-	fake(t, "python3", `[ "$*" = "-m hubwagen.worker --versions" ] || exit 9; echo "in $(pwd)" >&2; cat <<'J'
+	fake(t, "python3", `[ "$*" = "-m moksha.worker --versions" ] || exit 9; echo "in $(pwd)" >&2; cat <<'J'
 `+versionsJSON+`
 J
 `)
@@ -112,24 +112,24 @@ J
 ;;
 esac
 `)
-	p := project(t, "build: {dockerfile: Dockerfile, image: ghcr.io/acme/revenue, args: {WORKER_IMAGE: hubwagen-worker:dev}}\npools: [{name: default}]\n")
+	p := project(t, "build: {dockerfile: Dockerfile, image: ghcr.io/acme/revenue, args: {WORKER_IMAGE: moksha-worker:dev}}\npools: [{name: default}]\n")
 	v, src, err := BuildVersions(context.Background(), p, Options{Runtime: "docker", Out: io.Discard})
 	require.NoError(t, err)
 	assert.Equal(t, "b-new", v.Build)
 	assert.Equal(t, Source{Image: "ghcr.io/acme/revenue:dry-run"}, src)
 	b, _ := os.ReadFile(logf)
-	assert.Equal(t, "build -t ghcr.io/acme/revenue:dry-run -f "+p.Build.Dockerfile+" --build-arg WORKER_IMAGE=hubwagen-worker:dev "+p.Dir+"\n"+
-		"run --rm ghcr.io/acme/revenue:dry-run python3 -m hubwagen.worker --versions\n", string(b))
+	assert.Equal(t, "build -t ghcr.io/acme/revenue:dry-run -f "+p.Build.Dockerfile+" --build-arg WORKER_IMAGE=moksha-worker:dev "+p.Dir+"\n"+
+		"run --rm ghcr.io/acme/revenue:dry-run python3 -m moksha.worker --versions\n", string(b))
 }
 
 func TestBuildVersionsSaysWhatWentWrong(t *testing.T) {
-	fake(t, "python3", "echo 'Traceback: no module named hubwagen'\n")
+	fake(t, "python3", "echo 'Traceback: no module named moksha'\n")
 	_, _, err := BuildVersions(context.Background(), project(t, "pools: [{name: default}]\n"), Options{Out: io.Discard})
-	assert.ErrorContains(t, err, "python3 -m hubwagen.worker --versions: not a build's versions: Traceback: no module named hubwagen")
+	assert.ErrorContains(t, err, "python3 -m moksha.worker --versions: not a build's versions: Traceback: no module named moksha")
 }
 
 func TestDeployRequest(t *testing.T) {
-	reg := &hubwagenv1.RegisterBuildRequest{BuildId: "b-new", Hauls: []string{"daily"}}
+	reg := &mokshav1.RegisterBuildRequest{BuildId: "b-new", Hauls: []string{"daily"}}
 	p := project(t, "build: {dockerfile: Dockerfile, image: localhost/revenue}\npools:\n  - {name: default, min: 1, max: 4, lifts: 2, idle_after: 90s}\nenv: {LOG_LEVEL: info}\n")
 	req, err := DeployRequest(p, Source{Image: "localhost/revenue:dry-run"}, reg, "python3", "ana@laptop")
 	require.NoError(t, err)
@@ -158,7 +158,7 @@ func TestDeployRequest(t *testing.T) {
 }
 
 func TestRegistrationInPlace(t *testing.T) {
-	fake(t, "python3", `[ "$*" = "-m hubwagen.worker --build-json" ] || exit 9
+	fake(t, "python3", `[ "$*" = "-m moksha.worker --build-json" ] || exit 9
 echo '{"buildId": "b-new", "hauls": ["daily"], "liftVersions": {"load": "py-1"}, "schedules": [{"haul": "daily", "cron": "0 3 * * *", "interval": "daily", "catchUp": "latest"}]}'
 `)
 	reg, err := Registration(context.Background(), project(t, "pools: [{name: default}]\n"), Source{}, Options{Out: io.Discard})
@@ -168,20 +168,20 @@ echo '{"buildId": "b-new", "hauls": ["daily"], "liftVersions": {"load": "py-1"},
 	require.Len(t, reg.Schedules, 1)
 	assert.Equal(t, "latest", reg.Schedules[0].CatchUp)
 
-	fake(t, "python3", "echo 'usage: …' >&2; echo 'python -m hubwagen.worker: error: unrecognized arguments: --build-json' >&2; exit 2\n")
+	fake(t, "python3", "echo 'usage: …' >&2; echo 'python -m moksha.worker: error: unrecognized arguments: --build-json' >&2; exit 2\n")
 	_, err = Registration(context.Background(), project(t, "pools: [{name: default}]\n"), Source{}, Options{Out: io.Discard})
-	assert.ErrorContains(t, err, "its hubwagen SDK is older than this hubwagen")
+	assert.ErrorContains(t, err, "its moksha SDK is older than this moksha")
 }
 
 func TestProjectsTable(t *testing.T) {
 	at := timestamppb.New(t0)
 	var b strings.Builder
-	require.NoError(t, Projects(&b, []*hubwagenv1.Deployment{
+	require.NoError(t, Projects(&b, []*mokshav1.Deployment{
 		{Project: "revenue", Version: 3, BuildId: "b-new", Image: "localhost/revenue:b-new", By: "ana@laptop", DeployedAt: at,
-			Pools: []*hubwagenv1.DeployedPool{{Name: "default", Min: 0, Max: 3}, {Name: "gpu", Min: 1, Max: 1}}},
+			Pools: []*mokshav1.DeployedPool{{Name: "default", Min: 0, Max: 3}, {Name: "gpu", Min: 1, Max: 1}}},
 		{Project: "local", Version: 1, BuildId: "b-x", Dir: "/Users/ana/code/examples/local", By: "ana@laptop", DeployedAt: at,
-			Pools: []*hubwagenv1.DeployedPool{{Name: "default", Min: 0, Max: 1}}},
-	}, []*hubwagenv1.Pool{{Name: "revenue-default-v3", Workers: []string{"revenue-default-v3-1", "revenue-default-v3-2"}}, {Name: "revenue-default-v2", Workers: []string{"x"}}}))
+			Pools: []*mokshav1.DeployedPool{{Name: "default", Min: 0, Max: 1}}},
+	}, []*mokshav1.Pool{{Name: "revenue-default-v3", Workers: []string{"revenue-default-v3-1", "revenue-default-v3-2"}}, {Name: "revenue-default-v2", Workers: []string{"x"}}}))
 	assert.Equal(t, `PROJECT   VERSION   BUILD   RUNS                            POOLS                            DEPLOYED               BY
 revenue   v3        b-new   image localhost/revenue:b-new   default 2 of 0–3, gpu 0 of 1–1   2026-10-30 18:42 UTC   ana@laptop
 local     v1        b-x     in place, …/examples/local      default 0 of 0–1                 2026-10-30 18:42 UTC   ana@laptop

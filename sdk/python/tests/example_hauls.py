@@ -6,7 +6,7 @@ import sys
 import time
 from pathlib import Path
 
-import hubwagen as hw
+import moksha as hw
 
 
 @hw.lift

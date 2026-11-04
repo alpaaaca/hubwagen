@@ -17,7 +17,7 @@ little to do with whether the pipeline works:
    or without it. `memo` only controls reuse *across* hauls (tomorrow's
    rerun, a backfill), but the API doesn't say so.
 2. **`output=hw.Dataset(...)` and `hw.output().path`.** To be memoized, a
-   lift must write files into a staging directory hubwagen hands it. A lift
+   lift must write files into a staging directory moksha hands it. A lift
    that returns a value can't be memoized at all (`ValueError` at import).
 3. **Pallets as arguments.** Downstream lifts take an `hw.Pallet` and open
    files by name (`orders.path("orders.csv")`), instead of getting the data
@@ -80,7 +80,7 @@ A downstream lift gets the value, not a handle:
 
 ```python
 import polars as pl
-import hubwagen as hw
+import moksha as hw
 
 @hw.lift(live=True)                               # reads a source that changes
 def extract_orders(day: str) -> pl.DataFrame:
@@ -121,7 +121,7 @@ stdlib-only, and a project that doesn't use pandas never imports it.
 ### 3. Spark and warehouses: references, not copies
 
 Data that already lives in a table format or a warehouse shouldn't be
-copied into hubwagen's bucket. The lift writes it where it belongs and
+copied into moksha's bucket. The lift writes it where it belongs and
 returns a reference:
 
 ```python
@@ -168,13 +168,13 @@ a wrong reuse, not a needless rerun. The mitigations:
   inputs are other lifts' results and its arguments is reusable. The risky
   lift is one that reads from outside *and* isn't marked, and those are
   the ones at the edges.
-- **The run decides too.** `hubwagen start` and `replay` take
+- **The run decides too.** `moksha start` and `replay` take
   `--reuse=auto|none`, `none` for a run that must recompute everything.
-- **Lint and guards.** Lint (`python -m hubwagen.lint`) would flag lifts
+- **Lint and guards.** Lint (`python -m moksha.lint`) would flag lifts
   that open connections or call HTTP clients without `live=`; the runtime
   guards from #25 can do the same while a lift runs, as a warning.
 - **Reports.** Every reuse is in the logbook and the replay report, and
-  `hubwagen replay --dry-run` shows what would be reused before anything
+  `moksha replay --dry-run` shows what would be reused before anything
   runs.
 
 This is the decision in this note most worth arguing about; see Open
@@ -240,7 +240,7 @@ PR-sized, in order:
 - **Reuse by default vs opt-in.** The proposal trades a needless rerun for
   a possible wrong reuse when `live=True` is forgotten. The alternative is
   to keep `memo=` opt-in but make it cheap (steps 1–2 only) and have
-  `hubwagen replay` suggest it. Decide before step 3.
+  `moksha replay` suggest it. Decide before step 3.
 - **Names.** Authors would only meet `haul` and `lift`; "pallet" would
   appear in the catalog and UI. Whether `haul`/`lift` themselves should be
   plainer (`flow`/`step`) is a separate question.

@@ -7,14 +7,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/state"
 )
 
 // Follow calls fn with a one-line description of every notable event after
 // afterSeq (hauls started, stuck and finished; lift attempts dispatched;
 // lifts finished, reused and retried; builds registered), and each with
 // every event, polling the event log until ctx ends. Either may be nil.
-// `hubwagen dev --events` prints these.
+// `moksha dev --events` prints these.
 func (e *Engine) Follow(ctx context.Context, afterSeq int64, fn func(string), each func(state.Event)) {
 	t := time.NewTicker(250 * time.Millisecond)
 	defer t.Stop()

@@ -1,6 +1,6 @@
 # Spike S1: Python replay prototype
 
-Issue [#10](https://github.com/alpaaaca/hubwagen/issues/10). Prototype and
+Issue [#10](https://github.com/alpaaaca/moksha/issues/10). Prototype and
 scripts: [`spikes/s1-python-replay/`](../../spikes/s1-python-replay/)
 (`python3 bench.py`, `python3 guards_check.py`). Measured on an Apple M4,
 Python 3.14.7 (Homebrew) and 3.13.2 (pyenv); the two agree within noise.
@@ -83,7 +83,7 @@ don't use either.
   another order in another worker process. The guards can't see this; a
   fixed hash seed fixes it.
 - Not covered by any runtime guard: environment variables, files, network.
-  Those stay with `hubwagen lint` and the docs. `time.monotonic` and
+  Those stay with `moksha lint` and the docs. `time.monotonic` and
   `perf_counter` are left alone (libraries use them for timeouts).
 
 ## Recommendations for the SDK (#24, #25)
@@ -106,6 +106,6 @@ don't use either.
 4. **Capture call sites with `sys._getframe`** on every `ctx.*` call; it is
    free.
 5. **`Blocked` is a `BaseException`**, and the docs say why.
-6. **The worker fixes the hash seed:** `python -m hubwagen.worker` re-execs
+6. **The worker fixes the hash seed:** `python -m moksha.worker` re-execs
    itself with `PYTHONHASHSEED=0` if it isn't set, and the hash seed is part
    of what a build pins, along with the Python version.

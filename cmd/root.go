@@ -12,7 +12,7 @@ import (
 var logLevel, logFormat string
 
 var rootCmd = &cobra.Command{
-	Use:   "hubwagen",
+	Use:   "moksha",
 	Short: "Durable execution for data: pipelines as code, steps reused when nothing changed, every output a saved version",
 	PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 		return configureLogging(logLevel, logFormat)
@@ -28,7 +28,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&logFormat, "log-format", "text", "log format (text|json)")
 }
 
-// utcTime logs times in UTC, like every time hubwagen shows.
+// utcTime logs times in UTC, like every time moksha shows.
 func utcTime(groups []string, a slog.Attr) slog.Attr {
 	if a.Key == slog.TimeKey && len(groups) == 0 && a.Value.Kind() == slog.KindTime {
 		a.Value = slog.TimeValue(a.Value.Time().UTC())

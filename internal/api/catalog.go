@@ -11,11 +11,11 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
-	"github.com/alper/hubwagen/internal/api/gen/hubwagen/v1/hubwagenv1connect"
-	"github.com/alper/hubwagen/internal/core"
-	"github.com/alper/hubwagen/internal/pallet"
-	"github.com/alper/hubwagen/internal/state"
+	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
+	"github.com/alper/moksha/internal/api/gen/moksha/v1/mokshav1connect"
+	"github.com/alper/moksha/internal/core"
+	"github.com/alper/moksha/internal/pallet"
+	"github.com/alper/moksha/internal/state"
 )
 
 // ManifestReader reads a pallet's manifest from where it lives;
@@ -34,10 +34,10 @@ type CatalogServer struct {
 // NewCatalogHandler returns the path and handler to mount CatalogService
 // at. Without a core, InvalidatePallet is unavailable.
 func NewCatalogHandler(c *core.Core, st *state.Store, manifests ManifestReader) (string, http.Handler) {
-	return hubwagenv1connect.NewCatalogServiceHandler(&CatalogServer{core: c, store: st, manifests: manifests})
+	return mokshav1connect.NewCatalogServiceHandler(&CatalogServer{core: c, store: st, manifests: manifests})
 }
 
-func (s *CatalogServer) InvalidatePallet(ctx context.Context, req *connect.Request[hubwagenv1.InvalidatePalletRequest]) (*connect.Response[hubwagenv1.InvalidatePalletResponse], error) {
+func (s *CatalogServer) InvalidatePallet(ctx context.Context, req *connect.Request[mokshav1.InvalidatePalletRequest]) (*connect.Response[mokshav1.InvalidatePalletResponse], error) {
 	if s.core == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("this server only reads the catalog"))
 	}
@@ -46,7 +46,7 @@ func (s *CatalogServer) InvalidatePallet(ctx context.Context, req *connect.Reque
 	if err != nil {
 		return nil, connectError(err)
 	}
-	out := &hubwagenv1.InvalidatePalletResponse{}
+	out := &mokshav1.InvalidatePalletResponse{}
 	for _, p := range res.Pallets {
 		out.Pallets = append(out.Pallets, palletMessage(p))
 	}
@@ -56,7 +56,7 @@ func (s *CatalogServer) InvalidatePallet(ctx context.Context, req *connect.Reque
 	return connect.NewResponse(out), nil
 }
 
-var _ hubwagenv1connect.CatalogServiceHandler = (*CatalogServer)(nil)
+var _ mokshav1connect.CatalogServiceHandler = (*CatalogServer)(nil)
 
 const maxListLimit = 1000
 
@@ -74,7 +74,7 @@ func checkLimit(limit int32) error {
 	return nil
 }
 
-func (s *CatalogServer) ListDatasets(ctx context.Context, req *connect.Request[hubwagenv1.ListDatasetsRequest]) (*connect.Response[hubwagenv1.ListDatasetsResponse], error) {
+func (s *CatalogServer) ListDatasets(ctx context.Context, req *connect.Request[mokshav1.ListDatasetsRequest]) (*connect.Response[mokshav1.ListDatasetsResponse], error) {
 	dss, err := s.store.ListDatasets(ctx, req.Msg.Tenant)
 	if err != nil {
 		return nil, connectError(err)
@@ -87,9 +87,9 @@ func (s *CatalogServer) ListDatasets(ctx context.Context, req *connect.Request[h
 	for _, r := range keep {
 		byName[r.Dataset] = r
 	}
-	out := &hubwagenv1.ListDatasetsResponse{}
+	out := &mokshav1.ListDatasetsResponse{}
 	for _, d := range dss {
-		v := &hubwagenv1.Dataset{Tenant: d.Tenant, Name: d.Name, PartitionKey: d.PartitionKey, CreatedAt: timestamppb.New(d.CreatedAt)}
+		v := &mokshav1.Dataset{Tenant: d.Tenant, Name: d.Name, PartitionKey: d.PartitionKey, CreatedAt: timestamppb.New(d.CreatedAt)}
 		if r, ok := byName[d.Name]; ok {
 			v.KeepVersions = int32(r.Versions)
 			if r.Age > 0 {
@@ -101,7 +101,7 @@ func (s *CatalogServer) ListDatasets(ctx context.Context, req *connect.Request[h
 	return connect.NewResponse(out), nil
 }
 
-func (s *CatalogServer) ListPartitions(ctx context.Context, req *connect.Request[hubwagenv1.ListPartitionsRequest]) (*connect.Response[hubwagenv1.ListPartitionsResponse], error) {
+func (s *CatalogServer) ListPartitions(ctx context.Context, req *connect.Request[mokshav1.ListPartitionsRequest]) (*connect.Response[mokshav1.ListPartitionsResponse], error) {
 	m := req.Msg
 	if err := checkLimit(m.Limit); err != nil {
 		return nil, err
@@ -110,15 +110,15 @@ func (s *CatalogServer) ListPartitions(ctx context.Context, req *connect.Request
 	if err != nil {
 		return nil, connectError(err)
 	}
-	out := &hubwagenv1.ListPartitionsResponse{}
+	out := &mokshav1.ListPartitionsResponse{}
 	for _, p := range parts {
-		out.Partitions = append(out.Partitions, &hubwagenv1.Partition{
+		out.Partitions = append(out.Partitions, &mokshav1.Partition{
 			Partition: p.Partition, Latest: palletMessage(p.Latest), Pallets: int32(p.Pallets)})
 	}
 	return connect.NewResponse(out), nil
 }
 
-func (s *CatalogServer) ListPallets(ctx context.Context, req *connect.Request[hubwagenv1.ListPalletsRequest]) (*connect.Response[hubwagenv1.ListPalletsResponse], error) {
+func (s *CatalogServer) ListPallets(ctx context.Context, req *connect.Request[mokshav1.ListPalletsRequest]) (*connect.Response[mokshav1.ListPalletsResponse], error) {
 	m := req.Msg
 	if err := checkLimit(m.Limit); err != nil {
 		return nil, err
@@ -128,14 +128,14 @@ func (s *CatalogServer) ListPallets(ctx context.Context, req *connect.Request[hu
 	if err != nil {
 		return nil, connectError(err)
 	}
-	out := &hubwagenv1.ListPalletsResponse{}
+	out := &mokshav1.ListPalletsResponse{}
 	for _, p := range ps {
 		out.Pallets = append(out.Pallets, palletMessage(p))
 	}
 	return connect.NewResponse(out), nil
 }
 
-func (s *CatalogServer) GetPallet(ctx context.Context, req *connect.Request[hubwagenv1.GetPalletRequest]) (*connect.Response[hubwagenv1.GetPalletResponse], error) {
+func (s *CatalogServer) GetPallet(ctx context.Context, req *connect.Request[mokshav1.GetPalletRequest]) (*connect.Response[mokshav1.GetPalletResponse], error) {
 	p, err := s.store.GetPallet(ctx, req.Msg.Id)
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("pallet %s not found", req.Msg.Id))
@@ -143,7 +143,7 @@ func (s *CatalogServer) GetPallet(ctx context.Context, req *connect.Request[hubw
 	if err != nil {
 		return nil, connectError(err)
 	}
-	out := &hubwagenv1.GetPalletResponse{Pallet: palletMessage(p)}
+	out := &mokshav1.GetPalletResponse{Pallet: palletMessage(p)}
 	if l, err := s.store.GetLift(ctx, p.HaulID, p.LiftSeq); err == nil {
 		out.Lift = l.Name
 	}
@@ -156,9 +156,9 @@ func (s *CatalogServer) GetPallet(ctx context.Context, req *connect.Request[hubw
 		if m, err := s.manifests.Read(ctx, p.Location); err != nil {
 			out.ManifestError = err.Error()
 		} else {
-			mm := &hubwagenv1.Manifest{Data: m.Data, ResultJson: string(m.Result)}
+			mm := &mokshav1.Manifest{Data: m.Data, ResultJson: string(m.Result)}
 			for _, f := range m.Files {
-				mm.Files = append(mm.Files, &hubwagenv1.ManifestFile{Path: f.Path, Size: f.Size, Sha256: f.SHA256})
+				mm.Files = append(mm.Files, &mokshav1.ManifestFile{Path: f.Path, Size: f.Size, Sha256: f.SHA256})
 			}
 			out.Manifest = mm
 		}
@@ -175,7 +175,7 @@ func (s *CatalogServer) GetPallet(ctx context.Context, req *connect.Request[hubw
 	return connect.NewResponse(out), nil
 }
 
-func (s *CatalogServer) ExpirePallets(ctx context.Context, req *connect.Request[hubwagenv1.ExpirePalletsRequest]) (*connect.Response[hubwagenv1.ExpirePalletsResponse], error) {
+func (s *CatalogServer) ExpirePallets(ctx context.Context, req *connect.Request[mokshav1.ExpirePalletsRequest]) (*connect.Response[mokshav1.ExpirePalletsResponse], error) {
 	if s.core == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("this server only reads the catalog"))
 	}
@@ -183,21 +183,21 @@ func (s *CatalogServer) ExpirePallets(ctx context.Context, req *connect.Request[
 	if err != nil {
 		return nil, connectError(err)
 	}
-	out := &hubwagenv1.ExpirePalletsResponse{}
+	out := &mokshav1.ExpirePalletsResponse{}
 	for _, e := range expired {
-		out.Expired = append(out.Expired, &hubwagenv1.ExpiredPallet{Pallet: palletMessage(e.Pallet), Reason: e.Reason})
+		out.Expired = append(out.Expired, &mokshav1.ExpiredPallet{Pallet: palletMessage(e.Pallet), Reason: e.Reason})
 	}
 	return connect.NewResponse(out), nil
 }
 
-func (s *CatalogServer) ListStale(ctx context.Context, req *connect.Request[hubwagenv1.ListStaleRequest]) (*connect.Response[hubwagenv1.ListStaleResponse], error) {
+func (s *CatalogServer) ListStale(ctx context.Context, req *connect.Request[mokshav1.ListStaleRequest]) (*connect.Response[mokshav1.ListStaleResponse], error) {
 	stale, err := s.store.StalePartitions(ctx, tenantOr(req.Msg.Tenant), req.Msg.Dataset)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	out := &hubwagenv1.ListStaleResponse{}
+	out := &mokshav1.ListStaleResponse{}
 	for _, st := range stale {
-		v := &hubwagenv1.StalePallet{Pallet: palletMessage(st.Pallet), Lift: st.Lift, Reasons: st.Reasons}
+		v := &mokshav1.StalePallet{Pallet: palletMessage(st.Pallet), Lift: st.Lift, Reasons: st.Reasons}
 		if h, err := s.store.GetHaul(ctx, st.Pallet.HaulID); err == nil {
 			v.Haul = haulRef(h)
 		}
@@ -206,12 +206,12 @@ func (s *CatalogServer) ListStale(ctx context.Context, req *connect.Request[hubw
 	return connect.NewResponse(out), nil
 }
 
-func haulRef(h state.Haul) *hubwagenv1.HaulRef {
-	return &hubwagenv1.HaulRef{Id: h.ID, Name: h.Name, ParamsJson: haulMessage(h).ParamsJson, Tenant: h.Tenant}
+func haulRef(h state.Haul) *mokshav1.HaulRef {
+	return &mokshav1.HaulRef{Id: h.ID, Name: h.Name, ParamsJson: haulMessage(h).ParamsJson, Tenant: h.Tenant}
 }
 
-func palletMessage(p state.Pallet) *hubwagenv1.Pallet {
-	out := &hubwagenv1.Pallet{
+func palletMessage(p state.Pallet) *mokshav1.Pallet {
+	out := &mokshav1.Pallet{
 		Id: p.ID, Tenant: p.Tenant, Dataset: p.Dataset, Partition: p.Partition, Location: p.Location,
 		ContentHash: p.ContentHash, Fingerprint: p.Fingerprint, HaulId: p.HaulID, LiftSeq: int32(p.LiftSeq),
 		State: p.State, Reason: p.Reason, CreatedAt: timestamppb.New(p.CreatedAt),
@@ -233,13 +233,13 @@ func palletMessage(p state.Pallet) *hubwagenv1.Pallet {
 	return out
 }
 
-func lineageMessage(l state.Lineage) *hubwagenv1.Lineage {
-	out := &hubwagenv1.Lineage{}
+func lineageMessage(l state.Lineage) *mokshav1.Lineage {
+	out := &mokshav1.Lineage{}
 	for _, p := range l.Pallets {
 		out.Pallets = append(out.Pallets, palletMessage(p))
 	}
 	for _, e := range l.Edges {
-		out.Edges = append(out.Edges, &hubwagenv1.LineageEdge{PalletId: e.PalletID, InputId: e.InputID, Name: e.Name})
+		out.Edges = append(out.Edges, &mokshav1.LineageEdge{PalletId: e.PalletID, InputId: e.InputID, Name: e.Name})
 	}
 	return out
 }

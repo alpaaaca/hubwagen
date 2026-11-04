@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/alper/hubwagen/cmd"
+	"github.com/alper/moksha/cmd"
 )
 
 func main() {

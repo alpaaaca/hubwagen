@@ -1,5 +1,5 @@
-.hubwagen
+.moksha
 **/__pycache__
 Dockerfile
-hubwagen.yaml
-hubwagen.project.yaml
+moksha.yaml
+moksha.project.yaml

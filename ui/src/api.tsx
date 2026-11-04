@@ -5,9 +5,9 @@ import { createClient, type Client, type Transport } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { createContext, useContext, type ReactNode } from "react";
 
-import { CatalogService } from "./gen/hubwagen/v1/catalog_pb";
-import { HaulService } from "./gen/hubwagen/v1/haul_pb";
-import { LogService } from "./gen/hubwagen/v1/log_pb";
+import { CatalogService } from "./gen/moksha/v1/catalog_pb";
+import { HaulService } from "./gen/moksha/v1/haul_pb";
+import { LogService } from "./gen/moksha/v1/log_pb";
 
 export type Api = {
   hauls: Client<typeof HaulService>;

@@ -8,10 +8,10 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
-	"github.com/alper/hubwagen/internal/api/gen/hubwagen/v1/hubwagenv1connect"
-	"github.com/alper/hubwagen/internal/core"
-	"github.com/alper/hubwagen/internal/state"
+	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
+	"github.com/alper/moksha/internal/api/gen/moksha/v1/mokshav1connect"
+	"github.com/alper/moksha/internal/core"
+	"github.com/alper/moksha/internal/state"
 )
 
 // DeployServer implements DeployService: projects (docs/projects.md).
@@ -23,12 +23,12 @@ type DeployServer struct {
 // NewDeployHandler returns the path and handler to mount DeployService at.
 // secrets checks that the server holds the secrets a deployment names.
 func NewDeployHandler(c *core.Core, secrets func(names map[string]string) error) (string, http.Handler) {
-	return hubwagenv1connect.NewDeployServiceHandler(&DeployServer{core: c, secrets: secrets})
+	return mokshav1connect.NewDeployServiceHandler(&DeployServer{core: c, secrets: secrets})
 }
 
-var _ hubwagenv1connect.DeployServiceHandler = (*DeployServer)(nil)
+var _ mokshav1connect.DeployServiceHandler = (*DeployServer)(nil)
 
-func (s *DeployServer) Deploy(ctx context.Context, req *connect.Request[hubwagenv1.DeployRequest]) (*connect.Response[hubwagenv1.DeployResponse], error) {
+func (s *DeployServer) Deploy(ctx context.Context, req *connect.Request[mokshav1.DeployRequest]) (*connect.Response[mokshav1.DeployResponse], error) {
 	m := req.Msg
 	if len(m.Secrets) > 0 {
 		if err := s.secrets(m.Secrets); err != nil {
@@ -45,15 +45,15 @@ func (s *DeployServer) Deploy(ctx context.Context, req *connect.Request[hubwagen
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&hubwagenv1.DeployResponse{Deployment: deploymentMessage(state.Project{Deployment: d})}), nil
+	return connect.NewResponse(&mokshav1.DeployResponse{Deployment: deploymentMessage(state.Project{Deployment: d})}), nil
 }
 
-func (s *DeployServer) ListProjects(ctx context.Context, req *connect.Request[hubwagenv1.ListProjectsRequest]) (*connect.Response[hubwagenv1.ListProjectsResponse], error) {
+func (s *DeployServer) ListProjects(ctx context.Context, req *connect.Request[mokshav1.ListProjectsRequest]) (*connect.Response[mokshav1.ListProjectsResponse], error) {
 	ps, err := s.core.Projects(ctx)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	out := &hubwagenv1.ListProjectsResponse{}
+	out := &mokshav1.ListProjectsResponse{}
 	for _, p := range ps {
 		if p.DeletedAt != nil && !req.Msg.WithDeleted {
 			continue
@@ -63,7 +63,7 @@ func (s *DeployServer) ListProjects(ctx context.Context, req *connect.Request[hu
 	return connect.NewResponse(out), nil
 }
 
-func (s *DeployServer) DeleteProject(ctx context.Context, req *connect.Request[hubwagenv1.DeleteProjectRequest]) (*connect.Response[hubwagenv1.DeleteProjectResponse], error) {
+func (s *DeployServer) DeleteProject(ctx context.Context, req *connect.Request[mokshav1.DeleteProjectRequest]) (*connect.Response[mokshav1.DeleteProjectResponse], error) {
 	by := req.Msg.By
 	if by == "" {
 		by = "unknown"
@@ -72,14 +72,14 @@ func (s *DeployServer) DeleteProject(ctx context.Context, req *connect.Request[h
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&hubwagenv1.DeleteProjectResponse{CancelledRuns: int32(n)}), nil
+	return connect.NewResponse(&mokshav1.DeleteProjectResponse{CancelledRuns: int32(n)}), nil
 }
 
-func deploymentMessage(p state.Project) *hubwagenv1.Deployment {
-	m := &hubwagenv1.Deployment{Project: p.Project, Version: int32(p.Version), BuildId: p.BuildID, Image: p.Image, Dir: p.Dir,
+func deploymentMessage(p state.Project) *mokshav1.Deployment {
+	m := &mokshav1.Deployment{Project: p.Project, Version: int32(p.Version), BuildId: p.BuildID, Image: p.Image, Dir: p.Dir,
 		Pipelines: p.Hauls, By: p.By, DeployedAt: timestamppb.New(p.DeployedAt), Secrets: p.Secrets}
 	for _, pool := range p.Pools {
-		m.Pools = append(m.Pools, &hubwagenv1.DeployedPool{Name: pool.Name, Docks: pool.Docks, Min: int32(pool.Min),
+		m.Pools = append(m.Pools, &mokshav1.DeployedPool{Name: pool.Name, Docks: pool.Docks, Min: int32(pool.Min),
 			Max: int32(pool.Max), Lifts: int32(pool.Lifts), IdleAfter: durationpb.New(pool.IdleAfter)})
 	}
 	if p.DeletedAt != nil {

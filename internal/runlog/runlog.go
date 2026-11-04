@@ -1,5 +1,5 @@
 // Package runlog keeps what user code printed and logged while a lift ran,
-// per attempt: the output people read in the web UI and `hubwagen dev`.
+// per attempt: the output people read in the web UI and `moksha dev`.
 //
 // Logs are not state. They don't go through the event log or the core: an
 // attempt's lines are appended as the worker sends them, a lost batch is
@@ -64,7 +64,7 @@ func Open(dir string) (*Store, error) {
 }
 
 // OnAppend calls fn with the entries of every Append, after they are
-// written (hubwagen dev prints them). fn must not block for long.
+// written (moksha dev prints them). fn must not block for long.
 func (s *Store) OnAppend(fn func([]Entry)) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

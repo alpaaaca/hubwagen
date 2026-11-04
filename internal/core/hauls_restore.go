@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/state"
 )
 
 // What a new leader does with the hauls the previous one left open.

@@ -12,7 +12,7 @@ import (
 func TestParseProject(t *testing.T) {
 	dir := t.TempDir()
 	p, err := ParseProject([]byte(`
-apiVersion: hubwagen.dev/v1alpha1
+apiVersion: moksha.dev/v1alpha1
 kind: Project
 name: revenue
 build: {dockerfile: Dockerfile, image: ghcr.io/acme/revenue}
@@ -37,7 +37,7 @@ env:
 
 func TestParseProjectReportsAllProblems(t *testing.T) {
 	_, err := ParseProject([]byte(`
-apiVersion: hubwagen.dev/v1alpha1
+apiVersion: moksha.dev/v1alpha1
 kind: Config
 name: Revenue
 build: {dockerfile: Dockerfile, image: "ghcr.io/acme/revenue:1"}
@@ -45,7 +45,7 @@ pools:
   - {name: a, min: 3, max: 2}
   - {name: a, lifts: 0}
 env:
-  HUBWAGEN_SERVER: x
+  MOKSHA_SERVER: x
 `), t.TempDir())
 	require.Error(t, err)
 	for _, want := range []string{
@@ -55,12 +55,12 @@ env:
 		"pools[0]: min 3 is more than max 2",
 		`pools[1].name: "a" is used twice`,
 		"pools[1].lifts: must be 1 or more",
-		"env.HUBWAGEN_SERVER: names starting with HUBWAGEN_ are set by hubwagen",
+		"env.MOKSHA_SERVER: names starting with MOKSHA_ are set by moksha",
 	} {
 		assert.Contains(t, err.Error(), want)
 	}
 
-	_, err = ParseProject([]byte("apiVersion: hubwagen.dev/v1alpha1\nkind: Project\nname: x\npools: [{name: a}]\nenv: {A: {secret: s, other: 1}}\n"), t.TempDir())
+	_, err = ParseProject([]byte("apiVersion: moksha.dev/v1alpha1\nkind: Project\nname: x\npools: [{name: a}]\nenv: {A: {secret: s, other: 1}}\n"), t.TempDir())
 	assert.ErrorContains(t, err, "want a value or {secret: name}")
 }
 
@@ -69,15 +69,15 @@ func TestFindProject(t *testing.T) {
 	_, err := FindProject("", dir)
 	assert.ErrorContains(t, err, "no project file in "+dir)
 
-	// A server config named hubwagen.yaml isn't one; hubwagen.project.yaml is.
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "hubwagen.yaml"), []byte("apiVersion: hubwagen.dev/v1alpha1\nkind: Config\n"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "hubwagen.project.yaml"), []byte("apiVersion: hubwagen.dev/v1alpha1\nkind: Project\n"), 0o644))
+	// A server config named moksha.yaml isn't one; moksha.project.yaml is.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "moksha.yaml"), []byte("apiVersion: moksha.dev/v1alpha1\nkind: Config\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "moksha.project.yaml"), []byte("apiVersion: moksha.dev/v1alpha1\nkind: Project\n"), 0o644))
 	p, err := FindProject("", dir)
 	require.NoError(t, err)
-	assert.Equal(t, filepath.Join(dir, "hubwagen.project.yaml"), p)
+	assert.Equal(t, filepath.Join(dir, "moksha.project.yaml"), p)
 
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "hubwagen.yaml"), []byte("apiVersion: hubwagen.dev/v1alpha1\nkind: Project\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "moksha.yaml"), []byte("apiVersion: moksha.dev/v1alpha1\nkind: Project\n"), 0o644))
 	p, err = FindProject("", dir)
 	require.NoError(t, err)
-	assert.Equal(t, filepath.Join(dir, "hubwagen.yaml"), p, "hubwagen.yaml first")
+	assert.Equal(t, filepath.Join(dir, "moksha.yaml"), p, "moksha.yaml first")
 }

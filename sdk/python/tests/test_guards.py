@@ -17,8 +17,8 @@ from time import time as time_fn
 
 import pytest
 
-import hubwagen as hw
-from hubwagen import _guards, _replay
+import moksha as hw
+from moksha import _guards, _replay
 from test_replay import START
 
 MISTAKES = {
@@ -117,7 +117,7 @@ def test_a_replay_that_reads_the_clock_is_nondeterministic():
             stamp = 0
         return ctx.lift(guard_add, int(stamp))
 
-    r = _replay.replay(clock.__hubwagen_haul__, "h1", {}, [])
+    r = _replay.replay(clock.__moksha_haul__, "h1", {}, [])
     assert r.nondeterministic
     assert r.outcome is None
     assert "time.time() called at" in r.mismatch
@@ -128,6 +128,6 @@ def test_ctx_now_and_random_are_fine():
     def ok(ctx):
         return [ctx.random(), str(ctx.now())]
 
-    r = _replay.replay(ok.__hubwagen_haul__, "h1", {}, [START])
+    r = _replay.replay(ok.__moksha_haul__, "h1", {}, [START])
     assert not r.nondeterministic
     assert r.outcome["status"] == "STATUS_COMPLETED"

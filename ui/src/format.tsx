@@ -1,8 +1,8 @@
 import { timestampDate, type Timestamp } from "@bufbuild/protobuf/wkt";
 
-import type { Haul, Lift } from "./gen/hubwagen/v1/haul_pb";
+import type { Haul, Lift } from "./gen/moksha/v1/haul_pb";
 
-// Times are always shown in UTC, and say so: hubwagen runs on servers and
+// Times are always shown in UTC, and say so: moksha runs on servers and
 // schedules in many places, and one clock for everyone is easier to compare.
 
 // when is a point in time, to the second, in UTC.

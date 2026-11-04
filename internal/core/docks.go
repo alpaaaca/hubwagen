@@ -7,7 +7,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/state"
 )
 
 // Docks are the queues workers pull haul tasks and lift tasks from. They live

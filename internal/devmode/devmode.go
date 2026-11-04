@@ -1,4 +1,4 @@
-// Package devmode is what `hubwagen dev` adds to the server (package
+// Package devmode is what `moksha dev` adds to the server (package
 // server): it prints runs and what their lifts print (Console), or the
 // engine's events (Follow, Describe).
 package devmode
@@ -6,7 +6,7 @@ package devmode
 import (
 	"context"
 
-	"github.com/alper/hubwagen/internal/server"
+	"github.com/alper/moksha/internal/server"
 )
 
 // Engine is a running server that dev prints from.

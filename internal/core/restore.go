@@ -3,7 +3,7 @@ package core
 import (
 	"context"
 
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/state"
 )
 
 // restore rebuilds the in-memory model from the store and settles what the

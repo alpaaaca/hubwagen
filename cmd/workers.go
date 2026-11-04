@@ -17,13 +17,13 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/alper/hubwagen/internal/clock"
-	"github.com/alper/hubwagen/internal/config"
-	"github.com/alper/hubwagen/internal/core"
-	"github.com/alper/hubwagen/internal/launch"
-	"github.com/alper/hubwagen/internal/pools"
-	"github.com/alper/hubwagen/internal/state"
-	"github.com/alper/hubwagen/internal/supervise"
+	"github.com/alper/moksha/internal/clock"
+	"github.com/alper/moksha/internal/config"
+	"github.com/alper/moksha/internal/core"
+	"github.com/alper/moksha/internal/launch"
+	"github.com/alper/moksha/internal/pools"
+	"github.com/alper/moksha/internal/state"
+	"github.com/alper/moksha/internal/supervise"
 )
 
 var (
@@ -33,14 +33,14 @@ var (
 
 var workersCmd = &cobra.Command{
 	Use:   "workers",
-	Short: "Run the workers from hubwagen.yaml against a running server",
-	Long: `Workers starts the worker processes listed under workers: in hubwagen.yaml,
-the same ones hubwagen dev starts, but without a server: they connect to
+	Short: "Run the workers from moksha.yaml against a running server",
+	Long: `Workers starts the worker processes listed under workers: in moksha.yaml,
+the same ones moksha dev starts, but without a server: they connect to
 --server (default: the config's server.listen). Use it to restart the server
 while the workers keep running, or to run workers on another machine.
 
-Each process gets HUBWAGEN_SERVER, HUBWAGEN_WORKER_ID (<name>-<n>) and
-HUBWAGEN_SUPERVISOR_PID (this process; workers stop when it is gone). One
+Each process gets MOKSHA_SERVER, MOKSHA_WORKER_ID (<name>-<n>) and
+MOKSHA_SUPERVISOR_PID (this process; workers stop when it is gone). One
 that exits is restarted with backoff; Ctrl-C stops them all.`,
 	Args:         cobra.NoArgs,
 	SilenceUsage: true,
@@ -55,7 +55,7 @@ that exits is restarted with backoff; Ctrl-C stops them all.`,
 		}
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
-		fmt.Printf("hubwagen workers: %d processes against %s; Ctrl-C to stop\n", len(procs), workersServer)
+		fmt.Printf("moksha workers: %d processes against %s; Ctrl-C to stop\n", len(procs), workersServer)
 		kill := make(chan struct{})
 		go func() {
 			<-ctx.Done()
@@ -69,12 +69,12 @@ that exits is restarted with backoff; Ctrl-C stops them all.`,
 
 func init() {
 	addConfigFlag(workersCmd)
-	workersCmd.Flags().StringVar(&workersServer, "server", "", "hubwagen API the workers connect to (default: from the config)")
+	workersCmd.Flags().StringVar(&workersServer, "server", "", "moksha API the workers connect to (default: from the config)")
 	rootCmd.AddCommand(workersCmd)
 }
 
 func addConfigFlag(c *cobra.Command) {
-	c.Flags().StringVar(&configPath, "config", "", "config file (default: $HUBWAGEN_CONFIG, else ./"+config.FileName+" if present)")
+	c.Flags().StringVar(&configPath, "config", "", "config file (default: $MOKSHA_CONFIG, else ./"+config.FileName+" if present)")
 }
 
 // loadConfig loads the config and applies the command's flags on top.
@@ -135,7 +135,7 @@ func workerProcess(w config.Worker, id, server, dataDir string, extraEnv ...stri
 	env = append(env, extraEnv...)
 	if w.Launcher == config.LauncherContainer {
 		// No supervisor PID: in the container's PID namespace it means
-		// nothing. A container outliving hubwagen is removed when the
+		// nothing. A container outliving moksha is removed when the
 		// worker starts again (its cleanup).
 		return launch.Container(w, id, server, dataDir, env)
 	}
@@ -283,7 +283,7 @@ func projectWorker(p state.Project, dp state.DeployedPool, name string, cfg *con
 		w.AuthFile = cfg.Projects.AuthFile
 		return w
 	}
-	w.Command, w.Dir = []string{or(p.Python, "python3"), "-m", "hubwagen.worker"}, p.Dir
+	w.Command, w.Dir = []string{or(p.Python, "python3"), "-m", "moksha.worker"}, p.Dir
 	return w
 }
 
@@ -351,7 +351,7 @@ func killOnSignal(kill chan struct{}) {
 	}()
 }
 
-// removeLeftovers removes the containers an earlier hubwagen on the same
+// removeLeftovers removes the containers an earlier moksha on the same
 // data directory left running (it was killed): nothing else would stop
 // them. With a container runtime on PATH (the projects' or a container
 // pool's), before any pool starts.
@@ -371,7 +371,7 @@ func removeLeftovers(ctx context.Context, cfg *config.Config, log *slog.Logger) 
 		case err != nil:
 			log.Warn("can't look for containers left running", "runtime", rt, "err", err)
 		case n > 0:
-			log.Info(fmt.Sprintf("removed %d container(s) an earlier hubwagen left running", n), "runtime", rt)
+			log.Info(fmt.Sprintf("removed %d container(s) an earlier moksha left running", n), "runtime", rt)
 		}
 	}
 }

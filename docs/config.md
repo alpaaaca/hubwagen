@@ -1,6 +1,6 @@
 # Instance configuration
 
-How a hubwagen instance is configured: one YAML file, `hubwagen.yaml`, with
+How a moksha instance is configured: one YAML file, `moksha.yaml`, with
 flags on top. Code: `internal/config`.
 
 ## What belongs here
@@ -12,24 +12,24 @@ It never describes what a haul does; that is code, versioned by builds.
 ## Today
 
 ```yaml
-apiVersion: hubwagen.dev/v1alpha1
+apiVersion: moksha.dev/v1alpha1
 kind: Config
 
-data_dir: .hubwagen              # state.db, bucket/, lock; default .hubwagen
+data_dir: .moksha              # state.db, bucket/, lock; default .moksha
 # bucket:                        # where data versions go; default <data_dir>/bucket
-#   url: s3://acme-hubwagen/prod
+#   url: s3://acme-moksha/prod
 #   access_key_id_file: /run/secrets/s3_key_id
 #   secret_access_key_file: /run/secrets/s3_secret
 server:
   listen: 127.0.0.1:7070         # the API; default 127.0.0.1:7070
 
-workers:                         # started by hubwagen dev, server and workers
+workers:                         # started by moksha dev, server and workers
   - name: py                     # IDs are <name>-<n>: py-1, py-2, py-3
     replicas: 3                  # default 1; 0 turns the group off
-    command: [python3, -m, hubwagen.worker]   # modules: pyproject.toml
+    command: [python3, -m, moksha.worker]   # modules: pyproject.toml
     lifts: 2                     # steps one worker runs at once; default 4
     dir: .                       # working directory; default the file's
-    env:                         # added to hubwagen's own environment
+    env:                         # added to moksha's own environment
       PYTHONPATH: src
   - name: gpu                    # a pool: scaled by the work waiting on its docks
     min: 0                       # none while nothing waits
@@ -37,19 +37,19 @@ workers:                         # started by hubwagen dev, server and workers
     docks: [gpu]                 # default [default]
     lifts: 1
     idle_after: 10m              # stop one with nothing to run this long; default 5m
-    command: [python3, -m, hubwagen.worker]
+    command: [python3, -m, moksha.worker]
 ```
 
 - **Relative paths** (`data_dir`, `workers[].dir`, the bucket's credential
-  files) are relative to the config file, so a project's `hubwagen.yaml` works from any directory.
-- **Where the file comes from**: `--config <path>`, else `$HUBWAGEN_CONFIG`,
-  else `./hubwagen.yaml` if it exists, else the defaults. A file named by
-  `--config` or `$HUBWAGEN_CONFIG` must exist.
-- **Flags win**: `hubwagen dev --data-dir … --listen …` override the file,
+  files) are relative to the config file, so a project's `moksha.yaml` works from any directory.
+- **Where the file comes from**: `--config <path>`, else `$MOKSHA_CONFIG`,
+  else `./moksha.yaml` if it exists, else the defaults. A file named by
+  `--config` or `$MOKSHA_CONFIG` must exist.
+- **Flags win**: `moksha dev --data-dir … --listen …` override the file,
   but only when passed.
 - **Strict**: unknown fields, wrong types and duplicate keys are errors.
   Every problem is reported at once, with its location:
-  `hubwagen.yaml: workers[1].replicas: must be 0 or more`.
+  `moksha.yaml: workers[1].replicas: must be 0 or more`.
 - **Variables**: values may come from the environment, for what differs per
   machine (see below).
 
@@ -62,23 +62,23 @@ the file is parsed. So one committed file serves every machine, with a
 
 ```yaml
 server:
-  listen: ${HUBWAGEN_LISTEN:-127.0.0.1:7070}
+  listen: ${MOKSHA_LISTEN:-127.0.0.1:7070}
 bucket:
-  url: ${HUBWAGEN_BUCKET:-}          # unset: no bucket section, <data_dir>/bucket
-  endpoint: ${HUBWAGEN_S3_ENDPOINT:-}
+  url: ${MOKSHA_BUCKET:-}          # unset: no bucket section, <data_dir>/bucket
+  endpoint: ${MOKSHA_S3_ENDPOINT:-}
 workers:
   - name: py
     replicas: ${WORKERS:-3}          # still a number
-    command: [python3, -m, hubwagen.worker]
+    command: [python3, -m, moksha.worker]
     env:
-      PYTHONPATH: ${HUBWAGEN_SDK}    # must be set
+      PYTHONPATH: ${MOKSHA_SDK}    # must be set
 ```
 
 - **`${NAME}` must be set**, even if empty; an unset one is an error with
-  its line (`hubwagen.yaml: line 12: ${HUBWAGEN_SDK} is not set`), all of
+  its line (`moksha.yaml: line 12: ${MOKSHA_SDK} is not set`), all of
   them at once.
 - **A bucket section of empty values is no bucket**, so
-  `${HUBWAGEN_BUCKET:-}` makes the bucket optional.
+  `${MOKSHA_BUCKET:-}` makes the bucket optional.
 - **Only `${…}`**: a bare `$NAME` is left alone, so a worker command such
   as `[sh, -c, "echo $HOME"]` means what it says; `$${` stands for a literal
   `${`. Lines that are only a comment aren't expanded.
@@ -90,10 +90,10 @@ workers:
 
 ### Workers
 
-A worker is any process that speaks the worker API; hubwagen doesn't care
+A worker is any process that speaks the worker API; moksha doesn't care
 what language it is in. The config describes processes, not pipelines.
 Which hauls a worker runs is up to its code: the Python worker imports the
-modules its project lists under `[tool.hubwagen]` in `pyproject.toml`. It
+modules its project lists under `[tool.moksha]` in `pyproject.toml`. It
 registers the hauls they define, and the server sends it only those. One
 group per project (its own `dir` and virtualenv) is enough for any number
 of pipelines in it, and several projects can share the server. Every process gets these variables, which its `env`
@@ -101,39 +101,39 @@ can't set:
 
 | Variable | Value |
 |---|---|
-| `HUBWAGEN_SERVER` | the API's URL, e.g. `http://127.0.0.1:7070` (an unspecified listen host such as `0.0.0.0` becomes `127.0.0.1`) |
-| `HUBWAGEN_WORKER_ID` | `<name>-<n>`; the logbook records it on every dispatch |
-| `HUBWAGEN_SUPERVISOR_PID` | the hubwagen process that started it; a worker stops once its parent is no longer this process |
-| `HUBWAGEN_DOCKS` | the group's `docks`, comma-separated: the Python worker's default for `--dock` |
-| `HUBWAGEN_LIFTS` | the group's `lifts`: the Python worker's default for `--lifts` |
+| `MOKSHA_SERVER` | the API's URL, e.g. `http://127.0.0.1:7070` (an unspecified listen host such as `0.0.0.0` becomes `127.0.0.1`) |
+| `MOKSHA_WORKER_ID` | `<name>-<n>`; the logbook records it on every dispatch |
+| `MOKSHA_SUPERVISOR_PID` | the moksha process that started it; a worker stops once its parent is no longer this process |
+| `MOKSHA_DOCKS` | the group's `docks`, comma-separated: the Python worker's default for `--dock` |
+| `MOKSHA_LIFTS` | the group's `lifts`: the Python worker's default for `--lifts` |
 
-The Python worker (`python -m hubwagen.worker`) reads all three. The last
+The Python worker (`python -m moksha.worker`) reads all three. The last
 one covers a supervisor that dies without stopping its workers (`kill -9`, a
 crash). The workers run in their own process groups, so nothing else would
-stop them, and the next `hubwagen dev` would start a second set. The Python
+stop them, and the next `moksha dev` would start a second set. The Python
 worker checks every second and then stops as on Ctrl-C: running lifts
 finish and report.
 
-`hubwagen dev` starts the workers after the API is up. It prefixes their
+`moksha dev` starts the workers after the API is up. It prefixes their
 output with their ID (`py-2 | …`) and restarts one that exits, with backoff
 from 1s doubling to 30s. On Ctrl-C it sends the workers SIGTERM and waits:
 running lifts finish, and a poll in flight ends within its wait (20s by
 default). Then it stops the server. A second Ctrl-C kills the workers at
 once. Each worker runs in its own process group, so the terminal's Ctrl-C
-reaches only hubwagen.
+reaches only moksha.
 
-- `hubwagen server` starts and restarts them the same way, their output
+- `moksha server` starts and restarts them the same way, their output
   in its log ([below](#running-the-server-as-a-service)).
-- `hubwagen dev --no-workers` and `hubwagen server --no-workers` start the
+- `moksha dev --no-workers` and `moksha server --no-workers` start the
   server alone.
-- `hubwagen workers` starts the same workers without a server. They connect
+- `moksha workers` starts the same workers without a server. They connect
   to `--server` (default: from `server.listen`). Use it to restart the
   server while the workers keep running.
 
 #### Pools: scaled by the work that waits
 
-A group with `min` and `max` instead of `replicas` is a **pool**: `hubwagen
-server` and `hubwagen dev` scale it between the two from the work queued
+A group with `min` and `max` instead of `replicas` is a **pool**: `moksha
+server` and `moksha dev` scale it between the two from the work queued
 on its `docks`. Every two seconds:
 
 - **Up**: when runs or steps on its docks wait because no worker polls
@@ -155,7 +155,7 @@ start: the server only accepts runs of pipelines some worker registered,
 so each such pool starts one to register its code, and stops it as soon
 as it has. Scaling is the
 leader's memory, not state: a restarted server starts each pool at its
-`min` and scales from what waits. `hubwagen workers` can't see the
+`min` and scales from what waits. `moksha workers` can't see the
 queues, so it runs each pool at `max`. The pools and their last decision
 are in `ListPools`, the web UI (on a waiting run) and the server's log
 (`worker pool gpu: started gpu-1: 3 steps wait on gpu`). Design and
@@ -163,7 +163,7 @@ what comes next (containers, Kubernetes): [worker-pools.md](worker-pools.md).
 
 #### Deployed projects
 
-Projects deployed with `hubwagen deploy` ([projects.md](projects.md)) bring
+Projects deployed with `moksha deploy` ([projects.md](projects.md)) bring
 their own pools, named `<project>-<pool>-v<version>`; the server runs them
 next to the `workers:` of its config, as containers of the project's
 image or processes in its directory. How it runs the containers:
@@ -172,11 +172,11 @@ image or processes in its directory. How it runs the containers:
 projects:
   runtime: podman          # default: docker if on PATH, else podman
   server_url: http://host.containers.internal:7070   # default as for launcher: container
-  auth_file: /etc/hubwagen/registry/config.json      # pull credentials, see below
-  secrets_dir: /etc/hubwagen/secrets                 # see below
+  auth_file: /etc/moksha/registry/config.json      # pull credentials, see below
+  secrets_dir: /etc/moksha/secrets                 # see below
 ```
 
-- **Images by digest**: a deploy to a server elsewhere (or `hubwagen deploy
+- **Images by digest**: a deploy to a server elsewhere (or `moksha deploy
   --push`) pushes the project's image with the deploying machine's login
   and deploys it as `<image>@sha256:…`; the server pulls exactly that.
   For a private registry it needs pull credentials: `auth_file`, a
@@ -194,12 +194,12 @@ projects:
   (logged; tried again on the next pass). Keep the directory readable by
   the server only.
 
-At start the server removes containers an earlier hubwagen on the same
+At start the server removes containers an earlier moksha on the same
 data directory left running, for its pools and its projects alike.
 
 #### External pools: KEDA, an HPA or anything that polls
 
-With `launcher: external`, hubwagen starts nothing for the group: its
+With `launcher: external`, moksha starts nothing for the group: its
 workers run elsewhere (a Kubernetes Deployment, another machine), and the
 server only works out how many it wants. That count is
 `GET /v1/pools/<name>` on the API, as JSON:
@@ -234,10 +234,10 @@ the Deployment runs `desired` replicas, from zero:
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
-  name: hubwagen-revenue
+  name: moksha-revenue
 spec:
   scaleTargetRef:
-    name: revenue-workers          # the Deployment running python -m hubwagen.worker
+    name: revenue-workers          # the Deployment running python -m moksha.worker
   minReplicaCount: 0
   maxReplicaCount: 10
   pollingInterval: 5
@@ -245,21 +245,21 @@ spec:
   triggers:
     - type: metrics-api
       metadata:
-        url: "http://hubwagen.hubwagen.svc:7070/v1/pools/revenue"
+        url: "http://moksha.moksha.svc:7070/v1/pools/revenue"
         valueLocation: "desired"
         targetValue: "1"
         activationTargetValue: "0"
 ```
 
-The workers' Deployment sets `HUBWAGEN_SERVER`, and `--dock`/`--lifts` (or
-`HUBWAGEN_DOCKS`/`HUBWAGEN_LIFTS`) to match the group. Kubernetes picks
+The workers' Deployment sets `MOKSHA_SERVER`, and `--dock`/`--lifts` (or
+`MOKSHA_DOCKS`/`MOKSHA_LIFTS`) to match the group. Kubernetes picks
 which pod to remove when it scales down, maybe a busy one: give the pods a
 `terminationGracePeriodSeconds` longer than your steps, so a stopped
 worker finishes them (it stops polling on SIGTERM).
 
 #### Container pools: one container per worker
 
-With `launcher: container`, hubwagen runs each worker as a container of
+With `launcher: container`, moksha runs each worker as a container of
 `image`, with Docker or Podman, and scales them like processes:
 
 ```yaml
@@ -267,7 +267,7 @@ workers:
   - name: revenue
     launcher: container
     image: ghcr.io/acme/revenue:2026-10-30   # the project and the SDK, installed
-    command: [python3, -m, hubwagen.worker]  # default: the image's own
+    command: [python3, -m, moksha.worker]  # default: the image's own
     runtime: podman                          # default: docker if on PATH, else podman
     min: 0
     max: 4
@@ -275,13 +275,13 @@ workers:
     env: {LOG_LEVEL: info}
 ```
 
-- **Each worker is `<runtime> run --rm --name hubwagen-<id>`** in the
-  foreground, so its output is in hubwagen's, SIGTERM reaches the worker,
-  and a crashed one is restarted. `<runtime> rm -f hubwagen-<id>` runs before
+- **Each worker is `<runtime> run --rm --name moksha-<id>`** in the
+  foreground, so its output is in moksha's, SIGTERM reaches the worker,
+  and a crashed one is restarted. `<runtime> rm -f moksha-<id>` runs before
   each start and after each exit.
 - **Leftovers**: containers are labelled with their pool and the
-  server's data directory (`hubwagen.pool`, `hubwagen.data_dir`). A
-  hubwagen killed with SIGKILL leaves its containers running and still
+  server's data directory (`moksha.pool`, `moksha.data_dir`). A
+  moksha killed with SIGKILL leaves its containers running and still
   polling; when it starts again it removes them (those of its own data
   directory only) before starting the pool.
 - **The server's URL** inside the container is `server_url`, by default
@@ -291,10 +291,10 @@ workers:
   on Linux with Docker, the server must listen where the bridge reaches it
   (`0.0.0.0`, and keep it off public networks while there is no
   authentication).
-- **Data goes through the server** (`HUBWAGEN_DATA=remote`): containers
+- **Data goes through the server** (`MOKSHA_DATA=remote`): containers
   share no files with it and need no bucket credentials.
-- **Variables** (`env`, `HUBWAGEN_SERVER`, `HUBWAGEN_WORKER_ID`,
-  `HUBWAGEN_DOCKS`, `HUBWAGEN_LIFTS`) go in with `-e NAME`, so their values
+- **Variables** (`env`, `MOKSHA_SERVER`, `MOKSHA_WORKER_ID`,
+  `MOKSHA_DOCKS`, `MOKSHA_LIFTS`) go in with `-e NAME`, so their values
   aren't on the command line.
 
 #### Kubernetes pools: a Deployment's replicas
@@ -307,11 +307,11 @@ publishes. No KEDA needed:
 kubernetes:
   # api_url: http://127.0.0.1:8001   # kubectl proxy, from outside the cluster;
   #                                  # default: the pod's service account
-  namespace: hubwagen                # default: the service account's
+  namespace: moksha                # default: the service account's
 workers:
   - name: revenue
     launcher: kubernetes
-    deployment: revenue-workers      # runs python -m hubwagen.worker
+    deployment: revenue-workers      # runs python -m moksha.worker
     min: 0
     max: 10
     lifts: 2
@@ -324,15 +324,15 @@ workers:
   ```yaml
   apiVersion: rbac.authorization.k8s.io/v1
   kind: Role
-  metadata: {name: hubwagen-scaler, namespace: hubwagen}
+  metadata: {name: moksha-scaler, namespace: moksha}
   rules:
     - apiGroups: [apps]
       resources: [deployments/scale]
       verbs: [get, patch]
   ```
 
-- **The Deployment** sets `HUBWAGEN_SERVER` (the server's Service) and the
-  group's docks and lifts (`HUBWAGEN_DOCKS`, `HUBWAGEN_LIFTS`). As with KEDA,
+- **The Deployment** sets `MOKSHA_SERVER` (the server's Service) and the
+  group's docks and lifts (`MOKSHA_DOCKS`, `MOKSHA_LIFTS`). As with KEDA,
   Kubernetes picks the pod it removes: give the pods a
   `terminationGracePeriodSeconds` longer than your steps.
 - **No client library**: plain HTTP to the API server, so the binary stays
@@ -341,7 +341,7 @@ workers:
 
 This doesn't break "the control plane never runs user code". The leader
 still runs none: workers are separate processes, and dev's supervisor is a
-convenience for one machine. `hubwagen server` supervises them the same
+convenience for one machine. `moksha server` supervises them the same
 way, so a server that starts with queued runs starts the workers to run
 them. Workers on other machines, or run by the service manager itself (a
 Deployment), run with `--no-workers` on the server. Proposed next: scale
@@ -356,7 +356,7 @@ Storage's XML API):
 
 ```yaml
 bucket:
-  url: s3://acme-hubwagen/prod              # bucket and optional prefix
+  url: s3://acme-moksha/prod              # bucket and optional prefix
   endpoint: https://minio.internal:9000     # S3-compatible stores; omit for AWS
   public_endpoint: https://s3.acme.example  # what workers reach the store as, if not endpoint
   region: eu-central-1                      # default: asked of the store
@@ -388,7 +388,7 @@ Design and the reasoning behind it: [remote-storage.md](remote-storage.md).
 
 ### Running the server as a service
 
-`hubwagen server` is `hubwagen dev` for a service manager (systemd,
+`moksha server` is `moksha dev` for a service manager (systemd,
 launchd, a container) to run: the same data directory, API, web UI and
 workers, from the same config and flags, but no runs printed. Its output
 is its log, on stderr; `--log-format json` writes JSON lines for a log
@@ -398,14 +398,14 @@ print goes into the log too, one record per line with a `worker` field
 not echoed.
 
 ```bash
-hubwagen server --config /etc/hubwagen/hubwagen.yaml --log-format json
+moksha server --config /etc/moksha/moksha.yaml --log-format json
 ```
 
 With workers elsewhere (another machine, a separate unit or Deployment):
 
 ```bash
-hubwagen server --config /etc/hubwagen/hubwagen.yaml --log-format json --no-workers
-hubwagen workers --config /etc/hubwagen/hubwagen.yaml --server http://10.0.0.5:7070
+moksha server --config /etc/moksha/moksha.yaml --log-format json --no-workers
+moksha workers --config /etc/moksha/moksha.yaml --server http://10.0.0.5:7070
 ```
 
 - **Health**: `GET /healthz` answers `200 ok` while the server runs and
@@ -418,7 +418,7 @@ hubwagen workers --config /etc/hubwagen/hubwagen.yaml --server http://10.0.0.5:7
   steps' (systemd: `TimeoutStopSec=`). If the server stops on its own (it
   couldn't write its state), it stops its workers and exits with an error,
   for the service manager to restart it.
-- **One per data directory**: the lock that stops a second `hubwagen dev`
+- **One per data directory**: the lock that stops a second `moksha dev`
   stops a second server too, and dev and server can't share a directory.
 - **No authentication yet**: anyone who can reach the API can start,
   cancel and read runs. The server warns when `server.listen` isn't a
@@ -429,10 +429,10 @@ A systemd unit for the server and its workers:
 
 ```ini
 [Service]
-ExecStart=/usr/local/bin/hubwagen server --config /etc/hubwagen/hubwagen.yaml --log-format json
+ExecStart=/usr/local/bin/moksha server --config /etc/moksha/moksha.yaml --log-format json
 Restart=on-failure
 KillSignal=SIGTERM
-KillMode=mixed      # SIGTERM to hubwagen only: it stops the workers in order
+KillMode=mixed      # SIGTERM to moksha only: it stops the workers in order
 TimeoutStopSec=10min
 ```
 
@@ -443,8 +443,8 @@ With one leader and three workers from one file:
 - **A worker dies**: `kill -9` one (dev prints PIDs). It is restarted.
   After the heartbeat timeout (a minute in dev), its running lift attempt is
   `lost` and retried elsewhere if the lift has a retry policy.
-- **The leader restarts**: run `hubwagen dev --no-workers` and
-  `hubwagen workers` in two terminals, then Ctrl-C and restart dev. Workers
+- **The leader restarts**: run `moksha dev --no-workers` and
+  `moksha workers` in two terminals, then Ctrl-C and restart dev. Workers
   retry until it's back. A lift that finishes while the leader is down keeps
   its result, and its attempt keeps sending heartbeats, until the new leader
   takes the result. It isn't rerun.
@@ -455,7 +455,7 @@ Sketched for later milestones, not implemented:
 
 - **`profile`**: `dev | kubernetes`. It is read only by
   `internal/profile`, which turns the config into concrete implementations.
-  A `standalone` profile isn't needed: `hubwagen server` is the single-node
+  A `standalone` profile isn't needed: `moksha server` is the single-node
   server.
 - **`bucket`**: `gs://` natively; today Google Cloud Storage works through
   its S3-compatible XML API.
@@ -465,10 +465,10 @@ Sketched for later milestones, not implemented:
   (`hw.Dataset(keep=...)`); the expiry interval is the core's
   `RetentionEvery` (an hour), a config field later.
 - **Environment variables** as overrides without touching the file: an
-  explicit list (`HUBWAGEN_DATA_DIR`, `HUBWAGEN_LOG_LEVEL`, …), not a
+  explicit list (`MOKSHA_DATA_DIR`, `MOKSHA_LOG_LEVEL`, …), not a
   generic mapping of every field. Values from the environment inside the
   file are `${NAME}` (above).
-- **Commands**: `hubwagen config check` and `hubwagen config show`, which
+- **Commands**: `moksha config check` and `moksha config show`, which
   shows where each value came from.
 - **Secrets**: the file never holds secret values, only `*_file` paths to
   them, so it can be committed or shipped as a ConfigMap.

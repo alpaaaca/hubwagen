@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 
 import { useApi } from "../api";
-import type { Haul, Lift } from "../gen/hubwagen/v1/haul_pb";
+import type { Haul, Lift } from "../gen/moksha/v1/haul_pb";
 import { ago, duration, liftStatus, ms, pretty, shortId, Status, steps, took, trigger, Values, when } from "../format";
 import { message, usePoll } from "../hooks";
 import { usePipelines } from "../pipelines";

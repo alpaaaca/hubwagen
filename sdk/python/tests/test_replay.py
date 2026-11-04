@@ -5,8 +5,8 @@ import json
 
 import pytest
 
-import hubwagen as hw
-from hubwagen import _model, _replay
+import moksha as hw
+from moksha import _model, _replay
 
 
 def ev(type_, payload, time="2026-10-26T10:00:00Z"):
@@ -335,7 +335,7 @@ def test_haul_max_parallel_limits_every_lift():
         ctx.lift_async(add, 1, 2)
         return ctx.gather([ctx.lift_async(add, 3, 4)], max_parallel=1)
 
-    r = _replay.replay(limited.__hubwagen_haul__, "h1", {}, [START])
+    r = _replay.replay(limited.__moksha_haul__, "h1", {}, [START])
     assert r.commands[0]["lift"]["limits"] == [{"group": "haul", "max": 3}]
     assert r.commands[1]["lift"]["limits"] == [{"group": "haul", "max": 3}, {"group": "gather:2", "max": 1}]
     with pytest.raises(ValueError, match="max_parallel"):
@@ -463,7 +463,7 @@ def test_keep():
 
 
 def test_lifts_must_agree_on_a_datasets_keep():
-    from hubwagen import worker
+    from moksha import worker
 
     saved = dict(_model.LIFTS)
     try:

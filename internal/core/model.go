@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/state"
 )
 
 // batch collects everything one loop iteration changes: events, the objects

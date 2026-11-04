@@ -1,4 +1,4 @@
-"""hubwagen.testing: hauls against scripted results, and replays of
+"""moksha.testing: hauls against scripted results, and replays of
 recorded logbooks against changed code."""
 
 import json
@@ -8,8 +8,8 @@ import textwrap
 
 import pytest
 
-import hubwagen as hw
-from hubwagen import testing
+import moksha as hw
+from moksha import testing
 
 from conftest import SDK, start_worker, stop, wait
 
@@ -107,7 +107,7 @@ def test_what_isnt_scripted_and_nondeterminism():
 
 
 V1 = '''
-import hubwagen as hw
+import moksha as hw
 
 @hw.lift
 def rp_step(x: str) -> str:
@@ -131,7 +131,7 @@ def test_replay_recorded_logbooks(server, tmp_path):
 
     def replay(code: str):
         (tmp_path / "rp_hauls.py").write_text(textwrap.dedent(code))
-        return subprocess.run([sys.executable, "-m", "hubwagen.testing", "rp_hauls", "--server", server,
+        return subprocess.run([sys.executable, "-m", "moksha.testing", "rp_hauls", "--server", server,
                                "--replay-recent", "5", "--haul", "rp_haul"],
                               cwd=tmp_path, capture_output=True, text=True,
                               env={"PYTHONPATH": f"{SDK / 'src'}:{tmp_path}", "PATH": ""})

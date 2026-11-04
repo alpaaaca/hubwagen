@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useApi } from "../api";
 import { clock } from "../format";
 import { POLL_MS, usePoll } from "../hooks";
-import type { HistoryEntry } from "../gen/hubwagen/v1/haul_pb";
+import type { HistoryEntry } from "../gen/moksha/v1/haul_pb";
 import { Link } from "../router";
 import { Hint } from "../words";
 

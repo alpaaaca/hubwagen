@@ -1,5 +1,5 @@
-// Package server wires the server into one process, for `hubwagen server`
-// and `hubwagen dev`: the state store and the run logs under one data
+// Package server wires the server into one process, for `moksha server`
+// and `moksha dev`: the state store and the run logs under one data
 // directory, the bucket (file:// under it, or s3://), the core, and the API
 // (the Connect services, the data endpoint, /v1/pools, the web UI and
 // /healthz).
@@ -25,16 +25,16 @@ import (
 
 	"github.com/oklog/ulid/v2"
 
-	"github.com/alper/hubwagen/internal/api"
-	"github.com/alper/hubwagen/internal/blob"
-	"github.com/alper/hubwagen/internal/clock"
-	"github.com/alper/hubwagen/internal/core"
-	"github.com/alper/hubwagen/internal/launch"
-	"github.com/alper/hubwagen/internal/layout"
-	"github.com/alper/hubwagen/internal/pallet"
-	"github.com/alper/hubwagen/internal/runlog"
-	"github.com/alper/hubwagen/internal/state"
-	"github.com/alper/hubwagen/internal/webui"
+	"github.com/alper/moksha/internal/api"
+	"github.com/alper/moksha/internal/blob"
+	"github.com/alper/moksha/internal/clock"
+	"github.com/alper/moksha/internal/core"
+	"github.com/alper/moksha/internal/launch"
+	"github.com/alper/moksha/internal/layout"
+	"github.com/alper/moksha/internal/pallet"
+	"github.com/alper/moksha/internal/runlog"
+	"github.com/alper/moksha/internal/state"
+	"github.com/alper/moksha/internal/webui"
 )
 
 type Config struct {
@@ -59,7 +59,7 @@ const HeartbeatTimeout = time.Minute
 type Engine struct {
 	Store  *state.Store
 	Bucket blob.Bucket
-	// BucketID is a file:// bucket's ID, in its .hubwagen-bucket file:
+	// BucketID is a file:// bucket's ID, in its .moksha-bucket file:
 	// workers that find it there share the bucket's filesystem.
 	BucketID string
 	Logs     *runlog.Store // what lifts printed and logged
@@ -79,7 +79,7 @@ type Engine struct {
 }
 
 // ErrLocked means another process is using the data directory.
-var ErrLocked = errors.New("data directory is in use by another hubwagen process")
+var ErrLocked = errors.New("data directory is in use by another moksha process")
 
 // Start opens the data directory and runs the server until Close.
 func Start(ctx context.Context, cfg Config) (*Engine, error) {
@@ -167,7 +167,7 @@ func Start(ctx context.Context, cfg Config) (*Engine, error) {
 }
 
 // bucketMarker names the file in a file:// bucket that holds its ID.
-const bucketMarker = ".hubwagen-bucket"
+const bucketMarker = ".moksha-bucket"
 
 // bucketID reads a file bucket's ID, making one the first time.
 func bucketID(ctx context.Context, b blob.Bucket) (string, error) {
@@ -269,7 +269,7 @@ func lockDir(dir string) (*os.File, error) {
 	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		f.Close()
 		if errors.Is(err, syscall.EWOULDBLOCK) {
-			return nil, fmt.Errorf("%w: %s (is `hubwagen dev` or `hubwagen server` running there?)", ErrLocked, dir)
+			return nil, fmt.Errorf("%w: %s (is `moksha dev` or `moksha server` running there?)", ErrLocked, dir)
 		}
 		return nil, err
 	}

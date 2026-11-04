@@ -1,6 +1,6 @@
 # v1 → v2
 
-What changes when hubwagen moves from the compiled-YAML orchestrator (v1,
+What changes when moksha moves from the compiled-YAML orchestrator (v1,
 M1–M2) to the durable execution engine described in
 [architecture.md](architecture.md), and what carries over. The milestones
 that do the work are in [roadmap.md](roadmap.md).
@@ -38,10 +38,10 @@ one static binary — so most of the engine is reused, not rewritten.
 | `internal/layout` | **Rewritten** | Paths keyed by fingerprint and attempt instead of run key and generation |
 | `internal/taskexec` | **Removed** (M3c) | Its commit-marker ideas became `internal/pallet`. The process wrapper and task contract come back from git history for pod lifts (later) |
 | `internal/runtime/localrt` | **Removed** (M3c) | Comes back from git history as the local pod-lift launcher |
-| `internal/devmode` | **Rewritten** (M3c) | Same role (one process, data-dir lock); it serves the API instead of loading YAML. Since M5 the wiring is `internal/server` (shared with `hubwagen server`) and devmode only prints |
-| `internal/tui` | **Removed** (M3c) | Its views were all v1. M5 builds a web UI in TypeScript (`ui/`, served by `hubwagen dev`) for hauls, logbooks and the catalog on the API; `hubwagen dev` prints events meanwhile |
+| `internal/devmode` | **Rewritten** (M3c) | Same role (one process, data-dir lock); it serves the API instead of loading YAML. Since M5 the wiring is `internal/server` (shared with `moksha server`) and devmode only prints |
+| `internal/tui` | **Removed** (M3c) | Its views were all v1. M5 builds a web UI in TypeScript (`ui/`, served by `moksha dev`) for hauls, logbooks and the catalog on the API; `moksha dev` prints events meanwhile |
 | `internal/spec` | **Removed** (M3c) | The compiler, YAML format and spec hash go away. The template allow-list may be reused for SQL lifts, image digest resolution for code versions of pod lifts |
-| `cmd/compile` | **Removed** (M3c) | Replaced by the SDK's lint (`python -m hubwagen.lint`) and worker registration |
+| `cmd/compile` | **Removed** (M3c) | Replaced by the SDK's lint (`python -m moksha.lint`) and worker registration |
 | `cmd/dev`, `cmd/run` | **Rewritten / removed** (M3c) | `dev` serves the API; `run` is replaced by `start`/`replay` |
 | `pipelines/examples/` | **Replaced** (M3c) | `revenue/`, a Python project |
 | `tests/` | **Kept** | The v1 engine test is gone; the leader-restart test covers hauls |

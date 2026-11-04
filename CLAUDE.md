@@ -1,23 +1,23 @@
-# CLAUDE.md — hubwagen
+# CLAUDE.md — moksha
 
 ## What this is
 
-hubwagen is a durable execution engine for data: pipelines as plain code
+moksha is a durable execution engine for data: pipelines as plain code
 (hauls) that survive crashes and long waits, side-effecting steps (lifts)
 memoized by fingerprint, and every output an immutable, versioned pallet in a
 catalog derived from the event history. One Go server that never runs user
 code, single leader on SQLite (Litestream later); workers in the user's
 environment, Python SDK first.
 
-**Today (M4 done):** `hubwagen dev` serves the API (`hubwagen server`: the
+**Today (M4 done):** `moksha dev` serves the API (`moksha server`: the
 same server for a service manager, logs only, no auth yet; both start the
 config's workers); Python workers
 (`sdk/python`) run hauls and lifts, with code versions from what a lift's
 code reaches and runtime guards in haul code; hauls have signals, version
 markers, fan-out limits, child hauls, continue_as_new, schedules and
-dataset subscriptions; `hubwagen start`/`replay` start them and report
+dataset subscriptions; `moksha start`/`replay` start them and report
 reuse; the SDK has a linter and testing tools. The bucket is a local
-directory or `s3://` (`bucket:` in hubwagen.yaml); only the server opens it,
+directory or `s3://` (`bucket:` in moksha.yaml); only the server opens it,
 and workers on other machines move data through URLs it hands out. The v1 engine (compiled YAML pipelines) was
 removed in M3c; it is in git history up to commit 33ca1ba. **Next:** M5
 (catalog UI, invalidation, staleness); the reuse-by-default decision in
@@ -33,9 +33,9 @@ Read before larger changes:
 - [docs/api-simplification.md](docs/api-simplification.md) — design: lifts return values and dataframes, reuse by default (steps 1–2 built)
 - [docs/spikes/](docs/spikes/) — spike findings (S1: Python replay, S2: code versions)
 - [sdk/python/README.md](sdk/python/README.md) — writing hauls and lifts, the worker
-- [docs/config.md](docs/config.md) — instance configuration (`hubwagen.yaml`)
+- [docs/config.md](docs/config.md) — instance configuration (`moksha.yaml`)
 - [docs/deploy.md](docs/deploy.md) — container images, compose, the Helm chart
-- [docs/projects.md](docs/projects.md) — design: a repo's project file and `hubwagen deploy` (steps 1–3 built: the dry run, deployments, registries and secrets)
+- [docs/projects.md](docs/projects.md) — design: a repo's project file and `moksha deploy` (steps 1–3 built: the dry run, deployments, registries and secrets)
 - [docs/remote-storage.md](docs/remote-storage.md) — design: `s3://` buckets, transfer URLs for remote workers (step 1 built)
 
 Planning is lightweight: a design note in `docs/` when a decision needs one,
@@ -52,25 +52,25 @@ spec-kit.
 | `internal/api` | Connect services over HTTP (`WorkerService`, `HaulService`, `CatalogService`, `LogService`) and the data endpoint (`/v1/data/`, transfer URLs for workers); generated code in `gen/` from `proto/` |
 | `internal/history` | A run's events told in plain words (pipeline, run, step, version, reused), for the web UI's "What happened" |
 | `internal/runlog` | What lifts printed and logged, per attempt: files of JSON lines, capped; not state, not in the event log |
-| `internal/server` | Wires store, bucket, logs, core and API (`/healthz` too) for one process; data-dir lock; `hubwagen server` and `hubwagen dev` both run it |
-| `internal/devmode` | What `hubwagen dev` prints on top of the server (runs and their output; `--events`: event descriptions) |
+| `internal/server` | Wires store, bucket, logs, core and API (`/healthz` too) for one process; data-dir lock; `moksha server` and `moksha dev` both run it |
+| `internal/devmode` | What `moksha dev` prints on top of the server (runs and their output; `--events`: event descriptions) |
 | `internal/haulcli` | What `start` and `replay` do: `--param` ranges, starting and waiting over `HaulService`, the replay report |
 | `internal/deploycli` | What `deploy` does: a project's build from its code (in its image or in place), compared with `ListCode`, then `Deploy`; the `projects` table |
 | `internal/catalogcli` | What `datasets`, `pallets` and `pallet` print, over `CatalogService` (lineage trees) |
 | `internal/schedule` | Calendar and cron math (DST-correct intervals, what is due since a cursor); the core's haul schedules use it |
 | `internal/clock`, `internal/layout` | Real/fake clock; bucket paths (lift staging under dataset and partition, pallet manifests) |
 | `internal/blob` | The bucket: `file://` and `s3://` (minio-go; conditional writes for atomic create-if-absent, presigned URLs); `s3fake/` is an S3-compatible server in memory for tests |
-| `internal/config` | `hubwagen.yaml`: data dir, listen address, worker processes |
+| `internal/config` | `moksha.yaml`: data dir, listen address, worker processes |
 | `internal/supervise` | Runs and restarts worker processes for `dev`, `server` and `workers` (prefixed output, SIGTERM then kill); a group that grows and shrinks |
 | `internal/launch` | What starts a pool's workers besides processes: a container per worker (`docker`/`podman run`), a Kubernetes Deployment's replicas (scale subresource, plain HTTP); the server's secrets (a file each) |
 | `internal/pools` | Scales worker pools (`min`/`max`) from the work waiting on their docks (`core.Demand`), or works out the desired count of external ones (`GET /v1/pools`); reports to the core (`SetPools`) |
 | `cmd/` | `dev`, `server`, `workers`, `deploy` (`--dry-run`), `projects`, `delete`, `start`, `replay`, `signal`, `schedules`, `datasets`, `versions` (alias `pallets`), `data` (alias `pallet`; and `data invalidate`), `stale`, `gc`, `version` |
 | `internal/webui` | Serves the web UI from the binary (embedded `dist/`, filled by `go generate ./internal/webui`; a placeholder page without it) |
 | `ui/` | Web UI: React + TypeScript + Vite on the Connect services (clients generated from `proto/` into `ui/src/gen`); vitest tests |
-| `sdk/python/` | Python SDK (stdlib only, Python ≥ 3.12): `@pipeline`, `@step` (the engine's `@haul`, `@lift` as aliases), replay engine, worker; pytest runs it against a real `hubwagen dev` |
+| `sdk/python/` | Python SDK (stdlib only, Python ≥ 3.12): `@pipeline`, `@step` (the engine's `@haul`, `@lift` as aliases), replay engine, worker; pytest runs it against a real `moksha dev` |
 | `pipelines/examples/revenue/` | Example Python project; `sdk/python/tests/test_example.py` is its demo |
 | `tests/` | Cross-package end-to-end tests (leader restarts) |
-| `Dockerfile`, `sdk/python/Dockerfile`, `deploy/` | Images (server; worker base), `deploy/compose.yaml`, the Helm chart `deploy/helm/hubwagen`; `make images` |
+| `Dockerfile`, `sdk/python/Dockerfile`, `deploy/` | Images (server; worker base), `deploy/compose.yaml`, the Helm chart `deploy/helm/moksha`; `make images` |
 
 ## Words
 
@@ -105,7 +105,7 @@ proto, Go code and docs/architecture.md, and as SDK aliases.
 
 - Raw `database/sql`, no ORM; migrations are embedded SQL files.
 - IDs are ULIDs (`github.com/oklog/ulid/v2`).
-- Times are UTC wherever people see them (web UI, CLI, `hubwagen dev`,
+- Times are UTC wherever people see them (web UI, CLI, `moksha dev`,
   server and worker logs), and say so ("UTC"); stored and sent as UTC
   timestamps. Schedules default to UTC; a schedule's `timezone` only
   decides when its cron fires and what its intervals' days are.
@@ -123,7 +123,7 @@ proto, Go code and docs/architecture.md, and as SDK aliases.
 ## Commands
 
 ```bash
-go build -o hubwagen .
+go build -o moksha .
 go vet ./...
 go test ./...
 go test -race ./...
@@ -131,13 +131,13 @@ go generate ./internal/api    # after changing proto/: buf lint + generate (via 
 (cd ui && npm run gen)        # ...and the UI's TypeScript clients
 go generate ./internal/webui  # build the web UI into the binary (needs Node; dist/ isn't committed)
 (cd ui && npm ci && npm test && npm run typecheck)   # UI tests
-(cd ui && npm run dev)        # UI dev server, proxying the API to a running hubwagen dev
-(cd sdk/python && uv run --no-project --with pytest --with polars --with pandas --with pyarrow --python 3.12 pytest -q)   # Python SDK, incl. against hubwagen dev and dataframes
-HUBWAGEN_TEST_S3=http://key:secret@127.0.0.1:9000/bucket go test ./internal/blob   # the bucket tests also against a real S3-compatible store (MinIO)
-(cd pipelines/examples/revenue && PYTHONPATH=../../../sdk/python/src python3 -m hubwagen.lint)   # lint haul code
+(cd ui && npm run dev)        # UI dev server, proxying the API to a running moksha dev
+(cd sdk/python && uv run --no-project --with pytest --with polars --with pandas --with pyarrow --python 3.12 pytest -q)   # Python SDK, incl. against moksha dev and dataframes
+MOKSHA_TEST_S3=http://key:secret@127.0.0.1:9000/bucket go test ./internal/blob   # the bucket tests also against a real S3-compatible store (MinIO)
+(cd pipelines/examples/revenue && PYTHONPATH=../../../sdk/python/src python3 -m moksha.lint)   # lint haul code
 
-./hubwagen dev --config pipelines/examples/revenue/hubwagen.yaml   # server + 3 workers; API on 127.0.0.1:7070
-./hubwagen server --config pipelines/examples/revenue/hubwagen.yaml --log-format json   # for a service manager, with the config's workers (--no-workers: ./hubwagen workers --config …)
-./hubwagen replay daily --param day=2026-10-01..2026-10-03   # start hauls, report what was reused
+./moksha dev --config pipelines/examples/revenue/moksha.yaml   # server + 3 workers; API on 127.0.0.1:7070
+./moksha server --config pipelines/examples/revenue/moksha.yaml --log-format json   # for a service manager, with the config's workers (--no-workers: ./moksha workers --config …)
+./moksha replay daily --param day=2026-10-01..2026-10-03   # start hauls, report what was reused
 make images && make up    # server + example workers in containers (deploy/compose.yaml); CONTAINER=podman to choose
 ```

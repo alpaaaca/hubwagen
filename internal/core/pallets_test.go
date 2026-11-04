@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alper/hubwagen/internal/blob"
-	"github.com/alper/hubwagen/internal/layout"
-	"github.com/alper/hubwagen/internal/pallet"
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/blob"
+	"github.com/alper/moksha/internal/layout"
+	"github.com/alper/moksha/internal/pallet"
+	"github.com/alper/moksha/internal/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

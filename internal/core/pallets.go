@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alper/hubwagen/internal/pallet"
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/pallet"
+	"github.com/alper/moksha/internal/state"
 )
 
 // Lifts with an output produce a pallet, and so does a lift without one

@@ -11,8 +11,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/alper/hubwagen/internal/blob"
-	"github.com/alper/hubwagen/internal/layout"
+	"github.com/alper/moksha/internal/blob"
+	"github.com/alper/moksha/internal/layout"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -134,7 +134,7 @@ func TestPromoteChecksFilesArePresent(t *testing.T) {
 	assert.ErrorIs(t, err, blob.ErrNotExist, "nothing was promoted")
 }
 
-// remove deletes an object behind hubwagen's back, as someone could.
+// remove deletes an object behind moksha's back, as someone could.
 func remove(t *testing.T, b blob.Bucket, uri string) {
 	t.Helper()
 	path, ok := b.LocalPath(uri)

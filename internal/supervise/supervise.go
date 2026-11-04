@@ -4,7 +4,7 @@
 // and some time to finish before it is killed.
 //
 // The processes run in their own process groups, so a Ctrl-C in the
-// terminal reaches only hubwagen, which then stops them in order.
+// terminal reaches only moksha, which then stops them in order.
 package supervise
 
 import (

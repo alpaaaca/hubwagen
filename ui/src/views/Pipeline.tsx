@@ -57,7 +57,7 @@ export function Pipeline({ haul }: { haul: string }) {
               {sub.waiting > 0 && ` (${sub.waiting} waiting)`}
             </>
           ) : (
-            "when started (from here, hubwagen start, or another pipeline)"
+            "when started (from here, moksha start, or another pipeline)"
           )}
         </dd>
         {schedule && (

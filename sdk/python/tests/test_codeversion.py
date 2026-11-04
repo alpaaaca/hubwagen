@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from hubwagen import _codeversion, _model
+from moksha import _codeversion, _model
 
 BASE = {
     "pyproject.toml": "[project]\nname = 'proj'\n",
@@ -47,7 +47,7 @@ BASE = {
         import importlib
         from pathlib import Path
 
-        import hubwagen as hw
+        import moksha as hw
         from proj import helpers
         from proj.helpers import clean
         from proj.shapes import Box
@@ -138,8 +138,8 @@ def load(root: Path, files: dict[str, str]) -> dict[str, str]:
     saved_lifts, saved_hauls = dict(_model.LIFTS), dict(_model.HAULS)
     try:
         mod = importlib.import_module("proj.lifts")
-        out = {n: getattr(mod, n).__hubwagen_lift__.code_version() for n in LIFTS}
-        out["flow"] = mod.flow.__hubwagen_haul__.code_version()
+        out = {n: getattr(mod, n).__moksha_lift__.code_version() for n in LIFTS}
+        out["flow"] = mod.flow.__moksha_haul__.code_version()
         return out
     finally:
         sys.path.remove(str(root))
@@ -229,8 +229,8 @@ def test_packages_count_by_version(tmp_path):
         p = _codeversion.parts(mod.uses_pytest)
         assert "pytest" in p["packages"], p
         assert "pluggy" in p["packages"], "with what it requires"
-        assert "hubwagen" not in p["packages"]
-        assert _codeversion.parts(mod.plain)["packages"] == {}, "stdlib and hubwagen don't count"
+        assert "moksha" not in p["packages"]
+        assert _codeversion.parts(mod.plain)["packages"] == {}, "stdlib and moksha don't count"
         assert p["python"].startswith(f"{sys.implementation.name} {sys.version_info.major}.")
     finally:
         sys.path.remove(str(tmp_path))
@@ -253,5 +253,5 @@ def test_version_pins():
     def pinned() -> int:
         return 1
 
-    assert pinned.__hubwagen_lift__.code_version() == "7"
+    assert pinned.__moksha_lift__.code_version() == "7"
     _model.LIFTS.pop("pinned_cv")

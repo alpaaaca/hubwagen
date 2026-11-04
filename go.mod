@@ -1,4 +1,4 @@
-module github.com/alper/hubwagen
+module github.com/alper/moksha
 
 go 1.26.4
 

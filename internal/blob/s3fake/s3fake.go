@@ -1,9 +1,9 @@
 // Package s3fake is an S3-compatible server in memory, for tests: the part
-// of the S3 HTTP API hubwagen uses (path-style buckets; PUT with
+// of the S3 HTTP API moksha uses (path-style buckets; PUT with
 // If-None-Match and x-amz-checksum-sha256, GET, HEAD, DELETE, ListObjectsV2,
 // multi-object delete, bucket location), over real HTTP. It checks that
 // requests are signed or presigned and that presigned URLs haven't expired,
-// but not the signatures themselves; a real store (HUBWAGEN_TEST_S3) covers
+// but not the signatures themselves; a real store (MOKSHA_TEST_S3) covers
 // those.
 package s3fake
 

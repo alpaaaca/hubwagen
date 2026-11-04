@@ -1,11 +1,11 @@
-"""hubwagen lint on small modules, and on the example project."""
+"""moksha lint on small modules, and on the example project."""
 
 import subprocess
 import sys
 import textwrap
 from pathlib import Path
 
-from hubwagen.lint import lint_source, main
+from moksha.lint import lint_source, main
 
 from conftest import REPO, SDK
 
@@ -25,7 +25,7 @@ def test_each_rule():
         from time import time as now
         from uuid import uuid4
 
-        import hubwagen as hw
+        import moksha as hw
 
 
         @hw.lift
@@ -62,7 +62,7 @@ def test_each_rule():
 def test_only_haul_code_and_noqa():
     src = '''
         import time
-        from hubwagen import haul, lift
+        from moksha import haul, lift
 
         @lift
         def stamp():
@@ -88,7 +88,7 @@ def test_only_haul_code_and_noqa():
 
 
 def test_messages_name_the_place():
-    f = lint_source("import hubwagen as hw\n@hw.haul\ndef h(ctx):\n    return hw.x(open('f'))\n", "app/hauls.py")[0]
+    f = lint_source("import moksha as hw\n@hw.haul\ndef h(ctx):\n    return hw.x(open('f'))\n", "app/hauls.py")[0]
     assert str(f) == "app/hauls.py:4:17: HW004 pipeline h: open() does I/O; do it in a step"
     assert lint_source("def broken(:\n", "bad.py")[0].code == "HW000"
 
@@ -99,19 +99,19 @@ def test_example_project_is_clean(monkeypatch, capsys):
 
 
 def test_command_line(tmp_path):
-    (tmp_path / "pyproject.toml").write_text('[tool.hubwagen]\nmodules = ["app.hauls"]\n')
+    (tmp_path / "pyproject.toml").write_text('[tool.moksha]\nmodules = ["app.hauls"]\n')
     (tmp_path / "app").mkdir()
     (tmp_path / "app" / "__init__.py").write_text("")
-    (tmp_path / "app" / "hauls.py").write_text("import random\nimport hubwagen as hw\n\n@hw.haul\ndef h(ctx):\n    return random.random()\n")
-    run = subprocess.run([sys.executable, "-m", "hubwagen.lint"], cwd=tmp_path, capture_output=True, text=True,
+    (tmp_path / "app" / "hauls.py").write_text("import random\nimport moksha as hw\n\n@hw.haul\ndef h(ctx):\n    return random.random()\n")
+    run = subprocess.run([sys.executable, "-m", "moksha.lint"], cwd=tmp_path, capture_output=True, text=True,
                          env={"PYTHONPATH": str(SDK / "src")})
     assert run.returncode == 1
     assert run.stdout == "app/hauls.py:6:12: HW002 pipeline h: random.random() is random; use ctx.random() or a step\n"
     assert run.stderr == "1 problem\n"
-    ok = subprocess.run([sys.executable, "-m", "hubwagen.lint", "app/__init__.py"], cwd=tmp_path,
+    ok = subprocess.run([sys.executable, "-m", "moksha.lint", "app/__init__.py"], cwd=tmp_path,
                         capture_output=True, text=True, env={"PYTHONPATH": str(SDK / "src")})
     assert ok.returncode == 0
-    bad = subprocess.run([sys.executable, "-m", "hubwagen.lint", "nope.mod"], cwd=tmp_path,
+    bad = subprocess.run([sys.executable, "-m", "moksha.lint", "nope.mod"], cwd=tmp_path,
                          capture_output=True, text=True, env={"PYTHONPATH": str(SDK / "src")})
     assert bad.returncode != 0 and "nope.mod: no such file" in bad.stderr
 

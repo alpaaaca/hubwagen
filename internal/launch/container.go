@@ -1,4 +1,4 @@
-// Package launch builds what starts a pool's workers when hubwagen doesn't
+// Package launch builds what starts a pool's workers when moksha doesn't
 // run them as plain processes: a container per worker (Container), or a
 // Kubernetes Deployment whose replicas the server sets (Kube). Pools
 // (internal/pools) decide how many; this package only knows how.
@@ -16,8 +16,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/alper/hubwagen/internal/config"
-	"github.com/alper/hubwagen/internal/supervise"
+	"github.com/alper/moksha/internal/config"
+	"github.com/alper/moksha/internal/supervise"
 )
 
 // Runtime is the container runtime for w: its runtime field, else docker
@@ -57,8 +57,8 @@ func ContainerServerURL(w config.Worker, server string) string {
 // Labels on every container: its pool, and the server's data directory,
 // so a server finds its own leftovers and no other server's.
 const (
-	LabelPool    = "hubwagen.pool"
-	LabelDataDir = "hubwagen.data_dir"
+	LabelPool    = "moksha.pool"
+	LabelDataDir = "moksha.data_dir"
 )
 
 // Container is worker id of w as a container: `<runtime> run` in the
@@ -66,14 +66,14 @@ const (
 // stops it with SIGTERM (which the runtime passes on), and `<runtime> rm
 // -f` as its cleanup. env (NAME=value) goes into the container, by name
 // only on the command line; the container reaches the server at
-// ContainerServerURL and moves data through the server (HUBWAGEN_DATA=
+// ContainerServerURL and moves data through the server (MOKSHA_DATA=
 // remote: it shares no files with it). dataDir is the server's, for the
 // labels.
 func Container(w config.Worker, id, server, dataDir string, env []string) supervise.Process {
 	rt := Runtime(w)
-	name := "hubwagen-" + id
+	name := "moksha-" + id
 	env = append(append([]string(nil), env...),
-		config.EnvServer+"="+ContainerServerURL(w, server), "HUBWAGEN_DATA=remote")
+		config.EnvServer+"="+ContainerServerURL(w, server), "MOKSHA_DATA=remote")
 	args := []string{rt, "run", "--rm", "--name", name, "--label", LabelPool + "=" + w.Name, "--label", LabelDataDir + "=" + dataDir}
 	if rt == "docker" {
 		args = append(args, "--add-host=host.docker.internal:host-gateway") // Linux; Docker Desktop has it already
@@ -102,7 +102,7 @@ func Container(w config.Worker, id, server, dataDir string, env []string) superv
 		Cleanup: []string{rt, "rm", "-f", name}}
 }
 
-// RemoveLeftovers removes the containers a hubwagen on dataDir started and
+// RemoveLeftovers removes the containers a moksha on dataDir started and
 // didn't stop (of pool, or of every pool if pool is ""): one killed with
 // SIGKILL leaves them running (their runtime process is in its own process
 // group), still polling, and nothing would stop them. Run it before any

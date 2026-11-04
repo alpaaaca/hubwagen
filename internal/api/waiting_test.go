@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
-	"github.com/alper/hubwagen/internal/api/gen/hubwagen/v1/hubwagenv1connect"
-	"github.com/alper/hubwagen/internal/core"
+	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
+	"github.com/alper/moksha/internal/api/gen/moksha/v1/mokshav1connect"
+	"github.com/alper/moksha/internal/core"
 )
 
 func TestWaitingOverTheAPI(t *testing.T) {
@@ -20,20 +20,20 @@ func TestWaitingOverTheAPI(t *testing.T) {
 	mux := http.NewServeMux()
 	path, h := NewHaulHandler(s.core, s.store)
 	mux.Handle(path, h)
-	c := hubwagenv1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
+	c := mokshav1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
 	require.NoError(t, s.core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Hauls: []string{"daily"}}))
-	res, err := c.StartHaul(ctx, connect.NewRequest(&hubwagenv1.StartHaulRequest{Tenant: "t", Name: "daily"}))
+	res, err := c.StartHaul(ctx, connect.NewRequest(&mokshav1.StartHaulRequest{Tenant: "t", Name: "daily"}))
 	require.NoError(t, err)
 	id := res.Msg.HaulId
 
-	got, err := c.GetHaul(ctx, connect.NewRequest(&hubwagenv1.GetHaulRequest{HaulId: id}))
+	got, err := c.GetHaul(ctx, connect.NewRequest(&mokshav1.GetHaulRequest{HaulId: id}))
 	require.NoError(t, err)
 	w := got.Msg.Haul.Waiting
 	require.NotNil(t, w)
 	assert.Equal(t, []string{"no_worker", "haul", "daily", "default"}, []string{w.Reason, w.Kind, w.Name, w.Dock})
 	assert.Contains(t, w.Message, "no worker is connected")
 	assert.NotNil(t, w.Since)
-	list, err := c.ListHauls(ctx, connect.NewRequest(&hubwagenv1.ListHaulsRequest{}))
+	list, err := c.ListHauls(ctx, connect.NewRequest(&mokshav1.ListHaulsRequest{}))
 	require.NoError(t, err)
 	require.Len(t, list.Msg.Hauls, 1)
 	assert.Equal(t, "no_worker", list.Msg.Hauls[0].Waiting.GetReason())
@@ -42,10 +42,10 @@ func TestWaitingOverTheAPI(t *testing.T) {
 	_, ok, err := s.core.Poll(ctx, core.PollRequest{WorkerID: "w1", BuildID: "b1", Docks: []string{"default"}})
 	require.NoError(t, err)
 	require.True(t, ok)
-	got, err = c.GetHaul(ctx, connect.NewRequest(&hubwagenv1.GetHaulRequest{HaulId: id}))
+	got, err = c.GetHaul(ctx, connect.NewRequest(&mokshav1.GetHaulRequest{HaulId: id}))
 	require.NoError(t, err)
 	assert.Nil(t, got.Msg.Haul.Waiting)
-	workers, err := c.ListWorkers(ctx, connect.NewRequest(&hubwagenv1.ListWorkersRequest{}))
+	workers, err := c.ListWorkers(ctx, connect.NewRequest(&mokshav1.ListWorkersRequest{}))
 	require.NoError(t, err)
 	require.Len(t, workers.Msg.Workers, 1)
 	wk := workers.Msg.Workers[0]
@@ -61,9 +61,9 @@ func TestWaitingText(t *testing.T) {
 		want string
 	}{
 		{core.Waiting{Reason: core.WaitNoWorker, Kind: core.TaskHaul, Name: "daily", Dock: "default"},
-			"no worker is connected to run the pipeline's code. Start one with `python -m hubwagen.worker <modules>` (or `hubwagen workers --config hubwagen.yaml`)"},
+			"no worker is connected to run the pipeline's code. Start one with `python -m moksha.worker <modules>` (or `moksha workers --config moksha.yaml`)"},
 		{core.Waiting{Reason: core.WaitNoWorker, Kind: core.TaskLift, Name: "train", Dock: "gpu"},
-			"no worker is connected on dock \"gpu\" to run step train. Start one with `python -m hubwagen.worker --dock gpu <modules>` (or `hubwagen workers --config hubwagen.yaml`)"},
+			"no worker is connected on dock \"gpu\" to run step train. Start one with `python -m moksha.worker --dock gpu <modules>` (or `moksha workers --config moksha.yaml`)"},
 		{core.Waiting{Reason: core.WaitNoBuild, Kind: core.TaskHaul, Name: "daily", Dock: "default", Workers: 1, Builds: []string{"0123456789abcdef"}},
 			"1 worker is connected, but its code doesn't define pipeline daily (build 0123456789ab). Restart a worker with code that has it"},
 		{core.Waiting{Reason: core.WaitNoBuild, Kind: core.TaskLift, Name: "load", Dock: "default", Workers: 2, Builds: []string{"b1", "b2"}},
@@ -84,11 +84,11 @@ func TestListPools(t *testing.T) {
 	mux := http.NewServeMux()
 	path, h := NewHaulHandler(s.core, s.store)
 	mux.Handle(path, h)
-	c := hubwagenv1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
+	c := mokshav1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
 	at := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
 	require.NoError(t, s.core.SetPools(ctx, []core.PoolStatus{{Name: "py", Docks: []string{"default"}, Min: 0, Max: 3,
 		Workers: []string{"py-1"}, Starting: 1, Decision: "started py-1: 1 run waits on default", DecidedAt: at}}))
-	res, err := c.ListPools(ctx, connect.NewRequest(&hubwagenv1.ListPoolsRequest{}))
+	res, err := c.ListPools(ctx, connect.NewRequest(&mokshav1.ListPoolsRequest{}))
 	require.NoError(t, err)
 	require.Len(t, res.Msg.Pools, 1)
 	p := res.Msg.Pools[0]

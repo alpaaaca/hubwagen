@@ -16,7 +16,7 @@ import pytest
 from conftest import start_dev, start_s3fake, start_worker, stop
 from test_example import EXAMPLE, normalize
 
-from hubwagen import _data
+from moksha import _data
 
 FIRST = normalize("""
     2 runs started
@@ -36,8 +36,8 @@ AGAIN = normalize("""
 """)
 
 
-def replay(hubwagen_bin: str, url: str) -> str:
-    r = subprocess.run([hubwagen_bin, "replay", "daily", "--server", url, "--param", "day=2026-10-01..2026-10-02"],
+def replay(moksha_bin: str, url: str) -> str:
+    r = subprocess.run([moksha_bin, "replay", "daily", "--server", url, "--param", "day=2026-10-01..2026-10-02"],
                        capture_output=True, text=True, timeout=60)
     assert r.returncode == 0, r.stdout + r.stderr
     return normalize(r.stdout)
@@ -49,14 +49,14 @@ def project(tmp_path: Path) -> Path:
     return p
 
 
-def test_file_bucket_through_the_server(hubwagen_bin, tmp_path):
+def test_file_bucket_through_the_server(moksha_bin, tmp_path):
     (tmp_path / "server").mkdir()
-    url, dev = start_dev(hubwagen_bin, tmp_path / "server")
+    url, dev = start_dev(moksha_bin, tmp_path / "server")
     log = tmp_path / "worker.log"
     worker = start_worker(url, None, project(tmp_path), log, "--data", "remote")
     try:
-        assert replay(hubwagen_bin, url) == FIRST
-        assert replay(hubwagen_bin, url) == AGAIN
+        assert replay(moksha_bin, url) == FIRST
+        assert replay(moksha_bin, url) == AGAIN
     finally:
         stop(worker)
         stop(dev, signal.SIGINT)
@@ -66,15 +66,15 @@ def test_file_bucket_through_the_server(hubwagen_bin, tmp_path):
     assert len(staged) == 2 * 2, "the uploads landed in the server's bucket: extract ran twice for two days"
 
 
-def test_s3_bucket_with_presigned_urls(hubwagen_bin, s3fake_bin, tmp_path):
+def test_s3_bucket_with_presigned_urls(moksha_bin, s3fake_bin, tmp_path):
     endpoint, s3 = start_s3fake(s3fake_bin, "hwb")
     server = tmp_path / "server"
     server.mkdir()
     (server / "key_id").write_text("test-key\n")
     (server / "secret").write_text("test-secret\n")
-    config = server / "hubwagen.yaml"
+    config = server / "moksha.yaml"
     config.write_text(f"""
-apiVersion: hubwagen.dev/v1alpha1
+apiVersion: moksha.dev/v1alpha1
 kind: Config
 bucket:
   url: s3://hwb/prod
@@ -83,12 +83,12 @@ bucket:
   access_key_id_file: key_id
   secret_access_key_file: secret
 """)
-    url, dev = start_dev(hubwagen_bin, server, config=config)
+    url, dev = start_dev(moksha_bin, server, config=config)
     log = tmp_path / "worker.log"
     worker = start_worker(url, None, project(tmp_path), log)  # --data auto: the bucket isn't a directory here
     try:
-        assert replay(hubwagen_bin, url) == FIRST
-        assert replay(hubwagen_bin, url) == AGAIN
+        assert replay(moksha_bin, url) == FIRST
+        assert replay(moksha_bin, url) == AGAIN
     finally:
         stop(worker)
         stop(dev, signal.SIGINT)
@@ -120,17 +120,17 @@ def test_shares_bucket(tmp_path):
         _data.is_remote("local", s3)
 
 
-def test_dataframes_through_the_server(hubwagen_bin, tmp_path):
+def test_dataframes_through_the_server(moksha_bin, tmp_path):
     """Steps that return and load dataframes (Parquet files) on a remote
     worker."""
     pytest.importorskip("polars")
     pytest.importorskip("pandas")
     import json
 
-    import hubwagen as hw
+    import moksha as hw
     from conftest import SDK, wait
 
-    url, dev = start_dev(hubwagen_bin, tmp_path)
+    url, dev = start_dev(moksha_bin, tmp_path)
     worker = start_worker(url, "frame_hauls", SDK / "tests", tmp_path / "worker.log", "--data", "remote")
     try:
         client = hw.Client(url)

@@ -6,17 +6,17 @@ import sys
 import time
 from pathlib import Path
 
-from hubwagen import worker
+from moksha import worker
 
 
 def test_docks_and_lifts_come_from_the_worker_group(monkeypatch):
-    monkeypatch.delenv("HUBWAGEN_DOCKS", raising=False)
-    monkeypatch.delenv("HUBWAGEN_LIFTS", raising=False)
+    monkeypatch.delenv("MOKSHA_DOCKS", raising=False)
+    monkeypatch.delenv("MOKSHA_LIFTS", raising=False)
     args = worker.parse_args([])
     assert (args.dock, args.lifts) == (["default"], 4)
 
-    monkeypatch.setenv("HUBWAGEN_DOCKS", "gpu,default")
-    monkeypatch.setenv("HUBWAGEN_LIFTS", "2")
+    monkeypatch.setenv("MOKSHA_DOCKS", "gpu,default")
+    monkeypatch.setenv("MOKSHA_LIFTS", "2")
     args = worker.parse_args([])
     assert (args.dock, args.lifts) == (["gpu", "default"], 2)
 
@@ -25,7 +25,7 @@ def test_docks_and_lifts_come_from_the_worker_group(monkeypatch):
 
 
 def test_build_json_is_what_a_worker_registers():
-    import hubwagen as hw
+    import moksha as hw
 
     @hw.lift(name="build_json_load")
     def load(x: int) -> int:
@@ -51,7 +51,7 @@ def test_a_worker_stops_on_sigterm_while_it_waits_for_the_server(tmp_path):
     (tmp_path / "nothing.py").write_text("")
     log = tmp_path / "worker.log"
     env = {**os.environ, "PYTHONPATH": str(Path(__file__).parents[1] / "src")}
-    proc = subprocess.Popen([sys.executable, "-m", "hubwagen.worker", "nothing", "--server", f"http://127.0.0.1:{port}"],
+    proc = subprocess.Popen([sys.executable, "-m", "moksha.worker", "nothing", "--server", f"http://127.0.0.1:{port}"],
                             cwd=tmp_path, env=env, stdout=open(log, "w"), stderr=subprocess.STDOUT)
     try:
         for _ in range(200):

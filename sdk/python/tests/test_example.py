@@ -1,5 +1,5 @@
 """The M3c demo: the example project in pipelines/examples/revenue, run by a
-real worker against `hubwagen dev`, replayed with the `hubwagen replay`
+real worker against `moksha dev`, replayed with the `moksha replay`
 command. The second replay reuses what didn't change; changing a lift's
 code or the source data reruns exactly what depends on it."""
 
@@ -10,7 +10,7 @@ import subprocess
 
 import pytest
 
-import hubwagen as hw
+import moksha as hw
 
 from conftest import REPO, start_dev, start_worker, stop
 
@@ -23,14 +23,14 @@ def normalize(report: str) -> str:
 
 
 @pytest.fixture
-def demo(hubwagen_bin, tmp_path):
+def demo(moksha_bin, tmp_path):
     project = tmp_path / "revenue"
     shutil.copytree(EXAMPLE, project)
-    url, dev = start_dev(hubwagen_bin, tmp_path)
+    url, dev = start_dev(moksha_bin, tmp_path)
     procs = {"worker": start_worker(url, None, project, tmp_path / "worker.log")}  # modules from pyproject.toml
 
     def replay(days: str) -> str:
-        r = subprocess.run([hubwagen_bin, "replay", "daily", "--server", url, "--param", f"day={days}"],
+        r = subprocess.run([moksha_bin, "replay", "daily", "--server", url, "--param", f"day={days}"],
                            capture_output=True, text=True, timeout=60)
         assert r.returncode == 0, r.stdout + r.stderr
         return normalize(r.stdout)

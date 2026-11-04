@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/state"
 )
 
 // Signals are input from outside delivered to a running haul (an approval, a

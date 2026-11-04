@@ -20,8 +20,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/durationpb"
 
-	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
-	"github.com/alper/hubwagen/internal/api/gen/hubwagen/v1/hubwagenv1connect"
+	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
+	"github.com/alper/moksha/internal/api/gen/moksha/v1/mokshav1connect"
 )
 
 // freeListen returns a loopback address with a port nothing listens on.
@@ -34,7 +34,7 @@ func freeListen(t *testing.T) string {
 	return addr
 }
 
-// runServerCmd runs `hubwagen server` in this process with a config whose
+// runServerCmd runs `moksha server` in this process with a config whose
 // one worker is a shell script that writes what it got to out, and stops
 // on SIGTERM. It returns the listen address and the command's result.
 func runServerCmd(t *testing.T, out string, args ...string) (string, <-chan error) {
@@ -47,17 +47,17 @@ func runServerCmd(t *testing.T, out string, args ...string) (string, <-chan erro
 func runServerCmdWith(t *testing.T, out, group string, args ...string) (string, <-chan error) {
 	t.Helper()
 	listen := freeListen(t)
-	script := fmt.Sprintf(`trap 'echo stopped >> %[1]s; exit 0' TERM; echo "$HUBWAGEN_SERVER $HUBWAGEN_WORKER_ID $HUBWAGEN_DOCKS $HUBWAGEN_LIFTS" >> %[1]s; echo hello; while :; do sleep 0.05; done`, out)
+	script := fmt.Sprintf(`trap 'echo stopped >> %[1]s; exit 0' TERM; echo "$MOKSHA_SERVER $MOKSHA_WORKER_ID $MOKSHA_DOCKS $MOKSHA_LIFTS" >> %[1]s; echo hello; while :; do sleep 0.05; done`, out)
 	return listen, runServerConfig(t, listen, fmt.Sprintf("workers:\n  - name: sh\n    command: [/bin/sh, -c, %q]\n%s", script, group), args...)
 }
 
-// runServerConfig runs `hubwagen server` on listen with rest (YAML) after
+// runServerConfig runs `moksha server` on listen with rest (YAML) after
 // the config's header, until healthy.
 func runServerConfig(t *testing.T, listen, rest string, args ...string) <-chan error {
 	t.Helper()
 	dir := t.TempDir()
-	cfg := fmt.Sprintf("apiVersion: hubwagen.dev/v1alpha1\nkind: Config\ndata_dir: data\nserver:\n  listen: %s\n%s", listen, rest)
-	path := filepath.Join(dir, "hubwagen.yaml")
+	cfg := fmt.Sprintf("apiVersion: moksha.dev/v1alpha1\nkind: Config\ndata_dir: data\nserver:\n  listen: %s\n%s", listen, rest)
+	path := filepath.Join(dir, "moksha.yaml")
 	require.NoError(t, os.WriteFile(path, []byte(cfg), 0o644))
 	noWorkers = false
 	rootCmd.SetArgs(append([]string{"server", "--config", path}, args...))
@@ -139,7 +139,7 @@ func TestServerRunsAContainerPool(t *testing.T) {
 	bin, logf := t.TempDir(), filepath.Join(t.TempDir(), "docker.log")
 	require.NoError(t, os.WriteFile(filepath.Join(bin, "docker"), []byte(`#!/bin/sh
 case "$1" in
-run) echo "run $HUBWAGEN_SERVER $HUBWAGEN_WORKER_ID $HUBWAGEN_DATA | $*" >> `+logf+`
+run) echo "run $MOKSHA_SERVER $MOKSHA_WORKER_ID $MOKSHA_DATA | $*" >> `+logf+`
      trap 'exit 0' TERM; while :; do sleep 0.05; done ;;
 esac
 `), 0o755))
@@ -150,7 +150,7 @@ esac
 	require.Eventually(t, func() bool { return read() != "" }, 10*time.Second, 20*time.Millisecond)
 	stopServerCmd(t, done)
 	_, port, _ := net.SplitHostPort(listen)
-	assert.True(t, strings.HasPrefix(read(), "run http://host.docker.internal:"+port+" c-1 remote | run --rm --name hubwagen-c-1 "), read())
+	assert.True(t, strings.HasPrefix(read(), "run http://host.docker.internal:"+port+" c-1 remote | run --rm --name moksha-c-1 "), read())
 	assert.True(t, strings.HasSuffix(read(), " acme/revenue:1\n"), read())
 }
 
@@ -159,19 +159,19 @@ esac
 func TestServerRunsDeployedProjects(t *testing.T) {
 	bin, logf, dir := t.TempDir(), filepath.Join(t.TempDir(), "workers.log"), t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(bin, "python3"), []byte(`#!/bin/sh
-echo "start $HUBWAGEN_WORKER_ID $HUBWAGEN_DOCKS $HUBWAGEN_LIFTS $GREETING $(pwd)" >> `+logf+`
-trap 'echo "stop $HUBWAGEN_WORKER_ID" >> `+logf+`; exit 0' TERM
+echo "start $MOKSHA_WORKER_ID $MOKSHA_DOCKS $MOKSHA_LIFTS $GREETING $(pwd)" >> `+logf+`
+trap 'echo "stop $MOKSHA_WORKER_ID" >> `+logf+`; exit 0' TERM
 while :; do sleep 0.05; done
 `), 0o755))
 	listen := freeListen(t)
 	done := runServerConfig(t, listen, "")
-	c := hubwagenv1connect.NewDeployServiceClient(http.DefaultClient, "http://"+listen)
+	c := mokshav1connect.NewDeployServiceClient(http.DefaultClient, "http://"+listen)
 	deploy := func(build string) {
 		t.Helper()
-		_, err := c.Deploy(context.Background(), connect.NewRequest(&hubwagenv1.DeployRequest{
+		_, err := c.Deploy(context.Background(), connect.NewRequest(&mokshav1.DeployRequest{
 			Project: "revenue", Dir: dir, Python: filepath.Join(bin, "python3"), Env: map[string]string{"GREETING": "hi"},
-			Build: &hubwagenv1.RegisterBuildRequest{BuildId: build, Hauls: []string{"daily"}},
-			Pools: []*hubwagenv1.DeployedPool{{Name: "default", Docks: []string{"default"}, Min: 1, Max: 2, Lifts: 3, IdleAfter: durationpb.New(time.Minute)}}}))
+			Build: &mokshav1.RegisterBuildRequest{BuildId: build, Hauls: []string{"daily"}},
+			Pools: []*mokshav1.DeployedPool{{Name: "default", Docks: []string{"default"}, Min: 1, Max: 2, Lifts: 3, IdleAfter: durationpb.New(time.Minute)}}}))
 		require.NoError(t, err)
 	}
 	read := func() string { b, _ := os.ReadFile(logf); return string(b) }
@@ -186,7 +186,7 @@ while :; do sleep 0.05; done
 	deploy("b2") // the rollout: v2 starts, v1 stops
 	wait("start revenue-default-v2-1")
 	wait("stop revenue-default-v1-1")
-	_, err := c.DeleteProject(context.Background(), connect.NewRequest(&hubwagenv1.DeleteProjectRequest{Project: "revenue", By: "test"}))
+	_, err := c.DeleteProject(context.Background(), connect.NewRequest(&mokshav1.DeleteProjectRequest{Project: "revenue", By: "test"}))
 	require.NoError(t, err)
 	wait("stop revenue-default-v2-1")
 	stopServerCmd(t, done)
@@ -197,23 +197,23 @@ while :; do sleep 0.05; done
 func TestServerGivesDeployedWorkersTheirSecrets(t *testing.T) {
 	bin, logf, dir, secrets := t.TempDir(), filepath.Join(t.TempDir(), "workers.log"), t.TempDir(), t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(bin, "python3"), []byte(`#!/bin/sh
-echo "start $HUBWAGEN_WORKER_ID db=$DB_PASSWORD args=$*" >> `+logf+`
+echo "start $MOKSHA_WORKER_ID db=$DB_PASSWORD args=$*" >> `+logf+`
 trap 'exit 0' TERM
 while :; do sleep 0.05; done
 `), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(secrets, "revenue-db"), []byte("s3cr3t\n"), 0o600))
 	listen := freeListen(t)
 	done := runServerConfig(t, listen, fmt.Sprintf("projects: {secrets_dir: %q}\n", secrets))
-	c := hubwagenv1connect.NewDeployServiceClient(http.DefaultClient, "http://"+listen)
-	req := &hubwagenv1.DeployRequest{Project: "revenue", Dir: dir, Python: filepath.Join(bin, "python3"),
+	c := mokshav1connect.NewDeployServiceClient(http.DefaultClient, "http://"+listen)
+	req := &mokshav1.DeployRequest{Project: "revenue", Dir: dir, Python: filepath.Join(bin, "python3"),
 		Secrets: map[string]string{"DB_PASSWORD": "revenue-db"},
-		Build:   &hubwagenv1.RegisterBuildRequest{BuildId: "b1", Hauls: []string{"daily"}},
-		Pools:   []*hubwagenv1.DeployedPool{{Name: "default", Docks: []string{"default"}, Min: 1, Max: 1, Lifts: 1, IdleAfter: durationpb.New(time.Minute)}}}
+		Build:   &mokshav1.RegisterBuildRequest{BuildId: "b1", Hauls: []string{"daily"}},
+		Pools:   []*mokshav1.DeployedPool{{Name: "default", Docks: []string{"default"}, Min: 1, Max: 1, Lifts: 1, IdleAfter: durationpb.New(time.Minute)}}}
 	_, err := c.Deploy(context.Background(), connect.NewRequest(req))
 	require.NoError(t, err)
 	read := func() string { b, _ := os.ReadFile(logf); return string(b) }
 	require.Eventually(t, func() bool { return strings.Contains(read(), "start revenue-default-v1-1") }, 15*time.Second, 50*time.Millisecond)
-	assert.Contains(t, read(), "db=s3cr3t args=-m hubwagen.worker\n", "the value in its environment, not its arguments")
+	assert.Contains(t, read(), "db=s3cr3t args=-m moksha.worker\n", "the value in its environment, not its arguments")
 
 	// A secret the server doesn't have: refused at deploy.
 	req.Secrets["DB_PASSWORD"] = "nope"

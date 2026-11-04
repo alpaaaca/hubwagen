@@ -1,7 +1,7 @@
-# hubwagen
+# moksha
 
 A durable execution engine for data. Write pipelines as plain Python
-functions; hubwagen runs them to completion through crashes, deploys and
+functions; moksha runs them to completion through crashes, deploys and
 long waits, and records which versions of data went into and came out of
 every step. That record is the lineage graph, the catalog, and a cache:
 a rerun or backfill skips every step whose code and inputs didn't change.
@@ -10,7 +10,7 @@ One Go binary, no database server, no message broker. Your code runs in
 workers you start; the server never runs it.
 
 ```python
-import hubwagen as hw
+import moksha as hw
 
 @hw.step(output=hw.Dataset("raw.orders", partition="day"))
 def extract_orders(day: str) -> dict: ...            # writes files to hw.output().path
@@ -26,9 +26,9 @@ def daily(ctx, day: str):
 
 ## Status
 
-The engine runs on one machine: `hubwagen dev` (server, API and workers in
-one terminal) or `hubwagen server` (the same as a service, with JSON logs; it starts the
-config's workers too, or `--no-workers` and `hubwagen workers` elsewhere), in containers
+The engine runs on one machine: `moksha dev` (server, API and workers in
+one terminal) or `moksha server` (the same as a service, with JSON logs; it starts the
+config's workers too, or `--no-workers` and `moksha workers` elsewhere), in containers
 (`make images && make up`), or on Kubernetes with the Helm chart, which scales
 worker Deployments from the work waiting ([docs/deploy.md](docs/deploy.md)).
 Python workers, `file://` or S3 storage, no authentication yet. Built so far: durable pipelines (replay until
@@ -51,17 +51,17 @@ Requires Go 1.26+ and Python 3.12+ (and Node 20+ for the web UI).
 
 ```bash
 go generate ./internal/webui   # builds the web UI into the binary (optional; needs Node)
-go build -o hubwagen .
-# the server plus three workers, as pipelines/examples/revenue/hubwagen.yaml says
-./hubwagen dev --config pipelines/examples/revenue/hubwagen.yaml
+go build -o moksha .
+# the server plus three workers, as pipelines/examples/revenue/moksha.yaml says
+./moksha dev --config pipelines/examples/revenue/moksha.yaml
 # the web UI: http://127.0.0.1:7070/
 ```
 
 ```bash
 # in another terminal
-./hubwagen replay daily --param day=2026-10-01..2026-10-03
-./hubwagen replay daily --param day=2026-10-01..2026-10-03   # again: what's unchanged is reused
-./hubwagen start daily --param day=2026-10-04 --wait
+./moksha replay daily --param day=2026-10-01..2026-10-03
+./moksha replay daily --param day=2026-10-01..2026-10-03   # again: what's unchanged is reused
+./moksha start daily --param day=2026-10-04 --wait
 ```
 
 `replay` prints, per step, what was reused and what ran and why:
@@ -96,7 +96,7 @@ print and log, marked with the run and the step:
 ```
 
 The web UI shows the same output on the run's page, step by step
-(`hubwagen dev --events` prints the engine's own events instead). The config file: [docs/config.md](docs/config.md).
+(`moksha dev --events` prints the engine's own events instead). The config file: [docs/config.md](docs/config.md).
 Writing pipelines and steps: [sdk/python/README.md](sdk/python/README.md).
 The example: [pipelines/examples/revenue](pipelines/examples/revenue).
 

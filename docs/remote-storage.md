@@ -71,7 +71,7 @@ work through it; tokens (`server.auth`) close both.
 
 ```yaml
 bucket:
-  url: s3://acme-hubwagen/prod
+  url: s3://acme-moksha/prod
   endpoint: https://minio.internal:9000     # S3-compatible; omit for AWS
   public_endpoint: https://s3.acme.example  # in workers' URLs, if they reach the store under another name
   region: eu-central-1                      # default: asked of the store
@@ -93,7 +93,7 @@ bucket.
 ## Workers: local or remote
 
 A lift task names the bucket and, for a `file://` bucket, its ID, which the
-server keeps in `<bucket>/.hubwagen-bucket`. The Python worker
+server keeps in `<bucket>/.moksha-bucket`. The Python worker
 (`--data auto`, the default) reads and writes the bucket directly only when
 it finds that file with that ID, so it is on the server's machine (or shares
 its filesystem); otherwise it is remote. `--data local|remote` forces one.
@@ -110,11 +110,11 @@ URLs; then the attempt fails, for its retry policy.
 - `internal/blob`: every test runs on the `file://` bucket, on `s3fake` (an
   S3-compatible server in memory: real HTTP, conditional writes, checksums,
   pagination, presigned-URL expiry), and on a real store when
-  `HUBWAGEN_TEST_S3=http://key:secret@host:port/bucket` names one (a local
+  `MOKSHA_TEST_S3=http://key:secret@host:port/bucket` names one (a local
   MinIO). s3fake doesn't check signatures; the real store does.
 - `internal/api`: a haul runs twice with data only through URLs, on a file
   bucket, an s3 bucket with presigned URLs, and an s3 bucket through the
   server; the second run reuses both lifts. URLs are scoped and checked.
 - SDK (`tests/test_remote.py`): the revenue example with a worker that shares
-  no directory with `hubwagen dev`, against a file bucket and against s3fake;
+  no directory with `moksha dev`, against a file bucket and against s3fake;
   the rerun reuses the unchanged steps. Dataframes too.
