@@ -196,3 +196,7 @@ go generate ./internal/api    # after changing proto/
 ```
 
 Pure Go, no CGO: the binary is static and cross-compiles.
+
+## License
+
+moksha is licensed under the [Apache License 2.0](LICENSE).
