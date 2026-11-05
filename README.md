@@ -28,13 +28,15 @@ def daily(ctx, day: str):
 
 ## Why moksha
 
-moksha started out of frustration with orchestrators like Airflow. To run
-a few Python functions every night, you end up running a scheduler, a
-webserver, a metadata database, a broker and a pool of executors: a tool
-that does everything, yet doesn't know what your pipelines wrote, reruns a
-whole backfill when little changed, and loses work in a crash. moksha
-(*release*, in Sanskrit) is the way out: plain Python functions, durable
-runs, versioned data, nothing computed twice, and one small binary.
+moksha started out of frustration with bloated orchestrators like Airflow.
+They ask you to run and babysit a scheduler, a webserver, a metadata
+database, a broker and a fleet of executors, and to bend your code into
+their DAGs and operators, and they still don't know what your pipelines
+wrote, rerun whole backfills and lose work in a crash. moksha (*release*,
+in Sanskrit) frees you from all that: you write plain Python, and moksha
+takes care of the rest (durable runs, versioned data, nothing computed
+twice, scheduling, and workers that scale with the work, from one laptop
+to a Kubernetes cluster), all from one small binary.
 
 ## What you get
 
