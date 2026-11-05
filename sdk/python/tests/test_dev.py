@@ -1,4 +1,4 @@
-"""The SDK against a real `hubwagen dev` and a real worker process."""
+"""The SDK against a real `moksha dev` and a real worker process."""
 
 import datetime as dt
 import json
@@ -6,7 +6,7 @@ import time
 
 import pytest
 
-import hubwagen as hw
+import moksha as hw
 
 from conftest import wait
 

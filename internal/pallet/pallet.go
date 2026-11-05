@@ -18,7 +18,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/alper/hubwagen/internal/blob"
+	"github.com/alper/moksha/internal/blob"
 )
 
 var (
@@ -175,7 +175,7 @@ func (s *Store) filesPresent(ctx context.Context, m Manifest) error {
 
 // Check reports whether the pallet whose manifest is at uri can still be
 // read: its manifest and every file it lists are in the bucket. Committed
-// pallets can lose their data outside hubwagen (someone deleted files);
+// pallets can lose their data outside moksha (someone deleted files);
 // what fails Check must not be reused.
 func (s *Store) Check(ctx context.Context, uri string) error {
 	m, err := s.Read(ctx, uri)

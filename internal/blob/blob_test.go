@@ -20,7 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/alper/hubwagen/internal/blob/s3fake"
+	"github.com/alper/moksha/internal/blob/s3fake"
 )
 
 var ctx = context.Background()
@@ -43,20 +43,20 @@ func openFake(t *testing.T) (Bucket, *s3fake.Server) {
 	return b, srv
 }
 
-// openReal opens a real S3-compatible store named by HUBWAGEN_TEST_S3
+// openReal opens a real S3-compatible store named by MOKSHA_TEST_S3
 // (http(s)://key:secret@host:port/bucket, e.g. a local MinIO), under a
 // fresh prefix; the test is skipped without it.
 func openReal(t *testing.T) Bucket {
 	t.Helper()
-	raw := os.Getenv("HUBWAGEN_TEST_S3")
+	raw := os.Getenv("MOKSHA_TEST_S3")
 	if raw == "" {
-		t.Skip("HUBWAGEN_TEST_S3 not set (http://key:secret@host:port/bucket of an S3-compatible store)")
+		t.Skip("MOKSHA_TEST_S3 not set (http://key:secret@host:port/bucket of an S3-compatible store)")
 	}
 	u, err := url.Parse(raw)
 	require.NoError(t, err)
 	secret, _ := u.User.Password()
 	b, err := OpenS3(ctx, S3Config{
-		URL:      "s3://" + strings.Trim(u.Path, "/") + "/hubwagen-test/" + ulid.Make().String(),
+		URL:      "s3://" + strings.Trim(u.Path, "/") + "/moksha-test/" + ulid.Make().String(),
 		Endpoint: u.Scheme + "://" + u.Host, PathStyle: true, AccessKeyID: u.User.Username(), SecretAccessKey: secret})
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = b.DeletePrefix(ctx, b.Base()+"/") })

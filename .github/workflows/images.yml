@@ -8,7 +8,7 @@
 # - By hand (Actions > images > Run workflow): push :<branch> and
 #   :sha-<commit>.
 #
-# To ghcr.io/<owner>/hubwagen and ghcr.io/<owner>/hubwagen-worker. A new
+# To ghcr.io/<owner>/moksha and ghcr.io/<owner>/moksha-worker. A new
 # GHCR package is private: make it public in the package's settings once.
 name: images
 
@@ -42,10 +42,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: hubwagen
+          - name: moksha
             context: .
             file: Dockerfile
-          - name: hubwagen-worker
+          - name: moksha-worker
             context: sdk/python
             file: sdk/python/Dockerfile
     steps:

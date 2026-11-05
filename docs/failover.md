@@ -1,6 +1,6 @@
 # Failover: nodes that supervise workers and can become leader
 
-> **Status:** design note, not implemented. Builds on `hubwagen.yaml` and the
+> **Status:** design note, not implemented. Builds on `moksha.yaml` and the
 > worker supervisor (`internal/config`, `internal/supervise`). Decision
 > requested: option A first (below), built so that option B stays possible.
 
@@ -17,11 +17,11 @@ seconds, with the same state, and the workers carry on against it.
 
 ## Shape: nodes
 
-Every machine runs one **node**: the `hubwagen` binary in a new mode
-(`hubwagen node`). A node does two things:
+Every machine runs one **node**: the `moksha` binary in a new mode
+(`moksha node`). A node does two things:
 
-1. **Supervises the workers on its machine**, as `hubwagen dev` does today:
-   it starts the `workers:` from `hubwagen.yaml`, prefixes their output,
+1. **Supervises the workers on its machine**, as `moksha dev` does today:
+   it starts the `workers:` from `moksha.yaml`, prefixes their output,
    restarts them, and stops them on shutdown.
 2. **Is a leader candidate.** Exactly one node is the leader and runs the
    core and the API. The others are standbys, ready to take over.
@@ -49,7 +49,7 @@ What stays the same:
 
 What's new:
 
-- **Workers talk to their local node** (`HUBWAGEN_SERVER` is
+- **Workers talk to their local node** (`MOKSHA_SERVER` is
   `http://127.0.0.1:<node port>`). A standby forwards worker and client calls
   to the leader. Workers need no membership list and never have to find the
   leader. If the local node dies, its workers stop too (they exit when
@@ -59,27 +59,27 @@ What's new:
   stale writers only within one SQLite file. Two leaders with separate copies
   of the database don't fence each other, so the term has to reach the
   workers and the bucket.
-- **`hubwagen.yaml` lists the nodes:**
+- **`moksha.yaml` lists the nodes:**
 
 ```yaml
-apiVersion: hubwagen.dev/v1alpha1
+apiVersion: moksha.dev/v1alpha1
 kind: Config
 
-bucket: s3://acme-hubwagen          # pallets, plus the lease and replicas (option A)
+bucket: s3://acme-moksha          # pallets, plus the lease and replicas (option A)
 nodes:
-  - {name: a, listen: 10.0.0.1:7070, data_dir: /var/lib/hubwagen}
-  - {name: b, listen: 10.0.0.2:7070, data_dir: /var/lib/hubwagen}
-  - {name: c, listen: 10.0.0.3:7070, data_dir: /var/lib/hubwagen}
+  - {name: a, listen: 10.0.0.1:7070, data_dir: /var/lib/moksha}
+  - {name: b, listen: 10.0.0.2:7070, data_dir: /var/lib/moksha}
+  - {name: c, listen: 10.0.0.3:7070, data_dir: /var/lib/moksha}
 failover:
   lease_ttl: 15s
 
 workers:                            # each node starts these on its machine
   - name: py
     replicas: 2
-    command: [python3, -m, hubwagen.worker, app.hauls]
+    command: [python3, -m, moksha.worker, app.hauls]
 ```
 
-Each machine runs `hubwagen node --name a` (b, c) under systemd. One file
+Each machine runs `moksha node --name a` (b, c) under systemd. One file
 for the whole cluster; `--name` picks the node's own entry.
 
 Picking a leader is the easy part. **The hard part is that the leader's state
@@ -90,7 +90,7 @@ it there.
 ## Option A: lease in the bucket, Litestream replication
 
 **Election.** The leader holds a lease object in the bucket,
-`_hubwagen/leader.json` = `{node, term, renewed}`, and renews it every
+`_moksha/leader.json` = `{node, term, renewed}`, and renews it every
 `lease_ttl / 3` with a conditional write: GCS generation match, S3
 `If-Match`, or a rename under a lock for `file://`. When a standby sees the
 lease unchanged for a full `lease_ttl` (by its own monotonic clock, never by
@@ -106,7 +106,7 @@ in sync), which is the usual assumption for leases.
 
 **State handoff.** The leader runs Litestream as a library. It copies the
 SQLite WAL to the bucket under a replica path per term
-(`_hubwagen/replica/<term>/`), so a deposed leader still uploading can't
+(`_moksha/replica/<term>/`), so a deposed leader still uploading can't
 overwrite what the new one writes. A new leader:
 
 1. takes the lease (term N+1);
@@ -201,28 +201,28 @@ The same file, with three nodes on one machine, a shared `file://` bucket and
 two workers each:
 
 ```yaml
-apiVersion: hubwagen.dev/v1alpha1
+apiVersion: moksha.dev/v1alpha1
 kind: Config
 
-bucket: file://.hubwagen/bucket
+bucket: file://.moksha/bucket
 nodes:
-  - {name: a, listen: 127.0.0.1:7071, data_dir: .hubwagen/a}
-  - {name: b, listen: 127.0.0.1:7072, data_dir: .hubwagen/b}
-  - {name: c, listen: 127.0.0.1:7073, data_dir: .hubwagen/c}
+  - {name: a, listen: 127.0.0.1:7071, data_dir: .moksha/a}
+  - {name: b, listen: 127.0.0.1:7072, data_dir: .moksha/b}
+  - {name: c, listen: 127.0.0.1:7073, data_dir: .moksha/c}
 failover:
   lease_ttl: 5s                     # short, to watch it happen
 
 workers:
   - name: py
     replicas: 2
-    command: [python3, -m, hubwagen.worker, revenue.hauls]
+    command: [python3, -m, moksha.worker, revenue.hauls]
 ```
 
 ```bash
-hubwagen dev --cluster              # starts nodes a, b, c as processes; a wins the lease
-hubwagen nodes                      # who leads, which term, standby lag
-hubwagen replay daily --param day=2026-10-01..2026-10-07 --server http://127.0.0.1:7072
-kill -9 <pid of the leader>         # or: hubwagen dev --cluster --chaos 30s
+moksha dev --cluster              # starts nodes a, b, c as processes; a wins the lease
+moksha nodes                      # who leads, which term, standby lag
+moksha replay daily --param day=2026-10-01..2026-10-07 --server http://127.0.0.1:7072
+kill -9 <pid of the leader>         # or: moksha dev --cluster --chaos 30s
 ```
 
 What to watch:
@@ -235,7 +235,7 @@ What to watch:
 - **The replay** keeps going, apart from errors on calls that were in
   flight, which the client retries.
 - **Option A:** lifts that were dispatched in the last second can run
-  twice. `hubwagen nodes` reports the events the new leader didn't get and
+  twice. `moksha nodes` reports the events the new leader didn't get and
   what reconciliation recovered.
 - **Option B:** the same file without the lease. Kill any one node and
   nothing is lost; kill two and the cluster stops, but stays correct.
@@ -264,7 +264,7 @@ calls.
 - the node and its supervisor,
 - forwarding from standbys,
 - the term on every reply,
-- `hubwagen nodes`.
+- `moksha nodes`.
 
 Only the elector and the store's commit path change.
 
@@ -273,7 +273,7 @@ leader process. Both would put user code next to the one writer.
 
 ## Steps (PR-sized)
 
-1. **Nodes:** `hubwagen node --name`, `nodes:` in the config, and the
+1. **Nodes:** `moksha node --name`, `nodes:` in the config, and the
    supervisor moved out of `dev`. Workers exit when their node is gone, and
    lift results are retried until delivered (both needed anyway).
 2. **Terms reach workers:** the term goes on every API reply; the SDK drops
@@ -287,7 +287,7 @@ leader process. Both would put user code next to the one writer.
    first); restore-on-takeover; standbys restoring continuously.
 6. **Reconcile from the bucket** on takeover (manifests newer than the
    restored state).
-7. **`hubwagen dev --cluster`, `hubwagen nodes`**, `--chaos`; an end-to-end
+7. **`moksha dev --cluster`, `moksha nodes`**, `--chaos`; an end-to-end
    failover test in `tests/`.
 
 ## Open questions

@@ -1,4 +1,4 @@
-import type { Haul, Lift } from "../gen/hubwagen/v1/haul_pb";
+import type { Haul, Lift } from "../gen/moksha/v1/haul_pb";
 import { ago, duration, liftStatus, steps, took, when } from "../format";
 import { Link } from "../router";
 import { Hint } from "../words";

@@ -7,7 +7,7 @@
 // a pipeline, a lift is a step, a pallet is a version of a dataset (a
 // step's output), a memoized lift is reused. Events that are only the
 // engine's bookkeeping (haul tasks, an attempt that succeeded) are kept as
-// Engine entries, for debugging hubwagen itself.
+// Engine entries, for debugging moksha itself.
 package history
 
 import (
@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/state"
 )
 
 // Kinds of entries, for the UI to mark them.

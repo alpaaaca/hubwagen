@@ -1,4 +1,4 @@
-import type { Waiting as WaitingMsg, Worker } from "../gen/hubwagen/v1/haul_pb";
+import type { Waiting as WaitingMsg, Worker } from "../gen/moksha/v1/haul_pb";
 import { ago, when } from "../format";
 import { useApi } from "../api";
 import { usePoll } from "../hooks";

@@ -13,12 +13,12 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
-	"github.com/alper/hubwagen/internal/api/gen/hubwagen/v1/hubwagenv1connect"
-	"github.com/alper/hubwagen/internal/core"
-	"github.com/alper/hubwagen/internal/history"
-	"github.com/alper/hubwagen/internal/schedule"
-	"github.com/alper/hubwagen/internal/state"
+	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
+	"github.com/alper/moksha/internal/api/gen/moksha/v1/mokshav1connect"
+	"github.com/alper/moksha/internal/core"
+	"github.com/alper/moksha/internal/history"
+	"github.com/alper/moksha/internal/schedule"
+	"github.com/alper/moksha/internal/state"
 )
 
 // HaulServer implements HaulService: writes go through the core, reads come
@@ -30,12 +30,12 @@ type HaulServer struct {
 
 // NewHaulHandler returns the path and handler to mount HaulService at.
 func NewHaulHandler(c *core.Core, st *state.Store) (string, http.Handler) {
-	return hubwagenv1connect.NewHaulServiceHandler(&HaulServer{core: c, store: st})
+	return mokshav1connect.NewHaulServiceHandler(&HaulServer{core: c, store: st})
 }
 
-var _ hubwagenv1connect.HaulServiceHandler = (*HaulServer)(nil)
+var _ mokshav1connect.HaulServiceHandler = (*HaulServer)(nil)
 
-func (s *HaulServer) StartHaul(ctx context.Context, req *connect.Request[hubwagenv1.StartHaulRequest]) (*connect.Response[hubwagenv1.StartHaulResponse], error) {
+func (s *HaulServer) StartHaul(ctx context.Context, req *connect.Request[mokshav1.StartHaulRequest]) (*connect.Response[mokshav1.StartHaulResponse], error) {
 	m := req.Msg
 	params, err := jsonObject("params_json", m.ParamsJson)
 	if err != nil {
@@ -45,19 +45,19 @@ func (s *HaulServer) StartHaul(ctx context.Context, req *connect.Request[hubwage
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&hubwagenv1.StartHaulResponse{HaulId: res.HaulID}), nil
+	return connect.NewResponse(&mokshav1.StartHaulResponse{HaulId: res.HaulID}), nil
 }
 
-func (s *HaulServer) SignalHaul(ctx context.Context, req *connect.Request[hubwagenv1.SignalHaulRequest]) (*connect.Response[hubwagenv1.SignalHaulResponse], error) {
+func (s *HaulServer) SignalHaul(ctx context.Context, req *connect.Request[mokshav1.SignalHaulRequest]) (*connect.Response[mokshav1.SignalHaulResponse], error) {
 	m := req.Msg
 	id, err := s.core.SignalHaul(ctx, core.SignalRequest{HaulID: m.HaulId, Name: m.Name, Payload: json.RawMessage(m.PayloadJson)})
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&hubwagenv1.SignalHaulResponse{SignalId: id}), nil
+	return connect.NewResponse(&mokshav1.SignalHaulResponse{SignalId: id}), nil
 }
 
-func (s *HaulServer) CancelHaul(ctx context.Context, req *connect.Request[hubwagenv1.CancelHaulRequest]) (*connect.Response[hubwagenv1.CancelHaulResponse], error) {
+func (s *HaulServer) CancelHaul(ctx context.Context, req *connect.Request[mokshav1.CancelHaulRequest]) (*connect.Response[mokshav1.CancelHaulResponse], error) {
 	by := req.Msg.By
 	if by == "" {
 		by = "the API"
@@ -65,17 +65,17 @@ func (s *HaulServer) CancelHaul(ctx context.Context, req *connect.Request[hubwag
 	if err := s.core.CancelHaul(ctx, req.Msg.HaulId, by); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&hubwagenv1.CancelHaulResponse{}), nil
+	return connect.NewResponse(&mokshav1.CancelHaulResponse{}), nil
 }
 
-func (s *HaulServer) ResumeHaul(ctx context.Context, req *connect.Request[hubwagenv1.ResumeHaulRequest]) (*connect.Response[hubwagenv1.ResumeHaulResponse], error) {
+func (s *HaulServer) ResumeHaul(ctx context.Context, req *connect.Request[mokshav1.ResumeHaulRequest]) (*connect.Response[mokshav1.ResumeHaulResponse], error) {
 	if err := s.core.ResumeHaul(ctx, req.Msg.HaulId); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&hubwagenv1.ResumeHaulResponse{}), nil
+	return connect.NewResponse(&mokshav1.ResumeHaulResponse{}), nil
 }
 
-func (s *HaulServer) ListHauls(ctx context.Context, req *connect.Request[hubwagenv1.ListHaulsRequest]) (*connect.Response[hubwagenv1.ListHaulsResponse], error) {
+func (s *HaulServer) ListHauls(ctx context.Context, req *connect.Request[mokshav1.ListHaulsRequest]) (*connect.Response[mokshav1.ListHaulsResponse], error) {
 	m := req.Msg
 	limit := int(m.Limit)
 	if limit > 1000 {
@@ -103,12 +103,12 @@ func (s *HaulServer) ListHauls(ctx context.Context, req *connect.Request[hubwage
 			return nil, connectError(err)
 		}
 	}
-	out := &hubwagenv1.ListHaulsResponse{}
+	out := &mokshav1.ListHaulsResponse{}
 	for _, h := range hauls {
 		hm := haulMessage(h)
 		hm.LiftCounts = liftCountsMessage(counts[h.ID])
 		for _, l := range lifts[h.ID] {
-			lm := &hubwagenv1.Lift{Seq: int32(l.Seq), Name: l.Name, Status: l.Status, Reused: l.Reused,
+			lm := &mokshav1.Lift{Seq: int32(l.Seq), Name: l.Name, Status: l.Status, Reused: l.Reused,
 				Attempts: int32(l.Attempts), ScheduledAt: timestamppb.New(l.ScheduledAt)}
 			if l.FinishedAt != nil {
 				lm.FinishedAt = timestamppb.New(*l.FinishedAt)
@@ -123,7 +123,7 @@ func (s *HaulServer) ListHauls(ctx context.Context, req *connect.Request[hubwage
 	return connect.NewResponse(out), nil
 }
 
-func (s *HaulServer) GetLogbook(ctx context.Context, req *connect.Request[hubwagenv1.GetLogbookRequest]) (*connect.Response[hubwagenv1.GetLogbookResponse], error) {
+func (s *HaulServer) GetLogbook(ctx context.Context, req *connect.Request[mokshav1.GetLogbookRequest]) (*connect.Response[mokshav1.GetLogbookResponse], error) {
 	h, err := s.store.GetHaul(ctx, req.Msg.HaulId)
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("haul %s not found", req.Msg.HaulId))
@@ -135,10 +135,10 @@ func (s *HaulServer) GetLogbook(ctx context.Context, req *connect.Request[hubwag
 	if err != nil {
 		return nil, connectError(err)
 	}
-	out := &hubwagenv1.GetLogbookResponse{Haul: haulMessage(h)}
+	out := &mokshav1.GetLogbookResponse{Haul: haulMessage(h)}
 	for _, e := range evs {
 		if replayEvents[e.Type] {
-			out.Logbook = append(out.Logbook, &hubwagenv1.LogbookEvent{
+			out.Logbook = append(out.Logbook, &mokshav1.LogbookEvent{
 				Seq: e.Seq, Type: string(e.Type), Time: timestamppb.New(e.Time), PayloadJson: string(e.Payload)})
 		}
 	}
@@ -156,7 +156,7 @@ func why(runReason string, reused bool) string {
 	return ""
 }
 
-func (s *HaulServer) GetHistory(ctx context.Context, req *connect.Request[hubwagenv1.GetHistoryRequest]) (*connect.Response[hubwagenv1.GetHistoryResponse], error) {
+func (s *HaulServer) GetHistory(ctx context.Context, req *connect.Request[mokshav1.GetHistoryRequest]) (*connect.Response[mokshav1.GetHistoryResponse], error) {
 	h, err := s.store.GetHaul(ctx, req.Msg.HaulId)
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("haul %s not found", req.Msg.HaulId))
@@ -178,23 +178,23 @@ func (s *HaulServer) GetHistory(ctx context.Context, req *connect.Request[hubwag
 			return h, err == nil
 		},
 	}
-	out := &hubwagenv1.GetHistoryResponse{}
+	out := &mokshav1.GetHistoryResponse{}
 	for _, e := range history.Tell(evs, look) {
-		out.Entries = append(out.Entries, &hubwagenv1.HistoryEntry{
+		out.Entries = append(out.Entries, &mokshav1.HistoryEntry{
 			Time: timestamppb.New(e.Time), Kind: e.Kind, Seq: int32(e.Seq), Step: e.Step, Text: e.Text, Detail: e.Detail,
 			HaulId: e.Run, EventSeq: e.Event.Seq, EventType: string(e.Event.Type), PayloadJson: string(e.Event.Payload)})
 	}
 	return connect.NewResponse(out), nil
 }
 
-func (s *HaulServer) ListSchedules(ctx context.Context, _ *connect.Request[hubwagenv1.ListSchedulesRequest]) (*connect.Response[hubwagenv1.ListSchedulesResponse], error) {
+func (s *HaulServer) ListSchedules(ctx context.Context, _ *connect.Request[mokshav1.ListSchedulesRequest]) (*connect.Response[mokshav1.ListSchedulesResponse], error) {
 	scheds, err := s.store.ListSchedules(ctx)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	out := &hubwagenv1.ListSchedulesResponse{}
+	out := &mokshav1.ListSchedulesResponse{}
 	for _, sc := range scheds {
-		v := &hubwagenv1.Schedule{Haul: sc.Haul, Cron: sc.Cron, Timezone: sc.Timezone, Interval: sc.Interval,
+		v := &mokshav1.Schedule{Haul: sc.Haul, Cron: sc.Cron, Timezone: sc.Timezone, Interval: sc.Interval,
 			CatchUp: sc.CatchUp, BuildId: sc.BuildID, Cursor: timestamppb.New(sc.Cursor)}
 		if cal, err := schedule.NewCalendar(schedule.Schedule{Cron: sc.Cron, Timezone: sc.Timezone, Interval: sc.Interval}); err == nil {
 			now := time.Now()
@@ -219,14 +219,14 @@ func (s *HaulServer) ListSchedules(ctx context.Context, _ *connect.Request[hubwa
 		count[w.Haul]++
 	}
 	for _, sub := range subs {
-		out.Subscriptions = append(out.Subscriptions, &hubwagenv1.Subscription{
+		out.Subscriptions = append(out.Subscriptions, &mokshav1.Subscription{
 			Haul: sub.Haul, Datasets: sub.Datasets, Debounce: durationpb.New(sub.Debounce), MaxWait: durationpb.New(sub.MaxWait),
 			MaxBatch: int32(sub.MaxBatch), BuildId: sub.BuildID, Waiting: count[sub.Haul]})
 	}
 	return connect.NewResponse(out), nil
 }
 
-func (s *HaulServer) GetHaul(ctx context.Context, req *connect.Request[hubwagenv1.GetHaulRequest]) (*connect.Response[hubwagenv1.GetHaulResponse], error) {
+func (s *HaulServer) GetHaul(ctx context.Context, req *connect.Request[mokshav1.GetHaulRequest]) (*connect.Response[mokshav1.GetHaulResponse], error) {
 	h, err := s.store.GetHaul(ctx, req.Msg.HaulId)
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("haul %s not found", req.Msg.HaulId))
@@ -270,7 +270,7 @@ func (s *HaulServer) GetHaul(ctx context.Context, req *connect.Request[hubwagenv
 	var counts state.LiftCounts
 	for _, l := range lifts {
 		f := results[int32(l.Seq)]
-		m := &hubwagenv1.Lift{
+		m := &mokshav1.Lift{
 			Seq: int32(l.Seq), Name: l.Name, Status: l.Status, RunReason: l.RunReason, Why: why(l.RunReason, f.Reused), Reused: f.Reused,
 			Attempts: int32(l.Attempts), Pallet: f.Pallet, Reason: l.Reason, Message: l.Message,
 			ScheduledAt: timestamppb.New(l.ScheduledAt), ResultJson: string(l.Result),
@@ -311,29 +311,29 @@ func (s *HaulServer) GetHaul(ctx context.Context, req *connect.Request[hubwagenv
 	if err := s.addWaiting(ctx, out); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&hubwagenv1.GetHaulResponse{Haul: out}), nil
+	return connect.NewResponse(&mokshav1.GetHaulResponse{Haul: out}), nil
 }
 
 // haulMessage is a haul without its lifts.
-func (s *HaulServer) ListPipelines(ctx context.Context, _ *connect.Request[hubwagenv1.ListPipelinesRequest]) (*connect.Response[hubwagenv1.ListPipelinesResponse], error) {
+func (s *HaulServer) ListPipelines(ctx context.Context, _ *connect.Request[mokshav1.ListPipelinesRequest]) (*connect.Response[mokshav1.ListPipelinesResponse], error) {
 	ps, err := s.store.ListPipelines(ctx)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	out := &hubwagenv1.ListPipelinesResponse{}
+	out := &mokshav1.ListPipelinesResponse{}
 	for _, p := range ps {
-		out.Pipelines = append(out.Pipelines, &hubwagenv1.Pipeline{Name: p.Name, Title: p.Title, Description: p.Description})
+		out.Pipelines = append(out.Pipelines, &mokshav1.Pipeline{Name: p.Name, Title: p.Title, Description: p.Description})
 	}
 	return connect.NewResponse(out), nil
 }
 
-func liftCountsMessage(c state.LiftCounts) *hubwagenv1.LiftCounts {
-	return &hubwagenv1.LiftCounts{Total: int32(c.Total), Completed: int32(c.Completed), Reused: int32(c.Reused),
+func liftCountsMessage(c state.LiftCounts) *mokshav1.LiftCounts {
+	return &mokshav1.LiftCounts{Total: int32(c.Total), Completed: int32(c.Completed), Reused: int32(c.Reused),
 		Failed: int32(c.Failed), Cancelled: int32(c.Cancelled)}
 }
 
-func haulMessage(h state.Haul) *hubwagenv1.Haul {
-	out := &hubwagenv1.Haul{
+func haulMessage(h state.Haul) *mokshav1.Haul {
+	out := &mokshav1.Haul{
 		Id: h.ID, Tenant: h.Tenant, Name: h.Name, Status: h.Status, Reason: h.Reason, Message: h.Message,
 		ResultJson: string(h.Result), CreatedAt: timestamppb.New(h.CreatedAt),
 		ParentId: h.ParentID, ContinuedAs: h.ContinuedAs, Trigger: h.Trigger,
@@ -349,15 +349,15 @@ func haulMessage(h state.Haul) *hubwagenv1.Haul {
 	return out
 }
 
-func (s *HaulServer) ListCode(ctx context.Context, _ *connect.Request[hubwagenv1.ListCodeRequest]) (*connect.Response[hubwagenv1.ListCodeResponse], error) {
+func (s *HaulServer) ListCode(ctx context.Context, _ *connect.Request[mokshav1.ListCodeRequest]) (*connect.Response[mokshav1.ListCodeResponse], error) {
 	steps, pipelines, err := s.store.CurrentCode(ctx)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	msg := func(c state.Code) *hubwagenv1.Code {
-		return &hubwagenv1.Code{Name: c.Name, CodeVersion: c.Version, BuildId: c.BuildID, RegisteredAt: timestamppb.New(c.RegisteredAt)}
+	msg := func(c state.Code) *mokshav1.Code {
+		return &mokshav1.Code{Name: c.Name, CodeVersion: c.Version, BuildId: c.BuildID, RegisteredAt: timestamppb.New(c.RegisteredAt)}
 	}
-	out := &hubwagenv1.ListCodeResponse{}
+	out := &mokshav1.ListCodeResponse{}
 	for _, c := range steps {
 		out.Steps = append(out.Steps, msg(c))
 	}

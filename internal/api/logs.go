@@ -9,10 +9,10 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
-	"github.com/alper/hubwagen/internal/api/gen/hubwagen/v1/hubwagenv1connect"
-	"github.com/alper/hubwagen/internal/runlog"
-	"github.com/alper/hubwagen/internal/state"
+	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
+	"github.com/alper/moksha/internal/api/gen/moksha/v1/mokshav1connect"
+	"github.com/alper/moksha/internal/runlog"
+	"github.com/alper/moksha/internal/state"
 )
 
 // LogServer serves LogService: lift output, kept apart from the state.
@@ -23,17 +23,17 @@ type LogServer struct {
 
 // NewLogHandler returns the path and handler to mount LogService at.
 func NewLogHandler(st *state.Store, logs *runlog.Store) (string, http.Handler) {
-	return hubwagenv1connect.NewLogServiceHandler(&LogServer{store: st, logs: logs})
+	return mokshav1connect.NewLogServiceHandler(&LogServer{store: st, logs: logs})
 }
 
-var _ hubwagenv1connect.LogServiceHandler = (*LogServer)(nil)
+var _ mokshav1connect.LogServiceHandler = (*LogServer)(nil)
 
 const (
 	defaultLogLimit = 2000
 	maxLogLimit     = 10000
 )
 
-func (s *LogServer) AppendLogs(ctx context.Context, req *connect.Request[hubwagenv1.AppendLogsRequest]) (*connect.Response[hubwagenv1.AppendLogsResponse], error) {
+func (s *LogServer) AppendLogs(ctx context.Context, req *connect.Request[mokshav1.AppendLogsRequest]) (*connect.Response[mokshav1.AppendLogsResponse], error) {
 	a, err := s.store.GetLiftAttempt(ctx, req.Msg.AttemptId)
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("lift attempt %s not found", req.Msg.AttemptId))
@@ -48,10 +48,10 @@ func (s *LogServer) AppendLogs(ctx context.Context, req *connect.Request[hubwage
 	if err := s.logs.Append(runlog.Attempt{HaulID: a.HaulID, Seq: a.Seq, Number: a.Number}, lines); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&hubwagenv1.AppendLogsResponse{}), nil
+	return connect.NewResponse(&mokshav1.AppendLogsResponse{}), nil
 }
 
-func (s *LogServer) GetLogs(ctx context.Context, req *connect.Request[hubwagenv1.GetLogsRequest]) (*connect.Response[hubwagenv1.GetLogsResponse], error) {
+func (s *LogServer) GetLogs(ctx context.Context, req *connect.Request[mokshav1.GetLogsRequest]) (*connect.Response[mokshav1.GetLogsResponse], error) {
 	m := req.Msg
 	limit := int(m.Limit)
 	switch {
@@ -77,10 +77,10 @@ func (s *LogServer) GetLogs(ctx context.Context, req *connect.Request[hubwagenv1
 	if err != nil {
 		return nil, connectError(err)
 	}
-	out := &hubwagenv1.GetLogsResponse{Skipped: int32(skipped)}
+	out := &mokshav1.GetLogsResponse{Skipped: int32(skipped)}
 	for _, e := range entries {
-		out.Lines = append(out.Lines, &hubwagenv1.RunLogLine{Seq: int32(e.Seq), Lift: names[e.Seq], Attempt: int32(e.Number),
-			Line: &hubwagenv1.LogLine{Time: timestamppb.New(e.Time), Stream: e.Stream, Level: e.Level, Logger: e.Logger, Text: e.Text}})
+		out.Lines = append(out.Lines, &mokshav1.RunLogLine{Seq: int32(e.Seq), Lift: names[e.Seq], Attempt: int32(e.Number),
+			Line: &mokshav1.LogLine{Time: timestamppb.New(e.Time), Stream: e.Stream, Level: e.Level, Logger: e.Logger, Text: e.Text}})
 	}
 	return connect.NewResponse(out), nil
 }

@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/alper/hubwagen/internal/config"
+	"github.com/alper/moksha/internal/config"
 )
 
 // apiServer answers scale PATCHes like the Kubernetes API server, recording
@@ -59,14 +59,14 @@ func TestKubeInAPodUsesItsServiceAccount(t *testing.T) {
 	ca := pemOf(t, srv)
 	require.NoError(t, os.WriteFile(filepath.Join(sa, "ca.crt"), ca, 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(sa, "token"), []byte("tok1\n"), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(sa, "namespace"), []byte("hubwagen"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(sa, "namespace"), []byte("moksha"), 0o600))
 	host, port, _ := netSplit(srv.URL)
 	t.Setenv("KUBERNETES_SERVICE_HOST", host)
 	t.Setenv("KUBERNETES_SERVICE_PORT", port)
 
 	k, err := NewKube(config.Kubernetes{}, sa)
 	require.NoError(t, err)
-	assert.Equal(t, "hubwagen", k.Namespace)
+	assert.Equal(t, "moksha", k.Namespace)
 	require.NoError(t, k.Scale(context.Background(), "", "w", 2))
 	require.NoError(t, os.WriteFile(filepath.Join(sa, "token"), []byte("tok2"), 0o600)) // rotated
 	require.NoError(t, k.Scale(context.Background(), "", "w", 1))

@@ -1,0 +1,18 @@
+# The server image's default config (see ../Dockerfile and docs/deploy.md).
+# Values come from the environment, with defaults for a container.
+apiVersion: moksha.dev/v1alpha1
+kind: Config
+
+data_dir: ${MOKSHA_DATA_DIR:-/data}
+server:
+  # Every interface, so other containers reach it; the API has no
+  # authentication yet: publish the port on loopback only, or keep it on
+  # a private network.
+  listen: ${MOKSHA_LISTEN:-0.0.0.0:7070}
+
+# Without MOKSHA_BUCKET, data versions stay in /data/bucket. Credentials
+# come from the usual AWS variables or a pod role.
+bucket:
+  url: ${MOKSHA_BUCKET:-}
+  endpoint: ${MOKSHA_S3_ENDPOINT:-}
+  region: ${MOKSHA_S3_REGION:-}

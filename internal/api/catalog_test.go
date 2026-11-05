@@ -8,12 +8,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
-	"github.com/alper/hubwagen/internal/api/gen/hubwagen/v1/hubwagenv1connect"
-	"github.com/alper/hubwagen/internal/core"
-	"github.com/alper/hubwagen/internal/layout"
-	"github.com/alper/hubwagen/internal/pallet"
-	"github.com/alper/hubwagen/internal/state"
+	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
+	"github.com/alper/moksha/internal/api/gen/moksha/v1/mokshav1connect"
+	"github.com/alper/moksha/internal/core"
+	"github.com/alper/moksha/internal/layout"
+	"github.com/alper/moksha/internal/pallet"
+	"github.com/alper/moksha/internal/state"
 )
 
 func TestCatalogService(t *testing.T) {
@@ -26,9 +26,9 @@ func TestCatalogService(t *testing.T) {
 	mux := http.NewServeMux()
 	path, h := NewCatalogHandler(s.core, s.store, pallet.NewStore(s.bucket, layout.New(s.bucket.Base())))
 	mux.Handle(path, h)
-	c := hubwagenv1connect.NewCatalogServiceClient(http.DefaultClient, httptestServer(t, mux))
+	c := mokshav1connect.NewCatalogServiceClient(http.DefaultClient, httptestServer(t, mux))
 
-	dss, err := c.ListDatasets(ctx, connect.NewRequest(&hubwagenv1.ListDatasetsRequest{}))
+	dss, err := c.ListDatasets(ctx, connect.NewRequest(&mokshav1.ListDatasetsRequest{}))
 	require.NoError(t, err)
 	var names []string
 	for _, d := range dss.Msg.Datasets {
@@ -36,7 +36,7 @@ func TestCatalogService(t *testing.T) {
 	}
 	assert.ElementsMatch(t, []string{"raw.orders", "mart.revenue"}, names)
 
-	parts, err := c.ListPartitions(ctx, connect.NewRequest(&hubwagenv1.ListPartitionsRequest{Dataset: "mart.revenue"}))
+	parts, err := c.ListPartitions(ctx, connect.NewRequest(&mokshav1.ListPartitionsRequest{Dataset: "mart.revenue"}))
 	require.NoError(t, err)
 	require.Len(t, parts.Msg.Partitions, 1)
 	built := parts.Msg.Partitions[0].Latest
@@ -44,7 +44,7 @@ func TestCatalogService(t *testing.T) {
 	assert.Equal(t, state.PalletCommitted, built.State)
 	assert.Equal(t, res.HaulID, built.HaulId)
 
-	got, err := c.GetPallet(ctx, connect.NewRequest(&hubwagenv1.GetPalletRequest{Id: built.Id}))
+	got, err := c.GetPallet(ctx, connect.NewRequest(&mokshav1.GetPalletRequest{Id: built.Id}))
 	require.NoError(t, err)
 	assert.Equal(t, "build", got.Msg.Lift)
 	require.NotNil(t, got.Msg.Manifest, got.Msg.ManifestError)
@@ -56,43 +56,43 @@ func TestCatalogService(t *testing.T) {
 	raw := got.Msg.Upstream.Edges[0].InputId
 	assert.Len(t, got.Msg.Downstream.Pallets, 1, "nothing was built from it")
 
-	up, err := c.GetPallet(ctx, connect.NewRequest(&hubwagenv1.GetPalletRequest{Id: raw}))
+	up, err := c.GetPallet(ctx, connect.NewRequest(&mokshav1.GetPalletRequest{Id: raw}))
 	require.NoError(t, err)
 	assert.Len(t, up.Msg.Downstream.Pallets, 2, "mart.revenue was built from it")
 
-	ps, err := c.ListPallets(ctx, connect.NewRequest(&hubwagenv1.ListPalletsRequest{Dataset: "raw.orders", States: []string{"committed"}}))
+	ps, err := c.ListPallets(ctx, connect.NewRequest(&mokshav1.ListPalletsRequest{Dataset: "raw.orders", States: []string{"committed"}}))
 	require.NoError(t, err)
 	assert.Len(t, ps.Msg.Pallets, 1)
 
-	_, err = c.GetPallet(ctx, connect.NewRequest(&hubwagenv1.GetPalletRequest{Id: "nope"}))
+	_, err = c.GetPallet(ctx, connect.NewRequest(&mokshav1.GetPalletRequest{Id: "nope"}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
-	_, err = c.ListPallets(ctx, connect.NewRequest(&hubwagenv1.ListPalletsRequest{Limit: 5000}))
+	_, err = c.ListPallets(ctx, connect.NewRequest(&mokshav1.ListPalletsRequest{Limit: 5000}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 
 	noManifests := http.NewServeMux()
 	path, h = NewCatalogHandler(nil, s.store, nil)
 	noManifests.Handle(path, h)
-	got, err = hubwagenv1connect.NewCatalogServiceClient(http.DefaultClient, httptestServer(t, noManifests)).
-		GetPallet(ctx, connect.NewRequest(&hubwagenv1.GetPalletRequest{Id: built.Id}))
+	got, err = mokshav1connect.NewCatalogServiceClient(http.DefaultClient, httptestServer(t, noManifests)).
+		GetPallet(ctx, connect.NewRequest(&mokshav1.GetPalletRequest{Id: built.Id}))
 	require.NoError(t, err)
 	assert.Nil(t, got.Msg.Manifest)
 	assert.NotEmpty(t, got.Msg.ManifestError)
-	_, err = hubwagenv1connect.NewCatalogServiceClient(http.DefaultClient, httptestServer(t, noManifests)).
-		InvalidatePallet(ctx, connect.NewRequest(&hubwagenv1.InvalidatePalletRequest{Id: built.Id, Reason: "x"}))
+	_, err = mokshav1connect.NewCatalogServiceClient(http.DefaultClient, httptestServer(t, noManifests)).
+		InvalidatePallet(ctx, connect.NewRequest(&mokshav1.InvalidatePalletRequest{Id: built.Id, Reason: "x"}))
 	assert.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err), "read only")
 
 	// Invalidating the raw pallet reaches what was built from it.
-	dry, err := c.InvalidatePallet(ctx, connect.NewRequest(&hubwagenv1.InvalidatePalletRequest{Id: raw, Reason: "bad", DryRun: true}))
+	dry, err := c.InvalidatePallet(ctx, connect.NewRequest(&mokshav1.InvalidatePalletRequest{Id: raw, Reason: "bad", DryRun: true}))
 	require.NoError(t, err)
 	assert.Len(t, dry.Msg.Pallets, 2)
-	inv, err := c.InvalidatePallet(ctx, connect.NewRequest(&hubwagenv1.InvalidatePalletRequest{Id: raw, Reason: "bad", By: "test"}))
+	inv, err := c.InvalidatePallet(ctx, connect.NewRequest(&mokshav1.InvalidatePalletRequest{Id: raw, Reason: "bad", By: "test"}))
 	require.NoError(t, err)
 	require.Len(t, inv.Msg.Hauls, 1)
 	assert.Equal(t, res.HaulID, inv.Msg.Hauls[0].Id)
 	assert.JSONEq(t, `{"day":"2026-10-24"}`, inv.Msg.Hauls[0].ParamsJson)
-	ps, err = c.ListPallets(ctx, connect.NewRequest(&hubwagenv1.ListPalletsRequest{Dataset: "mart.revenue", States: []string{"invalid"}}))
+	ps, err = c.ListPallets(ctx, connect.NewRequest(&mokshav1.ListPalletsRequest{Dataset: "mart.revenue", States: []string{"invalid"}}))
 	require.NoError(t, err)
 	assert.Len(t, ps.Msg.Pallets, 1)
-	_, err = c.InvalidatePallet(ctx, connect.NewRequest(&hubwagenv1.InvalidatePalletRequest{Id: raw}))
+	_, err = c.InvalidatePallet(ctx, connect.NewRequest(&mokshav1.InvalidatePalletRequest{Id: raw}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "a reason is required")
 }

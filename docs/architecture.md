@@ -1,20 +1,20 @@
 # Architecture
 
-Where hubwagen is going and why. What is built and what is next is tracked in
+Where moksha is going and why. What is built and what is next is tracked in
 [roadmap.md](roadmap.md); what changes from the M1–M2 engine is in
 [v2-migration.md](v2-migration.md).
 
 > **Status:** built through M3c: the haul engine (hauls, lifts, timers,
 > docks, retries, the sequence check, restore), pallets, the catalog and
 > memoization (file:// commits, fingerprints, single-flight), the worker and
-> haul APIs, `hubwagen dev`/`start`/`replay`, and the Python SDK with an
+> haul APIs, `moksha dev`/`start`/`replay`, and the Python SDK with an
 > example project. Runtime guards and import-based code versions (#25) are
 > next; then M4.
 
 ## Overview
 
-hubwagen is a durable execution engine for data, with its own Go server. Data
-engineers and scientists write pipelines as ordinary code. hubwagen guarantees
+moksha is a durable execution engine for data, with its own Go server. Data
+engineers and scientists write pipelines as ordinary code. moksha guarantees
 that the code runs to completion and records which data versions went in and
 came out of every step.
 
@@ -50,7 +50,7 @@ partitions, no reuse across runs.
   orders).
 - A declarative asset framework at the core. "Keep this dataset fresh" is a
   library haul built on top.
-- Moving data. Pallets point to data; hubwagen never touches the bytes.
+- Moving data. Pallets point to data; moksha never touches the bytes.
 
 ## Mental model
 
@@ -58,7 +58,7 @@ Execution is the source of truth, and data state is derived from it. That is
 the reverse of declarative orchestrators, where declared data is the source
 of truth and runs are derived.
 
-| | Declarative (Dagster) | Durable execution (Temporal) | hubwagen |
+| | Declarative (Dagster) | Durable execution (Temporal) | moksha |
 |---|---|---|---|
 | What you author | The data that should exist | A process that must complete | A process that produces data |
 | Source of truth | Declared asset graph | Event history | Event history, with data versions in every event |
@@ -72,7 +72,7 @@ of truth and runs are derived.
 `marketing.daily_revenue` for 2026-10-24?", "what was it built from?" and
 "what is stale?" are answered from the catalog, a projection of the logbooks
 of all hauls. Nobody writes to it directly. `CatalogService` reads it
-(`hubwagen datasets`, `hubwagen versions <dataset>`, and `hubwagen data <id>`
+(`moksha datasets`, `moksha versions <dataset>`, and `moksha data <id>`
 with its files and its lineage both ways).
 
 **Logs are not state.** What a lift prints and logs is captured by the
@@ -82,7 +82,7 @@ lost batch is lost output, never a wrong result.
 
 ## Core concepts
 
-A hubwagen moves pallets: hauls orchestrate, lifts do the work, pallets are
+A moksha moves pallets: hauls orchestrate, lifts do the work, pallets are
 the data they move.
 
 | Concept | What it is | Temporal analogue |
@@ -99,7 +99,7 @@ the data they move.
 | **Timer** | A durable sleep or deadline held by the server. | Timer |
 | **State** | Small key-value state of a haul, rebuilt by every replay from the logbook, so it is as durable as the logbook. | Workflow variables |
 
-**In front of people** (the SDK, the web UI, the CLI, what `hubwagen dev`
+**In front of people** (the SDK, the web UI, the CLI, what `moksha dev`
 prints, error messages) these concepts go by plain words: a haul is a
 **pipeline**, one execution of it a **run**; a lift is a **step**; a pallet
 is a **data version** (a version of a dataset, a step's output); a
@@ -120,7 +120,7 @@ returns a pallet or a small value. Examples use the Python SDK.
 ### A daily batch with a quality gate
 
 ```python
-from hubwagen import haul, lift, Dataset, Interval, Pallet, Schedule
+from moksha import haul, lift, Dataset, Interval, Pallet, Schedule
 
 @haul(schedule=Schedule("0 3 * * *", interval="daily", timezone="Europe/Berlin"))
 def daily_revenue(ctx, interval: Interval):   # yesterday, midnight to midnight in Berlin
@@ -274,19 +274,19 @@ it continue.
   ([spike S1](spikes/s1-python-replay.md)).
 - The worker runs with a fixed `PYTHONHASHSEED`, so iterating a set gives
   the same order in every replay.
-- Lint (`python -m hubwagen.lint`, part of the Python SDK since it reads
+- Lint (`python -m moksha.lint`, part of the Python SDK since it reads
   Python): an AST check of haul code, without importing it, for the same
   calls plus iteration over sets, I/O and environment variables,
   `except:`/`except BaseException` (which swallow the replay's control
   flow), and lifts called directly instead of through `ctx.lift`.
-- `python -m hubwagen.testing --replay-recent N`: replay recent production logbooks against the new
+- `python -m moksha.testing --replay-recent N`: replay recent production logbooks against the new
   code in CI, without running lifts.
 
 The guideline for users: keep hauls thin, put real work in lifts.
 
 ### Signals
 
-A signal is input from outside for one haul: `hubwagen signal <haul> approve
+A signal is input from outside for one haul: `moksha signal <haul> approve
 --data '{"by": "ana"}'` (or `SignalHaul` on the API) records it in the haul's
 logbook, and `ctx.wait_signal("approve", timeout=...)` returns its payload.
 A signal sent before the haul waits is kept until a wait for that name takes
@@ -309,7 +309,7 @@ else.
 `ctx.continue_as_new(**params)` ends a haul as `continued` and starts a new
 haul of the same name with those params and a fresh logbook, keeping its
 parent link: a waiting parent gets the result of the last haul in the
-chain, and `hubwagen start --wait` follows the chain. Hauls that loop use
+chain, and `moksha start --wait` follows the chain. Hauls that loop use
 it to keep their logbooks, and so their replays, short.
 
 ### Haul states
@@ -357,7 +357,7 @@ fingerprint = hash(
 - **Bias: strict.** A needless rerun costs money; a wrong reuse silently
   serves stale data. Every rerun reports its reason (`code changed`,
   `input changed`, `params changed`), so over-strictness is visible and can
-  be relaxed per lift with `version=`; `python -m hubwagen.worker
+  be relaxed per lift with `version=`; `python -m moksha.worker
   --versions` shows what a code version covers.
 
 ### Which lifts are memoized
@@ -381,11 +381,11 @@ rerun, never correctness.
   run). On the wire a lift command carries `memo: ""` (never), `fingerprint`
   or `ttl:<duration>`; the SDK passes pallets as inputs rather than inside
   the arguments, so the fingerprint sees their content hashes.
-- **SQL lifts** (`lift.sql`) default to `memo=True`: hubwagen resolves every
+- **SQL lifts** (`lift.sql`) default to `memo=True`: moksha resolves every
   `{{ input(...) }}` itself, so it knows all inputs. lint (later, with SQL lifts) flags
   table references that bypass `input()`, since those are hidden inputs.
 
-`hubwagen replay` names lifts that ran only because they are not memoized,
+`moksha replay` names lifts that ran only because they are not memoized,
 with a hint, so users learn where `memo=True` would help.
 
 ### Hidden inputs
@@ -445,7 +445,7 @@ loop.
 
 ### Storage adapters
 
-hubwagen does not own the storage, so what a commit guarantees depends on
+moksha does not own the storage, so what a commit guarantees depends on
 where a lift writes. Each adapter declares two things:
 
 - **Promote**: atomic (exactly-once visible output) or none (at-least-once;
@@ -460,7 +460,7 @@ record. "Replays read the same versions" holds while the input pallets are
 readable. Readable means the catalog says committed *and* the storage still
 has it: before reusing a pallet, the core checks that its manifest and every
 file it lists are in the bucket (`PalletStore.Check`), because files can be
-deleted outside hubwagen. A pallet that fails the check isn't reused; the
+deleted outside moksha. A pallet that fails the check isn't reused; the
 lift runs again ("the earlier run's output can't be read: its files are
 gone"), and its new pallet stands in from then on.
 
@@ -481,7 +481,7 @@ and so do those among the newest `versions` or younger than `age`; the rest
 expire, except what something running may read: pallets built by open
 hauls, pallets open hauls got as lift results or from `latest_pallet`,
 inputs of unfinished lifts and pallets waiting in a subscription batch. The
-leader expires every hour and on `hubwagen gc` (`--dry-run` shows): first
+leader expires every hour and on `moksha gc` (`--dry-run` shows): first
 a `PalletExpired` event records the pallet as expired, then its data is
 deleted off the loop. Its manifest and lineage stay; expired pallets are
 never reused or read, so a replay that needs one reruns its lift.
@@ -491,7 +491,7 @@ never reused or read, so a replay that needs one reruns its lift.
 A backfill starts hauls for a range of parameters; memoization makes it cheap.
 
 ```
-$ hubwagen replay daily_revenue --param day=2026-03-01..2026-03-31
+$ moksha replay daily_revenue --param day=2026-03-01..2026-03-31
 31 runs started
 31 runs
   extract_orders   31 reused
@@ -501,15 +501,15 @@ $ hubwagen replay daily_revenue --param day=2026-03-01..2026-03-31
 31 completed
 ```
 
-`hubwagen start <haul> --param …` starts one haul (`--wait` waits and
+`moksha start <haul> --param …` starts one haul (`--wait` waits and
 reports the same way). Both talk to `HaulService` (`StartHaul`, `GetHaul`)
 on the server.
 
-`hubwagen data invalidate <id> --reason …` marks a pallet and everything
+`moksha data invalidate <id> --reason …` marks a pallet and everything
 built from it, directly or transitively, invalid. Invalid pallets are never
 reused, never a dataset's latest and never a lift's input, so a replay
 recomputes exactly that set; the command shows what it will mark, asks,
-and prints the `hubwagen start` per haul that built them (the rerun says
+and prints the `moksha start` per haul that built them (the rerun says
 `earlier pallet invalidated`). Each pallet gets a `PalletInvalidated`
 event with the cause and who asked; the events belong to the tenant, not
 to a haul's logbook, so no replay changes. A pallet still being promoted is
@@ -519,7 +519,7 @@ restart.
 ## Triggers and freshness
 
 Hauls start from a schedule, a new pallet in a dataset, a signal from outside
-(`hubwagen start partner_files --day 2026-10-24`, or HTTP), or another haul
+(`moksha start partner_files --day 2026-10-24`, or HTTP), or another haul
 (`ctx.start_haul(...)`).
 
 - **Schedule**: cron in a timezone, with the data interval each run covers
@@ -532,7 +532,7 @@ Hauls start from a schedule, a new pallet in a dataset, a signal from outside
   due interval, passing it as the `interval` parameter, in the same batch
   that moves the cursor. The server can't run a params function, so the
   haul derives what it needs (`interval.start.date()`) itself.
-  `hubwagen schedules` lists them with their next runs.
+  `moksha schedules` lists them with their next runs.
 - **Dataset subscription**: `@haul(subscribe=Subscription("raw.orders",
   debounce=60))` starts the haul when pallets are committed to the
   datasets, in batches: once none came for `debounce`, once `max_batch`
@@ -562,8 +562,8 @@ lifts are memoized.
 A pallet is **stale** when a newer pallet with other content exists for one
 of its inputs' datasets and partitions, or when its lift's current code
 version (in the newest registered build that defines the lift) differs from
-the one that built it. `hubwagen stale [dataset]` lists the stale latest
-pallets with their reasons and the `hubwagen start` that refreshes each;
+the one that built it. `moksha stale [dataset]` lists the stale latest
+pallets with their reasons and the `moksha start` that refreshes each;
 memoization reuses the rest. Staleness is reported where it starts: a
 pallet built from a stale one isn't listed until its input is rebuilt,
 since the start that refreshes the input rebuilds it too.
@@ -590,22 +590,22 @@ under a **build id**.
   history gets `max`. The decision is recorded with the haul task, every
   replay gets the same, and a replay deciding differently makes the haul
   stuck. Raising `min` drops the old branch; a haul still on it becomes
-  stuck. (Later: `hubwagen versions` lists markers still in use.)
+  stuck. (Later: `moksha versions` lists markers still in use.)
 - **Drain**: most data hauls finish within hours, so rolling out new workers
   after running hauls finish (or reach a marker) covers most deploys.
-- **Replay test** (`python -m hubwagen.testing --replay-recent N`) in CI replays recent logbooks
+- **Replay test** (`python -m moksha.testing --replay-recent N`) in CI replays recent logbooks
   against the new code and catches non-determinism before it ships.
 - **Build pinning** (old builds kept running until their hauls drain) is a
   later option for teams with long-running hauls.
 
-`hubwagen deploy --dry-run` (later) adds a rebuild preview: which lifts
+`moksha deploy --dry-run` (later) adds a rebuild preview: which lifts
 changed code version and which datasets will recompute.
 
 ## Server
 
 ```
   schedules, dataset events,           ┌──────────────────────────────────┐
-  signals, API calls  ───────────────▶ │ Leader (hubwagen server)          │
+  signals, API calls  ───────────────▶ │ Leader (moksha server)          │
                                        │  one core goroutine owns state:   │──▶ SQLite (WAL)
                                        │  logbooks, docks, catalog,        │      │ Litestream
                                        │  fingerprint index, timers        │      ▼
@@ -658,9 +658,9 @@ passed while no leader was up.
 
 ### Worker API
 
-`hubwagen.v1.WorkerService` (`proto/hubwagen/v1/worker.proto`, served by
+`moksha.v1.WorkerService` (`proto/moksha/v1/worker.proto`, served by
 `internal/api`): Connect, so also callable as plain HTTP/JSON
-(`POST /hubwagen.v1.WorkerService/<Method>`), which keeps the Python SDK free
+(`POST /moksha.v1.WorkerService/<Method>`), which keeps the Python SDK free
 of gRPC tooling. `RegisterBuild` (the hauls a build defines and its lifts'
 code versions), `PollHaulTask`, `CompleteHaulTask` (commands),
 `PollLiftTask`, `CompleteLiftTask` (output descriptor), `Heartbeat`. Polls
@@ -693,18 +693,18 @@ leader gives restored attempts fresh ones.
 ## Local dev and single-node mode
 
 ```
-$ hubwagen dev                                # server + web UI on the same port, SQLite in .hubwagen/
-$ python -m hubwagen.worker                   # local worker; modules from pyproject.toml
-$ hubwagen start daily_revenue --day 2026-10-24
-$ pytest                                      # hauls against scripted results: hubwagen.testing.run
+$ moksha dev                                # server + web UI on the same port, SQLite in .moksha/
+$ python -m moksha.worker                   # local worker; modules from pyproject.toml
+$ moksha start daily_revenue --day 2026-10-24
+$ pytest                                      # hauls against scripted results: moksha.testing.run
 ```
 
-Single-node mode is also a supported production setup: `hubwagen server`
+Single-node mode is also a supported production setup: `moksha server`
 runs the same server and workers as dev without its console, under a
 service manager, with `/healthz` and JSON logs ([config.md](config.md)). Because hauls are
 deterministic, a test scripts lift results and signals and asserts on the
-lifts called and their order (`hubwagen.testing.run`, which plays the
-server in memory); `python -m hubwagen.testing --replay <haul-id>` replays
+lifts called and their order (`moksha.testing.run`, which plays the
+server in memory); `python -m moksha.testing --replay <haul-id>` replays
 a production haul's logbook against local code, so an incident becomes a
 local test.
 
@@ -739,11 +739,11 @@ avoids choices that block it.
   logbooks as Parquet in the bucket.
 - **Profiles.** v1 planned `dev`, `standalone` and `kubernetes`. v2 commits to
   dev and single-node first; `standalone` isn't a separate profile:
-  `hubwagen server` is the single-node server.
+  `moksha server` is the single-node server.
 
 ## Comparison
 
-| | Airflow | Dagster | Temporal | hubwagen |
+| | Airflow | Dagster | Temporal | moksha |
 |---|---|---|---|---|
 | Core model | Task DAG on a schedule | Declared assets | Durable code | Durable code that produces versioned data |
 | Dynamic fan-out | Dynamic task mapping | Dynamic outputs | Loops | Loops |
@@ -763,7 +763,7 @@ building versioning, lineage and idempotent writes themselves.
   in a lift marked `memo=True`, reuses an outdated pallet. Mitigations:
   memoization is opt-in, code versions that follow everything a lift's code
   reaches (with the versions of the packages it uses), rerun reasons, the hidden-inputs pattern, lint for SQL table references, and
-  later `hubwagen verify` (recompute a sample of reused lifts and compare).
+  later `moksha verify` (recompute a sample of reused lifts and compare).
 - **Determinism burden.** Users will write non-deterministic hauls.
   Mitigations: sequence checks with line numbers, runtime guards, lint,
   replay tests, and the stuck state so a mistake is fixable.

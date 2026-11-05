@@ -13,10 +13,10 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 
-	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
-	"github.com/alper/hubwagen/internal/api/gen/hubwagen/v1/hubwagenv1connect"
-	"github.com/alper/hubwagen/internal/config"
-	"github.com/alper/hubwagen/internal/deploycli"
+	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
+	"github.com/alper/moksha/internal/api/gen/moksha/v1/mokshav1connect"
+	"github.com/alper/moksha/internal/config"
+	"github.com/alper/moksha/internal/deploycli"
 )
 
 var (
@@ -34,8 +34,8 @@ var deployCmd = &cobra.Command{
 	Use:   "deploy",
 	Short: "Hand this project to a server: it runs and scales its workers",
 	Long: `Deploy hands a project to a server (docs/projects.md). Run it in the
-project's directory: it reads the project file (hubwagen.yaml, or
-hubwagen.project.yaml, with kind: Project), works out its build from the
+project's directory: it reads the project file (moksha.yaml, or
+moksha.project.yaml, with kind: Project), works out its build from the
 code, and shows what deploying it changes against the code the server runs:
 which steps run again because their code version changed, which are new,
 which are no longer in the code, and which pipelines come or go.
@@ -51,7 +51,7 @@ uses the image as it is here; to a server elsewhere (or with --push) the
 image is pushed to its registry with this machine's login and deployed by
 digest, <build.image>@sha256:…, which the server pulls with its own
 credentials (projects.auth_file). Without a Dockerfile, or with --local,
-its code runs in place instead: python3 -m hubwagen.worker in this
+its code runs in place instead: python3 -m moksha.worker in this
 directory, with PYTHONPATH as it is here, on a server on this machine.
 
 env: {NAME: {secret: name}} in the project file sends only the secret's
@@ -60,8 +60,8 @@ deploy that names a secret it doesn't have. The project's code runs here
 and in its workers, never in the server.
 
 --dry-run stops after showing what would change.`,
-	Example: `  hubwagen deploy --dry-run
-  hubwagen deploy --local --server http://127.0.0.1:7070`,
+	Example: `  moksha deploy --dry-run
+  moksha deploy --local --server http://127.0.0.1:7070`,
 	Args:         cobra.NoArgs,
 	SilenceUsage: true,
 	RunE:         runDeploy,
@@ -92,7 +92,7 @@ func runDeploy(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	server := strings.TrimSuffix(deployServer, "/")
-	code, err := hubwagenv1connect.NewHaulServiceClient(http.DefaultClient, server).ListCode(ctx, connect.NewRequest(&hubwagenv1.ListCodeRequest{}))
+	code, err := mokshav1connect.NewHaulServiceClient(http.DefaultClient, server).ListCode(ctx, connect.NewRequest(&mokshav1.ListCodeRequest{}))
 	if err != nil {
 		return serverError(err)
 	}
@@ -122,7 +122,7 @@ func runDeploy(cmd *cobra.Command, _ []string) error {
 			return err
 		}
 	}
-	res, err := hubwagenv1connect.NewDeployServiceClient(http.DefaultClient, server).Deploy(ctx, connect.NewRequest(req))
+	res, err := mokshav1connect.NewDeployServiceClient(http.DefaultClient, server).Deploy(ctx, connect.NewRequest(req))
 	if err != nil {
 		return serverError(err)
 	}
@@ -133,7 +133,7 @@ func runDeploy(cmd *cobra.Command, _ []string) error {
 	} else {
 		fmt.Print(" The server starts its workers.")
 	}
-	fmt.Println(" hubwagen projects shows them.")
+	fmt.Println(" moksha projects shows them.")
 	return nil
 }
 
@@ -171,13 +171,13 @@ var projectsCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		server := strings.TrimSuffix(deployServer, "/")
 		withDeleted, _ := cmd.Flags().GetBool("deleted")
-		ps, err := hubwagenv1connect.NewDeployServiceClient(http.DefaultClient, server).ListProjects(cmd.Context(),
-			connect.NewRequest(&hubwagenv1.ListProjectsRequest{WithDeleted: withDeleted}))
+		ps, err := mokshav1connect.NewDeployServiceClient(http.DefaultClient, server).ListProjects(cmd.Context(),
+			connect.NewRequest(&mokshav1.ListProjectsRequest{WithDeleted: withDeleted}))
 		if err != nil {
 			return serverError(err)
 		}
-		pools, err := hubwagenv1connect.NewHaulServiceClient(http.DefaultClient, server).ListPools(cmd.Context(),
-			connect.NewRequest(&hubwagenv1.ListPoolsRequest{}))
+		pools, err := mokshav1connect.NewHaulServiceClient(http.DefaultClient, server).ListPools(cmd.Context(),
+			connect.NewRequest(&mokshav1.ListPoolsRequest{}))
 		if err != nil {
 			return serverError(err)
 		}
@@ -196,8 +196,8 @@ With runs of its pipelines still open it refuses; --cancel-runs cancels them.`,
 	Args:         cobra.ExactArgs(1),
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		res, err := hubwagenv1connect.NewDeployServiceClient(http.DefaultClient, strings.TrimSuffix(deployServer, "/")).DeleteProject(
-			cmd.Context(), connect.NewRequest(&hubwagenv1.DeleteProjectRequest{Project: args[0], By: deployer(), CancelRuns: deleteCancelRuns}))
+		res, err := mokshav1connect.NewDeployServiceClient(http.DefaultClient, strings.TrimSuffix(deployServer, "/")).DeleteProject(
+			cmd.Context(), connect.NewRequest(&mokshav1.DeleteProjectRequest{Project: args[0], By: deployer(), CancelRuns: deleteCancelRuns}))
 		if err != nil {
 			if connect.CodeOf(err) == connect.CodeFailedPrecondition && !deleteCancelRuns {
 				return errors.New(strings.TrimPrefix(err.Error(), "failed_precondition: ") + " (--cancel-runs)")
@@ -215,10 +215,10 @@ With runs of its pipelines still open it refuses; --cancel-runs cancels them.`,
 
 func init() {
 	for _, c := range []*cobra.Command{deployCmd, projectsCmd, deleteCmd} {
-		c.Flags().StringVar(&deployServer, "server", "http://127.0.0.1:7070", "hubwagen API")
+		c.Flags().StringVar(&deployServer, "server", "http://127.0.0.1:7070", "moksha API")
 		rootCmd.AddCommand(c)
 	}
-	deployCmd.Flags().StringVar(&deployFile, "file", "", "project file (default: hubwagen.yaml or hubwagen.project.yaml with kind: Project)")
+	deployCmd.Flags().StringVar(&deployFile, "file", "", "project file (default: moksha.yaml or moksha.project.yaml with kind: Project)")
 	deployCmd.Flags().BoolVar(&deployDryRun, "dry-run", false, "only show what would change")
 	deployCmd.Flags().BoolVar(&deployLocal, "local", false, "run the code in place, not in the project's image")
 	deployCmd.Flags().StringVar(&deployPython, "python", "python3", "the interpreter in place (--local)")

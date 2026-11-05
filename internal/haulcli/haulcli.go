@@ -1,4 +1,4 @@
-// Package haulcli is what `hubwagen start` and `hubwagen replay` do, apart
+// Package haulcli is what `moksha start` and `moksha replay` do, apart
 // from flag parsing: turn --param flags into parameter sets, start hauls
 // over HaulService, wait for them, and report per lift what ran and why.
 package haulcli
@@ -19,9 +19,9 @@ import (
 
 	"connectrpc.com/connect"
 
-	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
-	"github.com/alper/hubwagen/internal/api/gen/hubwagen/v1/hubwagenv1connect"
-	"github.com/alper/hubwagen/internal/history"
+	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
+	"github.com/alper/moksha/internal/api/gen/moksha/v1/mokshav1connect"
+	"github.com/alper/moksha/internal/history"
 )
 
 // MaxHauls caps how many hauls one replay may start.
@@ -113,7 +113,7 @@ func parseValue(s string) any {
 
 // Client talks to a server's HaulService.
 type Client struct {
-	hauls hubwagenv1connect.HaulServiceClient
+	hauls mokshav1connect.HaulServiceClient
 	// Hint, if set, is told why runs wait (no worker, ...) once they have
 	// waited for HintAfter (default DefaultHintAfter); each reason once
 	// until no run waits any more.
@@ -125,7 +125,7 @@ type Client struct {
 const DefaultHintAfter = 3 * time.Second
 
 func NewClient(server string) *Client {
-	return &Client{hauls: hubwagenv1connect.NewHaulServiceClient(http.DefaultClient, strings.TrimSuffix(server, "/"))}
+	return &Client{hauls: mokshav1connect.NewHaulServiceClient(http.DefaultClient, strings.TrimSuffix(server, "/"))}
 }
 
 // HaulRequest is what to start.
@@ -140,7 +140,7 @@ func (c *Client) Start(ctx context.Context, r HaulRequest) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	res, err := c.hauls.StartHaul(ctx, connect.NewRequest(&hubwagenv1.StartHaulRequest{
+	res, err := c.hauls.StartHaul(ctx, connect.NewRequest(&mokshav1.StartHaulRequest{
 		Tenant: r.Tenant, Name: r.Name, Dock: r.Dock, ParamsJson: string(params), Trigger: "the CLI"}))
 	if err != nil {
 		return "", err
@@ -151,7 +151,7 @@ func (c *Client) Start(ctx context.Context, r HaulRequest) (string, error) {
 // Signal sends a signal to a haul; payload is JSON ("" for null). It
 // returns the signal's ID.
 func (c *Client) Signal(ctx context.Context, haulID, name, payload string) (string, error) {
-	res, err := c.hauls.SignalHaul(ctx, connect.NewRequest(&hubwagenv1.SignalHaulRequest{
+	res, err := c.hauls.SignalHaul(ctx, connect.NewRequest(&mokshav1.SignalHaulRequest{
 		HaulId: haulID, Name: name, PayloadJson: payload}))
 	if err != nil {
 		return "", err
@@ -161,7 +161,7 @@ func (c *Client) Signal(ctx context.Context, haulID, name, payload string) (stri
 
 // Schedules writes the server's haul schedules as a table, next run first.
 func (c *Client) Schedules(ctx context.Context, w io.Writer) error {
-	res, err := c.hauls.ListSchedules(ctx, connect.NewRequest(&hubwagenv1.ListSchedulesRequest{}))
+	res, err := c.hauls.ListSchedules(ctx, connect.NewRequest(&mokshav1.ListSchedulesRequest{}))
 	if err != nil {
 		return err
 	}
@@ -205,9 +205,9 @@ func (c *Client) Schedules(ctx context.Context, w io.Writer) error {
 // needs a fix and a new build) and returns them in the order given. A haul
 // that continued as new is followed to the end of its chain: what is
 // returned is the last haul.
-func (c *Client) Wait(ctx context.Context, ids []string, every time.Duration) ([]*hubwagenv1.Haul, error) {
+func (c *Client) Wait(ctx context.Context, ids []string, every time.Duration) ([]*mokshav1.Haul, error) {
 	ids = slices.Clone(ids)
-	got := make([]*hubwagenv1.Haul, len(ids))
+	got := make([]*mokshav1.Haul, len(ids))
 	after := c.HintAfter
 	if after <= 0 {
 		after = DefaultHintAfter
@@ -220,7 +220,7 @@ func (c *Client) Wait(ctx context.Context, ids []string, every time.Duration) ([
 			if got[i] != nil && got[i].Status != "running" {
 				continue
 			}
-			res, err := c.hauls.GetHaul(ctx, connect.NewRequest(&hubwagenv1.GetHaulRequest{HaulId: id}))
+			res, err := c.hauls.GetHaul(ctx, connect.NewRequest(&mokshav1.GetHaulRequest{HaulId: id}))
 			if err != nil {
 				return got, err
 			}
@@ -262,7 +262,7 @@ func (c *Client) Wait(ctx context.Context, ids []string, every time.Duration) ([
 // Report summarises runs (hauls): per step (in the order the runs called
 // them), how many were reused and how many ran, grouped by why, in plain
 // words; then how the runs ended.
-func Report(hauls []*hubwagenv1.Haul) string {
+func Report(hauls []*mokshav1.Haul) string {
 	type counts struct {
 		reused int
 		ran    map[string]int // reason → count

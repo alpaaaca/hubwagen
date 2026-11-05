@@ -1,4 +1,4 @@
-// Package config loads hubwagen.yaml, the instance configuration: where the
+// Package config loads moksha.yaml, the instance configuration: where the
 // server keeps its data and its bucket, what it listens on, and (in dev) which worker
 // processes to start next to it.
 //
@@ -21,33 +21,33 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/alper/hubwagen/internal/blob"
+	"github.com/alper/moksha/internal/blob"
 )
 
 const (
-	APIVersion = "hubwagen.dev/v1alpha1"
+	APIVersion = "moksha.dev/v1alpha1"
 	Kind       = "Config"
 	// FileName is the config file looked for in the current directory.
-	FileName = "hubwagen.yaml"
+	FileName = "moksha.yaml"
 
-	DefaultDataDir = ".hubwagen"
+	DefaultDataDir = ".moksha"
 	DefaultListen  = "127.0.0.1:7070"
 )
 
-// Variables hubwagen sets for every worker it starts; a worker's env can't
+// Variables moksha sets for every worker it starts; a worker's env can't
 // set them.
 const (
-	EnvServer   = "HUBWAGEN_SERVER"
-	EnvWorkerID = "HUBWAGEN_WORKER_ID"
-	// EnvSupervisorPID is the PID of the hubwagen process that started the
+	EnvServer   = "MOKSHA_SERVER"
+	EnvWorkerID = "MOKSHA_WORKER_ID"
+	// EnvSupervisorPID is the PID of the moksha process that started the
 	// worker. A worker should stop once its parent is no longer that
 	// process, so a supervisor that dies without stopping its workers (kill
 	// -9, a crash) leaves none behind.
-	EnvSupervisorPID = "HUBWAGEN_SUPERVISOR_PID"
+	EnvSupervisorPID = "MOKSHA_SUPERVISOR_PID"
 	// EnvDocks and EnvLifts are the group's docks (comma-separated) and
 	// steps per worker: the Python worker's defaults for --dock and --lifts.
-	EnvDocks = "HUBWAGEN_DOCKS"
-	EnvLifts = "HUBWAGEN_LIFTS"
+	EnvDocks = "MOKSHA_DOCKS"
+	EnvLifts = "MOKSHA_LIFTS"
 )
 
 type Config struct {
@@ -161,13 +161,13 @@ type Server struct {
 
 // Worker is a group of identical worker processes, a pool: a fixed number
 // (replicas), or between min and max, scaled by the server from the work
-// queued on its docks (internal/pools). Each process gets HUBWAGEN_SERVER
-// (the API's URL), HUBWAGEN_WORKER_ID (<name>-<n>), HUBWAGEN_DOCKS and
-// HUBWAGEN_LIFTS.
+// queued on its docks (internal/pools). Each process gets MOKSHA_SERVER
+// (the API's URL), MOKSHA_WORKER_ID (<name>-<n>), MOKSHA_DOCKS and
+// MOKSHA_LIFTS.
 type Worker struct {
 	Name string `yaml:"name"`
 	// Launcher is what starts the group's workers: "process" (default),
-	// hubwagen itself; "container": hubwagen, as containers of Image;
+	// moksha itself; "container": moksha, as containers of Image;
 	// "kubernetes": a Deployment whose replicas the server sets; or
 	// "external": something else (KEDA, an HPA, a person) from the desired
 	// count the server publishes (GET /v1/pools/<name>).
@@ -224,7 +224,7 @@ func (w Worker) Bounds() (lo, hi int) {
 }
 
 // Count is the number of processes started for a fixed group, and by
-// hubwagen workers, which can't scale (it doesn't see the queues): max.
+// moksha workers, which can't scale (it doesn't see the queues): max.
 func (w Worker) Count() int {
 	_, hi := w.Bounds()
 	return hi
@@ -247,7 +247,7 @@ func (w Worker) Scaled() bool {
 
 // External reports whether the group's worker count is a desired count
 // for something else to apply (external), or that the server applies to a
-// Deployment (kubernetes), rather than processes hubwagen runs.
+// Deployment (kubernetes), rather than processes moksha runs.
 func (w Worker) External() bool {
 	return w.Launcher == LauncherExternal || w.Launcher == LauncherKubernetes
 }
@@ -289,10 +289,10 @@ func (d *Duration) UnmarshalYAML(n *yaml.Node) error {
 }
 
 // Find picks the config file: explicit (--config) if set, else
-// $HUBWAGEN_CONFIG, else ./hubwagen.yaml if it exists. "" means none: use
+// $MOKSHA_CONFIG, else ./moksha.yaml if it exists. "" means none: use
 // the defaults.
 func Find(explicit string) (string, error) {
-	for _, p := range []string{explicit, os.Getenv("HUBWAGEN_CONFIG")} {
+	for _, p := range []string{explicit, os.Getenv("MOKSHA_CONFIG")} {
 		if p == "" {
 			continue
 		}
@@ -384,7 +384,7 @@ func Parse(data []byte, dir string) (*Config, error) {
 		switch w.Launcher {
 		case "", LauncherProcess:
 			if len(w.Command) == 0 || w.Command[0] == "" {
-				add("%s.command: required, e.g. [python3, -m, hubwagen.worker, app.hauls]", at)
+				add("%s.command: required, e.g. [python3, -m, moksha.worker, app.hauls]", at)
 			}
 		case LauncherContainer:
 			if w.Image == "" {
@@ -433,7 +433,7 @@ func Parse(data []byte, dir string) (*Config, error) {
 		}
 		for k := range w.Env {
 			if k == EnvServer || k == EnvWorkerID || k == EnvSupervisorPID || k == EnvDocks || k == EnvLifts {
-				add("%s.env.%s: set by hubwagen", at, k)
+				add("%s.env.%s: set by moksha", at, k)
 			}
 		}
 	}

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/state"
 )
 
 // Dataset subscriptions. A build declares, for a haul it defines, datasets

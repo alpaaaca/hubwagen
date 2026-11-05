@@ -1,4 +1,4 @@
-// Package catalogcli is what `hubwagen datasets`, `pallets` and `pallet` do,
+// Package catalogcli is what `moksha datasets`, `pallets` and `pallet` do,
 // apart from flag parsing: read the catalog over CatalogService and print
 // it for people.
 package catalogcli
@@ -18,16 +18,16 @@ import (
 
 	"connectrpc.com/connect"
 
-	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
-	"github.com/alper/hubwagen/internal/api/gen/hubwagen/v1/hubwagenv1connect"
+	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
+	"github.com/alper/moksha/internal/api/gen/moksha/v1/mokshav1connect"
 )
 
 type Client struct {
-	catalog hubwagenv1connect.CatalogServiceClient
+	catalog mokshav1connect.CatalogServiceClient
 }
 
 func NewClient(server string) *Client {
-	return &Client{catalog: hubwagenv1connect.NewCatalogServiceClient(http.DefaultClient, strings.TrimSuffix(server, "/"))}
+	return &Client{catalog: mokshav1connect.NewCatalogServiceClient(http.DefaultClient, strings.TrimSuffix(server, "/"))}
 }
 
 // maxPartitions is how many partitions one listing reads.
@@ -36,7 +36,7 @@ const maxPartitions = 1000
 // Datasets writes every dataset of tenant with how many partitions it has
 // and its newest partition.
 func (c *Client) Datasets(ctx context.Context, w io.Writer, tenant string) error {
-	res, err := c.catalog.ListDatasets(ctx, connect.NewRequest(&hubwagenv1.ListDatasetsRequest{Tenant: tenant}))
+	res, err := c.catalog.ListDatasets(ctx, connect.NewRequest(&mokshav1.ListDatasetsRequest{Tenant: tenant}))
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func (c *Client) Datasets(ctx context.Context, w io.Writer, tenant string) error
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
 	fmt.Fprintln(tw, "DATASET\tPARTITIONED BY\tPARTITIONS\tLATEST\tKEEP")
 	for _, d := range res.Msg.Datasets {
-		parts, err := c.catalog.ListPartitions(ctx, connect.NewRequest(&hubwagenv1.ListPartitionsRequest{
+		parts, err := c.catalog.ListPartitions(ctx, connect.NewRequest(&mokshav1.ListPartitionsRequest{
 			Tenant: d.Tenant, Dataset: d.Name, Limit: maxPartitions}))
 		if err != nil {
 			return err
@@ -74,7 +74,7 @@ func (c *Client) Datasets(ctx context.Context, w io.Writer, tenant string) error
 	return tw.Flush()
 }
 
-func describeKeep(d *hubwagenv1.Dataset) string {
+func describeKeep(d *mokshav1.Dataset) string {
 	var keep []string
 	if d.KeepVersions > 0 {
 		keep = append(keep, fmt.Sprintf("%d version%s", d.KeepVersions, plural(int(d.KeepVersions))))
@@ -90,7 +90,7 @@ func describeKeep(d *hubwagenv1.Dataset) string {
 
 // GC expires what retention no longer keeps, or with dryRun shows it.
 func (c *Client) GC(ctx context.Context, w io.Writer, dryRun bool) error {
-	res, err := c.catalog.ExpirePallets(ctx, connect.NewRequest(&hubwagenv1.ExpirePalletsRequest{DryRun: dryRun}))
+	res, err := c.catalog.ExpirePallets(ctx, connect.NewRequest(&mokshav1.ExpirePalletsRequest{DryRun: dryRun}))
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func (c *Client) GC(ctx context.Context, w io.Writer, dryRun bool) error {
 	return tw.Flush()
 }
 
-// PalletsQuery is what `hubwagen versions` lists.
+// PalletsQuery is what `moksha versions` lists.
 type PalletsQuery struct {
 	Tenant    string
 	Dataset   string
@@ -127,7 +127,7 @@ type PalletsQuery struct {
 func (c *Client) Pallets(ctx context.Context, w io.Writer, q PalletsQuery) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
 	if q.Partition == nil && !q.All && len(q.States) == 0 {
-		res, err := c.catalog.ListPartitions(ctx, connect.NewRequest(&hubwagenv1.ListPartitionsRequest{
+		res, err := c.catalog.ListPartitions(ctx, connect.NewRequest(&mokshav1.ListPartitionsRequest{
 			Tenant: q.Tenant, Dataset: q.Dataset, Limit: maxPartitions}))
 		if err != nil {
 			return err
@@ -143,7 +143,7 @@ func (c *Client) Pallets(ctx context.Context, w io.Writer, q PalletsQuery) error
 		}
 		return tw.Flush()
 	}
-	res, err := c.catalog.ListPallets(ctx, connect.NewRequest(&hubwagenv1.ListPalletsRequest{
+	res, err := c.catalog.ListPallets(ctx, connect.NewRequest(&mokshav1.ListPalletsRequest{
 		Tenant: q.Tenant, Dataset: q.Dataset, Partition: q.Partition, States: q.States, Limit: int32(q.Limit)}))
 	if err != nil {
 		return err
@@ -169,7 +169,7 @@ func (c *Client) Pallets(ctx context.Context, w io.Writer, q PalletsQuery) error
 
 // Pallet writes one pallet, its files and its lineage as two trees.
 func (c *Client) Pallet(ctx context.Context, w io.Writer, id string) error {
-	res, err := c.catalog.GetPallet(ctx, connect.NewRequest(&hubwagenv1.GetPalletRequest{Id: id}))
+	res, err := c.catalog.GetPallet(ctx, connect.NewRequest(&mokshav1.GetPalletRequest{Id: id}))
 	if err != nil {
 		return err
 	}
@@ -210,13 +210,13 @@ func (c *Client) Pallet(ctx context.Context, w io.Writer, id string) error {
 		fmt.Fprintf(w, "  files      can't be read: %s\n", m.ManifestError)
 	}
 	fmt.Fprintln(w, "\nbuilt from:")
-	tree(w, p.Id, m.Upstream, func(e *hubwagenv1.LineageEdge) (string, string) { return e.PalletId, e.InputId })
+	tree(w, p.Id, m.Upstream, func(e *mokshav1.LineageEdge) (string, string) { return e.PalletId, e.InputId })
 	fmt.Fprintln(w, "\nbuilt into:")
-	tree(w, p.Id, m.Downstream, func(e *hubwagenv1.LineageEdge) (string, string) { return e.InputId, e.PalletId })
+	tree(w, p.Id, m.Downstream, func(e *mokshav1.LineageEdge) (string, string) { return e.InputId, e.PalletId })
 	return nil
 }
 
-// InvalidateQuery is what `hubwagen data invalidate` does. Confirm is
+// InvalidateQuery is what `moksha data invalidate` does. Confirm is
 // asked, after the dry run is shown, before anything is marked.
 type InvalidateQuery struct {
 	ID, Reason, By string
@@ -227,7 +227,7 @@ type InvalidateQuery struct {
 // Invalidate shows what invalidating a pallet marks, marks it unless
 // DryRun (or Confirm says no), and prints the starts that recompute it.
 func (c *Client) Invalidate(ctx context.Context, w io.Writer, q InvalidateQuery) error {
-	req := &hubwagenv1.InvalidatePalletRequest{Id: q.ID, Reason: q.Reason, By: q.By, DryRun: true}
+	req := &mokshav1.InvalidatePalletRequest{Id: q.ID, Reason: q.Reason, By: q.By, DryRun: true}
 	res, err := c.catalog.InvalidatePallet(ctx, connect.NewRequest(req))
 	if err != nil {
 		return err
@@ -266,7 +266,7 @@ func (c *Client) Invalidate(ctx context.Context, w io.Writer, q InvalidateQuery)
 // Stale writes the partitions whose latest pallet is out of date, why, and
 // the starts that refresh them.
 func (c *Client) Stale(ctx context.Context, w io.Writer, tenant, dataset string) error {
-	res, err := c.catalog.ListStale(ctx, connect.NewRequest(&hubwagenv1.ListStaleRequest{Tenant: tenant, Dataset: dataset}))
+	res, err := c.catalog.ListStale(ctx, connect.NewRequest(&mokshav1.ListStaleRequest{Tenant: tenant, Dataset: dataset}))
 	if err != nil {
 		return err
 	}
@@ -276,7 +276,7 @@ func (c *Client) Stale(ctx context.Context, w io.Writer, tenant, dataset string)
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
 	fmt.Fprintln(tw, "DATASET\tPARTITION\tLATEST VERSION\tWHY")
-	var hauls []*hubwagenv1.HaulRef
+	var hauls []*mokshav1.HaulRef
 	for _, st := range res.Msg.Stale {
 		p := st.Pallet
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", p.Dataset, describePartition(p.Partition), p.Id, strings.Join(st.Reasons, "; "))
@@ -290,7 +290,7 @@ func (c *Client) Stale(ctx context.Context, w io.Writer, tenant, dataset string)
 
 // replayHint prints a start per haul that built the pallets: memoization
 // reuses what is still good, so those recompute only what isn't.
-func replayHint(w io.Writer, hauls []*hubwagenv1.HaulRef, what string) error {
+func replayHint(w io.Writer, hauls []*mokshav1.HaulRef, what string) error {
 	if len(hauls) == 0 {
 		return nil
 	}
@@ -299,7 +299,7 @@ func replayHint(w io.Writer, hauls []*hubwagenv1.HaulRef, what string) error {
 	for _, h := range hauls {
 		var params map[string]json.RawMessage
 		_ = json.Unmarshal([]byte(h.ParamsJson), &params)
-		line := "  hubwagen start " + h.Name
+		line := "  moksha start " + h.Name
 		if h.Tenant != "" && h.Tenant != "default" {
 			line += " --tenant " + h.Tenant
 		}
@@ -336,12 +336,12 @@ func plural(n int) string {
 }
 
 // tree prints a lineage from root, following edges as from → to.
-func tree(w io.Writer, root string, l *hubwagenv1.Lineage, dir func(*hubwagenv1.LineageEdge) (from, to string)) {
-	pallets := map[string]*hubwagenv1.Pallet{}
+func tree(w io.Writer, root string, l *mokshav1.Lineage, dir func(*mokshav1.LineageEdge) (from, to string)) {
+	pallets := map[string]*mokshav1.Pallet{}
 	for _, p := range l.Pallets {
 		pallets[p.Id] = p
 	}
-	next := map[string][]*hubwagenv1.LineageEdge{}
+	next := map[string][]*mokshav1.LineageEdge{}
 	for _, e := range l.Edges {
 		from, _ := dir(e)
 		next[from] = append(next[from], e)
@@ -385,7 +385,7 @@ func describePartition(p string) string {
 	return p
 }
 
-// when shows a time as everything hubwagen shows it: in UTC, saying so.
+// when shows a time as everything moksha shows it: in UTC, saying so.
 func when(t time.Time) string { return t.UTC().Format("2006-01-02 15:04:05 UTC") }
 
 func size(n int64) string {

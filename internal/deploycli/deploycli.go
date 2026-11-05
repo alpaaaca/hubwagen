@@ -1,4 +1,4 @@
-// Package deploycli is what `hubwagen deploy` does (docs/projects.md). For
+// Package deploycli is what `moksha deploy` does (docs/projects.md). For
 // now, the dry run: work out a project's build from its code (in its image,
 // or in place), compare it with the code the server runs (ListCode), and
 // tell what a deploy would change, in plain words.
@@ -20,11 +20,11 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/durationpb"
 
-	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
-	"github.com/alper/hubwagen/internal/config"
+	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
+	"github.com/alper/moksha/internal/config"
 )
 
-// Versions is a build as the worker reports it (python -m hubwagen.worker
+// Versions is a build as the worker reports it (python -m moksha.worker
 // --versions): its ID, and the code version of each pipeline and step.
 type Versions struct {
 	Build string            `json:"build"`
@@ -55,7 +55,7 @@ type Options struct {
 // here, never on the server.
 func BuildVersions(ctx context.Context, p *config.Project, opts Options) (Versions, Source, error) {
 	if p.Build.Dockerfile == "" || opts.Local {
-		cmd := exec.CommandContext(ctx, or(opts.Python, "python3"), "-m", "hubwagen.worker", "--versions")
+		cmd := exec.CommandContext(ctx, or(opts.Python, "python3"), "-m", "moksha.worker", "--versions")
 		cmd.Dir = p.Dir
 		v, err := run(cmd, opts.Out)
 		return v, Source{}, err
@@ -71,7 +71,7 @@ func BuildVersions(ctx context.Context, p *config.Project, opts Options) (Versio
 	if err := build.Run(); err != nil {
 		return Versions{}, Source{}, fmt.Errorf("%s build: %w", rt, err)
 	}
-	v, err := run(exec.CommandContext(ctx, rt, "run", "--rm", image, "python3", "-m", "hubwagen.worker", "--versions"), opts.Out)
+	v, err := run(exec.CommandContext(ctx, rt, "run", "--rm", image, "python3", "-m", "moksha.worker", "--versions"), opts.Out)
 	return v, Source{Image: image}, err
 }
 
@@ -117,13 +117,13 @@ type Item struct {
 // Diff is what deploying a build would change on a server.
 type Diff struct {
 	Build     string
-	Newest    *hubwagenv1.Code // the server's newest build, if any
+	Newest    *mokshav1.Code // the server's newest build, if any
 	Steps     []Item
 	Pipelines []Item
 }
 
 // Compare compares v with the code the server runs.
-func Compare(v Versions, server *hubwagenv1.ListCodeResponse) Diff {
+func Compare(v Versions, server *mokshav1.ListCodeResponse) Diff {
 	d := Diff{Build: v.Build}
 	for _, c := range append(slices.Clone(server.GetSteps()), server.GetPipelines()...) {
 		if d.Newest == nil || c.RegisteredAt.AsTime().After(d.Newest.RegisteredAt.AsTime()) {
@@ -135,8 +135,8 @@ func Compare(v Versions, server *hubwagenv1.ListCodeResponse) Diff {
 	return d
 }
 
-func compare(local map[string]codeOf, server []*hubwagenv1.Code, versions bool) []Item {
-	have := map[string]*hubwagenv1.Code{}
+func compare(local map[string]codeOf, server []*mokshav1.Code, versions bool) []Item {
+	have := map[string]*mokshav1.Code{}
 	for _, c := range server {
 		have[c.Name] = c
 	}
@@ -257,26 +257,26 @@ func stepText(it Item) string {
 }
 
 // Registration is p's build registration, what its workers register
-// (python -m hubwagen.worker --build-json), worked out where BuildVersions
+// (python -m moksha.worker --build-json), worked out where BuildVersions
 // worked out its versions: in src.Image, or in place.
-func Registration(ctx context.Context, p *config.Project, src Source, opts Options) (*hubwagenv1.RegisterBuildRequest, error) {
+func Registration(ctx context.Context, p *config.Project, src Source, opts Options) (*mokshav1.RegisterBuildRequest, error) {
 	var cmd *exec.Cmd
 	if src.Image == "" {
-		cmd = exec.CommandContext(ctx, or(opts.Python, "python3"), "-m", "hubwagen.worker", "--build-json")
+		cmd = exec.CommandContext(ctx, or(opts.Python, "python3"), "-m", "moksha.worker", "--build-json")
 		cmd.Dir = p.Dir
 	} else {
-		cmd = exec.CommandContext(ctx, runtime(opts), "run", "--rm", src.Image, "python3", "-m", "hubwagen.worker", "--build-json")
+		cmd = exec.CommandContext(ctx, runtime(opts), "run", "--rm", src.Image, "python3", "-m", "moksha.worker", "--build-json")
 	}
 	var out, errOut bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, io.MultiWriter(opts.Out, &errOut)
 	if err := cmd.Run(); err != nil {
 		if strings.Contains(errOut.String(), "unrecognized arguments: --build-json") {
-			return nil, fmt.Errorf("%s: its hubwagen SDK is older than this hubwagen (no --build-json): build it on a newer hubwagen-worker image, or deploy --local",
+			return nil, fmt.Errorf("%s: its moksha SDK is older than this moksha (no --build-json): build it on a newer moksha-worker image, or deploy --local",
 				strings.Join(cmd.Args, " "))
 		}
 		return nil, fmt.Errorf("%s: %w", strings.Join(cmd.Args, " "), err)
 	}
-	var reg hubwagenv1.RegisterBuildRequest
+	var reg mokshav1.RegisterBuildRequest
 	if err := protojson.Unmarshal(out.Bytes(), &reg); err != nil || reg.BuildId == "" {
 		return nil, fmt.Errorf("%s: not a build registration: %s", strings.Join(cmd.Args, " "), firstLine(out.String()))
 	}
@@ -304,8 +304,8 @@ func runtime(opts Options) string {
 // the build (Tag it first; Push replaces it with the pushed digest), or its
 // directory and interpreter in place, with PYTHONPATH as it is here.
 // {secret: name} env goes as the secret's name only.
-func DeployRequest(p *config.Project, src Source, reg *hubwagenv1.RegisterBuildRequest, python, by string) (*hubwagenv1.DeployRequest, error) {
-	req := &hubwagenv1.DeployRequest{Project: p.Name, Build: reg, By: by, Env: map[string]string{}}
+func DeployRequest(p *config.Project, src Source, reg *mokshav1.RegisterBuildRequest, python, by string) (*mokshav1.DeployRequest, error) {
+	req := &mokshav1.DeployRequest{Project: p.Name, Build: reg, By: by, Env: map[string]string{}}
 	for _, k := range slices.Sorted(maps.Keys(p.Env)) {
 		e := p.Env[k]
 		if e.Secret != "" {
@@ -333,7 +333,7 @@ func DeployRequest(p *config.Project, src Source, reg *hubwagenv1.RegisterBuildR
 	}
 	for _, pool := range p.Pools {
 		lo, hi := pool.Bounds()
-		req.Pools = append(req.Pools, &hubwagenv1.DeployedPool{Name: pool.Name, Docks: pool.DockList(), Min: int32(lo), Max: int32(hi),
+		req.Pools = append(req.Pools, &mokshav1.DeployedPool{Name: pool.Name, Docks: pool.DockList(), Min: int32(lo), Max: int32(hi),
 			Lifts: int32(pool.LiftCount()), IdleAfter: durationpb.New(pool.Idle())})
 	}
 	return req, nil
@@ -356,9 +356,9 @@ func Tag(ctx context.Context, p *config.Project, src Source, build string, opts 
 // Projects writes the server's projects as a table: version, build, where
 // their workers run, and each pool with the workers it runs now
 // (ListPools, pools named <project>-<pool>-v<version>). Times in UTC.
-func Projects(w io.Writer, ps []*hubwagenv1.Deployment, pools []*hubwagenv1.Pool) error {
+func Projects(w io.Writer, ps []*mokshav1.Deployment, pools []*mokshav1.Pool) error {
 	if len(ps) == 0 {
-		_, err := fmt.Fprintln(w, "no projects (hubwagen deploy in a project's directory hands one to the server)")
+		_, err := fmt.Fprintln(w, "no projects (moksha deploy in a project's directory hands one to the server)")
 		return err
 	}
 	running := map[string]int{}
@@ -403,7 +403,7 @@ func shortDir(dir string) string {
 func Push(ctx context.Context, p *config.Project, build string, opts Options) (string, error) {
 	rt, ref := runtime(opts), BuildImage(p, build)
 	if rt == "podman" {
-		f, err := os.CreateTemp("", "hubwagen-digest-")
+		f, err := os.CreateTemp("", "moksha-digest-")
 		if err != nil {
 			return "", err
 		}

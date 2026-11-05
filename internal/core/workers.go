@@ -6,7 +6,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/state"
 )
 
 // Workers. The core remembers which workers polled lately, in memory only:

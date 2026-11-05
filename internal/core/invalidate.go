@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/state"
 )
 
 // Invalidation marks bad data. InvalidatePallet marks a pallet and every

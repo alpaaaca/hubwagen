@@ -10,10 +10,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/alper/hubwagen/internal/config"
-	"github.com/alper/hubwagen/internal/devmode"
-	"github.com/alper/hubwagen/internal/supervise"
-	"github.com/alper/hubwagen/internal/webui"
+	"github.com/alper/moksha/internal/config"
+	"github.com/alper/moksha/internal/devmode"
+	"github.com/alper/moksha/internal/supervise"
+	"github.com/alper/moksha/internal/webui"
 )
 
 var (
@@ -25,23 +25,23 @@ var (
 
 var devCmd = &cobra.Command{
 	Use:   "dev",
-	Short: "Run a hubwagen server and its workers on this machine",
+	Short: "Run a moksha server and its workers on this machine",
 	Long: `Dev runs the whole server in this process, with its state, logbooks and
 pallets in --data-dir, and serves the API on --listen. Workers connect to it
-and run the hauls that hubwagen start and hubwagen replay start.
+and run the hauls that moksha start and moksha replay start.
 
-Settings come from hubwagen.yaml (--config, $HUBWAGEN_CONFIG, else
-./hubwagen.yaml if present); flags override it. The worker processes listed
+Settings come from moksha.yaml (--config, $MOKSHA_CONFIG, else
+./moksha.yaml if present); flags override it. The worker processes listed
 under workers: are started next to the server, their output prefixed with
 their ID, and restarted if they exit. --no-workers starts the server alone
-(run them with hubwagen workers, or by hand:
-python -m hubwagen.worker app.hauls).
+(run them with moksha workers, or by hand:
+python -m moksha.worker app.hauls).
 
 It prints a line when a run starts and when it ends, and in between what
 its lifts print and log, each line marked with the run's inputs and the
 lift. --events prints the engine's events instead (lifts scheduled and
 why, dispatched, reused, retried; builds registered), for debugging
-hubwagen itself. Ctrl-C stops the workers (running lifts finish first), then the server.
+moksha itself. Ctrl-C stops the workers (running lifts finish first), then the server.
 Work that workers outside dev are running carries on and is picked up on
 the next start.
 
@@ -55,7 +55,7 @@ func init() {
 	devCmd.Flags().StringVar(&dataDir, "data-dir", config.DefaultDataDir, "directory for the server's state, logbooks and pallets (default: from the config)")
 	devCmd.Flags().StringVar(&listenAddr, "listen", config.DefaultListen, "address to serve the API on (default: from the config)")
 	devCmd.Flags().BoolVar(&noWorkers, "no-workers", false, "don't start the workers from the config")
-	devCmd.Flags().BoolVar(&devEvents, "events", false, "print the engine's events (lifts scheduled, dispatched, ...) instead of runs, for debugging hubwagen")
+	devCmd.Flags().BoolVar(&devEvents, "events", false, "print the engine's events (lifts scheduled, dispatched, ...) instead of runs, for debugging moksha")
 	addConfigFlag(devCmd)
 	rootCmd.AddCommand(devCmd)
 }
@@ -78,16 +78,16 @@ func runDev(cmd *cobra.Command, _ []string) error {
 	}
 	defer e.Close()
 	from := e.LastSeq(ctx)
-	fmt.Printf("hubwagen dev: config %s\n", configName(cfg))
-	fmt.Printf("hubwagen dev: data in %s; Ctrl-C to stop\n", e.DataDir)
+	fmt.Printf("moksha dev: config %s\n", configName(cfg))
+	fmt.Printf("moksha dev: data in %s; Ctrl-C to stop\n", e.DataDir)
 	if scfg.S3 != nil {
-		fmt.Printf("hubwagen dev: bucket %s\n", e.Bucket.Base())
+		fmt.Printf("moksha dev: bucket %s\n", e.Bucket.Base())
 	}
-	fmt.Printf("hubwagen dev: API on http://%s\n", e.APIAddr)
+	fmt.Printf("moksha dev: API on http://%s\n", e.APIAddr)
 	if webui.Built() {
-		fmt.Printf("hubwagen dev: web UI on http://%s/\n", e.APIAddr)
+		fmt.Printf("moksha dev: web UI on http://%s/\n", e.APIAddr)
 	} else {
-		fmt.Println("hubwagen dev: no web UI in this binary (go generate ./internal/webui, then go build)")
+		fmt.Println("moksha dev: no web UI in this binary (go generate ./internal/webui, then go build)")
 	}
 	go e.Console(ctx, from, devEvents, func(line string) { fmt.Println(line) })
 
@@ -99,7 +99,7 @@ func runDev(cmd *cobra.Command, _ []string) error {
 	groups := 0
 	if !noWorkers {
 		// dev prints what lifts print, from the server: workers needn't echo it.
-		if groups, err = startWorkers(workersCtx, g, cfg, e.Core, config.ServerURL(e.APIAddr), slog.Default(), "HUBWAGEN_ECHO_LOGS=0"); err != nil {
+		if groups, err = startWorkers(workersCtx, g, cfg, e.Core, config.ServerURL(e.APIAddr), slog.Default(), "MOKSHA_ECHO_LOGS=0"); err != nil {
 			stopWorkers() // it started none
 			return err
 		}

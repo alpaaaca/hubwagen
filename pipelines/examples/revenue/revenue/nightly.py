@@ -5,7 +5,7 @@ interval (here: the previous day, 00:00 to 00:00 UTC), and it runs `daily`
 for that day.
 """
 
-import hubwagen as hw
+import moksha as hw
 
 from .hauls import daily
 

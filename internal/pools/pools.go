@@ -27,8 +27,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/alper/hubwagen/internal/clock"
-	"github.com/alper/hubwagen/internal/core"
+	"github.com/alper/moksha/internal/clock"
+	"github.com/alper/moksha/internal/core"
 )
 
 // Pool is one worker group as the scaler sees it.

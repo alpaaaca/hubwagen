@@ -10,9 +10,9 @@ pl = pytest.importorskip("polars")
 pa = pytest.importorskip("pyarrow")
 pq = pytest.importorskip("pyarrow.parquet")
 
-import hubwagen as hw  # noqa: E402
-from hubwagen import _codecs, _model  # noqa: E402
-from hubwagen.worker import load_inputs  # noqa: E402
+import moksha as hw  # noqa: E402
+from moksha import _codecs, _model  # noqa: E402
+from moksha.worker import load_inputs  # noqa: E402
 
 from conftest import SDK, start_worker, stop, wait  # noqa: E402
 

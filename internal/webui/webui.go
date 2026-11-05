@@ -69,13 +69,13 @@ func serveIndex(w http.ResponseWriter, r *http.Request, sub fs.FS) {
 
 func placeholder(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write([]byte(`<!doctype html><title>hubwagen</title>
+	_, _ = w.Write([]byte(`<!doctype html><title>moksha</title>
 <body style="font-family: system-ui; max-width: 40em; margin: 4em auto">
-<h1>hubwagen</h1>
+<h1>moksha</h1>
 <p>The API is up, but this binary was built without the web UI.</p>
 <p>Build it (needs Node and npm), then the binary:</p>
 <pre>go generate ./internal/webui
-go build -o hubwagen .</pre>
+go build -o moksha .</pre>
 <p>Or work on the UI against this server: <code>cd ui &amp;&amp; npm install &amp;&amp; npm run dev</code>.</p>
 </body>`))
 }

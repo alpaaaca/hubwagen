@@ -1,7 +1,7 @@
 # Build artifacts
-/hubwagen
-hubwagen-linux-amd64
-hubwagen-*
+/moksha
+moksha-linux-amd64
+moksha-*
 
 # Local SQLite database
 *.db
@@ -10,7 +10,7 @@ hubwagen-*
 *.db-journal
 
 # Local config overrides
-hubwagen.local.yaml
+moksha.local.yaml
 .env
 .env.*
 
@@ -40,11 +40,11 @@ Thumbs.db
 # Logs
 *.log
 
-# Compiled specs (hubwagen compile --out build/specs)
+# Compiled specs (moksha compile --out build/specs)
 build/
 
-# hubwagen dev / run data directory
-.hubwagen/
+# moksha dev / run data directory
+.moksha/
 
 # Python
 __pycache__/

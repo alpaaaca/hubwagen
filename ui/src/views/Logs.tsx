@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
 
 import { useApi } from "../api";
-import type { Lift } from "../gen/hubwagen/v1/haul_pb";
-import type { RunLogLine } from "../gen/hubwagen/v1/log_pb";
+import type { Lift } from "../gen/moksha/v1/haul_pb";
+import type { RunLogLine } from "../gen/moksha/v1/log_pb";
 import { clock } from "../format";
 import { POLL_MS, usePoll } from "../hooks";
 
@@ -75,7 +75,7 @@ export function Logs({
 }
 
 function LogRow({ line: l, step }: { line: RunLogLine; step: string }) {
-  const level = l.line?.stream === "log" && l.line.level !== "INFO" ? l.line.level : ""; // like hubwagen dev: only what stands out
+  const level = l.line?.stream === "log" && l.line.level !== "INFO" ? l.line.level : ""; // like moksha dev: only what stands out
   const kind = l.line?.stream === "stderr" || level === "ERROR" || level === "CRITICAL" ? "bad" : level === "WARNING" ? "warn" : "";
   return (
     <div className={`log-line ${kind}`}>

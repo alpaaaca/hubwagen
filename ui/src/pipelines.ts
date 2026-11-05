@@ -1,5 +1,5 @@
 import { useApi } from "./api";
-import type { Pipeline, Schedule, Subscription } from "./gen/hubwagen/v1/haul_pb";
+import type { Pipeline, Schedule, Subscription } from "./gen/moksha/v1/haul_pb";
 import { usePoll } from "./hooks";
 
 export type Pipelines = {

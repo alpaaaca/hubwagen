@@ -17,11 +17,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/durationpb"
 
-	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
-	"github.com/alper/hubwagen/internal/blob"
-	"github.com/alper/hubwagen/internal/blob/s3fake"
-	"github.com/alper/hubwagen/internal/core"
-	"github.com/alper/hubwagen/internal/state"
+	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
+	"github.com/alper/moksha/internal/blob"
+	"github.com/alper/moksha/internal/blob/s3fake"
+	"github.com/alper/moksha/internal/core"
+	"github.com/alper/moksha/internal/state"
 )
 
 func hexSum(data []byte) string {
@@ -30,7 +30,7 @@ func hexSum(data []byte) string {
 }
 
 // do sends one transfer; relative URLs are the server's own.
-func (s *server) do(t *testing.T, method string, tr *hubwagenv1.Transfer, body []byte) (int, []byte) {
+func (s *server) do(t *testing.T, method string, tr *mokshav1.Transfer, body []byte) (int, []byte) {
 	t.Helper()
 	u := tr.Url
 	if strings.HasPrefix(u, "/") {
@@ -51,8 +51,8 @@ func (s *server) do(t *testing.T, method string, tr *hubwagenv1.Transfer, body [
 
 func (s *server) upload(t *testing.T, attempt, path string, content []byte) {
 	t.Helper()
-	res, err := s.client.GetUploadURLs(ctx, connect.NewRequest(&hubwagenv1.GetUploadURLsRequest{AttemptId: attempt,
-		Files: []*hubwagenv1.File{{Path: path, Size: int64(len(content)), Sha256: hexSum(content)}}}))
+	res, err := s.client.GetUploadURLs(ctx, connect.NewRequest(&mokshav1.GetUploadURLsRequest{AttemptId: attempt,
+		Files: []*mokshav1.File{{Path: path, Size: int64(len(content)), Sha256: hexSum(content)}}}))
 	require.NoError(t, err)
 	require.Len(t, res.Msg.Files, 1)
 	status, body := s.do(t, http.MethodPut, res.Msg.Files[0], content)
@@ -61,10 +61,10 @@ func (s *server) upload(t *testing.T, attempt, path string, content []byte) {
 
 // checkInputs reads every input of the lift task through download URLs:
 // build reads what extract wrote.
-func (s *server) checkInputs(t *testing.T, task *hubwagenv1.LiftTask) {
+func (s *server) checkInputs(t *testing.T, task *mokshav1.LiftTask) {
 	t.Helper()
 	for _, in := range task.Inputs {
-		res, err := s.client.GetDownloadURLs(ctx, connect.NewRequest(&hubwagenv1.GetDownloadURLsRequest{AttemptId: task.Id, Pallet: in.Pallet}))
+		res, err := s.client.GetDownloadURLs(ctx, connect.NewRequest(&mokshav1.GetDownloadURLsRequest{AttemptId: task.Id, Pallet: in.Pallet}))
 		require.NoError(t, err)
 		var m struct {
 			Pallet string `json:"pallet"`
@@ -84,7 +84,7 @@ func (s *server) checkInputs(t *testing.T, task *hubwagenv1.LiftTask) {
 func TestLiftDataThroughURLs(t *testing.T) {
 	run := func(t *testing.T, s *server) {
 		s.viaURLs = true
-		_, err := s.client.RegisterBuild(ctx, connect.NewRequest(&hubwagenv1.RegisterBuildRequest{
+		_, err := s.client.RegisterBuild(ctx, connect.NewRequest(&mokshav1.RegisterBuildRequest{
 			BuildId: "b1", Hauls: []string{"daily_revenue"}, LiftVersions: map[string]string{"extract": "v1", "build": "v1"}}))
 		require.NoError(t, err)
 		for i, want := range [][]string{{"extract", "build"}, nil} {
@@ -123,17 +123,17 @@ func TestLiftDataThroughURLs(t *testing.T) {
 // server's own URLs can't be altered or used after they expire.
 func TestTransferURLsAreScoped(t *testing.T) {
 	s := start(t)
-	_, err := s.client.RegisterBuild(ctx, connect.NewRequest(&hubwagenv1.RegisterBuildRequest{
+	_, err := s.client.RegisterBuild(ctx, connect.NewRequest(&mokshav1.RegisterBuildRequest{
 		BuildId: "b1", Hauls: []string{"daily_revenue"}, LiftVersions: map[string]string{"extract": "v1", "build": "v1"}}))
 	require.NoError(t, err)
 	_, err = s.core.StartHaul(ctx, core.StartHaulRequest{Tenant: "t", Name: "daily_revenue", Params: map[string]any{"day": "2026-10-24"}})
 	require.NoError(t, err)
-	hr, err := s.client.PollHaulTask(ctx, connect.NewRequest(&hubwagenv1.PollHaulTaskRequest{WorkerId: "w1", Docks: []string{core.DefaultDock}, Wait: durationpb.New(time.Second)}))
+	hr, err := s.client.PollHaulTask(ctx, connect.NewRequest(&mokshav1.PollHaulTaskRequest{WorkerId: "w1", Docks: []string{core.DefaultDock}, Wait: durationpb.New(time.Second)}))
 	require.NoError(t, err)
 	cmds, _ := s.replay(hr.Msg.Task.Logbook)
-	_, err = s.client.CompleteHaulTask(ctx, connect.NewRequest(&hubwagenv1.CompleteHaulTaskRequest{TaskId: hr.Msg.Task.Id, BuildId: "b1", Commands: cmds}))
+	_, err = s.client.CompleteHaulTask(ctx, connect.NewRequest(&mokshav1.CompleteHaulTaskRequest{TaskId: hr.Msg.Task.Id, BuildId: "b1", Commands: cmds}))
 	require.NoError(t, err)
-	lr, err := s.client.PollLiftTask(ctx, connect.NewRequest(&hubwagenv1.PollLiftTaskRequest{WorkerId: "w1", Docks: []string{core.DefaultDock}, Wait: durationpb.New(time.Second)}))
+	lr, err := s.client.PollLiftTask(ctx, connect.NewRequest(&mokshav1.PollLiftTaskRequest{WorkerId: "w1", Docks: []string{core.DefaultDock}, Wait: durationpb.New(time.Second)}))
 	require.NoError(t, err)
 	task := lr.Msg.Task
 	require.NotNil(t, task)
@@ -141,9 +141,9 @@ func TestTransferURLsAreScoped(t *testing.T) {
 	assert.Equal(t, "bucket-id", task.BucketId)
 
 	content := []byte("a,b\n")
-	upload := func(path string) (*hubwagenv1.Transfer, error) {
-		r, err := s.client.GetUploadURLs(ctx, connect.NewRequest(&hubwagenv1.GetUploadURLsRequest{AttemptId: task.Id,
-			Files: []*hubwagenv1.File{{Path: path, Size: int64(len(content)), Sha256: hexSum(content)}}}))
+	upload := func(path string) (*mokshav1.Transfer, error) {
+		r, err := s.client.GetUploadURLs(ctx, connect.NewRequest(&mokshav1.GetUploadURLsRequest{AttemptId: task.Id,
+			Files: []*mokshav1.File{{Path: path, Size: int64(len(content)), Sha256: hexSum(content)}}}))
 		if err != nil {
 			return nil, err
 		}
@@ -153,9 +153,9 @@ func TestTransferURLsAreScoped(t *testing.T) {
 		_, err := upload(bad)
 		assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), bad)
 	}
-	_, err = s.client.GetUploadURLs(ctx, connect.NewRequest(&hubwagenv1.GetUploadURLsRequest{AttemptId: "not-running"}))
+	_, err = s.client.GetUploadURLs(ctx, connect.NewRequest(&mokshav1.GetUploadURLsRequest{AttemptId: "not-running"}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
-	_, err = s.client.GetDownloadURLs(ctx, connect.NewRequest(&hubwagenv1.GetDownloadURLsRequest{AttemptId: task.Id, Pallet: "not-an-input"}))
+	_, err = s.client.GetDownloadURLs(ctx, connect.NewRequest(&mokshav1.GetDownloadURLsRequest{AttemptId: task.Id, Pallet: "not-an-input"}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 
 	tr, err := upload("dir/part 0.csv")
@@ -170,7 +170,7 @@ func TestTransferURLsAreScoped(t *testing.T) {
 	assert.Equal(t, http.StatusMethodNotAllowed, status, "a PUT URL is no GET URL")
 	tampered := strings.Replace(tr.Url, "part%200.csv", "part%201.csv", 1)
 	require.NotEqual(t, tr.Url, tampered)
-	status, _ = s.do(t, http.MethodPut, &hubwagenv1.Transfer{Url: tampered}, content)
+	status, _ = s.do(t, http.MethodPut, &mokshav1.Transfer{Url: tampered}, content)
 	assert.Equal(t, http.StatusForbidden, status, "another path")
 	_, err = s.bucket.Get(ctx, task.Staging+"dir/part 0.csv")
 	assert.ErrorIs(t, err, blob.ErrNotExist, "no bad upload became an object")
@@ -186,12 +186,12 @@ func TestTransferURLsAreScoped(t *testing.T) {
 	q := u.Query()
 	q.Set("exp", "1")
 	u.RawQuery = q.Encode()
-	status, _ = s.do(t, http.MethodPut, &hubwagenv1.Transfer{Url: u.String()}, content)
+	status, _ = s.do(t, http.MethodPut, &mokshav1.Transfer{Url: u.String()}, content)
 	assert.Equal(t, http.StatusForbidden, status, "the expiry is signed")
 
 	// Once the attempt has finished, it gets no more URLs.
-	_, err = s.client.CompleteLiftTask(ctx, connect.NewRequest(&hubwagenv1.CompleteLiftTaskRequest{
-		AttemptId: task.Id, Status: hubwagenv1.CompleteLiftTaskRequest_STATUS_FAILED, Reason: "x", NoRetry: true}))
+	_, err = s.client.CompleteLiftTask(ctx, connect.NewRequest(&mokshav1.CompleteLiftTaskRequest{
+		AttemptId: task.Id, Status: mokshav1.CompleteLiftTaskRequest_STATUS_FAILED, Reason: "x", NoRetry: true}))
 	require.NoError(t, err)
 	_, err = upload("late.csv")
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))

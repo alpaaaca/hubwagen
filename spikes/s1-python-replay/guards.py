@@ -125,7 +125,7 @@ def monitor_guard(is_user_file=None):
             raise NondeterminismError(f"{what}() called at {fn}:{code.co_firstlineno}; use ctx.now()/ctx.random() or a lift")
         return None
 
-    mon.use_tool_id(_TOOL, "hubwagen-guard")
+    mon.use_tool_id(_TOOL, "moksha-guard")
     mon.register_callback(_TOOL, mon.events.CALL, on_call)
     mon.set_events(_TOOL, mon.events.CALL)
     try:

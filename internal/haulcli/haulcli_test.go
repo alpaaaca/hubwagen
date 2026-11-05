@@ -16,14 +16,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/alper/hubwagen/internal/api"
-	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
-	"github.com/alper/hubwagen/internal/blob"
-	"github.com/alper/hubwagen/internal/clock"
-	"github.com/alper/hubwagen/internal/core"
-	"github.com/alper/hubwagen/internal/layout"
-	"github.com/alper/hubwagen/internal/pallet"
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/api"
+	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
+	"github.com/alper/moksha/internal/blob"
+	"github.com/alper/moksha/internal/clock"
+	"github.com/alper/moksha/internal/core"
+	"github.com/alper/moksha/internal/layout"
+	"github.com/alper/moksha/internal/pallet"
+	"github.com/alper/moksha/internal/state"
 )
 
 var ctx = context.Background()
@@ -61,15 +61,15 @@ func TestExpandParams(t *testing.T) {
 }
 
 func TestReport(t *testing.T) {
-	lift := func(name, status, reason string, reused bool) *hubwagenv1.Lift {
-		return &hubwagenv1.Lift{Name: name, Status: status, RunReason: reason, Reused: reused}
+	lift := func(name, status, reason string, reused bool) *mokshav1.Lift {
+		return &mokshav1.Lift{Name: name, Status: status, RunReason: reason, Reused: reused}
 	}
-	hauls := []*hubwagenv1.Haul{
-		{Id: "h1", Status: "completed", Lifts: []*hubwagenv1.Lift{
+	hauls := []*mokshav1.Haul{
+		{Id: "h1", Status: "completed", Lifts: []*mokshav1.Lift{
 			lift("extract", "completed", "", true), lift("build", "completed", "code changed (v1 → v2)", false)}},
-		{Id: "h2", Status: "completed", Lifts: []*hubwagenv1.Lift{
+		{Id: "h2", Status: "completed", Lifts: []*mokshav1.Lift{
 			lift("extract", "completed", "", true), lift("build", "completed", "input changed", false)}},
-		{Id: "h3", Status: "failed", Reason: "lift_failed", Message: "build: boom", Lifts: []*hubwagenv1.Lift{
+		{Id: "h3", Status: "failed", Reason: "lift_failed", Message: "build: boom", Lifts: []*mokshav1.Lift{
 			lift("extract", "completed", "no previous run", false),
 			{Name: "build", Status: "failed", RunReason: "input changed", Reason: "error"}}},
 	}

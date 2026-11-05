@@ -9,21 +9,21 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/alper/hubwagen/internal/blob"
+	"github.com/alper/moksha/internal/blob"
 )
 
 func TestParse(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, "app"), 0o755))
 	c, err := Parse([]byte(`
-apiVersion: hubwagen.dev/v1alpha1
+apiVersion: moksha.dev/v1alpha1
 kind: Config
 data_dir: state
 server:
   listen: 0.0.0.0:7171
 workers:
   - name: py
-    command: [python3, -m, hubwagen.worker, app.hauls]
+    command: [python3, -m, moksha.worker, app.hauls]
     replicas: 3
     dir: app
     env: {PYTHONPATH: src}
@@ -46,9 +46,9 @@ workers:
 }
 
 func TestDefaults(t *testing.T) {
-	c, err := Parse([]byte("apiVersion: hubwagen.dev/v1alpha1\nkind: Config\n"), "/srv")
+	c, err := Parse([]byte("apiVersion: moksha.dev/v1alpha1\nkind: Config\n"), "/srv")
 	require.NoError(t, err)
-	assert.Equal(t, "/srv/.hubwagen", c.DataDir)
+	assert.Equal(t, "/srv/.moksha", c.DataDir)
 	assert.Equal(t, DefaultListen, c.Server.Listen)
 	assert.Empty(t, c.Workers)
 }
@@ -67,33 +67,33 @@ workers:
     dir: nowhere
   - name: w
     command: [x]
-    env: {HUBWAGEN_SERVER: x, HUBWAGEN_SUPERVISOR_PID: "1"}
+    env: {MOKSHA_SERVER: x, MOKSHA_SUPERVISOR_PID: "1"}
 `), t.TempDir())
 	require.Error(t, err)
 	for _, want := range []string{
-		`apiVersion: must be hubwagen.dev/v1alpha1, got "v0"`,
+		`apiVersion: must be moksha.dev/v1alpha1, got "v0"`,
 		"server.listen:",
 		`workers[0].name: "Py" must be lower-case`,
 		"workers[0].command: required",
 		"workers[1].replicas: must be 0 or more",
 		"workers[1].dir:",
 		`workers[2].name: "w" is used twice`,
-		"workers[2].env.HUBWAGEN_SERVER: set by hubwagen",
-		"workers[2].env.HUBWAGEN_SUPERVISOR_PID: set by hubwagen",
+		"workers[2].env.MOKSHA_SERVER: set by moksha",
+		"workers[2].env.MOKSHA_SUPERVISOR_PID: set by moksha",
 	} {
 		assert.Contains(t, err.Error(), want)
 	}
 }
 
 func TestParseIsStrict(t *testing.T) {
-	_, err := Parse([]byte("apiVersion: hubwagen.dev/v1alpha1\nkind: Config\nworkerz: []\n"), t.TempDir())
+	_, err := Parse([]byte("apiVersion: moksha.dev/v1alpha1\nkind: Config\nworkerz: []\n"), t.TempDir())
 	assert.ErrorContains(t, err, "field workerz not found")
 }
 
 func TestFindAndLoad(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
-	t.Setenv("HUBWAGEN_CONFIG", "")
+	t.Setenv("MOKSHA_CONFIG", "")
 	path, err := Find("")
 	require.NoError(t, err)
 	assert.Empty(t, path, "no file: defaults")
@@ -101,14 +101,14 @@ func TestFindAndLoad(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, filepath.Join(dir, DefaultDataDir), c.DataDir)
 
-	require.NoError(t, os.WriteFile(FileName, []byte("apiVersion: hubwagen.dev/v1alpha1\nkind: Config\n"), 0o644))
+	require.NoError(t, os.WriteFile(FileName, []byte("apiVersion: moksha.dev/v1alpha1\nkind: Config\n"), 0o644))
 	path, err = Find("")
 	require.NoError(t, err)
 	assert.Equal(t, FileName, path)
 
 	_, err = Find("missing.yaml")
 	assert.Error(t, err, "an explicit file must exist")
-	t.Setenv("HUBWAGEN_CONFIG", "missing.yaml")
+	t.Setenv("MOKSHA_CONFIG", "missing.yaml")
 	_, err = Find("")
 	assert.Error(t, err)
 
@@ -129,10 +129,10 @@ func TestBucket(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "key_id"), []byte("AKIA123\n"), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "secret"), []byte("s3cr3t"), 0o600))
 	c, err := Parse([]byte(`
-apiVersion: hubwagen.dev/v1alpha1
+apiVersion: moksha.dev/v1alpha1
 kind: Config
 bucket:
-  url: s3://acme-hubwagen/prod
+  url: s3://acme-moksha/prod
   endpoint: http://minio.internal:9000
   public_endpoint: https://s3.acme.example
   region: eu-central-1
@@ -144,7 +144,7 @@ bucket:
 	require.NoError(t, err)
 	s3, err := c.Bucket.S3()
 	require.NoError(t, err)
-	assert.Equal(t, &blob.S3Config{URL: "s3://acme-hubwagen/prod", Endpoint: "http://minio.internal:9000",
+	assert.Equal(t, &blob.S3Config{URL: "s3://acme-moksha/prod", Endpoint: "http://minio.internal:9000",
 		PublicEndpoint: "https://s3.acme.example", Region: "eu-central-1", PathStyle: true,
 		AccessKeyID: "AKIA123", SecretAccessKey: "s3cr3t"}, s3, "credential files relative to the config, newline trimmed")
 	assert.Equal(t, TransfersServer, c.Bucket.Transfers)
@@ -157,7 +157,7 @@ bucket:
 	assert.ErrorContains(t, err, "bucket.access_key_id_file")
 
 	_, err = Parse([]byte(`
-apiVersion: hubwagen.dev/v1alpha1
+apiVersion: moksha.dev/v1alpha1
 kind: Config
 bucket:
   url: gs://acme
@@ -169,16 +169,16 @@ bucket:
 	for _, want := range []string{"bucket.url", "bucket.endpoint", "both access_key_id_file and secret_access_key_file", "bucket.transfers"} {
 		assert.ErrorContains(t, err, want)
 	}
-	_, err = Parse([]byte("apiVersion: hubwagen.dev/v1alpha1\nkind: Config\nbucket:\n  region: x\n"), dir)
+	_, err = Parse([]byte("apiVersion: moksha.dev/v1alpha1\nkind: Config\nbucket:\n  region: x\n"), dir)
 	assert.ErrorContains(t, err, "bucket.url: required")
-	_, err = Parse([]byte("apiVersion: hubwagen.dev/v1alpha1\nkind: Config\nbucket:\n  secret_access_key: x\n"), dir)
+	_, err = Parse([]byte("apiVersion: moksha.dev/v1alpha1\nkind: Config\nbucket:\n  secret_access_key: x\n"), dir)
 	assert.ErrorContains(t, err, "secret_access_key not found", "secret values themselves aren't fields")
 }
 
 func TestPools(t *testing.T) {
 	dir := t.TempDir()
 	c, err := Parse([]byte(`
-apiVersion: hubwagen.dev/v1alpha1
+apiVersion: moksha.dev/v1alpha1
 kind: Config
 workers:
   - name: fixed
@@ -204,7 +204,7 @@ workers:
 	assert.Equal(t, bounds{2, 2, false}, b(0))
 	assert.Equal(t, bounds{0, 3, true}, b(1))
 	assert.Equal(t, bounds{2, 2, false}, b(2), "max defaults to min")
-	assert.Equal(t, 3, c.Workers[1].Count(), "hubwagen workers runs max")
+	assert.Equal(t, 3, c.Workers[1].Count(), "moksha workers runs max")
 	assert.Equal(t, []string{"gpu", "default"}, c.Workers[1].DockList())
 	assert.Equal(t, []string{"default"}, c.Workers[0].DockList())
 	assert.Equal(t, 1, c.Workers[1].LiftCount())
@@ -213,13 +213,13 @@ workers:
 	assert.Equal(t, DefaultIdleAfter, c.Workers[0].Idle())
 
 	_, err = Parse([]byte(`
-apiVersion: hubwagen.dev/v1alpha1
+apiVersion: moksha.dev/v1alpha1
 kind: Config
 workers:
   - {name: a, command: [w], replicas: 1, max: 2}
   - {name: b, command: [w], min: 3, max: 2}
   - {name: c, command: [w], lifts: 0, docks: [""]}
-  - {name: d, command: [w], env: {HUBWAGEN_DOCKS: x}}
+  - {name: d, command: [w], env: {MOKSHA_DOCKS: x}}
 `), dir)
 	require.Error(t, err)
 	for _, want := range []string{
@@ -227,22 +227,22 @@ workers:
 		"workers[1]: min 3 is more than max 2",
 		"workers[2].lifts: must be 1 or more",
 		"workers[2].docks[0]: empty",
-		"workers[3].env.HUBWAGEN_DOCKS: set by hubwagen",
+		"workers[3].env.MOKSHA_DOCKS: set by moksha",
 	} {
 		assert.Contains(t, err.Error(), want)
 	}
 
-	_, err = Parse([]byte("apiVersion: hubwagen.dev/v1alpha1\nkind: Config\nworkers:\n  - {name: a, command: [w], idle_after: soon}\n"), dir)
+	_, err = Parse([]byte("apiVersion: moksha.dev/v1alpha1\nkind: Config\nworkers:\n  - {name: a, command: [w], idle_after: soon}\n"), dir)
 	assert.ErrorContains(t, err, `"soon": want a duration such as 5m or 90s`)
 }
 
 func TestExternalPools(t *testing.T) {
-	c, err := Parse([]byte("apiVersion: hubwagen.dev/v1alpha1\nkind: Config\nworkers:\n  - {name: k8s, launcher: external, min: 0, max: 5, docks: [gpu]}\n"), t.TempDir())
+	c, err := Parse([]byte("apiVersion: moksha.dev/v1alpha1\nkind: Config\nworkers:\n  - {name: k8s, launcher: external, min: 0, max: 5, docks: [gpu]}\n"), t.TempDir())
 	require.NoError(t, err)
 	assert.True(t, c.Workers[0].External())
 	assert.True(t, c.Workers[0].Scaled())
 
-	_, err = Parse([]byte("apiVersion: hubwagen.dev/v1alpha1\nkind: Config\nworkers:\n"+
+	_, err = Parse([]byte("apiVersion: moksha.dev/v1alpha1\nkind: Config\nworkers:\n"+
 		"  - {name: a, launcher: external, command: [w]}\n  - {name: b, launcher: docker, command: [w]}\n"), t.TempDir())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "workers[0]: with launcher: external its workers are started elsewhere: no command or env")
@@ -251,7 +251,7 @@ func TestExternalPools(t *testing.T) {
 
 func TestContainerAndKubernetesPools(t *testing.T) {
 	c, err := Parse([]byte(`
-apiVersion: hubwagen.dev/v1alpha1
+apiVersion: moksha.dev/v1alpha1
 kind: Config
 kubernetes: {api_url: "http://127.0.0.1:8001", namespace: jobs}
 workers:
@@ -259,12 +259,12 @@ workers:
   - {name: k, launcher: kubernetes, deployment: revenue-workers, min: 0, max: 5}
 `), t.TempDir())
 	require.NoError(t, err)
-	assert.False(t, c.Workers[0].External(), "hubwagen runs the containers")
+	assert.False(t, c.Workers[0].External(), "moksha runs the containers")
 	assert.True(t, c.Workers[1].External(), "a desired count, applied to the Deployment")
 	assert.Equal(t, Kubernetes{APIURL: "http://127.0.0.1:8001", Namespace: "jobs"}, c.Kubernetes)
 
 	_, err = Parse([]byte(`
-apiVersion: hubwagen.dev/v1alpha1
+apiVersion: moksha.dev/v1alpha1
 kind: Config
 workers:
   - {name: a, launcher: container, runtime: lxc}

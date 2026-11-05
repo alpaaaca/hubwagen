@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/state"
 )
 
 // Retention. A build declares, for the datasets its lifts write, how many
@@ -25,7 +25,7 @@ import (
 // or read; a replay that needs one reruns its lift.
 //
 // The leader expires on a timer (Config.RetentionEvery) and on request
-// (Expire, `hubwagen gc`).
+// (Expire, `moksha gc`).
 
 // DefaultRetentionEvery is how often the leader expires by default.
 const DefaultRetentionEvery = time.Hour

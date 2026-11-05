@@ -1,6 +1,6 @@
-"""Fixtures for running the SDK against a real `hubwagen dev`.
+"""Fixtures for running the SDK against a real `moksha dev`.
 
-The Go binary comes from $HUBWAGEN_BIN or is built from this repository
+The Go binary comes from $MOKSHA_BIN or is built from this repository
 (needs Go). Integration tests are skipped if neither works.
 """
 
@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-import hubwagen as hw
+import moksha as hw
 
 REPO = Path(__file__).resolve().parents[3]
 SDK = Path(__file__).resolve().parents[1]
@@ -30,23 +30,23 @@ def _free_port() -> int:
 
 
 @pytest.fixture(scope="session")
-def hubwagen_bin(tmp_path_factory) -> str:
-    if os.environ.get("HUBWAGEN_BIN"):
-        return os.environ["HUBWAGEN_BIN"]
+def moksha_bin(tmp_path_factory) -> str:
+    if os.environ.get("MOKSHA_BIN"):
+        return os.environ["MOKSHA_BIN"]
     if not shutil.which("go"):
-        pytest.skip("needs Go to build hubwagen, or HUBWAGEN_BIN")
-    out = tmp_path_factory.mktemp("bin") / "hubwagen"
+        pytest.skip("needs Go to build moksha, or MOKSHA_BIN")
+    out = tmp_path_factory.mktemp("bin") / "moksha"
     subprocess.run(["go", "build", "-o", str(out), "."], cwd=REPO, check=True)
     return str(out)
 
 
-def start_dev(hubwagen_bin: str, tmp: Path, url: str | None = None,
+def start_dev(moksha_bin: str, tmp: Path, url: str | None = None,
               config: Path | None = None) -> tuple[str, subprocess.Popen]:
-    """A `hubwagen dev` with the API on url (default: a free port), data under
+    """A `moksha dev` with the API on url (default: a free port), data under
     tmp, and the config file's other settings (its workers are not started)."""
     url = url or f"http://127.0.0.1:{_free_port()}"
     log = open(tmp / "dev.log", "a")
-    proc = subprocess.Popen([hubwagen_bin, "dev", "--data-dir", str(tmp / "data"),
+    proc = subprocess.Popen([moksha_bin, "dev", "--data-dir", str(tmp / "data"),
                              "--listen", url.removeprefix("http://"),
                              *(["--config", str(config), "--no-workers"] if config else [])],
                             cwd=tmp, stdout=log, stderr=subprocess.STDOUT)
@@ -60,15 +60,15 @@ def start_dev(hubwagen_bin: str, tmp: Path, url: str | None = None,
                 break
             time.sleep(0.1)
     proc.kill()
-    pytest.fail(f"hubwagen dev didn't come up; see {tmp / 'dev.log'}")
+    pytest.fail(f"moksha dev didn't come up; see {tmp / 'dev.log'}")
 
 
 def start_worker(server: str, module: str | None, cwd: Path, log: Path, *args: str) -> subprocess.Popen:
-    """`python -m hubwagen.worker [module] [args]` from cwd against server,
+    """`python -m moksha.worker [module] [args]` from cwd against server,
     once it has registered its build (the server starts only hauls a build
     defines). No module: the worker reads them from cwd/pyproject.toml."""
     env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(SDK / "src"), str(cwd)])}
-    proc = subprocess.Popen([sys.executable, "-m", "hubwagen.worker", *([module] if module else []), "--server", server,
+    proc = subprocess.Popen([sys.executable, "-m", "moksha.worker", *([module] if module else []), "--server", server,
                              "--poll-wait", "1s", "--log-level", "info", *args],
                             cwd=cwd, env=env, stdout=open(log, "w"), stderr=subprocess.STDOUT)
     for _ in range(200):
@@ -106,8 +106,8 @@ def stop(proc: subprocess.Popen, sig=signal.SIGTERM) -> None:
 
 
 @pytest.fixture(scope="session")
-def server(hubwagen_bin, tmp_path_factory) -> str:
-    url, proc = start_dev(hubwagen_bin, tmp_path_factory.mktemp("dev"))
+def server(moksha_bin, tmp_path_factory) -> str:
+    url, proc = start_dev(moksha_bin, tmp_path_factory.mktemp("dev"))
     yield url
     stop(proc, signal.SIGINT)
 

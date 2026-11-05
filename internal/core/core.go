@@ -18,9 +18,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/alper/hubwagen/internal/clock"
-	"github.com/alper/hubwagen/internal/layout"
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/clock"
+	"github.com/alper/moksha/internal/layout"
+	"github.com/alper/moksha/internal/state"
 	"github.com/oklog/ulid/v2"
 )
 

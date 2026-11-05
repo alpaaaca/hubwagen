@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alper/hubwagen/internal/pallet"
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/pallet"
+	"github.com/alper/moksha/internal/state"
 )
 
 // Memoization. A lift that opts in (Command.Memo) gets a fingerprint: a hash
@@ -311,7 +311,7 @@ const checkReadableTimeout = 10 * time.Second
 
 // checkReadable is errUnreadable unless p's manifest and files are still
 // in the bucket: the catalog says committed, but files can be deleted
-// outside hubwagen, and a reused pallet that can't be read fails every lift
+// outside moksha, and a reused pallet that can't be read fails every lift
 // that reads it. It reads the bucket from the loop, like the store reads
 // around it; a bucket that can't answer means rerun ("when unsure, rerun").
 func (c *Core) checkReadable(p state.Pallet) error {

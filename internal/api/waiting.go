@@ -8,8 +8,8 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
-	"github.com/alper/hubwagen/internal/core"
+	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
+	"github.com/alper/moksha/internal/core"
 )
 
 // WaitingText tells why a run's work waits, in plain words (pipeline, step,
@@ -26,8 +26,8 @@ func WaitingText(w core.Waiting) string {
 	}
 	switch w.Reason {
 	case core.WaitNoWorker:
-		return fmt.Sprintf("no worker is connected%s to run %s. Start one with `python -m hubwagen.worker%s <modules>` "+
-			"(or `hubwagen workers --config hubwagen.yaml`)", onDock, what, dockFlag)
+		return fmt.Sprintf("no worker is connected%s to run %s. Start one with `python -m moksha.worker%s <modules>` "+
+			"(or `moksha workers --config moksha.yaml`)", onDock, what, dockFlag)
 	case core.WaitNoBuild:
 		defines := fmt.Sprintf("pipeline %s", w.Name)
 		if w.Kind == core.TaskLift {
@@ -74,13 +74,13 @@ func shortBuilds(builds []string) []string {
 	return out
 }
 
-func waitingMessage(w core.Waiting) *hubwagenv1.Waiting {
-	return &hubwagenv1.Waiting{Reason: string(w.Reason), Message: WaitingText(w), Kind: string(w.Kind), Name: w.Name,
+func waitingMessage(w core.Waiting) *mokshav1.Waiting {
+	return &mokshav1.Waiting{Reason: string(w.Reason), Message: WaitingText(w), Kind: string(w.Kind), Name: w.Name,
 		Seq: int32(w.Seq), Dock: w.Dock, Since: timestamppb.New(w.Since), Workers: int32(w.Workers), Builds: w.Builds, Pool: w.Pool}
 }
 
 // addWaiting sets why the running ones among hauls wait, if they do.
-func (s *HaulServer) addWaiting(ctx context.Context, hauls ...*hubwagenv1.Haul) error {
+func (s *HaulServer) addWaiting(ctx context.Context, hauls ...*mokshav1.Haul) error {
 	var ids []string
 	for _, h := range hauls {
 		if h.Status == "running" {
@@ -102,14 +102,14 @@ func (s *HaulServer) addWaiting(ctx context.Context, hauls ...*hubwagenv1.Haul) 
 	return nil
 }
 
-func (s *HaulServer) ListWorkers(ctx context.Context, _ *connect.Request[hubwagenv1.ListWorkersRequest]) (*connect.Response[hubwagenv1.ListWorkersResponse], error) {
+func (s *HaulServer) ListWorkers(ctx context.Context, _ *connect.Request[mokshav1.ListWorkersRequest]) (*connect.Response[mokshav1.ListWorkersResponse], error) {
 	ws, err := s.core.Workers(ctx)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	out := &hubwagenv1.ListWorkersResponse{}
+	out := &mokshav1.ListWorkersResponse{}
 	for _, w := range ws {
-		m := &hubwagenv1.Worker{Id: w.ID, BuildId: w.BuildID, Docks: w.Docks, LastSeen: timestamppb.New(w.LastSeen), Polling: w.Polling,
+		m := &mokshav1.Worker{Id: w.ID, BuildId: w.BuildID, Docks: w.Docks, LastSeen: timestamppb.New(w.LastSeen), Polling: w.Polling,
 			Running: int32(w.Running)}
 		for _, k := range w.Kinds {
 			m.Kinds = append(m.Kinds, string(k))
@@ -119,14 +119,14 @@ func (s *HaulServer) ListWorkers(ctx context.Context, _ *connect.Request[hubwage
 	return connect.NewResponse(out), nil
 }
 
-func (s *HaulServer) ListPools(ctx context.Context, _ *connect.Request[hubwagenv1.ListPoolsRequest]) (*connect.Response[hubwagenv1.ListPoolsResponse], error) {
+func (s *HaulServer) ListPools(ctx context.Context, _ *connect.Request[mokshav1.ListPoolsRequest]) (*connect.Response[mokshav1.ListPoolsResponse], error) {
 	ps, err := s.core.Pools(ctx)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	out := &hubwagenv1.ListPoolsResponse{}
+	out := &mokshav1.ListPoolsResponse{}
 	for _, p := range ps {
-		m := &hubwagenv1.Pool{Name: p.Name, Docks: p.Docks, Min: int32(p.Min), Max: int32(p.Max), Workers: p.Workers,
+		m := &mokshav1.Pool{Name: p.Name, Docks: p.Docks, Min: int32(p.Min), Max: int32(p.Max), Workers: p.Workers,
 			Starting: int32(p.Starting), Decision: p.Decision, Desired: int32(p.Desired), External: p.External}
 		if !p.DecidedAt.IsZero() {
 			m.DecidedAt = timestamppb.New(p.DecidedAt)

@@ -113,8 +113,8 @@ func s3Client(endpoint, region string, cfg S3Config) (*minio.Client, error) {
 func (b *s3Bucket) probe(ctx context.Context) error {
 	var id [8]byte
 	_, _ = rand.Read(id[:])
-	uri := b.base + "/.hubwagen-probe/" + hex.EncodeToString(id[:])
-	defer b.DeletePrefix(ctx, b.base+"/.hubwagen-probe/") //nolint:errcheck // best effort
+	uri := b.base + "/.moksha-probe/" + hex.EncodeToString(id[:])
+	defer b.DeletePrefix(ctx, b.base+"/.moksha-probe/") //nolint:errcheck // best effort
 	if err := b.PutIfAbsent(ctx, uri, []byte("probe")); err != nil {
 		return fmt.Errorf("blob: %s: writing a test object: %w", b.base, err)
 	}
@@ -122,7 +122,7 @@ func (b *s3Bucket) probe(ctx context.Context) error {
 	case errors.Is(err, ErrExists):
 		return nil
 	case err == nil:
-		return fmt.Errorf("blob: %s: the store ignores conditional writes (If-None-Match: *); hubwagen needs them for exactly-once commits", b.base)
+		return fmt.Errorf("blob: %s: the store ignores conditional writes (If-None-Match: *); moksha needs them for exactly-once commits", b.base)
 	default:
 		return fmt.Errorf("blob: %s: testing conditional writes: %w", b.base, err)
 	}

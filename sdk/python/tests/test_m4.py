@@ -1,5 +1,5 @@
 """M4's done-when: the architecture's daily haul (schedule, quality gate
-with an approval signal, fan-out with a limit) on a real hubwagen dev, and
+with an approval signal, fan-out with a limit) on a real moksha dev, and
 a replay of what it recorded against the code."""
 
 import datetime as dt
@@ -7,7 +7,7 @@ import json
 import subprocess
 import sys
 
-import hubwagen as hw
+import moksha as hw
 
 from conftest import SDK, wait
 
@@ -24,7 +24,7 @@ def test_daily_haul_end_to_end(client, server):
     assert h["status"] == "completed", h
     assert json.loads(h["resultJson"]) == {"day": "2026-10-24", "approved_by": "ana", "total": 2 + 2 + 4 + 5 + 4}
 
-    replay = subprocess.run([sys.executable, "-m", "hubwagen.testing", "example_hauls", "--server", server,
+    replay = subprocess.run([sys.executable, "-m", "moksha.testing", "example_hauls", "--server", server,
                              "--replay", hid], cwd=SDK / "tests", capture_output=True, text=True,
                             env={"PYTHONPATH": f"{SDK / 'src'}:{SDK / 'tests'}", "PATH": ""})
     assert replay.returncode == 0, replay.stdout + replay.stderr

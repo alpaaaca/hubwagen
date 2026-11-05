@@ -3,7 +3,7 @@ name = "revenue-example"
 version = "0.1.0"
 requires-python = ">=3.12"
 
-# What the hubwagen worker imports when started without module names
-# (python -m hubwagen.worker): the modules that define hauls and lifts.
-[tool.hubwagen]
+# What the moksha worker imports when started without module names
+# (python -m moksha.worker): the modules that define hauls and lifts.
+[tool.moksha]
 modules = ["revenue.hauls", "revenue.nightly"]

@@ -21,15 +21,15 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
-	"github.com/alper/hubwagen/internal/api/gen/hubwagen/v1/hubwagenv1connect"
-	"github.com/alper/hubwagen/internal/blob"
-	"github.com/alper/hubwagen/internal/clock"
-	"github.com/alper/hubwagen/internal/core"
-	"github.com/alper/hubwagen/internal/layout"
-	"github.com/alper/hubwagen/internal/pallet"
-	"github.com/alper/hubwagen/internal/runlog"
-	"github.com/alper/hubwagen/internal/state"
+	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
+	"github.com/alper/moksha/internal/api/gen/moksha/v1/mokshav1connect"
+	"github.com/alper/moksha/internal/blob"
+	"github.com/alper/moksha/internal/clock"
+	"github.com/alper/moksha/internal/core"
+	"github.com/alper/moksha/internal/layout"
+	"github.com/alper/moksha/internal/pallet"
+	"github.com/alper/moksha/internal/runlog"
+	"github.com/alper/moksha/internal/state"
 )
 
 var ctx = context.Background()
@@ -39,8 +39,8 @@ type server struct {
 	store  *state.Store
 	bucket blob.Bucket
 	url    string
-	client hubwagenv1connect.WorkerServiceClient
-	logs   hubwagenv1connect.LogServiceClient
+	client mokshav1connect.WorkerServiceClient
+	logs   mokshav1connect.LogServiceClient
 	// viaURLs: work moves lift data with GetUploadURLs and GetDownloadURLs,
 	// like a worker on another machine.
 	viaURLs bool
@@ -88,13 +88,13 @@ func startWith(t *testing.T, b blob.Bucket, serve bool) *server {
 		st.Close()
 	})
 	return &server{core: c, store: st, bucket: b, url: srv.URL,
-		client: hubwagenv1connect.NewWorkerServiceClient(srv.Client(), srv.URL),
-		logs:   hubwagenv1connect.NewLogServiceClient(srv.Client(), srv.URL)}
+		client: mokshav1connect.NewWorkerServiceClient(srv.Client(), srv.URL),
+		logs:   mokshav1connect.NewLogServiceClient(srv.Client(), srv.URL)}
 }
 
 // The test worker's haul: extract (memoized, writes raw), then build
 // (memoized, reads extract's pallet, writes mart).
-func (s *server) replay(logbook []*hubwagenv1.Event) ([]*hubwagenv1.Command, *hubwagenv1.HaulOutcome) {
+func (s *server) replay(logbook []*mokshav1.Event) ([]*mokshav1.Command, *mokshav1.HaulOutcome) {
 	pallets := map[int32]string{}
 	for _, e := range logbook {
 		if e.Type == string(state.EventLiftFinished) {
@@ -108,20 +108,20 @@ func (s *server) replay(logbook []*hubwagenv1.Event) ([]*hubwagenv1.Command, *hu
 			pallets[p.Seq] = p.Pallet
 		}
 	}
-	extract := &hubwagenv1.Command{Seq: 1, Source: "app.py:3", Kind: &hubwagenv1.Command_Lift{Lift: &hubwagenv1.LiftCommand{
+	extract := &mokshav1.Command{Seq: 1, Source: "app.py:3", Kind: &mokshav1.Command_Lift{Lift: &mokshav1.LiftCommand{
 		Name: "extract", ArgsJson: `{"day":"2026-10-24"}`, Memo: "fingerprint",
-		Output: &hubwagenv1.Output{Dataset: "raw.orders"}, Timeout: durationpb.New(time.Minute)}}}
-	cmds := []*hubwagenv1.Command{extract}
+		Output: &mokshav1.Output{Dataset: "raw.orders"}, Timeout: durationpb.New(time.Minute)}}}
+	cmds := []*mokshav1.Command{extract}
 	if pallets[1] == "" {
 		return cmds, nil
 	}
-	cmds = append(cmds, &hubwagenv1.Command{Seq: 2, Source: "app.py:4", Kind: &hubwagenv1.Command_Lift{Lift: &hubwagenv1.LiftCommand{
-		Name: "build", Memo: "fingerprint", Output: &hubwagenv1.Output{Dataset: "mart.revenue"},
-		Inputs: []*hubwagenv1.InputRef{{Name: "orders", Pallet: pallets[1]}}}}})
+	cmds = append(cmds, &mokshav1.Command{Seq: 2, Source: "app.py:4", Kind: &mokshav1.Command_Lift{Lift: &mokshav1.LiftCommand{
+		Name: "build", Memo: "fingerprint", Output: &mokshav1.Output{Dataset: "mart.revenue"},
+		Inputs: []*mokshav1.InputRef{{Name: "orders", Pallet: pallets[1]}}}}})
 	if pallets[2] == "" {
 		return cmds, nil
 	}
-	return cmds, &hubwagenv1.HaulOutcome{Status: hubwagenv1.HaulOutcome_STATUS_COMPLETED, ResultJson: `{"pallet":"` + pallets[2] + `"}`}
+	return cmds, &mokshav1.HaulOutcome{Status: mokshav1.HaulOutcome_STATUS_COMPLETED, ResultJson: `{"pallet":"` + pallets[2] + `"}`}
 }
 
 // work runs haul tasks and lifts over the API until the haul ends, and
@@ -131,25 +131,25 @@ func (s *server) work(t *testing.T, haulID string) []string {
 	var ran []string
 	deadline := time.Now().Add(10 * time.Second)
 	for time.Now().Before(deadline) {
-		hr, err := s.client.PollHaulTask(ctx, connect.NewRequest(&hubwagenv1.PollHaulTaskRequest{
+		hr, err := s.client.PollHaulTask(ctx, connect.NewRequest(&mokshav1.PollHaulTaskRequest{
 			WorkerId: "w1", Docks: []string{core.DefaultDock}, Wait: durationpb.New(50 * time.Millisecond)}))
 		require.NoError(t, err)
 		if task := hr.Msg.Task; task != nil {
 			assert.JSONEq(t, `{"day":"2026-10-24"}`, task.ParamsJson)
 			cmds, outcome := s.replay(task.Logbook)
-			_, err := s.client.CompleteHaulTask(ctx, connect.NewRequest(&hubwagenv1.CompleteHaulTaskRequest{
+			_, err := s.client.CompleteHaulTask(ctx, connect.NewRequest(&mokshav1.CompleteHaulTaskRequest{
 				TaskId: task.Id, BuildId: "b1", Commands: cmds, Outcome: outcome}))
 			require.NoError(t, err)
 		}
-		lr, err := s.client.PollLiftTask(ctx, connect.NewRequest(&hubwagenv1.PollLiftTaskRequest{
+		lr, err := s.client.PollLiftTask(ctx, connect.NewRequest(&mokshav1.PollLiftTaskRequest{
 			WorkerId: "w1", Docks: []string{core.DefaultDock}, Wait: durationpb.New(50 * time.Millisecond)}))
 		require.NoError(t, err)
 		if task := lr.Msg.Task; task != nil {
 			ran = append(ran, task.Name)
-			hb, err := s.client.Heartbeat(ctx, connect.NewRequest(&hubwagenv1.HeartbeatRequest{WorkerId: "w1", TaskIds: []string{task.Id}}))
+			hb, err := s.client.Heartbeat(ctx, connect.NewRequest(&mokshav1.HeartbeatRequest{WorkerId: "w1", TaskIds: []string{task.Id}}))
 			require.NoError(t, err)
 			assert.Empty(t, hb.Msg.Stop)
-			_, err = s.logs.AppendLogs(ctx, connect.NewRequest(&hubwagenv1.AppendLogsRequest{AttemptId: task.Id, Lines: []*hubwagenv1.LogLine{
+			_, err = s.logs.AppendLogs(ctx, connect.NewRequest(&mokshav1.AppendLogsRequest{AttemptId: task.Id, Lines: []*mokshav1.LogLine{
 				{Time: timestamppb.Now(), Stream: "stdout", Text: task.Name + " starts"},
 				{Time: timestamppb.Now(), Stream: "log", Level: "INFO", Logger: "app", Text: task.Name + " done"},
 			}}))
@@ -163,11 +163,11 @@ func (s *server) work(t *testing.T, haulID string) []string {
 			} else {
 				require.NoError(t, s.bucket.Put(ctx, task.Staging+"part-0.csv", content))
 			}
-			_, err = s.client.CompleteLiftTask(ctx, connect.NewRequest(&hubwagenv1.CompleteLiftTaskRequest{
-				AttemptId: task.Id, Status: hubwagenv1.CompleteLiftTaskRequest_STATUS_SUCCEEDED,
+			_, err = s.client.CompleteLiftTask(ctx, connect.NewRequest(&mokshav1.CompleteLiftTaskRequest{
+				AttemptId: task.Id, Status: mokshav1.CompleteLiftTaskRequest_STATUS_SUCCEEDED,
 				ResultJson: `{"rows":1}`,
-				Output: &hubwagenv1.LiftOutput{
-					Files:     []*hubwagenv1.File{{Path: "part-0.csv", Size: int64(len(content)), Sha256: hex.EncodeToString(sum[:])}},
+				Output: &mokshav1.LiftOutput{
+					Files:     []*mokshav1.File{{Path: "part-0.csv", Size: int64(len(content)), Sha256: hex.EncodeToString(sum[:])}},
 					StatsJson: `{"rows":1}`, MetaJson: `{"max_ts":"2026-10-24T23:00:00Z"}`,
 				}}))
 			require.NoError(t, err)
@@ -184,7 +184,7 @@ func (s *server) work(t *testing.T, haulID string) []string {
 
 func TestHaulRunsEndToEndOverTheAPI(t *testing.T) {
 	s := start(t)
-	_, err := s.client.RegisterBuild(ctx, connect.NewRequest(&hubwagenv1.RegisterBuildRequest{
+	_, err := s.client.RegisterBuild(ctx, connect.NewRequest(&mokshav1.RegisterBuildRequest{
 		BuildId: "b1", Hauls: []string{"daily_revenue"}, LiftVersions: map[string]string{"extract": "v1", "build": "v1"}}))
 	require.NoError(t, err)
 
@@ -200,7 +200,7 @@ func TestHaulRunsEndToEndOverTheAPI(t *testing.T) {
 	assert.Equal(t, state.HaulCompleted, h.Status)
 
 	// What the lifts printed and logged, by lift.
-	got, err := s.logs.GetLogs(ctx, connect.NewRequest(&hubwagenv1.GetLogsRequest{HaulId: first}))
+	got, err := s.logs.GetLogs(ctx, connect.NewRequest(&mokshav1.GetLogsRequest{HaulId: first}))
 	require.NoError(t, err)
 	var lines []string
 	for _, l := range got.Msg.Lines {
@@ -208,14 +208,14 @@ func TestHaulRunsEndToEndOverTheAPI(t *testing.T) {
 	}
 	assert.Equal(t, []string{"1 extract #1 stdout  extract starts", "1 extract #1 log INFO extract done",
 		"2 build #1 stdout  build starts", "2 build #1 log INFO build done"}, lines)
-	one, err := s.logs.GetLogs(ctx, connect.NewRequest(&hubwagenv1.GetLogsRequest{HaulId: first, Seq: 2, Limit: 1}))
+	one, err := s.logs.GetLogs(ctx, connect.NewRequest(&mokshav1.GetLogsRequest{HaulId: first, Seq: 2, Limit: 1}))
 	require.NoError(t, err)
 	require.Len(t, one.Msg.Lines, 1)
 	assert.Equal(t, "build done", one.Msg.Lines[0].Line.Text)
 	assert.Equal(t, int32(1), one.Msg.Skipped)
-	_, err = s.logs.AppendLogs(ctx, connect.NewRequest(&hubwagenv1.AppendLogsRequest{AttemptId: "nope"}))
+	_, err = s.logs.AppendLogs(ctx, connect.NewRequest(&mokshav1.AppendLogsRequest{AttemptId: "nope"}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
-	_, err = s.logs.GetLogs(ctx, connect.NewRequest(&hubwagenv1.GetLogsRequest{HaulId: "nope"}))
+	_, err = s.logs.GetLogs(ctx, connect.NewRequest(&mokshav1.GetLogsRequest{HaulId: "nope"}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 
 	mart, err := s.store.LatestPallet(ctx, "t", "mart.revenue", "")
@@ -237,7 +237,7 @@ func TestHaulRunsEndToEndOverTheAPI(t *testing.T) {
 func TestPollWaitsAndReturnsNothing(t *testing.T) {
 	s := start(t)
 	began := time.Now()
-	res, err := s.client.PollLiftTask(ctx, connect.NewRequest(&hubwagenv1.PollLiftTaskRequest{
+	res, err := s.client.PollLiftTask(ctx, connect.NewRequest(&mokshav1.PollLiftTaskRequest{
 		WorkerId: "w1", Docks: []string{"default"}, Wait: durationpb.New(300 * time.Millisecond)}))
 	require.NoError(t, err)
 	assert.Nil(t, res.Msg.Task)
@@ -245,7 +245,7 @@ func TestPollWaitsAndReturnsNothing(t *testing.T) {
 
 	// The server caps the wait (2s in these tests).
 	began = time.Now()
-	_, err = s.client.PollHaulTask(ctx, connect.NewRequest(&hubwagenv1.PollHaulTaskRequest{
+	_, err = s.client.PollHaulTask(ctx, connect.NewRequest(&mokshav1.PollHaulTaskRequest{
 		WorkerId: "w1", Docks: []string{"default"}, Wait: durationpb.New(time.Hour)}))
 	require.NoError(t, err)
 	assert.Less(t, time.Since(began), 5*time.Second)
@@ -254,7 +254,7 @@ func TestPollWaitsAndReturnsNothing(t *testing.T) {
 func TestPlainHTTPJSON(t *testing.T) {
 	s := start(t)
 	post := func(method, body string) (int, string) {
-		resp, err := http.Post(s.url+"/hubwagen.v1.WorkerService/"+method, "application/json", strings.NewReader(body))
+		resp, err := http.Post(s.url+"/moksha.v1.WorkerService/"+method, "application/json", strings.NewReader(body))
 		require.NoError(t, err)
 		defer resp.Body.Close()
 		b, err := io.ReadAll(resp.Body)
@@ -281,22 +281,22 @@ func TestPlainHTTPJSON(t *testing.T) {
 
 func TestErrorsMapToConnectCodes(t *testing.T) {
 	s := start(t)
-	_, err := s.client.CompleteLiftTask(ctx, connect.NewRequest(&hubwagenv1.CompleteLiftTaskRequest{
-		AttemptId: "nope", Status: hubwagenv1.CompleteLiftTaskRequest_STATUS_SUCCEEDED}))
+	_, err := s.client.CompleteLiftTask(ctx, connect.NewRequest(&mokshav1.CompleteLiftTaskRequest{
+		AttemptId: "nope", Status: mokshav1.CompleteLiftTaskRequest_STATUS_SUCCEEDED}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 
-	_, err = s.client.CompleteLiftTask(ctx, connect.NewRequest(&hubwagenv1.CompleteLiftTaskRequest{AttemptId: "nope"}))
+	_, err = s.client.CompleteLiftTask(ctx, connect.NewRequest(&mokshav1.CompleteLiftTaskRequest{AttemptId: "nope"}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "status unset")
 
-	_, err = s.client.CompleteLiftTask(ctx, connect.NewRequest(&hubwagenv1.CompleteLiftTaskRequest{
-		AttemptId: "nope", Status: hubwagenv1.CompleteLiftTaskRequest_STATUS_SUCCEEDED, ResultJson: "{not json"}))
+	_, err = s.client.CompleteLiftTask(ctx, connect.NewRequest(&mokshav1.CompleteLiftTaskRequest{
+		AttemptId: "nope", Status: mokshav1.CompleteLiftTaskRequest_STATUS_SUCCEEDED, ResultJson: "{not json"}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 
-	_, err = s.client.CompleteHaulTask(ctx, connect.NewRequest(&hubwagenv1.CompleteHaulTaskRequest{
-		TaskId: "t", Commands: []*hubwagenv1.Command{{Seq: 1}}}))
+	_, err = s.client.CompleteHaulTask(ctx, connect.NewRequest(&mokshav1.CompleteHaulTaskRequest{
+		TaskId: "t", Commands: []*mokshav1.Command{{Seq: 1}}}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "a command without a kind")
 
-	_, err = s.client.PollHaulTask(ctx, connect.NewRequest(&hubwagenv1.PollHaulTaskRequest{Docks: []string{"default"}}))
+	_, err = s.client.PollHaulTask(ctx, connect.NewRequest(&mokshav1.PollHaulTaskRequest{Docks: []string{"default"}}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "no worker ID")
 }
 
@@ -312,22 +312,22 @@ func TestSignalWaitOverTheAPI(t *testing.T) {
 	require.NoError(t, s.core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Hauls: []string{"gate"}}))
 	res, err := s.core.StartHaul(ctx, core.StartHaulRequest{Tenant: "t", Name: "gate"})
 	require.NoError(t, err)
-	poll := func() *hubwagenv1.HaulTask {
-		hr, err := s.client.PollHaulTask(ctx, connect.NewRequest(&hubwagenv1.PollHaulTaskRequest{
+	poll := func() *mokshav1.HaulTask {
+		hr, err := s.client.PollHaulTask(ctx, connect.NewRequest(&mokshav1.PollHaulTaskRequest{
 			WorkerId: "w1", Docks: []string{core.DefaultDock}, Wait: durationpb.New(time.Second)}))
 		require.NoError(t, err)
 		require.NotNil(t, hr.Msg.Task)
 		return hr.Msg.Task
 	}
-	wait := []*hubwagenv1.Command{{Seq: 1, Kind: &hubwagenv1.Command_WaitSignal{WaitSignal: &hubwagenv1.WaitSignalCommand{
+	wait := []*mokshav1.Command{{Seq: 1, Kind: &mokshav1.Command_WaitSignal{WaitSignal: &mokshav1.WaitSignalCommand{
 		Name: "approve", Timeout: durationpb.New(time.Hour)}}}}
-	_, err = s.client.CompleteHaulTask(ctx, connect.NewRequest(&hubwagenv1.CompleteHaulTaskRequest{
+	_, err = s.client.CompleteHaulTask(ctx, connect.NewRequest(&mokshav1.CompleteHaulTaskRequest{
 		TaskId: poll().Id, BuildId: "b1", Commands: wait}))
 	require.NoError(t, err)
 
 	_, err = s.core.SignalHaul(ctx, core.SignalRequest{HaulID: res.HaulID, Name: "approve", Payload: json.RawMessage(`{"ok":true}`)})
 	require.NoError(t, err)
-	var got *hubwagenv1.Event
+	var got *mokshav1.Event
 	for _, e := range poll().Logbook {
 		if e.Type == string(state.EventSignalDelivered) {
 			got = e

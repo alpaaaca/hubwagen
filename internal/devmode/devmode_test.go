@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alper/hubwagen/internal/core"
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/core"
+	"github.com/alper/moksha/internal/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

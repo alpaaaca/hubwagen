@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alper/hubwagen/internal/schedule"
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/schedule"
+	"github.com/alper/moksha/internal/state"
 )
 
 // Schedules. A build declares schedules for the hauls it defines; the newest
@@ -202,7 +202,7 @@ func (c *Core) runSchedule(s *scheduleState) {
 }
 
 // IntervalParam is how a haul receives its data interval; the Python SDK
-// decodes it as hubwagen.Interval.
+// decodes it as moksha.Interval.
 func IntervalParam(iv schedule.Interval) map[string]any {
 	return map[string]any{"$interval": map[string]any{
 		"start": iv.Start.Format(time.RFC3339Nano), "end": iv.End.Format(time.RFC3339Nano)}}

@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alper/hubwagen/internal/blob"
-	"github.com/alper/hubwagen/internal/blob/s3fake"
-	"github.com/alper/hubwagen/internal/core"
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/blob"
+	"github.com/alper/moksha/internal/blob/s3fake"
+	"github.com/alper/moksha/internal/core"
+	"github.com/alper/moksha/internal/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -57,14 +57,14 @@ func TestServesTheAPI(t *testing.T) {
 	require.NotEmpty(t, e.APIAddr)
 
 	for _, path := range []string{"WorkerService/Heartbeat", "HaulService/GetHaul"} {
-		resp, err := http.Post("http://"+e.APIAddr+"/hubwagen.v1."+path, "application/json", strings.NewReader(`{"workerId":"w1","haulId":"x"}`))
+		resp, err := http.Post("http://"+e.APIAddr+"/moksha.v1."+path, "application/json", strings.NewReader(`{"workerId":"w1","haulId":"x"}`))
 		require.NoError(t, err)
 		resp.Body.Close()
 		assert.Contains(t, []int{http.StatusOK, http.StatusNotFound}, resp.StatusCode, path)
 	}
 
 	// A long poll in flight doesn't hold up Close.
-	go http.Post("http://"+e.APIAddr+"/hubwagen.v1.WorkerService/PollLiftTask", "application/json",
+	go http.Post("http://"+e.APIAddr+"/moksha.v1.WorkerService/PollLiftTask", "application/json",
 		strings.NewReader(`{"workerId":"w1","docks":["default"],"wait":"30s"}`))
 	time.Sleep(100 * time.Millisecond)
 	began := time.Now()
@@ -116,7 +116,7 @@ func TestBuckets(t *testing.T) {
 	require.NoError(t, err)
 	id := e.BucketID
 	assert.NotEmpty(t, id)
-	marker, err := os.ReadFile(filepath.Join(dir, "bucket", ".hubwagen-bucket"))
+	marker, err := os.ReadFile(filepath.Join(dir, "bucket", ".moksha-bucket"))
 	require.NoError(t, err)
 	assert.Equal(t, id, string(marker))
 	require.NoError(t, e.Close())

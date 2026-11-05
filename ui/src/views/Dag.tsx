@@ -1,4 +1,4 @@
-import type { Lift } from "../gen/hubwagen/v1/haul_pb";
+import type { Lift } from "../gen/moksha/v1/haul_pb";
 import { duration, liftStatus, Status, took } from "../format";
 
 const W = 200; // node width

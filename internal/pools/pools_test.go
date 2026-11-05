@@ -13,10 +13,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/alper/hubwagen/internal/clock"
-	"github.com/alper/hubwagen/internal/core"
-	"github.com/alper/hubwagen/internal/layout"
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/clock"
+	"github.com/alper/moksha/internal/core"
+	"github.com/alper/moksha/internal/layout"
+	"github.com/alper/moksha/internal/state"
 )
 
 var ctx = context.Background()

@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/state"
 )
 
 // Hauls run by replay until blocked. The core queues a haul task; a worker

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 
 import { useApi } from "../api";
-import type { Haul } from "../gen/hubwagen/v1/haul_pb";
+import type { Haul } from "../gen/moksha/v1/haul_pb";
 import { ago, duration, fromNow, HAUL_STATUSES, Status, steps, took, Values, when } from "../format";
 import { message, usePoll } from "../hooks";
 import { usePipelines, type Pipelines } from "../pipelines";
@@ -28,7 +28,7 @@ export function HaulList() {
       <h1>Pipelines</h1>
       {overview.error && <p className="error">{overview.error}</p>}
       {overview.data && names.length === 0 && (
-        <p className="dim">No pipelines yet: start workers with your code (hubwagen dev does, from hubwagen.yaml).</p>
+        <p className="dim">No pipelines yet: start workers with your code (moksha dev does, from moksha.yaml).</p>
       )}
       {names.length > 0 && (
         <table className="pipelines">

@@ -1,15 +1,15 @@
 """Daily revenue: extract → transform → report, one run per day.
 
-    hubwagen dev
-    python -m hubwagen.worker revenue.hauls        # from pipelines/examples/revenue
-    hubwagen replay daily --param day=2026-10-01..2026-10-07
+    moksha dev
+    python -m moksha.worker revenue.hauls        # from pipelines/examples/revenue
+    moksha replay daily --param day=2026-10-01..2026-10-07
 
 extract_orders reads a source that can change, so it is not memoized: it
 runs every time. daily_revenue and revenue_report are memoized: when the
 orders for a day come out identical (same content hash), they are reused,
 and when their own code changes, they run again.
 
-Each step prints and logs what it does; `hubwagen dev` and the web UI show
+Each step prints and logs what it does; `moksha dev` and the web UI show
 it with the step (print() and logging both work).
 """
 
@@ -18,7 +18,7 @@ import logging
 from decimal import Decimal
 from pathlib import Path
 
-import hubwagen as hw
+import moksha as hw
 
 SOURCE = Path(__file__).resolve().parent.parent / "data" / "orders.csv"
 log = logging.getLogger(__name__)

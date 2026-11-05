@@ -19,9 +19,9 @@ import (
 
 	"connectrpc.com/connect"
 
-	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
-	"github.com/alper/hubwagen/internal/blob"
-	"github.com/alper/hubwagen/internal/pallet"
+	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
+	"github.com/alper/moksha/internal/blob"
+	"github.com/alper/moksha/internal/pallet"
 )
 
 // DataPath is where the server serves bucket objects to workers, with URLs
@@ -67,7 +67,7 @@ func relPath(p string) error {
 	return nil
 }
 
-func (s *WorkerServer) GetUploadURLs(ctx context.Context, req *connect.Request[hubwagenv1.GetUploadURLsRequest]) (*connect.Response[hubwagenv1.GetUploadURLsResponse], error) {
+func (s *WorkerServer) GetUploadURLs(ctx context.Context, req *connect.Request[mokshav1.GetUploadURLsRequest]) (*connect.Response[mokshav1.GetUploadURLsResponse], error) {
 	d := s.data
 	if d == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("this server has no bucket for data versions"))
@@ -76,7 +76,7 @@ func (s *WorkerServer) GetUploadURLs(ctx context.Context, req *connect.Request[h
 	if err != nil {
 		return nil, connectError(err)
 	}
-	out := &hubwagenv1.GetUploadURLsResponse{}
+	out := &mokshav1.GetUploadURLsResponse{}
 	for i, f := range req.Msg.Files {
 		if err := relPath(f.Path); err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("files[%d]: %w", i, err))
@@ -93,12 +93,12 @@ func (s *WorkerServer) GetUploadURLs(ctx context.Context, req *connect.Request[h
 		} else if t, err = d.sign(http.MethodPut, uri, f.Size, f.Sha256); err != nil {
 			return nil, connectError(err)
 		}
-		out.Files = append(out.Files, &hubwagenv1.Transfer{Path: f.Path, Url: t.URL, Headers: t.Headers})
+		out.Files = append(out.Files, &mokshav1.Transfer{Path: f.Path, Url: t.URL, Headers: t.Headers})
 	}
 	return connect.NewResponse(out), nil
 }
 
-func (s *WorkerServer) GetDownloadURLs(ctx context.Context, req *connect.Request[hubwagenv1.GetDownloadURLsRequest]) (*connect.Response[hubwagenv1.GetDownloadURLsResponse], error) {
+func (s *WorkerServer) GetDownloadURLs(ctx context.Context, req *connect.Request[mokshav1.GetDownloadURLsRequest]) (*connect.Response[mokshav1.GetDownloadURLsResponse], error) {
 	d := s.data
 	if d == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("this server has no bucket for data versions"))
@@ -124,7 +124,7 @@ func (s *WorkerServer) GetDownloadURLs(ctx context.Context, req *connect.Request
 	if err != nil {
 		return nil, connectError(err)
 	}
-	out := &hubwagenv1.GetDownloadURLsResponse{ManifestJson: string(raw)}
+	out := &mokshav1.GetDownloadURLsResponse{ManifestJson: string(raw)}
 	for _, f := range m.Files {
 		uri := m.Data + escapePath(f.Path)
 		var t blob.Transfer
@@ -135,7 +135,7 @@ func (s *WorkerServer) GetDownloadURLs(ctx context.Context, req *connect.Request
 		} else if t, err = d.sign(http.MethodGet, uri, f.Size, f.SHA256); err != nil {
 			return nil, connectError(err)
 		}
-		out.Files = append(out.Files, &hubwagenv1.Transfer{Path: f.Path, Url: t.URL, Headers: t.Headers})
+		out.Files = append(out.Files, &mokshav1.Transfer{Path: f.Path, Url: t.URL, Headers: t.Headers})
 	}
 	return connect.NewResponse(out), nil
 }

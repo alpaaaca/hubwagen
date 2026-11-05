@@ -1,7 +1,7 @@
 # Spike S2: code version from imports
 
-Issue [#11](https://github.com/alpaaaca/hubwagen/issues/11). The result is
-built into the SDK (`sdk/python/src/hubwagen/_codeversion.py`); the cases
+Issue [#11](https://github.com/alpaaaca/moksha/issues/11). The result is
+built into the SDK (`sdk/python/src/moksha/_codeversion.py`); the cases
 below are `sdk/python/tests/test_codeversion.py`. Measured on an Apple M4,
 Python 3.12–3.14.
 
@@ -92,7 +92,7 @@ uses, found by the same walk (`importlib.metadata.packages_distributions`
 maps a module to its distribution), plus what each requires, recursively
 (pandas brings numpy, python-dateutil, six, tzdata). A pandas bump reruns
 the lifts that use pandas; a pytest bump reruns nothing. The standard
-library counts as the Python version (`cpython 3.12`). hubwagen itself
+library counts as the Python version (`cpython 3.12`). moksha itself
 doesn't count: it runs lifts, like the server, and a release that changed
 outputs would say so.
 
@@ -121,5 +121,5 @@ says should be.
 2. No lockfile term.
 3. Hauls get code versions the same way; the build ID covers hauls and
    lifts.
-4. `python -m hubwagen.worker --versions` prints what each version covers,
+4. `python -m moksha.worker --versions` prints what each version covers,
    so "code changed" can be traced to a piece of code or a package.

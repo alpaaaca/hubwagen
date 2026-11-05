@@ -15,12 +15,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/alper/hubwagen/internal/api"
-	"github.com/alper/hubwagen/internal/blob"
-	"github.com/alper/hubwagen/internal/core"
-	"github.com/alper/hubwagen/internal/layout"
-	"github.com/alper/hubwagen/internal/pallet"
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/api"
+	"github.com/alper/moksha/internal/blob"
+	"github.com/alper/moksha/internal/core"
+	"github.com/alper/moksha/internal/layout"
+	"github.com/alper/moksha/internal/pallet"
+	"github.com/alper/moksha/internal/state"
 )
 
 var ctx = context.Background()
@@ -178,7 +178,7 @@ func TestInvalidate(t *testing.T) {
 	out.Reset()
 	require.NoError(t, c.Invalidate(ctx, &out, InvalidateQuery{ID: "m1", Reason: "bad", DryRun: true}))
 	assert.Contains(t, out.String(), "m1 would mark 2 versions")
-	assert.Contains(t, out.String(), "hubwagen start daily --param day=2026-10-24 --param 'label=Q4 revenue'")
+	assert.Contains(t, out.String(), "moksha start daily --param day=2026-10-24 --param 'label=Q4 revenue'")
 
 	out.Reset()
 	require.NoError(t, c.Invalidate(ctx, &out, InvalidateQuery{ID: "m1", Reason: "bad", By: "ana", Confirm: func(int) bool { return true }}))
@@ -213,8 +213,8 @@ func TestStale(t *testing.T) {
 	assert.Equal(t, "DATASET PARTITION LATEST VERSION WHY", got[0])
 	assert.Contains(t, got, "mart.revenue 2026-10-24 m1 input raw.orders 2026-10-24 has a newer version o4")
 	assert.Contains(t, got, "reports.revenue 2026-10-24 r1 input raw.orders 2026-10-24 has a newer version o4")
-	assert.Contains(t, out.String(), "these refresh them (memoized steps whose code and inputs didn't change are reused):\n  hubwagen start daily --param day=2026-10-24 --param 'label=Q4 revenue'\n")
-	assert.Equal(t, 1, strings.Count(out.String(), "hubwagen start"), "one start for hauls with the same params")
+	assert.Contains(t, out.String(), "these refresh them (memoized steps whose code and inputs didn't change are reused):\n  moksha start daily --param day=2026-10-24 --param 'label=Q4 revenue'\n")
+	assert.Equal(t, 1, strings.Count(out.String(), "moksha start"), "one start for hauls with the same params")
 
 	out.Reset()
 	require.NoError(t, c.Stale(ctx, &out, "default", "reports.revenue"))

@@ -10,15 +10,15 @@ TAG       ?= dev
 
 images: server-image worker-image example-image ## build all three images
 
-server-image: ## hubwagen:$(TAG): the server, with the web UI
-	$(CONTAINER) build -t hubwagen:$(TAG) --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) \
+server-image: ## moksha:$(TAG): the server, with the web UI
+	$(CONTAINER) build -t moksha:$(TAG) --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) \
 	  --build-arg BUILD_DATE=$$(date -u +%Y-%m-%dT%H:%M:%SZ) .
 
-worker-image: ## hubwagen-worker:$(TAG): Python and the SDK, the base of project images
-	$(CONTAINER) build -t hubwagen-worker:$(TAG) sdk/python
+worker-image: ## moksha-worker:$(TAG): Python and the SDK, the base of project images
+	$(CONTAINER) build -t moksha-worker:$(TAG) sdk/python
 
 example-image: worker-image ## revenue-worker:$(TAG): the revenue example's workers
-	$(CONTAINER) build -t revenue-worker:$(TAG) --build-arg WORKER_IMAGE=hubwagen-worker:$(TAG) pipelines/examples/revenue
+	$(CONTAINER) build -t revenue-worker:$(TAG) --build-arg WORKER_IMAGE=moksha-worker:$(TAG) pipelines/examples/revenue
 
 up: ## run the server and the example's workers (deploy/compose.yaml)
 	$(COMPOSE) -f deploy/compose.yaml up

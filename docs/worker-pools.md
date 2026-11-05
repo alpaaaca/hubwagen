@@ -1,6 +1,6 @@
 # Worker pools: the leader starts the workers its work needs
 
-> **Status:** design note; steps 1–4 are built (processes, containers, Kubernetes Deployments, desired counts for external scalers); step 5 is not. Builds on `hubwagen.yaml`'s
+> **Status:** design note; steps 1–4 are built (processes, containers, Kubernetes Deployments, desired counts for external scalers); step 5 is not. Builds on `moksha.yaml`'s
 > `workers:` ([config.md](config.md)), `internal/supervise`, the core's
 > record of workers seen lately (`internal/core/workers.go`) and the node
 > design in [failover.md](failover.md). Decision requested: steps 1 and 2
@@ -10,9 +10,9 @@
 ## Problem
 
 A leader that starts with runs in its database waits for workers that
-nothing starts. `hubwagen dev` supervises the config's `workers:`, but
-`hubwagen server`, the production server, read none of it until step 1:
-workers come from systemd, a Deployment or `hubwagen workers`, configured
+nothing starts. `moksha dev` supervises the config's `workers:`, but
+`moksha server`, the production server, read none of it until step 1:
+workers come from systemd, a Deployment or `moksha workers`, configured
 separately. So:
 
 - **After a restart, queued runs wait** until someone starts workers. Since
@@ -32,7 +32,7 @@ all are busy, and `Core.Workers` lists who polls what. It should act on it.
 ## What stays the same
 
 - **The leader never runs user code.** It starts processes, containers or
-  pods that run it, as `hubwagen dev` already does. A step that runs out of
+  pods that run it, as `moksha dev` already does. A step that runs out of
   memory kills its worker, never the leader.
 - **Workers pull.** Started workers poll their docks like any other. Workers
   started by someone else still work: pools are how the leader adds
@@ -52,7 +52,7 @@ count, declared docks and capacity, and a launcher:
 pools:                           # today: workers:
   - name: py
     launcher: process            # process | container | kubernetes (later)
-    command: [python3, -m, hubwagen.worker, --lifts, "2"]
+    command: [python3, -m, moksha.worker, --lifts, "2"]
     dir: .
     env: {PYTHONPATH: src}
     docks: [default]             # what its workers poll; default [default]
@@ -145,7 +145,7 @@ wants 1). As soon as a worker of the pool has been seen (workers register
 before they poll) and nothing waits, the scaler lets it go at once ("its
 code is registered"), not after `idle_after`; if it took work, the pool
 scales as usual from there. A deployed project's pools skip this:
-`hubwagen deploy` registers their build.
+`moksha deploy` registers their build.
 
 Why on each start, and not once: builds don't say which pool registered
 them, and scaling is the leader's memory, so the server can't tell which
@@ -174,7 +174,7 @@ Two ways, not exclusive:
   lives, never the core.
 - **The platform scales**: the leader publishes each pool's desired count
   (`GET /v1/pools`, or a KEDA external scaler) and KEDA or an HPA applies
-  it. No cluster credentials in hubwagen; teams that already run KEDA keep
+  it. No cluster credentials in moksha; teams that already run KEDA keep
   one scaling system.
 
 The second is less code and fits platform teams; the first works without
@@ -199,7 +199,7 @@ connected" when one is on its way.
 
 ## Steps (PR-sized)
 
-1. ✅ **`hubwagen server` supervises `workers:`**, as dev does, with
+1. ✅ **`moksha server` supervises `workers:`**, as dev does, with
    `--no-workers` for setups that run them elsewhere. Fixed counts. This
    alone fixes "the leader starts and runs wait for workers nobody starts".
 2. ✅ **Pools with the process launcher**: `min`, `max`, `docks`, `lifts`,

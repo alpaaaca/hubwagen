@@ -4,7 +4,7 @@ real worker (needs polars, pandas and pyarrow)."""
 import pandas as pd
 import polars as pl
 
-import hubwagen as hw
+import moksha as hw
 
 
 @hw.lift(memo=True)

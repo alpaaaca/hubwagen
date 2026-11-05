@@ -1,4 +1,4 @@
-"""Workers when the process next to them dies: the leader, or the hubwagen
+"""Workers when the process next to them dies: the leader, or the moksha
 process that started them."""
 
 import json
@@ -10,7 +10,7 @@ import sys
 import time
 from pathlib import Path
 
-import hubwagen as hw
+import moksha as hw
 from conftest import SDK, _free_port, start_dev, start_worker, stop, wait
 
 
@@ -23,8 +23,8 @@ def until(cond, timeout: float, what: str):
     raise AssertionError(f"timed out waiting for {what}")
 
 
-def test_a_result_waits_for_the_leader_to_come_back(hubwagen_bin, tmp_path):
-    url, dev = start_dev(hubwagen_bin, tmp_path)
+def test_a_result_waits_for_the_leader_to_come_back(moksha_bin, tmp_path):
+    url, dev = start_dev(moksha_bin, tmp_path)
     log = tmp_path / "worker.log"
     worker = start_worker(url, "example_hauls", SDK / "tests", log)
     try:
@@ -37,7 +37,7 @@ def test_a_result_waits_for_the_leader_to_come_back(hubwagen_bin, tmp_path):
         release.touch()  # ... and the lift finishes meanwhile
         until(lambda: "can't deliver the result of step gated" in log.read_text(), 10, "a failed delivery")
 
-        _, dev = start_dev(hubwagen_bin, tmp_path, url)
+        _, dev = start_dev(moksha_bin, tmp_path, url)
         h = wait(client, haul_id)
         assert h["status"] == "completed", h
         assert json.loads(h["resultJson"]) == "released"
@@ -47,21 +47,21 @@ def test_a_result_waits_for_the_leader_to_come_back(hubwagen_bin, tmp_path):
         stop(dev, signal.SIGINT)
 
 
-def test_workers_stop_when_their_supervisor_is_killed(hubwagen_bin, tmp_path):
+def test_workers_stop_when_their_supervisor_is_killed(moksha_bin, tmp_path):
     port = _free_port()
-    (tmp_path / "hubwagen.yaml").write_text(f"""
-apiVersion: hubwagen.dev/v1alpha1
+    (tmp_path / "moksha.yaml").write_text(f"""
+apiVersion: moksha.dev/v1alpha1
 kind: Config
 server: {{listen: "127.0.0.1:{port}"}}
 workers:
   - name: py
     replicas: 2
-    command: [{sys.executable}, -m, hubwagen.worker, example_hauls, --poll-wait, 1s]
+    command: [{sys.executable}, -m, moksha.worker, example_hauls, --poll-wait, 1s]
     dir: {SDK / "tests"}
     env: {{PYTHONPATH: "{SDK / "src"}"}}
 """)
     out = tmp_path / "dev.out"
-    dev = subprocess.Popen([hubwagen_bin, "dev"], cwd=tmp_path, stdout=open(out, "w"), stderr=subprocess.STDOUT)
+    dev = subprocess.Popen([moksha_bin, "dev"], cwd=tmp_path, stdout=open(out, "w"), stderr=subprocess.STDOUT)
     try:
         until(lambda: out.read_text().count("polling default") == 2, 20, "two workers polling")
         pids = [int(p) for p in re.findall(r"started \(pid (\d+)\)", out.read_text())]

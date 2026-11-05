@@ -3,7 +3,7 @@ package core
 import (
 	"fmt"
 
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/state"
 )
 
 // Single-flight. Two hauls that need the same memoized lift at the same time

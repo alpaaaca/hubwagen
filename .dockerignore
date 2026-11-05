@@ -1,8 +1,8 @@
 .git
 **/node_modules
-**/.hubwagen
+**/.moksha
 **/__pycache__
 internal/webui/dist/*
 !internal/webui/dist/.gitkeep
-/hubwagen
+/moksha
 deploy/helm

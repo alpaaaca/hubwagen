@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alper/hubwagen/internal/config"
+	"github.com/alper/moksha/internal/config"
 )
 
 // ServiceAccountDir is where a pod finds its service account's token, CA

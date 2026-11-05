@@ -1,5 +1,5 @@
 // Command s3fake serves s3fake over HTTP, for tests in other languages (the
-// Python SDK's): s3fake -listen 127.0.0.1:0 -bucket hubwagen prints the
+// Python SDK's): s3fake -listen 127.0.0.1:0 -bucket moksha prints the
 // endpoint's URL on its first line, then serves until killed.
 package main
 
@@ -10,12 +10,12 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/alper/hubwagen/internal/blob/s3fake"
+	"github.com/alper/moksha/internal/blob/s3fake"
 )
 
 func main() {
 	listen := flag.String("listen", "127.0.0.1:0", "address to listen on")
-	bucket := flag.String("bucket", "hubwagen", "bucket to create")
+	bucket := flag.String("bucket", "moksha", "bucket to create")
 	flag.Parse()
 	srv := s3fake.New()
 	srv.CreateBucket(*bucket)

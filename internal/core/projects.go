@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"slices"
 
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/state"
 )
 
 // Projects (docs/projects.md). A deployment is state: Deploy registers the

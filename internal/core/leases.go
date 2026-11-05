@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/state"
 )
 
 // Leases. With Config.HeartbeatTimeout set, a dispatched lift attempt or haul

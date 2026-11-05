@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
-	"github.com/alper/hubwagen/internal/api/gen/hubwagen/v1/hubwagenv1connect"
-	"github.com/alper/hubwagen/internal/core"
-	"github.com/alper/hubwagen/internal/state"
+	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
+	"github.com/alper/moksha/internal/api/gen/moksha/v1/mokshav1connect"
+	"github.com/alper/moksha/internal/core"
+	"github.com/alper/moksha/internal/state"
 )
 
 func TestHaulService(t *testing.T) {
@@ -22,17 +22,17 @@ func TestHaulService(t *testing.T) {
 	path, h := NewHaulHandler(s.core, s.store)
 	mux.Handle(path, h)
 	srv := httptestServer(t, mux)
-	c := hubwagenv1connect.NewHaulServiceClient(http.DefaultClient, srv)
+	c := mokshav1connect.NewHaulServiceClient(http.DefaultClient, srv)
 
-	_, err := c.StartHaul(ctx, connect.NewRequest(&hubwagenv1.StartHaulRequest{Tenant: "t", Name: "daily_revenue"}))
+	_, err := c.StartHaul(ctx, connect.NewRequest(&mokshav1.StartHaulRequest{Tenant: "t", Name: "daily_revenue"}))
 	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err), "no build defines it yet")
 	assert.ErrorContains(t, err, `no registered build defines haul "daily_revenue"`)
 	require.NoError(t, s.core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Hauls: []string{"daily_revenue", "x"}}))
 
-	res, err := c.StartHaul(ctx, connect.NewRequest(&hubwagenv1.StartHaulRequest{
+	res, err := c.StartHaul(ctx, connect.NewRequest(&mokshav1.StartHaulRequest{
 		Tenant: "t", Name: "daily_revenue", ParamsJson: `{"day":"2026-10-24","n":10000000000000001}`}))
 	require.NoError(t, err)
-	got, err := c.GetHaul(ctx, connect.NewRequest(&hubwagenv1.GetHaulRequest{HaulId: res.Msg.HaulId}))
+	got, err := c.GetHaul(ctx, connect.NewRequest(&mokshav1.GetHaulRequest{HaulId: res.Msg.HaulId}))
 	require.NoError(t, err)
 	hl := got.Msg.Haul
 	assert.Equal(t, state.HaulRunning, hl.Status)
@@ -41,22 +41,22 @@ func TestHaulService(t *testing.T) {
 	assert.NotNil(t, hl.CreatedAt)
 	assert.Nil(t, hl.FinishedAt)
 
-	_, err = c.GetHaul(ctx, connect.NewRequest(&hubwagenv1.GetHaulRequest{HaulId: "nope"}))
+	_, err = c.GetHaul(ctx, connect.NewRequest(&mokshav1.GetHaulRequest{HaulId: "nope"}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 
 	// Its history, in plain words (internal/history tells the rest).
-	hist, err := c.GetHistory(ctx, connect.NewRequest(&hubwagenv1.GetHistoryRequest{HaulId: res.Msg.HaulId}))
+	hist, err := c.GetHistory(ctx, connect.NewRequest(&mokshav1.GetHistoryRequest{HaulId: res.Msg.HaulId}))
 	require.NoError(t, err)
 	require.NotEmpty(t, hist.Msg.Entries)
 	first := hist.Msg.Entries[0]
 	assert.Equal(t, []string{"started", "Started by hand, for day=2026-10-24, n=10000000000000001", "HaulStarted"},
 		[]string{first.Kind, first.Text, first.EventType})
 	assert.NotZero(t, first.EventSeq)
-	_, err = c.GetHistory(ctx, connect.NewRequest(&hubwagenv1.GetHistoryRequest{HaulId: "nope"}))
+	_, err = c.GetHistory(ctx, connect.NewRequest(&mokshav1.GetHistoryRequest{HaulId: "nope"}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
-	_, err = c.StartHaul(ctx, connect.NewRequest(&hubwagenv1.StartHaulRequest{Tenant: "t", Name: "x", ParamsJson: "[1]"}))
+	_, err = c.StartHaul(ctx, connect.NewRequest(&mokshav1.StartHaulRequest{Tenant: "t", Name: "x", ParamsJson: "[1]"}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "params must be an object")
-	_, err = c.StartHaul(ctx, connect.NewRequest(&hubwagenv1.StartHaulRequest{Name: "x"}))
+	_, err = c.StartHaul(ctx, connect.NewRequest(&mokshav1.StartHaulRequest{Name: "x"}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "no tenant")
 }
 
@@ -65,25 +65,25 @@ func TestSignalHaul(t *testing.T) {
 	mux := http.NewServeMux()
 	path, h := NewHaulHandler(s.core, s.store)
 	mux.Handle(path, h)
-	c := hubwagenv1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
+	c := mokshav1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
 	require.NoError(t, s.core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Hauls: []string{"x"}}))
-	res, err := c.StartHaul(ctx, connect.NewRequest(&hubwagenv1.StartHaulRequest{Tenant: "t", Name: "x"}))
+	res, err := c.StartHaul(ctx, connect.NewRequest(&mokshav1.StartHaulRequest{Tenant: "t", Name: "x"}))
 	require.NoError(t, err)
 	id := res.Msg.HaulId
 
-	sig, err := c.SignalHaul(ctx, connect.NewRequest(&hubwagenv1.SignalHaulRequest{HaulId: id, Name: "approve", PayloadJson: `{"by":"ana"}`}))
+	sig, err := c.SignalHaul(ctx, connect.NewRequest(&mokshav1.SignalHaulRequest{HaulId: id, Name: "approve", PayloadJson: `{"by":"ana"}`}))
 	require.NoError(t, err)
 	assert.NotEmpty(t, sig.Msg.SignalId)
 	evs, err := s.store.HaulEvents(ctx, id)
 	require.NoError(t, err)
 	assert.Equal(t, state.EventSignalReceived, evs[len(evs)-1].Type)
 
-	_, err = c.SignalHaul(ctx, connect.NewRequest(&hubwagenv1.SignalHaulRequest{HaulId: "nope", Name: "approve"}))
+	_, err = c.SignalHaul(ctx, connect.NewRequest(&mokshav1.SignalHaulRequest{HaulId: "nope", Name: "approve"}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
-	_, err = c.SignalHaul(ctx, connect.NewRequest(&hubwagenv1.SignalHaulRequest{HaulId: id, Name: "approve", PayloadJson: "{"}))
+	_, err = c.SignalHaul(ctx, connect.NewRequest(&mokshav1.SignalHaulRequest{HaulId: id, Name: "approve", PayloadJson: "{"}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	require.NoError(t, s.core.CancelHaul(ctx, id, "test"))
-	_, err = c.SignalHaul(ctx, connect.NewRequest(&hubwagenv1.SignalHaulRequest{HaulId: id, Name: "approve"}))
+	_, err = c.SignalHaul(ctx, connect.NewRequest(&mokshav1.SignalHaulRequest{HaulId: id, Name: "approve"}))
 	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err), "the haul is finished")
 }
 
@@ -92,12 +92,12 @@ func TestSchedulesOverTheAPI(t *testing.T) {
 	mux := http.NewServeMux()
 	path, h := NewHaulHandler(s.core, s.store)
 	mux.Handle(path, h)
-	hauls := hubwagenv1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
+	hauls := mokshav1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
 
-	_, err := s.client.RegisterBuild(ctx, connect.NewRequest(&hubwagenv1.RegisterBuildRequest{BuildId: "b1", Hauls: []string{"daily"},
-		Schedules: []*hubwagenv1.HaulSchedule{{Haul: "daily", Cron: "0 3 * * *", Timezone: "Europe/Berlin", Interval: "daily", CatchUp: "all"}}}))
+	_, err := s.client.RegisterBuild(ctx, connect.NewRequest(&mokshav1.RegisterBuildRequest{BuildId: "b1", Hauls: []string{"daily"},
+		Schedules: []*mokshav1.HaulSchedule{{Haul: "daily", Cron: "0 3 * * *", Timezone: "Europe/Berlin", Interval: "daily", CatchUp: "all"}}}))
 	require.NoError(t, err)
-	got, err := hauls.ListSchedules(ctx, connect.NewRequest(&hubwagenv1.ListSchedulesRequest{}))
+	got, err := hauls.ListSchedules(ctx, connect.NewRequest(&mokshav1.ListSchedulesRequest{}))
 	require.NoError(t, err)
 	require.Len(t, got.Msg.Schedules, 1)
 	sc := got.Msg.Schedules[0]
@@ -118,8 +118,8 @@ func TestSchedulesOverTheAPI(t *testing.T) {
 	assert.Equal(t, "00:00", iv.End.In(berlin).Format("15:04"))
 	assert.True(t, iv.End.Before(time.Now()))
 
-	_, err = s.client.RegisterBuild(ctx, connect.NewRequest(&hubwagenv1.RegisterBuildRequest{BuildId: "b2", Hauls: []string{"daily"},
-		Schedules: []*hubwagenv1.HaulSchedule{{Haul: "daily", Cron: "nope"}}}))
+	_, err = s.client.RegisterBuild(ctx, connect.NewRequest(&mokshav1.RegisterBuildRequest{BuildId: "b2", Hauls: []string{"daily"},
+		Schedules: []*mokshav1.HaulSchedule{{Haul: "daily", Cron: "nope"}}}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
@@ -128,17 +128,17 @@ func TestListPipelines(t *testing.T) {
 	mux := http.NewServeMux()
 	path, h := NewHaulHandler(s.core, s.store)
 	mux.Handle(path, h)
-	hauls := hubwagenv1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
-	register := func(id string, info ...*hubwagenv1.HaulInfo) error {
-		_, err := s.client.RegisterBuild(ctx, connect.NewRequest(&hubwagenv1.RegisterBuildRequest{
+	hauls := mokshav1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
+	register := func(id string, info ...*mokshav1.HaulInfo) error {
+		_, err := s.client.RegisterBuild(ctx, connect.NewRequest(&mokshav1.RegisterBuildRequest{
 			BuildId: id, Hauls: []string{"daily", "hourly"}, HaulInfo: info}))
 		return err
 	}
-	require.NoError(t, register("b1", &hubwagenv1.HaulInfo{Haul: "daily", Title: "Daily", Description: "old"}))
-	require.NoError(t, register("b2", &hubwagenv1.HaulInfo{Haul: "daily", Title: "Daily revenue", Description: "Orders to a report."}))
-	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(register("b3", &hubwagenv1.HaulInfo{Haul: "weekly", Title: "x"})))
+	require.NoError(t, register("b1", &mokshav1.HaulInfo{Haul: "daily", Title: "Daily", Description: "old"}))
+	require.NoError(t, register("b2", &mokshav1.HaulInfo{Haul: "daily", Title: "Daily revenue", Description: "Orders to a report."}))
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(register("b3", &mokshav1.HaulInfo{Haul: "weekly", Title: "x"})))
 
-	got, err := hauls.ListPipelines(ctx, connect.NewRequest(&hubwagenv1.ListPipelinesRequest{}))
+	got, err := hauls.ListPipelines(ctx, connect.NewRequest(&mokshav1.ListPipelinesRequest{}))
 	require.NoError(t, err)
 	require.Len(t, got.Msg.Pipelines, 2)
 	assert.Equal(t, []string{"daily", "Daily revenue", "Orders to a report."},
@@ -151,27 +151,27 @@ func TestListHaulsAndLogbook(t *testing.T) {
 	mux := http.NewServeMux()
 	path, h := NewHaulHandler(s.core, s.store)
 	mux.Handle(path, h)
-	c := hubwagenv1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
+	c := mokshav1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
 	require.NoError(t, s.core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Hauls: []string{"daily", "x"}}))
 	var ids []string
 	for _, name := range []string{"daily", "x", "daily"} {
-		res, err := c.StartHaul(ctx, connect.NewRequest(&hubwagenv1.StartHaulRequest{Tenant: "t", Name: name, ParamsJson: `{"n":1}`}))
+		res, err := c.StartHaul(ctx, connect.NewRequest(&mokshav1.StartHaulRequest{Tenant: "t", Name: name, ParamsJson: `{"n":1}`}))
 		require.NoError(t, err)
 		ids = append(ids, res.Msg.HaulId)
 	}
-	got, err := c.ListHauls(ctx, connect.NewRequest(&hubwagenv1.ListHaulsRequest{Name: "daily"}))
+	got, err := c.ListHauls(ctx, connect.NewRequest(&mokshav1.ListHaulsRequest{Name: "daily"}))
 	require.NoError(t, err)
 	require.Len(t, got.Msg.Hauls, 2)
 	assert.Equal(t, []string{ids[2], ids[0]}, []string{got.Msg.Hauls[0].Id, got.Msg.Hauls[1].Id}, "newest first")
-	got, err = c.ListHauls(ctx, connect.NewRequest(&hubwagenv1.ListHaulsRequest{Statuses: []string{"completed"}}))
+	got, err = c.ListHauls(ctx, connect.NewRequest(&mokshav1.ListHaulsRequest{Statuses: []string{"completed"}}))
 	require.NoError(t, err)
 	assert.Empty(t, got.Msg.Hauls)
-	_, err = c.ListHauls(ctx, connect.NewRequest(&hubwagenv1.ListHaulsRequest{Limit: 5000}))
+	_, err = c.ListHauls(ctx, connect.NewRequest(&mokshav1.ListHaulsRequest{Limit: 5000}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
-	_, err = c.ListHauls(ctx, connect.NewRequest(&hubwagenv1.ListHaulsRequest{Limit: 500, WithLifts: true}))
+	_, err = c.ListHauls(ctx, connect.NewRequest(&mokshav1.ListHaulsRequest{Limit: 500, WithLifts: true}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 
-	lb, err := c.GetLogbook(ctx, connect.NewRequest(&hubwagenv1.GetLogbookRequest{HaulId: ids[0]}))
+	lb, err := c.GetLogbook(ctx, connect.NewRequest(&mokshav1.GetLogbookRequest{HaulId: ids[0]}))
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"n":1}`, lb.Msg.Haul.ParamsJson)
 	require.NotEmpty(t, lb.Msg.Logbook)
@@ -179,7 +179,7 @@ func TestListHaulsAndLogbook(t *testing.T) {
 	for _, e := range lb.Msg.Logbook {
 		assert.NotEqual(t, string(state.EventHaulTaskQueued), e.Type, "only what a replay reads")
 	}
-	_, err = c.GetLogbook(ctx, connect.NewRequest(&hubwagenv1.GetLogbookRequest{HaulId: "nope"}))
+	_, err = c.GetLogbook(ctx, connect.NewRequest(&mokshav1.GetLogbookRequest{HaulId: "nope"}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 }
 
@@ -188,21 +188,21 @@ func TestCancelResumeAndChildren(t *testing.T) {
 	mux := http.NewServeMux()
 	path, h := NewHaulHandler(s.core, s.store)
 	mux.Handle(path, h)
-	c := hubwagenv1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
+	c := mokshav1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
 	require.NoError(t, s.core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Hauls: []string{"x"}}))
-	res, err := c.StartHaul(ctx, connect.NewRequest(&hubwagenv1.StartHaulRequest{Tenant: "t", Name: "x"}))
+	res, err := c.StartHaul(ctx, connect.NewRequest(&mokshav1.StartHaulRequest{Tenant: "t", Name: "x"}))
 	require.NoError(t, err)
 	id := res.Msg.HaulId
 
-	_, err = c.ResumeHaul(ctx, connect.NewRequest(&hubwagenv1.ResumeHaulRequest{HaulId: id}))
+	_, err = c.ResumeHaul(ctx, connect.NewRequest(&mokshav1.ResumeHaulRequest{HaulId: id}))
 	require.NoError(t, err, "not stuck: a no-op")
-	_, err = c.CancelHaul(ctx, connect.NewRequest(&hubwagenv1.CancelHaulRequest{HaulId: id, By: "ana"}))
+	_, err = c.CancelHaul(ctx, connect.NewRequest(&mokshav1.CancelHaulRequest{HaulId: id, By: "ana"}))
 	require.NoError(t, err)
 	got, err := s.store.GetHaul(ctx, id)
 	require.NoError(t, err)
 	assert.Equal(t, state.HaulCancelled, got.Status)
 	assert.Equal(t, "cancelled by ana", got.Message)
-	_, err = c.CancelHaul(ctx, connect.NewRequest(&hubwagenv1.CancelHaulRequest{HaulId: "nope"}))
+	_, err = c.CancelHaul(ctx, connect.NewRequest(&mokshav1.CancelHaulRequest{HaulId: "nope"}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 
 	put := func(h state.Haul) {
@@ -211,11 +211,11 @@ func TestCancelResumeAndChildren(t *testing.T) {
 	}
 	put(state.Haul{ID: "zc1", Tenant: "t", Name: "x", Dock: "default", Trigger: "haul " + id, Status: state.HaulRunning, ParentID: id, CreatedAt: time.Now()})
 	put(state.Haul{ID: "zc2", Tenant: "t", Name: "x", Dock: "default", Trigger: "manual", Status: state.HaulRunning, CreatedAt: time.Now()})
-	kids, err := c.ListHauls(ctx, connect.NewRequest(&hubwagenv1.ListHaulsRequest{ParentId: id}))
+	kids, err := c.ListHauls(ctx, connect.NewRequest(&mokshav1.ListHaulsRequest{ParentId: id}))
 	require.NoError(t, err)
 	require.Len(t, kids.Msg.Hauls, 1)
 	assert.Equal(t, "zc1", kids.Msg.Hauls[0].Id)
-	older, err := c.ListHauls(ctx, connect.NewRequest(&hubwagenv1.ListHaulsRequest{BeforeId: "zc2"}))
+	older, err := c.ListHauls(ctx, connect.NewRequest(&mokshav1.ListHaulsRequest{BeforeId: "zc2"}))
 	require.NoError(t, err)
 	assert.NotContains(t, []string{older.Msg.Hauls[0].Id}, "zc2", "paging: older than zc2")
 }
@@ -225,9 +225,9 @@ func TestListCode(t *testing.T) {
 	mux := http.NewServeMux()
 	path, h := NewHaulHandler(s.core, s.store)
 	mux.Handle(path, h)
-	c := hubwagenv1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
+	c := mokshav1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
 	require.NoError(t, s.core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Hauls: []string{"daily"}, Lifts: map[string]string{"load": "py-1"}}))
-	res, err := c.ListCode(ctx, connect.NewRequest(&hubwagenv1.ListCodeRequest{}))
+	res, err := c.ListCode(ctx, connect.NewRequest(&mokshav1.ListCodeRequest{}))
 	require.NoError(t, err)
 	require.Len(t, res.Msg.Steps, 1)
 	assert.Equal(t, []string{"load", "py-1", "b1"}, []string{res.Msg.Steps[0].Name, res.Msg.Steps[0].CodeVersion, res.Msg.Steps[0].BuildId})

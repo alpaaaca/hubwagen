@@ -14,7 +14,7 @@ func TestParseExpandsVariables(t *testing.T) {
 	t.Setenv("DEMO_WORKERS", "2")
 	t.Setenv("DEMO_EMPTY", "")
 	c, err := Parse([]byte(`
-apiVersion: hubwagen.dev/v1alpha1
+apiVersion: moksha.dev/v1alpha1
 kind: Config
 # A comment may mention ${ANYTHING} without it being set.
 data_dir: ${DEMO_EMPTY:-state}    # empty: the default
@@ -52,10 +52,10 @@ func TestExpandReportsAllProblemsByLine(t *testing.T) {
 
 func TestVariableErrorsNameTheFile(t *testing.T) {
 	dir := t.TempDir()
-	path := dir + "/hubwagen.yaml"
-	require.NoError(t, writeFile(path, "apiVersion: hubwagen.dev/v1alpha1\nkind: Config\ndata_dir: ${HUBWAGEN_TEST_UNSET_DIR}\n"))
+	path := dir + "/moksha.yaml"
+	require.NoError(t, writeFile(path, "apiVersion: moksha.dev/v1alpha1\nkind: Config\ndata_dir: ${MOKSHA_TEST_UNSET_DIR}\n"))
 	_, err := Load(path)
-	assert.EqualError(t, err, path+": line 3: ${HUBWAGEN_TEST_UNSET_DIR} is not set (give it a default: ${HUBWAGEN_TEST_UNSET_DIR:-…})")
+	assert.EqualError(t, err, path+": line 3: ${MOKSHA_TEST_UNSET_DIR} is not set (give it a default: ${MOKSHA_TEST_UNSET_DIR:-…})")
 }
 
 func writeFile(path, s string) error { return os.WriteFile(path, []byte(s), 0o644) }

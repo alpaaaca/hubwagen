@@ -7,12 +7,12 @@ import time
 
 import pytest
 
-import hubwagen as hw
+import moksha as hw
 from conftest import SDK, start_dev, start_worker, stop, wait
-from hubwagen.worker import project_modules
+from moksha.worker import project_modules
 
 OTHER_PROJECT = '''
-import hubwagen as hw
+import moksha as hw
 
 
 @hw.lift
@@ -26,14 +26,14 @@ def loud(ctx, word: str):
 '''
 
 
-def test_two_projects_share_a_server(hubwagen_bin, tmp_path):
+def test_two_projects_share_a_server(moksha_bin, tmp_path):
     other = tmp_path / "other"
     (other / "other").mkdir(parents=True)
     (other / "other" / "__init__.py").write_text("")
     (other / "other" / "hauls.py").write_text(OTHER_PROJECT)
-    (other / "pyproject.toml").write_text('[tool.hubwagen]\nmodules = ["other.hauls"]\n')
+    (other / "pyproject.toml").write_text('[tool.moksha]\nmodules = ["other.hauls"]\n')
 
-    url, dev = start_dev(hubwagen_bin, tmp_path)
+    url, dev = start_dev(moksha_bin, tmp_path)
     workers = [start_worker(url, "example_hauls", SDK / "tests", tmp_path / "tests.log"),
                start_worker(url, None, other, tmp_path / "other.log")]
     try:
@@ -57,15 +57,15 @@ def test_two_projects_share_a_server(hubwagen_bin, tmp_path):
         stop(dev, signal.SIGINT)
 
 
-def test_a_worker_registers_again_with_a_leader_that_lost_its_build(hubwagen_bin, tmp_path):
+def test_a_worker_registers_again_with_a_leader_that_lost_its_build(moksha_bin, tmp_path):
     (tmp_path / "first").mkdir()
     (tmp_path / "second").mkdir()
-    url, dev = start_dev(hubwagen_bin, tmp_path / "first")
+    url, dev = start_dev(moksha_bin, tmp_path / "first")
     log = tmp_path / "worker.log"
     worker = start_worker(url, "example_hauls", SDK / "tests", log)
     try:
         stop(dev, signal.SIGINT)
-        _, dev = start_dev(hubwagen_bin, tmp_path / "second", url)  # empty state: no builds
+        _, dev = start_dev(moksha_bin, tmp_path / "second", url)  # empty state: no builds
         client = hw.Client(url)
         for _ in range(100):
             try:
@@ -86,10 +86,10 @@ def test_project_modules(tmp_path):
     with pytest.raises(SystemExit, match="no modules given and no .*pyproject.toml"):
         project_modules(tmp_path)
     (tmp_path / "pyproject.toml").write_text('[project]\nname = "x"\n')
-    with pytest.raises(SystemExit, match=r"(?s)none in .*\[tool.hubwagen\]"):
+    with pytest.raises(SystemExit, match=r"(?s)none in .*\[tool.moksha\]"):
         project_modules(tmp_path)
-    (tmp_path / "pyproject.toml").write_text('[tool.hubwagen]\nmodules = "app.hauls"\n')
+    (tmp_path / "pyproject.toml").write_text('[tool.moksha]\nmodules = "app.hauls"\n')
     with pytest.raises(SystemExit, match="must be a non-empty list"):
         project_modules(tmp_path)
-    (tmp_path / "pyproject.toml").write_text('[tool.hubwagen]\nmodules = ["app.hauls", "app.more"]\n')
+    (tmp_path / "pyproject.toml").write_text('[tool.moksha]\nmodules = ["app.hauls", "app.more"]\n')
     assert project_modules(tmp_path) == ["app.hauls", "app.more"]

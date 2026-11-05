@@ -1,4 +1,4 @@
-"""Version markers across a deploy, on a real hubwagen dev: a haul started
+"""Version markers across a deploy, on a real moksha dev: a haul started
 on old code keeps the old branch; a new haul takes the new one."""
 
 import json
@@ -8,7 +8,7 @@ import time
 from conftest import start_worker, stop, wait
 
 V1 = '''
-import hubwagen as hw
+import moksha as hw
 
 @hw.lift
 def marker_step(x: str) -> str:
@@ -22,7 +22,7 @@ def marker_deploy(ctx):
 '''
 
 V2 = '''
-import hubwagen as hw
+import moksha as hw
 
 @hw.lift
 def marker_step(x: str) -> str:

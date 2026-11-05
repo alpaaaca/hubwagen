@@ -12,11 +12,11 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	hubwagenv1 "github.com/alper/hubwagen/internal/api/gen/hubwagen/v1"
-	"github.com/alper/hubwagen/internal/api/gen/hubwagen/v1/hubwagenv1connect"
-	"github.com/alper/hubwagen/internal/core"
-	"github.com/alper/hubwagen/internal/pallet"
-	"github.com/alper/hubwagen/internal/state"
+	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
+	"github.com/alper/moksha/internal/api/gen/moksha/v1/mokshav1connect"
+	"github.com/alper/moksha/internal/core"
+	"github.com/alper/moksha/internal/pallet"
+	"github.com/alper/moksha/internal/state"
 )
 
 // DefaultMaxWait caps how long a poll may wait for work.
@@ -36,21 +36,21 @@ func NewWorkerHandler(c *core.Core, maxWait time.Duration, data *Data) (string, 
 	if maxWait <= 0 {
 		maxWait = DefaultMaxWait
 	}
-	return hubwagenv1connect.NewWorkerServiceHandler(&WorkerServer{core: c, maxWait: maxWait, data: data})
+	return mokshav1connect.NewWorkerServiceHandler(&WorkerServer{core: c, maxWait: maxWait, data: data})
 }
 
-var _ hubwagenv1connect.WorkerServiceHandler = (*WorkerServer)(nil)
+var _ mokshav1connect.WorkerServiceHandler = (*WorkerServer)(nil)
 
-func (s *WorkerServer) RegisterBuild(ctx context.Context, req *connect.Request[hubwagenv1.RegisterBuildRequest]) (*connect.Response[hubwagenv1.RegisterBuildResponse], error) {
+func (s *WorkerServer) RegisterBuild(ctx context.Context, req *connect.Request[mokshav1.RegisterBuildRequest]) (*connect.Response[mokshav1.RegisterBuildResponse], error) {
 	err := s.core.RegisterBuild(ctx, buildRequest(req.Msg))
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&hubwagenv1.RegisterBuildResponse{}), nil
+	return connect.NewResponse(&mokshav1.RegisterBuildResponse{}), nil
 }
 
 // buildRequest is a build as the core takes it (RegisterBuild, Deploy).
-func buildRequest(m *hubwagenv1.RegisterBuildRequest) core.BuildRequest {
+func buildRequest(m *mokshav1.RegisterBuildRequest) core.BuildRequest {
 	b := core.BuildRequest{ID: m.GetBuildId(), Hauls: m.GetHauls(), Lifts: m.GetLiftVersions()}
 	for _, sc := range m.GetSchedules() {
 		b.Schedules = append(b.Schedules, core.ScheduleSpec{
@@ -81,18 +81,18 @@ func (s *WorkerServer) poll(ctx context.Context, worker, build string, docks []s
 	return t, ok, nil
 }
 
-func (s *WorkerServer) PollHaulTask(ctx context.Context, req *connect.Request[hubwagenv1.PollHaulTaskRequest]) (*connect.Response[hubwagenv1.PollHaulTaskResponse], error) {
+func (s *WorkerServer) PollHaulTask(ctx context.Context, req *connect.Request[mokshav1.PollHaulTaskRequest]) (*connect.Response[mokshav1.PollHaulTaskResponse], error) {
 	m := req.Msg
 	t, ok, err := s.poll(ctx, m.WorkerId, m.BuildId, m.Docks, m.Wait.AsDuration(), core.TaskHaul)
 	if err != nil || !ok {
-		return connect.NewResponse(&hubwagenv1.PollHaulTaskResponse{}), err
+		return connect.NewResponse(&mokshav1.PollHaulTaskResponse{}), err
 	}
-	out := &hubwagenv1.HaulTask{Id: t.ID, HaulId: t.HaulID, Name: t.Name, Dock: t.Dock}
+	out := &mokshav1.HaulTask{Id: t.ID, HaulId: t.HaulID, Name: t.Name, Dock: t.Dock}
 	for _, e := range t.Logbook {
 		if !replayEvents[e.Type] {
 			continue
 		}
-		out.Logbook = append(out.Logbook, &hubwagenv1.Event{
+		out.Logbook = append(out.Logbook, &mokshav1.Event{
 			Seq: e.Seq, Type: string(e.Type), Time: timestamppb.New(e.Time), PayloadJson: string(e.Payload)})
 		if e.Type == state.EventHaulStarted {
 			var p struct {
@@ -103,7 +103,7 @@ func (s *WorkerServer) PollHaulTask(ctx context.Context, req *connect.Request[hu
 			}
 		}
 	}
-	return connect.NewResponse(&hubwagenv1.PollHaulTaskResponse{Task: out}), nil
+	return connect.NewResponse(&mokshav1.PollHaulTaskResponse{Task: out}), nil
 }
 
 // replayEvents are the logbook events a replay reads; the rest is
@@ -120,7 +120,7 @@ var replayEvents = map[state.EventType]bool{
 	state.EventHaulTaskCompleted: true,
 }
 
-func (s *WorkerServer) CompleteHaulTask(ctx context.Context, req *connect.Request[hubwagenv1.CompleteHaulTaskRequest]) (*connect.Response[hubwagenv1.CompleteHaulTaskResponse], error) {
+func (s *WorkerServer) CompleteHaulTask(ctx context.Context, req *connect.Request[mokshav1.CompleteHaulTaskRequest]) (*connect.Response[mokshav1.CompleteHaulTaskResponse], error) {
 	m := req.Msg
 	res := core.HaulTaskResult{TaskID: m.TaskId, BuildID: m.BuildId}
 	for i, c := range m.Commands {
@@ -137,11 +137,11 @@ func (s *WorkerServer) CompleteHaulTask(ctx context.Context, req *connect.Reques
 		}
 		res.Outcome = &core.HaulOutcome{Result: result, Reason: o.Reason, Message: o.Message}
 		switch o.Status {
-		case hubwagenv1.HaulOutcome_STATUS_COMPLETED:
+		case mokshav1.HaulOutcome_STATUS_COMPLETED:
 			res.Outcome.Status = state.HaulCompleted
-		case hubwagenv1.HaulOutcome_STATUS_FAILED:
+		case mokshav1.HaulOutcome_STATUS_FAILED:
 			res.Outcome.Status = state.HaulFailed
-		case hubwagenv1.HaulOutcome_STATUS_CONTINUED:
+		case mokshav1.HaulOutcome_STATUS_CONTINUED:
 			res.Outcome.Status = state.HaulContinued
 			if res.Outcome.Params, err = jsonObject("outcome.params_json", o.ParamsJson); err != nil {
 				return nil, err
@@ -159,13 +159,13 @@ func (s *WorkerServer) CompleteHaulTask(ctx context.Context, req *connect.Reques
 	if err := s.core.CompleteHaulTask(ctx, res); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&hubwagenv1.CompleteHaulTaskResponse{}), nil
+	return connect.NewResponse(&mokshav1.CompleteHaulTaskResponse{}), nil
 }
 
-func command(c *hubwagenv1.Command) (core.Command, error) {
+func command(c *mokshav1.Command) (core.Command, error) {
 	cmd := core.Command{Seq: int(c.Seq), Source: c.Source}
 	switch k := c.Kind.(type) {
-	case *hubwagenv1.Command_Lift:
+	case *mokshav1.Command_Lift:
 		l := k.Lift
 		args, err := rawJSON("lift.args_json", l.ArgsJson)
 		if err != nil {
@@ -193,21 +193,21 @@ func command(c *hubwagenv1.Command) (core.Command, error) {
 		for _, lim := range l.Limits {
 			cmd.Limits = append(cmd.Limits, core.ParallelLimit{Group: lim.Group, Max: int(lim.Max)})
 		}
-	case *hubwagenv1.Command_Sleep:
+	case *mokshav1.Command_Sleep:
 		cmd.Kind = core.CommandSleep
 		if k.Sleep.Duration != nil {
 			cmd.Duration = k.Sleep.Duration.AsDuration()
 		}
-	case *hubwagenv1.Command_LatestPallet:
+	case *mokshav1.Command_LatestPallet:
 		cmd.Kind, cmd.Dataset, cmd.Partition = core.CommandLatestPallet, k.LatestPallet.Dataset, k.LatestPallet.Partition
-	case *hubwagenv1.Command_StartHaul:
+	case *mokshav1.Command_StartHaul:
 		sh := k.StartHaul
 		params, err := rawJSON("start_haul.params_json", sh.ParamsJson)
 		if err != nil {
 			return cmd, err
 		}
 		cmd.Kind, cmd.Name, cmd.Args, cmd.Wait, cmd.Dock = core.CommandStartHaul, sh.Name, params, sh.Wait, sh.Dock
-	case *hubwagenv1.Command_WaitSignal:
+	case *mokshav1.Command_WaitSignal:
 		cmd.Kind, cmd.Name = core.CommandWaitSignal, k.WaitSignal.Name
 		if k.WaitSignal.Timeout != nil {
 			cmd.Duration = k.WaitSignal.Timeout.AsDuration()
@@ -218,13 +218,13 @@ func command(c *hubwagenv1.Command) (core.Command, error) {
 	return cmd, nil
 }
 
-func (s *WorkerServer) PollLiftTask(ctx context.Context, req *connect.Request[hubwagenv1.PollLiftTaskRequest]) (*connect.Response[hubwagenv1.PollLiftTaskResponse], error) {
+func (s *WorkerServer) PollLiftTask(ctx context.Context, req *connect.Request[mokshav1.PollLiftTaskRequest]) (*connect.Response[mokshav1.PollLiftTaskResponse], error) {
 	m := req.Msg
 	t, ok, err := s.poll(ctx, m.WorkerId, m.BuildId, m.Docks, m.Wait.AsDuration(), core.TaskLift)
 	if err != nil || !ok {
-		return connect.NewResponse(&hubwagenv1.PollLiftTaskResponse{}), err
+		return connect.NewResponse(&mokshav1.PollLiftTaskResponse{}), err
 	}
-	out := &hubwagenv1.LiftTask{
+	out := &mokshav1.LiftTask{
 		Id: t.ID, HaulId: t.HaulID, Seq: int32(t.Seq), Name: t.Name, Dock: t.Dock,
 		ArgsJson: string(t.Args), Staging: t.Staging,
 	}
@@ -232,15 +232,15 @@ func (s *WorkerServer) PollLiftTask(ctx context.Context, req *connect.Request[hu
 		out.Bucket, out.BucketId = s.data.bucket.Base(), s.data.id
 	}
 	if o := t.Output; o != nil {
-		out.Output = &hubwagenv1.Output{Dataset: o.Dataset, Partition: o.Partition, PartitionKey: o.PartitionKey}
+		out.Output = &mokshav1.Output{Dataset: o.Dataset, Partition: o.Partition, PartitionKey: o.PartitionKey}
 	}
 	for _, in := range t.Inputs {
-		out.Inputs = append(out.Inputs, &hubwagenv1.InputRef{Name: in.Name, Pallet: in.Pallet, Location: in.Location})
+		out.Inputs = append(out.Inputs, &mokshav1.InputRef{Name: in.Name, Pallet: in.Pallet, Location: in.Location})
 	}
-	return connect.NewResponse(&hubwagenv1.PollLiftTaskResponse{Task: out}), nil
+	return connect.NewResponse(&mokshav1.PollLiftTaskResponse{Task: out}), nil
 }
 
-func (s *WorkerServer) CompleteLiftTask(ctx context.Context, req *connect.Request[hubwagenv1.CompleteLiftTaskRequest]) (*connect.Response[hubwagenv1.CompleteLiftTaskResponse], error) {
+func (s *WorkerServer) CompleteLiftTask(ctx context.Context, req *connect.Request[mokshav1.CompleteLiftTaskRequest]) (*connect.Response[mokshav1.CompleteLiftTaskResponse], error) {
 	m := req.Msg
 	result, err := rawJSON("result_json", m.ResultJson)
 	if err != nil {
@@ -248,9 +248,9 @@ func (s *WorkerServer) CompleteLiftTask(ctx context.Context, req *connect.Reques
 	}
 	res := core.LiftResult{AttemptID: m.AttemptId, Result: result, Reason: m.Reason, Message: m.Message, NoRetry: m.NoRetry}
 	switch m.Status {
-	case hubwagenv1.CompleteLiftTaskRequest_STATUS_SUCCEEDED:
+	case mokshav1.CompleteLiftTaskRequest_STATUS_SUCCEEDED:
 		res.Status = state.AttemptSucceeded
-	case hubwagenv1.CompleteLiftTaskRequest_STATUS_FAILED:
+	case mokshav1.CompleteLiftTaskRequest_STATUS_FAILED:
 		res.Status = state.AttemptFailed
 	default:
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("status must be SUCCEEDED or FAILED"))
@@ -271,15 +271,15 @@ func (s *WorkerServer) CompleteLiftTask(ctx context.Context, req *connect.Reques
 	if err := s.core.CompleteLift(ctx, res); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&hubwagenv1.CompleteLiftTaskResponse{}), nil
+	return connect.NewResponse(&mokshav1.CompleteLiftTaskResponse{}), nil
 }
 
-func (s *WorkerServer) Heartbeat(ctx context.Context, req *connect.Request[hubwagenv1.HeartbeatRequest]) (*connect.Response[hubwagenv1.HeartbeatResponse], error) {
+func (s *WorkerServer) Heartbeat(ctx context.Context, req *connect.Request[mokshav1.HeartbeatRequest]) (*connect.Response[mokshav1.HeartbeatResponse], error) {
 	stop, err := s.core.Heartbeat(ctx, req.Msg.WorkerId, req.Msg.TaskIds)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&hubwagenv1.HeartbeatResponse{Stop: stop}), nil
+	return connect.NewResponse(&mokshav1.HeartbeatResponse{Stop: stop}), nil
 }
 
 // rawJSON checks a *_json field; "" means unset.

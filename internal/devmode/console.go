@@ -10,15 +10,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/alper/hubwagen/internal/api"
-	"github.com/alper/hubwagen/internal/runlog"
-	"github.com/alper/hubwagen/internal/state"
+	"github.com/alper/moksha/internal/api"
+	"github.com/alper/moksha/internal/runlog"
+	"github.com/alper/moksha/internal/state"
 )
 
-// Console is what `hubwagen dev` prints: a line when a run starts and when
+// Console is what `moksha dev` prints: a line when a run starts and when
 // it ends, and in between what its lifts printed and logged, each line
 // marked with the run and the lift. With events, it also prints the
-// engine's own events (Describe), for debugging hubwagen itself.
+// engine's own events (Describe), for debugging moksha itself.
 func (e *Engine) Console(ctx context.Context, afterSeq int64, events bool, print func(string)) {
 	c := &console{e: e, print: print, runs: map[string]run{}, announced: map[string]bool{}}
 	e.Logs.OnAppend(c.logs)

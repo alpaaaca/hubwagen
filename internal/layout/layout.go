@@ -9,8 +9,8 @@ import (
 	"strings"
 )
 
-// Layout is rooted at a base URI such as "file:///var/lib/hubwagen/bucket"
-// or "gs://acme-hubwagen". Every URI it returns for a directory ends in "/".
+// Layout is rooted at a base URI such as "file:///var/lib/moksha/bucket"
+// or "gs://acme-moksha". Every URI it returns for a directory ends in "/".
 type Layout struct {
 	base string
 }
