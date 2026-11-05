@@ -107,9 +107,9 @@ memoized lift is **reused** ("same inputs and same code, so it didn't run
 again"); a logbook is a run's **history**, told in sentences by
 `internal/history`, with the engine's bookkeeping (haul tasks, attempts
 that succeeded) shown only on request. The UI explains each word where it
-appears (`ui/src/words.tsx`). The SDK's names follow: `@hw.pipeline`,
-`@hw.step`, `ctx.step`, `ctx.run`, `hw.DataVersion`; the engine's
-(`@hw.haul`, `@hw.lift`, `ctx.lift`, `hw.Pallet`) stay as aliases, and are
+appears (`ui/src/words.tsx`). The SDK's names follow: `@mk.pipeline`,
+`@mk.step`, `ctx.step`, `ctx.run`, `mk.DataVersion`; the engine's
+(`@mk.haul`, `@mk.lift`, `ctx.lift`, `mk.Pallet`) stay as aliases, and are
 what this document, the API and the code inside use.
 
 ## Writing hauls and lifts

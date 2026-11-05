@@ -41,7 +41,7 @@ func (c *Client) Datasets(ctx context.Context, w io.Writer, tenant string) error
 		return err
 	}
 	if len(res.Msg.Datasets) == 0 {
-		_, err := fmt.Fprintln(w, "no datasets yet (a step with output=hw.Dataset(...) or one returning a dataframe makes one)")
+		_, err := fmt.Fprintln(w, "no datasets yet (a step with output=mk.Dataset(...) or one returning a dataframe makes one)")
 		return err
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)

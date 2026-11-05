@@ -17,7 +17,7 @@ from time import time as time_fn
 
 import pytest
 
-import moksha as hw
+import moksha as mk
 from moksha import _guards, _replay
 from test_replay import START
 
@@ -103,13 +103,13 @@ def test_the_error_names_the_line():
     assert "use ctx.now(), ctx.random() or a step" in str(e.value)
 
 
-@hw.lift(name="guard_add")
+@mk.lift(name="guard_add")
 def guard_add(a: int) -> int:
     return a + 1
 
 
 def test_a_replay_that_reads_the_clock_is_nondeterministic():
-    @hw.haul(name="guard_clock")
+    @mk.haul(name="guard_clock")
     def clock(ctx):
         try:
             stamp = time.time()  # `except Exception` can't swallow the guard
@@ -124,7 +124,7 @@ def test_a_replay_that_reads_the_clock_is_nondeterministic():
 
 
 def test_ctx_now_and_random_are_fine():
-    @hw.haul(name="guard_ctx")
+    @mk.haul(name="guard_ctx")
     def ok(ctx):
         return [ctx.random(), str(ctx.now())]
 

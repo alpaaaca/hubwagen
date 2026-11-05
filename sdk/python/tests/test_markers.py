@@ -8,13 +8,13 @@ import time
 from conftest import start_worker, stop, wait
 
 V1 = '''
-import moksha as hw
+import moksha as mk
 
-@hw.lift
+@mk.lift
 def marker_step(x: str) -> str:
     return x
 
-@hw.haul
+@mk.haul
 def marker_deploy(ctx):
     a = ctx.lift(marker_step, "old")
     ctx.wait_signal("go")
@@ -22,17 +22,17 @@ def marker_deploy(ctx):
 '''
 
 V2 = '''
-import moksha as hw
+import moksha as mk
 
-@hw.lift
+@mk.lift
 def marker_step(x: str) -> str:
     return x
 
-@hw.lift
+@mk.lift
 def marker_new_step(x: str) -> str:
     return x.upper()
 
-@hw.haul
+@mk.haul
 def marker_deploy(ctx):
     if ctx.version("new-first-step", max=2) >= 2:
         a = ctx.lift(marker_new_step, "new")

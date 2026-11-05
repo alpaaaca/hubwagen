@@ -25,13 +25,13 @@ def test_docks_and_lifts_come_from_the_worker_group(monkeypatch):
 
 
 def test_build_json_is_what_a_worker_registers():
-    import moksha as hw
+    import moksha as mk
 
-    @hw.lift(name="build_json_load")
+    @mk.lift(name="build_json_load")
     def load(x: int) -> int:
         return x
 
-    @hw.haul(name="build_json_daily")
+    @mk.haul(name="build_json_daily")
     def daily(ctx, x: int):
         return ctx.step(load, x)
 

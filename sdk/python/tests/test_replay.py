@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-import moksha as hw
+import moksha as mk
 from moksha import _model, _replay
 
 
@@ -20,18 +20,18 @@ def finished(seq, result=None, status="completed", time="2026-10-26T10:00:00Z", 
     return ev("LiftFinished", {"seq": seq, "status": status, "result": result, **kw}, time)
 
 
-@hw.lift
+@mk.lift
 def add(a: int, b: int) -> int:
     return a + b
 
 
-@hw.lift(memo=True, output=hw.Dataset("raw.orders", partition="day"), timeout=60, retry=hw.Retry(limit=2, initial=5))
+@mk.lift(memo=True, output=mk.Dataset("raw.orders", partition="day"), timeout=60, retry=mk.Retry(limit=2, initial=5))
 def extract(day: dt.date) -> int:
     return 1
 
 
-@hw.lift(memo="ttl:1h", output=hw.Dataset("mart.revenue"))
-def build(orders: hw.Pallet, factor: float = 1.0) -> int:
+@mk.lift(memo="ttl:1h", output=mk.Dataset("mart.revenue"))
+def build(orders: mk.Pallet, factor: float = 1.0) -> int:
     return 2
 
 
@@ -102,7 +102,7 @@ def test_failed_lift_raises_in_the_haul():
     def h(ctx):
         try:
             ctx.lift(add, 1, 2)
-        except hw.LiftFailed as e:
+        except mk.LiftFailed as e:
             return f"fallback after {e.reason}"
 
     r = run(h, [finished(1, status="failed", reason="ValueError", message="boom")])
@@ -180,7 +180,7 @@ def test_latest_pallet():
     seen = []
 
     def h(ctx):
-        seen.append(ctx.latest_pallet(hw.Dataset("raw.orders"), partition=dt.date(2026, 10, 24)))
+        seen.append(ctx.latest_pallet(mk.Dataset("raw.orders"), partition=dt.date(2026, 10, 24)))
         return "ok"
 
     r = run(h, [])
@@ -220,7 +220,7 @@ def test_params_are_decoded():
 
 
 def test_memo_without_output():
-    @hw.lift(memo=True)
+    @mk.lift(memo=True)
     def rate(day: str) -> float:
         return 1.08
 
@@ -232,9 +232,9 @@ def test_memo_without_output():
 
 def test_decorator_checks():
     with pytest.raises(ValueError, match="memo="):
-        hw.lift(lambda: 1, name="y", memo="always", output=hw.Dataset("d"))
+        mk.lift(lambda: 1, name="y", memo="always", output=mk.Dataset("d"))
     with pytest.raises(ValueError, match="not one of its arguments"):
-        hw.lift(lambda x: 1, name="z", output=hw.Dataset("d", partition="day"))
+        mk.lift(lambda x: 1, name="z", output=mk.Dataset("d", partition="day"))
     r = run(lambda ctx: ctx.lift(print), [])
     assert r.outcome["reason"] == "TypeError" and "not a step" in r.outcome["message"]
     assert add(1, 2) == 3, "a lift is still a plain function"
@@ -259,7 +259,7 @@ def test_wait_signal_timeout_raises():
     def gate(ctx):
         try:
             return ctx.wait_signal("approve", timeout=60)
-        except hw.SignalTimeout as e:
+        except mk.SignalTimeout as e:
             return f"gave up: {e}"
 
     r = run(gate, [ev("SignalDelivered", {"seq": 1, "name": "approve", "timed_out": True})])
@@ -330,7 +330,7 @@ def test_gather_max_parallel_limits_the_new_lifts():
 
 
 def test_haul_max_parallel_limits_every_lift():
-    @hw.haul(name="limited_haul", max_parallel=3)
+    @mk.haul(name="limited_haul", max_parallel=3)
     def limited(ctx):
         ctx.lift_async(add, 1, 2)
         return ctx.gather([ctx.lift_async(add, 3, 4)], max_parallel=1)
@@ -339,10 +339,10 @@ def test_haul_max_parallel_limits_every_lift():
     assert r.commands[0]["lift"]["limits"] == [{"group": "haul", "max": 3}]
     assert r.commands[1]["lift"]["limits"] == [{"group": "haul", "max": 3}, {"group": "gather:2", "max": 1}]
     with pytest.raises(ValueError, match="max_parallel"):
-        hw.haul(lambda ctx: 1, name="bad_limit", max_parallel=0)
+        mk.haul(lambda ctx: 1, name="bad_limit", max_parallel=0)
 
 
-@hw.haul(name="replay_child")
+@mk.haul(name="replay_child")
 def replay_child(ctx, day: str, n: int = 1):
     return n
 
@@ -365,7 +365,7 @@ def test_child_failure_raises():
     def parent(ctx):
         try:
             return ctx.haul("replay_child", day="x")
-        except hw.ChildFailed as e:
+        except mk.ChildFailed as e:
             return [e.status, e.reason, e.message, e.haul_id]
 
     failed = ev("ChildFinished", {"seq": 1, "name": "replay_child", "haul": "c1", "status": "failed",
@@ -405,13 +405,13 @@ def test_continue_as_new():
 
 def test_scheduled_haul_gets_its_interval():
     with pytest.raises(ValueError, match="takes an `interval` input"):
-        hw.haul(lambda ctx, day: 1, name="no_interval", schedule="0 3 * * *")
+        mk.haul(lambda ctx, day: 1, name="no_interval", schedule="0 3 * * *")
     with pytest.raises(ValueError, match="catch_up"):
-        hw.Schedule("0 3 * * *", catch_up="sometimes")
+        mk.Schedule("0 3 * * *", catch_up="sometimes")
     with pytest.raises(ValueError, match="5 fields"):
-        hw.Schedule("daily")
+        mk.Schedule("daily")
 
-    def daily(ctx, interval: hw.Interval):
+    def daily(ctx, interval: mk.Interval):
         return [interval.start.date(), (interval.end - interval.start).total_seconds()]
 
     params = {"interval": {"$interval": {"start": "2026-10-24T00:00:00+02:00", "end": "2026-10-25T00:00:00+01:00"}}}
@@ -423,12 +423,12 @@ def test_scheduled_haul_gets_its_interval():
 
 
 def test_subscription_declaration():
-    s = hw.Subscription(["raw.b", hw.Dataset("raw.a"), "raw.b"], debounce=dt.timedelta(minutes=1))
+    s = mk.Subscription(["raw.b", mk.Dataset("raw.a"), "raw.b"], debounce=dt.timedelta(minutes=1))
     assert (s.datasets, s.debounce, s.max_wait, s.max_batch) == (("raw.a", "raw.b"), 60.0, None, 100)
     with pytest.raises(ValueError, match="max_wait >= debounce"):
-        hw.Subscription("raw.a", debounce=60, max_wait=10)
+        mk.Subscription("raw.a", debounce=60, max_wait=10)
     with pytest.raises(ValueError, match="`versions` input"):
-        hw.haul(lambda ctx: 1, name="no_pallets", subscribe="raw.a")
+        mk.haul(lambda ctx: 1, name="no_pallets", subscribe="raw.a")
 
     def on_orders(ctx, pallets: list):
         return [p.id for p in pallets]
@@ -437,7 +437,7 @@ def test_subscription_declaration():
     assert json.loads(r.outcome["resultJson"]) == ["p1"]
 
     # In plain words: the new data versions come as `versions`.
-    def on_versions(ctx, versions: list[hw.DataVersion]):
+    def on_versions(ctx, versions: list[mk.DataVersion]):
         return [v.id for v in versions]
 
     r = run(on_versions, [], params={"pallets": [{"$pallet": "p2", "dataset": "raw.a", "partition": ""}]})
@@ -445,21 +445,21 @@ def test_subscription_declaration():
 
 
 def test_the_engines_names_still_work():
-    assert (hw.haul, hw.lift, hw.Pallet, hw.LiftFailed, hw.ChildFailed) == \
-        (hw.pipeline, hw.step, hw.DataVersion, hw.StepFailed, hw.RunFailed)
-    assert (hw.Ctx.lift, hw.Ctx.lift_async, hw.Ctx.haul, hw.Ctx.start_haul, hw.Ctx.latest_pallet) == \
-        (hw.Ctx.step, hw.Ctx.step_async, hw.Ctx.run, hw.Ctx.start_run, hw.Ctx.latest_version)
-    e = hw.StepFailed("extract", "ValueError", "boom")
+    assert (mk.haul, mk.lift, mk.Pallet, mk.LiftFailed, mk.ChildFailed) == \
+        (mk.pipeline, mk.step, mk.DataVersion, mk.StepFailed, mk.RunFailed)
+    assert (mk.Ctx.lift, mk.Ctx.lift_async, mk.Ctx.haul, mk.Ctx.start_haul, mk.Ctx.latest_pallet) == \
+        (mk.Ctx.step, mk.Ctx.step_async, mk.Ctx.run, mk.Ctx.start_run, mk.Ctx.latest_version)
+    e = mk.StepFailed("extract", "ValueError", "boom")
     assert (str(e), e.step, e.lift) == ("extract failed (ValueError): boom", "extract", "extract")
 
 
 def test_keep():
-    assert hw.Keep(versions=3).versions == 3
-    assert hw.Keep(age=dt.timedelta(days=1)).age == 86400.0
+    assert mk.Keep(versions=3).versions == 3
+    assert mk.Keep(age=dt.timedelta(days=1)).age == 86400.0
     for bad in ({}, {"versions": 0}, {"age": -1}):
         with pytest.raises(ValueError, match="Keep"):
-            hw.Keep(**bad)
-    assert hw.Dataset("a", keep=hw.Keep(versions=1)) == hw.Dataset("a", keep=hw.Keep(versions=1))
+            mk.Keep(**bad)
+    assert mk.Dataset("a", keep=mk.Keep(versions=1)) == mk.Dataset("a", keep=mk.Keep(versions=1))
 
 
 def test_lifts_must_agree_on_a_datasets_keep():
@@ -467,10 +467,10 @@ def test_lifts_must_agree_on_a_datasets_keep():
 
     saved = dict(_model.LIFTS)
     try:
-        hw.lift(lambda: 1, name="k1", output=hw.Dataset("k.ds", keep=hw.Keep(versions=2)))
-        hw.lift(lambda: 1, name="k2", output=hw.Dataset("k.ds"))  # no keep: takes the other's
-        assert worker.datasets()["k.ds"] == hw.Keep(versions=2)
-        hw.lift(lambda: 1, name="k3", output=hw.Dataset("k.ds", keep=hw.Keep(versions=5)))
+        mk.lift(lambda: 1, name="k1", output=mk.Dataset("k.ds", keep=mk.Keep(versions=2)))
+        mk.lift(lambda: 1, name="k2", output=mk.Dataset("k.ds"))  # no keep: takes the other's
+        assert worker.datasets()["k.ds"] == mk.Keep(versions=2)
+        mk.lift(lambda: 1, name="k3", output=mk.Dataset("k.ds", keep=mk.Keep(versions=5)))
         with pytest.raises(SystemExit, match="dataset k.ds: steps k1 and k3 declare different keep"):
             worker.datasets()
     finally:
@@ -479,17 +479,17 @@ def test_lifts_must_agree_on_a_datasets_keep():
 
 
 def test_haul_title_and_description():
-    @hw.haul(name="titled_from_doc")
+    @mk.haul(name="titled_from_doc")
     def from_doc(ctx):
         """Daily revenue
 
         Orders for one day, and a report."""
 
-    @hw.haul(name="titled", title="Weekly revenue")
+    @mk.haul(name="titled", title="Weekly revenue")
     def titled(ctx):
         """Seven days of orders."""
 
-    @hw.haul(name="untitled")
+    @mk.haul(name="untitled")
     def untitled(ctx):
         pass
 
@@ -500,10 +500,10 @@ def test_haul_title_and_description():
 
 
 def test_a_haul_started_without_an_input_fails_and_says_which():
-    def nightly(ctx, interval: hw.Interval):
+    def nightly(ctx, interval: mk.Interval):
         return interval.start
 
-    d = _model.HaulDef("nightly", nightly, None, schedule=hw.Schedule("0 3 * * *", interval="daily"))
+    d = _model.HaulDef("nightly", nightly, None, schedule=mk.Schedule("0 3 * * *", interval="daily"))
     r = _replay.replay(d, "h1", {}, [START])
     assert r.outcome["status"] == "STATUS_FAILED"
     assert "pipeline nightly was started with inputs {}" in r.outcome["message"]

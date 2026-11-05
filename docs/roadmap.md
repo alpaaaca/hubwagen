@@ -166,7 +166,7 @@ written. Steps, in order; each is one PR:
 4. ✅ **Child hauls and `continue_as_new`**: `ctx.haul(...)` (start and wait
    for the result), `ctx.start_haul(...)` (fire and forget), and
    `ctx.continue_as_new(**params)` for hauls that loop. ([#59](https://github.com/alpaaaca/moksha/issues/59))
-5. ✅ **Schedules**: `@hw.haul(schedule="0 3 * * *", catch_up="latest")` on
+5. ✅ **Schedules**: `@mk.haul(schedule="0 3 * * *", catch_up="latest")` on
    `internal/schedule`; builds register schedules, the leader keeps a
    cursor per schedule and starts what is due (`skip`, `latest`, `all`). ([#60](https://github.com/alpaaaca/moksha/issues/60))
 6. ✅ **Dataset subscriptions**: start a haul when a pallet is committed to a
@@ -217,7 +217,7 @@ each is one PR:
    paths (manifests point at them). ([#76](https://github.com/alpaaaca/moksha/issues/76))
 5. ✅ **Retention and expiry**: per dataset, keep the latest pallet of each
    partition plus those younger than an age or among the newest N
-   (`hw.Dataset(..., keep=...)`, registered with the build). A leader timer
+   (`mk.Dataset(..., keep=...)`, registered with the build). A leader timer
    and `moksha gc` expire the rest as events (`PalletExpired`, then the
    files go), never a pallet an open haul reads or the latest of a
    partition; expired pallets stay in the catalog as lineage records. ([#77](https://github.com/alpaaaca/moksha/issues/77))
@@ -229,7 +229,7 @@ each is one PR:
    else to run; during UI work, Vite's dev server proxies to a running
    `moksha dev`. This step: the scaffolding (build, embed, generated
    clients, tests) and the hauls views, organised as pipelines (hauls by
-   name, titled from code: `@hw.haul(title=...)` or the docstring) and
+   name, titled from code: `@mk.haul(title=...)` or the docstring) and
    their runs: a pipeline's steps as a DAG (a lift comes after the lifts
    whose pallets it reads), its schedule and runs with inputs, duration,
    progress and result; a run's steps on the DAG and a timeline, why each
@@ -262,10 +262,10 @@ each is one PR:
    the UI says pipeline, run, step, version and reused, with a hint for
    each. Scheduled pipelines start by hand with their latest interval
    (`Schedule.latest_params_json`).
-   ✅ **Plain words in the SDK and CLI**: `@hw.pipeline`, `@hw.step`,
+   ✅ **Plain words in the SDK and CLI**: `@mk.pipeline`, `@mk.step`,
    `ctx.step`, `ctx.step_async`, `ctx.run`, `ctx.start_run`,
-   `ctx.latest_version`, `hw.DataVersion`, `hw.StepFailed`,
-   `hw.RunFailed`, `testing.run(steps=, run_steps=, versions=)`; the
+   `ctx.latest_version`, `mk.DataVersion`, `mk.StepFailed`,
+   `mk.RunFailed`, `testing.run(steps=, run_steps=, versions=)`; the
    engine's names stay as aliases, and a subscribed pipeline may take its
    new versions as `versions`. The CLI says pipeline, run, step and
    version: `moksha versions` and `moksha data` (`pallets` and
@@ -347,7 +347,7 @@ Open questions, to settle in the step that needs them:
   isn't committed: `go generate ./internal/webui` builds it into the binary,
   and a binary built without it serves a page saying how; releases will
   build it in CI.
-- Retention: decided, in code (`hw.Dataset(keep=hw.Keep(...))`, versioned
+- Retention: decided, in code (`mk.Dataset(keep=mk.Keep(...))`, versioned
   with the build); a config override can come later.
 - Staleness by code version: "current" is the newest build that defines
   the lift; a stale pallet from an old build may still be what an older
@@ -422,9 +422,9 @@ Roughly in order of expected need:
 
 | Decision | Proposed default | Needed by |
 |---|---|---|
-| CLI name | Keep `moksha`; maybe add `hw` as a short alias | M3c |
+| CLI name | Keep `moksha`; maybe add `mk` as a short alias | M3c |
 | Python SDK packaging | `sdk/python` in this repo, published as `moksha` on PyPI | M3c |
-| Memoization default | Opt-in per lift (`memo=True`); SQL lifts on by default. Results and dataframes are memoized without `hw.output()`; under review: reuse by default with `live=True` to opt out ([api-simplification.md](api-simplification.md)) | Before the first release |
+| Memoization default | Opt-in per lift (`memo=True`); SQL lifts on by default. Results and dataframes are memoized without `mk.output()`; under review: reuse by default with `live=True` to opt out ([api-simplification.md](api-simplification.md)) | Before the first release |
 | Code version default | Decided ([S2](spikes/s2-code-version.md)): code the lift reaches + versions of the packages it uses + Python version + `deps=`, overridable with `version=` | M3b |
 | dbt integration | One lift per project, one pallet per model | Later |
 | Catalog interoperability | OpenLineage export first; Iceberg REST catalog later, if at all | Later |

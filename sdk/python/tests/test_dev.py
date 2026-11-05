@@ -6,7 +6,7 @@ import time
 
 import pytest
 
-import moksha as hw
+import moksha as mk
 
 from conftest import wait
 
@@ -92,7 +92,7 @@ def test_signals(client):
     assert done["status"] == "completed", done
     assert json.loads(done["resultJson"]) == {"decision": {"n": 41, "by": "ana"}, "sum": 42}
 
-    with pytest.raises(hw.ConnectError) as e:
+    with pytest.raises(mk.ConnectError) as e:
         client.signal_haul(h, "approve", {})
     assert e.value.code == "failed_precondition", "the haul has finished"
 
@@ -148,7 +148,7 @@ def test_schedules_are_registered(client):
 
 def test_a_scheduled_haul_runs_with_an_interval(client):
     """What the server starts on schedule, started by hand with the same param."""
-    params = {"interval": hw.Interval(dt.datetime(2026, 10, 24, tzinfo=dt.timezone.utc),
+    params = {"interval": mk.Interval(dt.datetime(2026, 10, 24, tzinfo=dt.timezone.utc),
                                       dt.datetime(2026, 10, 25, tzinfo=dt.timezone.utc))}
     h = wait(client, client.start_haul("nightly", params))
     assert h["status"] == "completed", h
@@ -207,7 +207,7 @@ def test_nondeterminism_makes_the_haul_stuck(client):
 
 
 def test_unknown_haul_is_rejected(client):
-    with pytest.raises(hw.ConnectError) as e:
+    with pytest.raises(mk.ConnectError) as e:
         client.start_haul("no_such_haul")
     assert e.value.code == "failed_precondition", "no registered build defines it"
 
