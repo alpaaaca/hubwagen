@@ -28,46 +28,13 @@ def daily(ctx, day: str):
 
 ## Why moksha
 
-*Moksha* is release: liberation from the cycle. This project is about
-release from a cycle data teams know well.
-
-You want to run a few Python functions every night, in order, and know
-what they produced. To do that today you adopt an orchestrator, and the
-orchestrator arrives with a scheduler, a webserver, a metadata database, a
-message broker, a pool of executors, a plugin ecosystem and a team to keep
-it all running. It can do everything: it runs shell commands, sends
-emails, waits on sensors, talks to every cloud. What it does poorly is the
-one thing you came for.
-
-- **It doesn't know your data.** It knows that a task ran, not what it
-  wrote. Lineage, freshness and "which version is this report built on?"
-  are bolted on afterwards, if at all.
-- **It reruns everything.** A backfill of a year recomputes a year, even
-  for the days and steps where nothing changed.
-- **It loses work in a crash.** A pipeline that waits a day for a file,
-  or dies halfway, starts over or needs a human to clear task states.
-- **Your code is not plain code.** Pipelines are DAG objects with
-  operators, templated strings and data passed through a side channel,
-  parsed by the scheduler over and over.
-- **It is heavy.** Several always-on services and a database before the
-  first task runs, and CPU spent on the orchestrator rather than on your
-  pipelines.
-
-moksha does less, on purpose, and does it properly:
-
-- **Plain code.** A pipeline is a Python function, a step is a Python
-  function. Loops, conditionals and fan-out are just Python.
-- **Durable by default.** Every run's history is recorded before anything
-  acts on it. A pipeline survives crashes, restarts and deploys, and can
-  wait hours or days for a timer, a signal or new data for free.
-- **Data is the product.** Every step's output is a versioned, immutable
-  data version in a catalog, with lineage back to the code and the inputs
-  that made it.
-- **Never compute the same thing twice.** A memoized step is reused when
-  a readable version with the same code and inputs exists; a backfill only
-  runs what changed. When moksha is unsure, it reruns.
-- **Small.** One static binary on SQLite. Your code runs in workers you
-  start, in your environment; the server never runs it.
+moksha started out of frustration with orchestrators like Airflow. To run
+a few Python functions every night, you end up running a scheduler, a
+webserver, a metadata database, a broker and a pool of executors: a tool
+that does everything, yet doesn't know what your pipelines wrote, reruns a
+whole backfill when little changed, and loses work in a crash. moksha
+(*release*, in Sanskrit) is the way out: plain Python functions, durable
+runs, versioned data, nothing computed twice, and one small binary.
 
 ## What you get
 
