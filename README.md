@@ -1,5 +1,10 @@
 # Moksha
 
+[![Build & Test](https://github.com/alpaaaca/moksha/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/alpaaaca/moksha/actions/workflows/test.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
+[![Go version](https://img.shields.io/github/go-mod/go-version/alpaaaca/moksha)](go.mod)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](sdk/python)
+
 **Plain data orchestrator, that lets you do your thing.**
 
 **Moksha** (_liberation_ in Sanskrit) is a durable execution engine for data. You write pipelines as

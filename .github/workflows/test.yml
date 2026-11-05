@@ -1,0 +1,64 @@
+# Build & Test: the Go server, the web UI and the Python SDK, on every
+# push to main and every pull request. The README's build badge shows
+# this workflow on main.
+name: Build & Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  go:
+    name: Go
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go build -o moksha .
+      - run: go vet ./...
+      - run: go test ./...
+
+  ui:
+    name: Web UI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+
+  python:
+    name: Python SDK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # The SDK's tests build moksha and run pipelines against moksha dev.
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: astral-sh/setup-uv@v6
+      - name: pytest
+        working-directory: sdk/python
+        run: uv run --no-project --with pytest --with polars --with pandas --with pyarrow --python 3.12 pytest -q
+      - name: lint the example
+        working-directory: pipelines/examples/revenue
+        run: PYTHONPATH=../../../sdk/python/src uv run --no-project --python 3.12 python -m moksha.lint
