@@ -1,13 +1,15 @@
 # moksha
 
-A durable execution engine for data. Write pipelines as plain Python
-functions; moksha runs them to completion through crashes, deploys and
-long waits, and records which versions of data went into and came out of
-every step. That record is the lineage graph, the catalog, and a cache:
-a rerun or backfill skips every step whose code and inputs didn't change.
+**Data pipelines as plain Python, without the orchestrator.**
 
-One Go binary, no database server, no message broker. Your code runs in
-workers you start; the server never runs it.
+moksha is a durable execution engine for data. You write pipelines as
+ordinary Python functions; moksha runs them to completion through crashes,
+deploys and long waits, and keeps every output as an immutable, versioned
+dataset. Because it knows which versions of data went into and came out of
+every step, a rerun or a backfill skips every step whose code and inputs
+didn't change.
+
+One Go binary. No database server, no message broker, no scheduler fleet.
 
 ```python
 import moksha as hw
@@ -20,51 +22,92 @@ def daily_revenue(orders: hw.DataVersion, day: str) -> dict: ...
 
 @hw.pipeline
 def daily(ctx, day: str):
-    orders = ctx.step(extract_orders, day)           # a DataVersion: a saved, never-changed version of raw.orders
-    return ctx.step(daily_revenue, orders, day).id   # reused if code and inputs are unchanged
+    orders = ctx.step(extract_orders, day)           # a saved, never-changing version of raw.orders
+    return ctx.step(daily_revenue, orders, day).id   # reused if its code and inputs are unchanged
 ```
 
-## Status
+## Why moksha
 
-The engine runs on one machine: `moksha dev` (server, API and workers in
-one terminal) or `moksha server` (the same as a service, with JSON logs; it starts the
-config's workers too, or `--no-workers` and `moksha workers` elsewhere), in containers
-(`make images && make up`), or on Kubernetes with the Helm chart, which scales
-worker Deployments from the work waiting ([docs/deploy.md](docs/deploy.md)).
-Python workers, `file://` or S3 storage, no authentication yet. Built so far: durable pipelines (replay until
-blocked, timers, retries, timeouts, leader restarts), data versions with
-exactly-once commits, memoized steps with single-flight, a catalog with
-lineage, the worker and pipeline APIs, dataframes between steps, code
-versions from what a step's code reaches, runtime determinism guards,
-signals, version markers, fan-out limits, runs that start runs,
-continue_as_new, schedules, dataset subscriptions, a linter for pipeline
-code, testing tools (scripted runs, replays of recorded runs) and a web UI.
-(Inside, the engine calls a pipeline a haul, a step a lift and a data
-version a pallet.) Next: M5 (catalog
-UI, invalidation, staleness). See
-[docs/roadmap.md](docs/roadmap.md) and
-[docs/architecture.md](docs/architecture.md).
+*Moksha* is release: liberation from the cycle. This project is about
+release from a cycle data teams know well.
 
-## Try it
+You want to run a few Python functions every night, in order, and know
+what they produced. To do that today you adopt an orchestrator, and the
+orchestrator arrives with a scheduler, a webserver, a metadata database, a
+message broker, a pool of executors, a plugin ecosystem and a team to keep
+it all running. It can do everything: it runs shell commands, sends
+emails, waits on sensors, talks to every cloud. What it does poorly is the
+one thing you came for.
+
+- **It doesn't know your data.** It knows that a task ran, not what it
+  wrote. Lineage, freshness and "which version is this report built on?"
+  are bolted on afterwards, if at all.
+- **It reruns everything.** A backfill of a year recomputes a year, even
+  for the days and steps where nothing changed.
+- **It loses work in a crash.** A pipeline that waits a day for a file,
+  or dies halfway, starts over or needs a human to clear task states.
+- **Your code is not plain code.** Pipelines are DAG objects with
+  operators, templated strings and data passed through a side channel,
+  parsed by the scheduler over and over.
+- **It is heavy.** Several always-on services and a database before the
+  first task runs, and CPU spent on the orchestrator rather than on your
+  pipelines.
+
+moksha does less, on purpose, and does it properly:
+
+- **Plain code.** A pipeline is a Python function, a step is a Python
+  function. Loops, conditionals and fan-out are just Python.
+- **Durable by default.** Every run's history is recorded before anything
+  acts on it. A pipeline survives crashes, restarts and deploys, and can
+  wait hours or days for a timer, a signal or new data for free.
+- **Data is the product.** Every step's output is a versioned, immutable
+  data version in a catalog, with lineage back to the code and the inputs
+  that made it.
+- **Never compute the same thing twice.** A memoized step is reused when
+  a readable version with the same code and inputs exists; a backfill only
+  runs what changed. When moksha is unsure, it reruns.
+- **Small.** One static binary on SQLite. Your code runs in workers you
+  start, in your environment; the server never runs it.
+
+## What you get
+
+- Durable pipelines: replay until blocked, timers, retries, timeouts,
+  signals, runs that start runs, `continue_as_new`
+- Data versions with exactly-once commits, a catalog and lineage
+- Memoized steps with single-flight: the same work in flight runs once
+- Code versions from what a step's code actually reaches, not just its
+  own source
+- Dataframes between steps: return a pandas or Polars DataFrame or an
+  Arrow table, receive it in the next step as the type you annotate
+- Schedules (cron or calendar intervals, DST-correct, catch-up) and dataset
+  subscriptions (new data starts a pipeline)
+- A linter and runtime guards for pipeline code, and testing tools
+  (scripted runs, replays of recorded runs)
+- A web UI: runs, what happened in each, what steps printed and logged
+- Local directories or S3 for data; workers as processes, containers or
+  Kubernetes Deployments that scale with the work waiting
+
+## Quick start
 
 Requires Go 1.26+ and Python 3.12+ (and Node 20+ for the web UI).
 
 ```bash
-go generate ./internal/webui   # builds the web UI into the binary (optional; needs Node)
+go generate ./internal/webui   # build the web UI into the binary (optional; needs Node)
 go build -o moksha .
-# the server plus three workers, as pipelines/examples/revenue/moksha.yaml says
 ./moksha dev --config pipelines/examples/revenue/moksha.yaml
-# the web UI: http://127.0.0.1:7070/
 ```
 
+That starts the server and three Python workers for the
+[example project](pipelines/examples/revenue). The web UI is at
+http://127.0.0.1:7070/. In another terminal:
+
 ```bash
-# in another terminal
 ./moksha replay daily --param day=2026-10-01..2026-10-03
 ./moksha replay daily --param day=2026-10-01..2026-10-03   # again: what's unchanged is reused
 ./moksha start daily --param day=2026-10-04 --wait
 ```
 
-`replay` prints, per step, what was reused and what ran and why:
+`replay` reports, per step, what ran and what was reused:
 
 ```
 3 runs
@@ -74,19 +117,9 @@ go build -o moksha .
 3 completed
 ```
 
-Dev prints each run as it starts and ends, and in between what its steps
-print and log, marked with the run and the step:
+`moksha dev` shows each run as it goes, with what its steps print and log:
 
 ```
-▶ Daily revenue day=2026-10-01 started
-  day=2026-10-01 › extract_orders │ reading orders.csv
-  day=2026-10-01 › extract_orders │ 6 orders for 2026-10-01: 3 apac, 3 eu
-  day=2026-10-01 › daily_revenue │ eu       439.78  78.5%
-  day=2026-10-01 › daily_revenue │ apac     120.17  21.5%
-  day=2026-10-01 › daily_revenue │ eu brings the most revenue on 2026-10-01
-  day=2026-10-01 › revenue_report │ Revenue on 2026-10-01
-  ...
-✓ Daily revenue day=2026-10-01 completed in 58ms
 ▶ Daily revenue day=2026-10-01 started
   day=2026-10-01 › extract_orders │ reading orders.csv
   day=2026-10-01 › extract_orders │ 6 orders for 2026-10-01: 3 apac, 3 eu
@@ -95,10 +128,61 @@ print and log, marked with the run and the step:
 ✓ Daily revenue day=2026-10-01 completed in 23ms
 ```
 
-The web UI shows the same output on the run's page, step by step
-(`moksha dev --events` prints the engine's own events instead). The config file: [docs/config.md](docs/config.md).
-Writing pipelines and steps: [sdk/python/README.md](sdk/python/README.md).
-The example: [pipelines/examples/revenue](pipelines/examples/revenue).
+## How it works
+
+```
+          moksha server  (one Go binary)
+   ┌──────────────────────────────────────────┐
+   │  event log + catalog (SQLite)   web UI   │
+   │  scheduler, timers, memoization    API   │
+   └──────────────┬──────────────────┬────────┘
+                  │ work, results    │ data
+          ┌───────┴───────┐   ┌──────┴────────────┐
+          │ your workers  │   │ bucket            │
+          │ (Python SDK)  │   │ (directory or S3) │
+          └───────────────┘   └───────────────────┘
+```
+
+- The **server** records everything that happens to a run as events, and
+  derives the state of runs, steps and the catalog from them. It schedules,
+  answers and stores; it never runs your code.
+- **Workers** run your pipelines and steps. A pipeline function is
+  replayed from its history until it reaches something new, so it can
+  stop anywhere and pick up where it left off.
+- The **bucket** holds the data versions. Only the server opens it;
+  workers on other machines move data through URLs it hands out.
+
+The design is in [docs/architecture.md](docs/architecture.md). (Inside,
+the engine calls a pipeline a haul, a step a lift and a data version a
+pallet.)
+
+## Running it
+
+- `moksha dev`: server, API, web UI and workers in one terminal
+- `moksha server`: the same as a service, with JSON logs; it starts the
+  config's workers, or `--no-workers` and `moksha workers` elsewhere
+- Containers: `make images && make up` ([deploy/compose.yaml](deploy/compose.yaml))
+- Kubernetes: the Helm chart in [deploy/helm/moksha](deploy/helm/moksha),
+  which scales worker Deployments from the work waiting
+- `moksha deploy`: ship a project's code to a running server
+
+See [docs/deploy.md](docs/deploy.md) and [docs/config.md](docs/config.md).
+
+## Status
+
+moksha is young and changing fast. It runs on one machine or one leader,
+with Python workers and no authentication yet. Next up: the catalog in the
+web UI, invalidating data versions, and showing what is stale. See
+[docs/roadmap.md](docs/roadmap.md).
+
+## Documentation
+
+- [Writing pipelines and steps](sdk/python/README.md): the Python SDK and the worker
+- [Configuration](docs/config.md): `moksha.yaml`
+- [Deployment](docs/deploy.md): images, compose, Helm
+- [Projects](docs/projects.md): a repo's project file and `moksha deploy`
+- [Architecture](docs/architecture.md): hauls, lifts, pallets, memoization, commits
+- [Roadmap](docs/roadmap.md)
 
 ## Development
 
@@ -106,6 +190,7 @@ The example: [pipelines/examples/revenue](pipelines/examples/revenue).
 go vet ./...
 go test ./...
 go test -race ./...
+(cd ui && npm ci && npm test && npm run typecheck)
 (cd sdk/python && uv run --no-project --with pytest --python 3.12 pytest -q)
 go generate ./internal/api    # after changing proto/
 ```
