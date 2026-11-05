@@ -4,6 +4,23 @@ Three images, a compose file for one machine and a Helm chart for
 Kubernetes. Settings are in [config.md](config.md); worker pools in
 [worker-pools.md](worker-pools.md).
 
+## Binaries
+
+Publishing a GitHub release `v1.2.3` also runs
+[.github/workflows/release.yml](../.github/workflows/release.yml):
+[GoReleaser](../.goreleaser.yaml) builds `moksha` with the web UI for
+macOS and Linux on amd64 and arm64 and attaches
+`moksha_1.2.3_<os>_<arch>.tar.gz` and `checksums.txt` to the release,
+keeping its notes. To build them for an existing tag again: Actions →
+release → Run workflow. To try it locally (needs Node), into `dist/`:
+
+```bash
+go run github.com/goreleaser/goreleaser/v2@v2.20.0 release --snapshot --clean
+```
+
+No Windows build: worker supervision uses Unix process groups and
+signals.
+
 ## Images
 
 | Image | Built from | What |

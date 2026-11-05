@@ -56,3 +56,6 @@ __pycache__/
 # The web UI build, embedded by internal/webui; made by go generate ./internal/webui
 /internal/webui/dist/*
 !/internal/webui/dist/.gitkeep
+
+# GoReleaser output
+/dist/

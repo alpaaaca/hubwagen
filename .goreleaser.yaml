@@ -1,0 +1,47 @@
+# Release binaries: moksha with the web UI built in, for macOS and Linux
+# on amd64 and arm64, as archives and a checksums file on the GitHub
+# release. .github/workflows/release.yml runs this when a release is
+# published; to try it locally (needs Node):
+#   go run github.com/goreleaser/goreleaser/v2@v2.12.7 release --snapshot --clean
+# Not for Windows: internal/supervise uses process groups and signals.
+version: 2
+
+project_name: moksha
+
+before:
+  hooks:
+    - go generate ./internal/webui
+
+builds:
+  - id: moksha
+    binary: moksha
+    env:
+      - CGO_ENABLED=0
+    goos: [darwin, linux]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/alper/moksha/cmd.Version={{ .Tag }}
+      - -X github.com/alper/moksha/cmd.CommitSHA={{ .ShortCommit }}
+      - -X github.com/alper/moksha/cmd.BuildDate={{ .Date }}
+
+archives:
+  - formats: [tar.gz]
+    # moksha_1.2.3_darwin_arm64.tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+
+# The release already exists (published by hand, which also builds the
+# images): add the archives to it and keep its notes.
+release:
+  mode: keep-existing
+
+changelog:
+  disable: true

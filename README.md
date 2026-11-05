@@ -55,14 +55,30 @@ Moksha _liberates_ you from that overhead. Write pipelines on your own terms; Mo
 - Local directories or S3 for data; workers as processes, containers or
   Kubernetes Deployments that scale with the work waiting
 
-## Quick start
+## Install
 
-Requires Go 1.26+ and Python 3.12+ (and Node 20+ for the web UI).
+Download the archive for your machine from the
+[latest release](https://github.com/alpaaaca/moksha/releases/latest)
+(macOS and Linux, amd64 and arm64; the web UI is built in) and put
+`moksha` on your `PATH`:
 
 ```bash
-go generate ./internal/webui   # build the web UI into the binary (optional; needs Node)
-go build -o moksha .
-./moksha dev --config pipelines/examples/revenue/moksha.yaml
+curl -fsSL https://github.com/alpaaaca/moksha/releases/download/v0.1.0/moksha_0.1.0_darwin_arm64.tar.gz | tar -xz moksha
+sudo mv moksha /usr/local/bin/
+moksha version
+```
+
+`checksums.txt` on the release has each archive's SHA-256. On macOS, a
+binary downloaded with a browser (not `curl`) is quarantined:
+`xattr -d com.apple.quarantine moksha`. Or build it from source (see
+[Development](#development)).
+
+## Quick start
+
+Requires Python 3.12+ for the workers. From a clone of this repository:
+
+```bash
+moksha dev --config pipelines/examples/revenue/moksha.yaml
 ```
 
 That starts the server and three Python workers for the
@@ -70,9 +86,9 @@ That starts the server and three Python workers for the
 http://127.0.0.1:7070/. In another terminal:
 
 ```bash
-./moksha replay daily --param day=2026-10-01..2026-10-03
-./moksha replay daily --param day=2026-10-01..2026-10-03   # again: what's unchanged is reused
-./moksha start daily --param day=2026-10-04 --wait
+moksha replay daily --param day=2026-10-01..2026-10-03
+moksha replay daily --param day=2026-10-01..2026-10-03   # again: what's unchanged is reused
+moksha start daily --param day=2026-10-04 --wait
 ```
 
 `replay` reports, per step, what ran and what was reused:
@@ -154,7 +170,11 @@ web UI, invalidating data versions, and showing what is stale. See
 
 ## Development
 
+Requires Go 1.26+, Python 3.12+ and Node 20+ (for the web UI).
+
 ```bash
+go generate ./internal/webui   # build the web UI into the binary (optional; needs Node)
+go build -o moksha .
 go vet ./...
 go test ./...
 go test -race ./...

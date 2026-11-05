@@ -345,8 +345,8 @@ Open questions, to settle in the step that needs them:
 
 - Dashboard: decided, a web UI in TypeScript, not a terminal UI. Its build
   isn't committed: `go generate ./internal/webui` builds it into the binary,
-  and a binary built without it serves a page saying how; releases will
-  build it in CI.
+  and a binary built without it serves a page saying how; release
+  binaries (GoReleaser, on a published release) build it in CI.
 - Retention: decided, in code (`mk.Dataset(keep=mk.Keep(...))`, versioned
   with the build); a config override can come later.
 - Staleness by code version: "current" is the newest build that defines
@@ -433,4 +433,4 @@ Roughly in order of expected need:
 | Worker pools | The leader starts and scales workers per pool (`min`/`max`, docks, capacity) from queued work; `moksha server` supervises `workers:` (step 1, done); pools of processes with `min`/`max` (step 2, done); desired counts for KEDA (step 3, done); container and Kubernetes launchers (step 4, done) ([worker-pools.md](worker-pools.md)) | Before production use |
 | `standalone` profile | Decided: no separate profile; `moksha server` runs the single-node server (no auth yet) | Done |
 | Load target for one leader | 100 lift transitions/s sustained, 2,000 running lifts | S3 |
-| Licence and distribution | Open | Before first release |
+| Licence and distribution | Apache 2.0; binaries for macOS and Linux on each GitHub release ([deploy.md](deploy.md#binaries)); PyPI for the SDK still open | Before first release |
