@@ -93,7 +93,7 @@ bucket:
         stop(worker)
         stop(dev, signal.SIGINT)
         listing = urllib.request.urlopen(urllib.request.Request(
-            f"{endpoint}/hwb?list-type=2&prefix=prod/", headers={"Authorization": "AWS4-HMAC-SHA256 test"})).read().decode()
+            f"{endpoint}/mkb?list-type=2&prefix=prod/", headers={"Authorization": "AWS4-HMAC-SHA256 test"})).read().decode()
         stop(s3)
     keys = re.findall(r"<Key>([^<]+)</Key>", listing)
     assert len([k for k in keys if k.startswith("prod/data/") and k.endswith("/orders.csv")]) == 4
