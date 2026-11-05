@@ -16,10 +16,10 @@ little to do with whether the pipeline works:
    durable. It isn't: inside one haul a completed lift is never rerun, with
    or without it. `memo` only controls reuse *across* hauls (tomorrow's
    rerun, a backfill), but the API doesn't say so.
-2. **`output=hw.Dataset(...)` and `hw.output().path`.** To be memoized, a
+2. **`output=mk.Dataset(...)` and `mk.output().path`.** To be memoized, a
    lift must write files into a staging directory moksha hands it. A lift
    that returns a value can't be memoized at all (`ValueError` at import).
-3. **Pallets as arguments.** Downstream lifts take an `hw.Pallet` and open
+3. **Pallets as arguments.** Downstream lifts take an `mk.Pallet` and open
    files by name (`orders.path("orders.csv")`), instead of getting the data
    they need.
 
@@ -37,8 +37,8 @@ needed.
 
 ## Goals
 
-- A pipeline is plain functions with two decorators, `@hw.haul` and
-  `@hw.lift`, and no other required options.
+- A pipeline is plain functions with two decorators, `@mk.haul` and
+  `@mk.lift`, and no other required options.
 - Lifts take and return ordinary values: JSON-able values, dataframes,
   Arrow tables, or references to tables that live elsewhere.
 - Reuse across hauls is safe by default and needs at most one annotation, on
@@ -62,14 +62,14 @@ result: its value or files, the inputs it was built from, its fingerprint.
 |---|---|---|
 | `None`, numbers, strings, dicts, lists, dates | The JSON value, in the pallet record | The canonical JSON |
 | pandas / Polars DataFrame, Arrow table | Parquet in the lift's staging prefix, written by the SDK | The files (see Hashing) |
-| `hw.table(uri, version=...)` | A reference: URI and version token | The URI and version token |
-| Files under `hw.output().path` (kept as an escape hatch) | The files, as today | The files |
+| `mk.table(uri, version=...)` | A reference: URI and version token | The URI and version token |
+| Files under `mk.output().path` (kept as an escape hatch) | The files, as today | The files |
 
 The content hash covers the result value as well as the files, so two
 results that differ never look the same downstream. This replaces today's
 "only lifts with an output can be memoized".
 
-`output=hw.Dataset(...)` becomes optional. It names the result in the
+`output=mk.Dataset(...)` becomes optional. It names the result in the
 catalog (`mart.daily_revenue`, partition `day`) so that `ctx.latest_pallet`,
 invalidation and the UI can find it by name. Without it, results are still
 recorded and reusable, under the lift's name.
@@ -80,21 +80,21 @@ A downstream lift gets the value, not a handle:
 
 ```python
 import polars as pl
-import moksha as hw
+import moksha as mk
 
-@hw.lift(live=True)                               # reads a source that changes
+@mk.lift(live=True)                               # reads a source that changes
 def extract_orders(day: str) -> pl.DataFrame:
     return pl.read_database(QUERY, conn, execute_options={"parameters": [day]})
 
-@hw.lift(output=hw.Dataset("mart.daily_revenue", partition="day"))
+@mk.lift(output=mk.Dataset("mart.daily_revenue", partition="day"))
 def daily_revenue(orders: pl.DataFrame, day: str) -> pl.DataFrame:
     return orders.group_by("region").agg(pl.col("amount").sum())
 
-@hw.lift
+@mk.lift
 def revenue_report(revenue: pl.DataFrame, day: str) -> str:
     return render(revenue, day)
 
-@hw.haul
+@mk.haul
 def daily(ctx, day: str):
     orders = ctx.lift(extract_orders, day)
     revenue = ctx.lift(daily_revenue, orders, day)
@@ -110,11 +110,11 @@ def daily(ctx, day: str):
 - **In a lift**, the SDK loads each handle argument according to the
   parameter's annotation: `pl.DataFrame`, `pl.LazyFrame` (scans the
   Parquet without reading it), `pd.DataFrame`, `pa.Table`, a plain value,
-  or `hw.Pallet` for the files themselves (today's behaviour).
+  or `mk.Pallet` for the files themselves (today's behaviour).
 - Handles still travel as inputs, not inside the arguments, so lineage and
   fingerprints work exactly as they do now.
 
-Codecs are pluggable (`hw.register_codec(name, types, write, read)`), with
+Codecs are pluggable (`mk.register_codec(name, types, write, read)`), with
 built-in ones for pandas, Polars and Arrow imported lazily: the SDK stays
 stdlib-only, and a project that doesn't use pandas never imports it.
 
@@ -125,11 +125,11 @@ copied into moksha's bucket. The lift writes it where it belongs and
 returns a reference:
 
 ```python
-@hw.lift(output=hw.Dataset("mart.revenue", partition="day"))
+@mk.lift(output=mk.Dataset("mart.revenue", partition="day"))
 def revenue(day: str):
     spark.sql(REVENUE_SQL, day=day).writeTo("lake.mart.revenue").overwritePartitions()
     snapshot = current_snapshot("lake.mart.revenue")    # e.g. from the table's snapshots metadata
-    return hw.table("iceberg://lake.mart.revenue", version=snapshot)
+    return mk.table("iceberg://lake.mart.revenue", version=snapshot)
 ```
 
 The reference's version token (an Iceberg or Delta snapshot, an object
@@ -150,13 +150,13 @@ transform from a lift that also reads an API. The proposal flips the
 annotation to the case that is rarer and easier to spot: **a lift that
 reads something the fingerprint doesn't cover says so.**
 
-- `@hw.lift` (default): reused when code version, input content hashes and
+- `@mk.lift` (default): reused when code version, input content hashes and
   arguments match.
-- `@hw.lift(live=True)`: reads a live source (a table that changes, an API,
+- `@mk.lift(live=True)`: reads a live source (a table that changes, an API,
   "now"). Never reused; runs every time. Downstream lifts are still reused
   when it returns the same content, because their fingerprints use its
   content hash.
-- `@hw.lift(live="1h")`: reused up to that age (today's `memo="ttl:1h"`).
+- `@mk.lift(live="1h")`: reused up to that age (today's `memo="ttl:1h"`).
 
 Which lifts are live is usually obvious: the ones at the edge that read
 from outside. In the example above, only `extract_orders`.
@@ -203,7 +203,7 @@ way every time.
 | Pallets (`internal/pallet`) | Manifests with a result, references (URI + version) and checksum kinds |
 | Fingerprints (`internal/core/memo.go`) | Content hash now covers results: a **format change**, every existing memoized pallet stops matching once |
 | Worker API (`proto/`) | Lift results carry a reference; poll answers carry reuse policy; adapters' existence check |
-| Python SDK | `live=`; codecs and annotation-based loading; `hw.table`; `memo=` and `output=` path kept and deprecated for a release |
+| Python SDK | `live=`; codecs and annotation-based loading; `mk.table`; `memo=` and `output=` path kept and deprecated for a release |
 | Docs | architecture.md (Core concepts, Writing hauls and lifts, Memoization, Commits), SDK README, the example project |
 
 Nothing changes in hauls, replay, docks, timers, the event log's shape, or
@@ -227,8 +227,8 @@ PR-sized, in order:
    writing; a frame must be returned on its own, not inside a value.
 3. **Reuse by default.** `live=` replaces `memo=`; `--reuse`; replay report
    and `--dry-run`. Example project and docs rewritten without `memo=` and
-   `hw.output()`.
-4. **References.** `hw.table`, version tokens, the adapter existence check,
+   `mk.output()`.
+4. **References.** `mk.table`, version tokens, the adapter existence check,
    starting with Iceberg or Delta.
 5. **Object-store checksums**, with the `s3://` / `gs://` buckets.
 
@@ -248,4 +248,4 @@ PR-sized, in order:
   `lift:<name>`, unpartitioned, and since M5 the bucket keeps it like any
   dataset (`data/<tenant>/lift:<name>/_/<attempt>/`). Retention is M5's.
 - **Spark detection.** Whether returning a Spark `DataFrame` should be
-  supported at all, or always require `hw.table`.
+  supported at all, or always require `mk.table`.

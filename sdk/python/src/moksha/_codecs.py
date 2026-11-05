@@ -9,7 +9,7 @@ in its implicit dataset), and the result records what was written:
 never the data. A lift that takes the handle gets the data, loaded as its
 parameter's annotation asks (pl.DataFrame, pl.LazyFrame, pd.DataFrame,
 pa.Table), or as it was written when the parameter has none; annotate
-hw.Pallet to get the files instead.
+mk.Pallet to get the files instead.
 
 The built-in codecs import pandas, Polars and pyarrow only when they meet
 one of their types, so the SDK itself needs none of them.

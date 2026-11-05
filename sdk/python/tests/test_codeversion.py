@@ -47,7 +47,7 @@ BASE = {
         import importlib
         from pathlib import Path
 
-        import moksha as hw
+        import moksha as mk
         from proj import helpers
         from proj.helpers import clean
         from proj.shapes import Box
@@ -63,53 +63,53 @@ BASE = {
         def other_local():
             return 1
 
-        @hw.lift(memo=True)
+        @mk.lift(memo=True)
         def plain(x: int) -> int:
             """The lift."""
             return x + 1
 
-        @hw.lift
+        @mk.lift
         def uses_local(x: int) -> int:
             return local(x)
 
-        @hw.lift
+        @mk.lift
         def uses_from_import(x: int) -> int:
             return clean(x)
 
-        @hw.lift
+        @mk.lift
         def uses_module(x: int) -> int:
             return helpers.twice(x)
 
-        @hw.lift
+        @mk.lift
         def uses_constant(x: int) -> int:
             return min(x, LIMITS["max"])
 
-        @hw.lift
+        @mk.lift
         def uses_path() -> str:
             return DATA.name
 
-        @hw.lift
+        @mk.lift
         def uses_class(w: int) -> int:
             return Box().area(w)
 
-        @hw.lift
+        @mk.lift
         def uses_namespace(x: int) -> int:
             return tool.go(x)
 
-        @hw.lift
+        @mk.lift
         def uses_literal_import(x: int) -> int:
             return importlib.import_module("proj.deep").inner(x)
 
-        @hw.lift
+        @mk.lift
         def uses_pytest() -> str:
             import pytest
             return pytest.__name__
 
-        @hw.lift(deps=["sql/"])
+        @mk.lift(deps=["sql/"])
         def uses_files() -> int:
             return 1
 
-        @hw.haul
+        @mk.haul
         def flow(ctx, x: int):
             return ctx.lift(plain, local(x))
     ''',
@@ -170,15 +170,15 @@ def test_nothing_changed_nothing_differs(tmp_path):
 def test_comments_docstrings_formatting_and_decorator_arguments_dont_count(tmp_path):
     def edit(f):
         replace(f, "proj/lifts.py", '"""The lift."""', '"""The lift, documented better."""  # and a comment')
-        replace(f, "proj/lifts.py", "return x + 1\n\n        @hw.lift\n        def uses_local",
-                "return (x +\n                    1)\n\n        @hw.lift\n        def uses_local")
-        replace(f, "proj/lifts.py", "@hw.lift(memo=True)", "@hw.lift(memo=True, timeout=30)")
+        replace(f, "proj/lifts.py", "return x + 1\n\n        @mk.lift\n        def uses_local",
+                "return (x +\n                    1)\n\n        @mk.lift\n        def uses_local")
+        replace(f, "proj/lifts.py", "@mk.lift(memo=True)", "@mk.lift(memo=True, timeout=30)")
     assert changed(tmp_path, edit) == set()
 
 
 def test_the_lift_body(tmp_path):
-    assert changed(tmp_path, lambda f: replace(f, "proj/lifts.py", "return x + 1\n\n        @hw.lift\n        def uses_local",
-                                                 "return x + 2\n\n        @hw.lift\n        def uses_local")) == {"plain"}
+    assert changed(tmp_path, lambda f: replace(f, "proj/lifts.py", "return x + 1\n\n        @mk.lift\n        def uses_local",
+                                                 "return x + 2\n\n        @mk.lift\n        def uses_local")) == {"plain"}
 
 
 def test_a_helper_in_the_same_module(tmp_path):
@@ -244,8 +244,8 @@ def test_hauls_count_lifts_by_name(tmp_path):
     # A lift's body changing leaves the haul as it was (the lift has its own
     # version); the haul's own helper changing doesn't (see above).
     assert "flow" not in changed(tmp_path / "x", lambda f: replace(
-        f, "proj/lifts.py", "return x + 1\n\n        @hw.lift\n        def uses_local",
-        "return x + 2\n\n        @hw.lift\n        def uses_local"))
+        f, "proj/lifts.py", "return x + 1\n\n        @mk.lift\n        def uses_local",
+        "return x + 2\n\n        @mk.lift\n        def uses_local"))
 
 
 def test_version_pins():

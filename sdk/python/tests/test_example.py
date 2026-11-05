@@ -10,7 +10,7 @@ import subprocess
 
 import pytest
 
-import moksha as hw
+import moksha as mk
 
 from conftest import REPO, start_dev, start_worker, stop
 
@@ -58,7 +58,7 @@ def test_replay_reuses_what_did_not_change(demo):
 
     # The web UI's view: the pipeline by its title, and each run's steps as
     # a DAG (a step comes after the steps whose data versions it reads).
-    api = hw.Client(url)
+    api = mk.Client(url)
     pipelines = api.call("HaulService", "ListPipelines", {})["pipelines"]
     assert [(p["name"], p["title"]) for p in pipelines] == [("daily", "Daily revenue"), ("nightly", "Nightly revenue")]
     schedules = api.call("HaulService", "ListSchedules", {})["schedules"]

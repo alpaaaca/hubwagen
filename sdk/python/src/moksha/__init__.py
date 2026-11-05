@@ -1,22 +1,22 @@
 """moksha: pipelines as plain code, steps that are reused when nothing changed.
 
-    import moksha as hw
+    import moksha as mk
 
-    @hw.step(memo=True, output=hw.Dataset("raw.orders", partition="day"))
+    @mk.step(memo=True, output=mk.Dataset("raw.orders", partition="day"))
     def extract(day: str) -> int:
-        out = hw.output()
+        out = mk.output()
         (out.path / "orders.csv").write_text(...)
         return 42
 
-    @hw.pipeline
+    @mk.pipeline
     def daily(ctx, day: str):
         orders = ctx.step(extract, day)   # a DataVersion of raw.orders
         ...
 
 Run a worker with `python -m moksha.worker app.pipelines`.
 
-The engine's own names still work: hw.haul (pipeline), hw.lift (step),
-hw.Pallet (DataVersion), hw.LiftFailed (StepFailed), hw.ChildFailed
+The engine's own names still work: mk.haul (pipeline), mk.lift (step),
+mk.Pallet (DataVersion), mk.LiftFailed (StepFailed), mk.ChildFailed
 (RunFailed), ctx.lift, ctx.lift_async, ctx.haul, ctx.start_haul and
 ctx.latest_pallet.
 """

@@ -5,14 +5,14 @@ interval (here: the previous day, 00:00 to 00:00 UTC), and it runs `daily`
 for that day.
 """
 
-import moksha as hw
+import moksha as mk
 
 from .hauls import daily
 
 
-@hw.pipeline(title="Nightly revenue",
-             schedule=hw.Schedule("0 3 * * *", interval="daily", catch_up="latest"))
-def nightly(ctx, interval: hw.Interval):
+@mk.pipeline(title="Nightly revenue",
+             schedule=mk.Schedule("0 3 * * *", interval="daily", catch_up="latest"))
+def nightly(ctx, interval: mk.Interval):
     """Every night, yesterday's revenue: runs Daily revenue for the day that just ended."""
     day = interval.start.date().isoformat()
     return ctx.run(daily, day=day)

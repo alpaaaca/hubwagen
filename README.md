@@ -12,15 +12,15 @@ didn't change.
 One Go binary. No database server, no message broker, no scheduler fleet.
 
 ```python
-import moksha as hw
+import moksha as mk
 
-@hw.step(output=hw.Dataset("raw.orders", partition="day"))
-def extract_orders(day: str) -> dict: ...            # writes files to hw.output().path
+@mk.step(output=mk.Dataset("raw.orders", partition="day"))
+def extract_orders(day: str) -> dict: ...            # writes files to mk.output().path
 
-@hw.step(memo=True, output=hw.Dataset("mart.daily_revenue", partition="day"))
-def daily_revenue(orders: hw.DataVersion, day: str) -> dict: ...
+@mk.step(memo=True, output=mk.Dataset("mart.daily_revenue", partition="day"))
+def daily_revenue(orders: mk.DataVersion, day: str) -> dict: ...
 
-@hw.pipeline
+@mk.pipeline
 def daily(ctx, day: str):
     orders = ctx.step(extract_orders, day)           # a saved, never-changing version of raw.orders
     return ctx.step(daily_revenue, orders, day).id   # reused if its code and inputs are unchanged

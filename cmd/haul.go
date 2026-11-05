@@ -147,7 +147,7 @@ var schedulesCmd = &cobra.Command{
 the data interval each run covers, what happens to runs missed while no
 server ran (catch-up), and the next run. Then the pipelines that new data
 versions start: their datasets, batching and how many new versions wait. A
-pipeline gets either from its code, @hw.pipeline(schedule=...) or
+pipeline gets either from its code, @mk.pipeline(schedule=...) or
 subscribe=...; the newest build that defines the pipeline decides.`,
 	Args:         cobra.NoArgs,
 	SilenceUsage: true,

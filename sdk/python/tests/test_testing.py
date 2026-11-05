@@ -8,29 +8,29 @@ import textwrap
 
 import pytest
 
-import moksha as hw
+import moksha as mk
 from moksha import testing
 
 from conftest import SDK, start_worker, stop, wait
 
 
-@hw.lift(name="t_check")
+@mk.lift(name="t_check")
 def check(day: str) -> dict:
     return {"failed": False}
 
 
-@hw.lift(name="t_build", output=hw.Dataset("t.revenue"))
+@mk.lift(name="t_build", output=mk.Dataset("t.revenue"))
 def build(day: str) -> int:
     return 1
 
 
-@hw.haul(name="t_gate")
+@mk.haul(name="t_gate")
 def gate(ctx, day: str):
     report = ctx.lift(check, day)
     if report["failed"]:
         try:
             approval = ctx.wait_signal("approve", timeout=3600)
-        except hw.SignalTimeout:
+        except mk.SignalTimeout:
             return "not approved"
         ctx.sleep(60)
         if ctx.version("audit", max=2) >= 2:
@@ -56,16 +56,16 @@ def test_signal_timeout_and_pallets():
 
 
 def test_failures_children_and_continue():
-    @hw.haul(name="t_parent")
+    @mk.haul(name="t_parent")
     def parent(ctx, n: int):
         try:
             ctx.lift(check, "x")
-        except hw.LiftFailed as e:
+        except mk.LiftFailed as e:
             failed = e.reason
         total = ctx.haul("t_child", a=n)
         try:
             ctx.haul("t_bad")
-        except hw.ChildFailed as e:
+        except mk.ChildFailed as e:
             child_failed = e.message
         if n < 2:
             ctx.continue_as_new(n=n + 1)
@@ -81,7 +81,7 @@ def test_failures_children_and_continue():
 
 
 def test_run_steps_calls_the_real_ones():
-    @hw.haul(name="t_real")
+    @mk.haul(name="t_real")
     def real(ctx):
         return ctx.lift(check, "x")
 
@@ -93,11 +93,11 @@ def test_what_isnt_scripted_and_nondeterminism():
     with pytest.raises(testing.TestingError, match=r"step t_check isn't scripted"):
         testing.run(gate, {"day": "x"})
     with pytest.raises(testing.TestingError, match="waits for signal 'go' with no timeout"):
-        testing.run(hw.haul(lambda ctx: ctx.wait_signal("go"), name="t_forever"))
+        testing.run(mk.haul(lambda ctx: ctx.wait_signal("go"), name="t_forever"))
 
     calls = []
 
-    @hw.haul(name="t_flaky")
+    @mk.haul(name="t_flaky")
     def flaky(ctx):
         calls.append(1)  # global state: the second replay calls another lift
         return ctx.lift(check if len(calls) == 1 else build, "x")
@@ -107,13 +107,13 @@ def test_what_isnt_scripted_and_nondeterminism():
 
 
 V1 = '''
-import moksha as hw
+import moksha as mk
 
-@hw.lift
+@mk.lift
 def rp_step(x: str) -> str:
     return x
 
-@hw.haul
+@mk.haul
 def rp_haul(ctx, n: int):
     return [ctx.lift(rp_step, "a"), n]
 '''
@@ -122,7 +122,7 @@ def rp_haul(ctx, n: int):
 def test_replay_recorded_logbooks(server, tmp_path):
     (tmp_path / "rp_hauls.py").write_text(textwrap.dedent(V1))
     w = start_worker(server, "rp_hauls", tmp_path, tmp_path / "worker.log")
-    client = hw.Client(server)
+    client = mk.Client(server)
     try:
         hid = client.start_haul("rp_haul", {"n": 3})
         assert wait(client, hid)["status"] == "completed"

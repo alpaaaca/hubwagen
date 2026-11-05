@@ -25,14 +25,14 @@ def test_each_rule():
         from time import time as now
         from uuid import uuid4
 
-        import moksha as hw
+        import moksha as mk
 
 
-        @hw.lift
+        @mk.lift
         def fetch(day): ...
 
 
-        @hw.haul
+        @mk.haul
         def daily(ctx, day):
             a = time.time()                       # 20 HW001
             b = now()                             # 21 HW001
@@ -88,7 +88,7 @@ def test_only_haul_code_and_noqa():
 
 
 def test_messages_name_the_place():
-    f = lint_source("import moksha as hw\n@hw.haul\ndef h(ctx):\n    return hw.x(open('f'))\n", "app/hauls.py")[0]
+    f = lint_source("import moksha as mk\n@mk.haul\ndef h(ctx):\n    return mk.x(open('f'))\n", "app/hauls.py")[0]
     assert str(f) == "app/hauls.py:4:17: HW004 pipeline h: open() does I/O; do it in a step"
     assert lint_source("def broken(:\n", "bad.py")[0].code == "HW000"
 
@@ -102,7 +102,7 @@ def test_command_line(tmp_path):
     (tmp_path / "pyproject.toml").write_text('[tool.moksha]\nmodules = ["app.hauls"]\n')
     (tmp_path / "app").mkdir()
     (tmp_path / "app" / "__init__.py").write_text("")
-    (tmp_path / "app" / "hauls.py").write_text("import random\nimport moksha as hw\n\n@hw.haul\ndef h(ctx):\n    return random.random()\n")
+    (tmp_path / "app" / "hauls.py").write_text("import random\nimport moksha as mk\n\n@mk.haul\ndef h(ctx):\n    return random.random()\n")
     run = subprocess.run([sys.executable, "-m", "moksha.lint"], cwd=tmp_path, capture_output=True, text=True,
                          env={"PYTHONPATH": str(SDK / "src")})
     assert run.returncode == 1

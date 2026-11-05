@@ -5,19 +5,19 @@ a moksha server. Python ≥ 3.12, no dependencies outside the standard
 library.
 
 ```python
-import moksha as hw
+import moksha as mk
 
-@hw.step(memo=True, output=hw.Dataset("raw.orders", partition="day"))
+@mk.step(memo=True, output=mk.Dataset("raw.orders", partition="day"))
 def extract(day: str) -> dict:
-    out = hw.output()                      # this attempt's staging directory
+    out = mk.output()                      # this attempt's staging directory
     (out.path / "orders.csv").write_text(fetch_orders(day))
     out.meta["max_ts"] = f"{day}T23:59:00Z"
     return {"rows": 1}
 
-@hw.step(memo=True, output=hw.Dataset("mart.revenue", partition="day"))
-def revenue(orders: hw.DataVersion, day: str) -> dict: ...
+@mk.step(memo=True, output=mk.Dataset("mart.revenue", partition="day"))
+def revenue(orders: mk.DataVersion, day: str) -> dict: ...
 
-@hw.pipeline
+@mk.pipeline
 def daily_revenue(ctx, day: str):
     orders = ctx.step(extract, day)        # a DataVersion of raw.orders; reused if nothing changed
     return ctx.step(revenue, orders, day).id
@@ -44,8 +44,8 @@ The words:
 
 The engine (the server, its API and docs/architecture.md) calls a pipeline
 a *haul*, a step a *lift* and a data version a *pallet*. Those names still
-work in the SDK: `hw.haul`, `hw.lift`, `hw.Pallet`, `hw.LiftFailed`,
-`hw.ChildFailed`, `ctx.lift`, `ctx.lift_async`, `ctx.haul`,
+work in the SDK: `mk.haul`, `mk.lift`, `mk.Pallet`, `mk.LiftFailed`,
+`mk.ChildFailed`, `ctx.lift`, `ctx.lift_async`, `ctx.haul`,
 `ctx.start_haul` and `ctx.latest_pallet` are the same as the names below.
 
 ## Pipelines
@@ -79,7 +79,7 @@ pipeline code must make the same calls in the same order every time:
 
 `ctx` offers `step`, `step_async` + `gather` (fan-out;
 `gather(handles, max_parallel=N)` runs at most N of them at once, and
-`@hw.pipeline(max_parallel=N)` caps all of a run's steps), `sleep` (durable,
+`@mk.pipeline(max_parallel=N)` caps all of a run's steps), `sleep` (durable,
 held by the server), `wait_signal` and `version` (below), `latest_version`
 (the newest saved version of a dataset partition, recorded so every replay
 sees the same one), `now`, `random` and `state`. A failed step raises
@@ -94,7 +94,7 @@ captured. Standalone workers still echo it to their terminal, marked with
 the step (`MOKSHA_ECHO_LOGS=0` turns that off).
 
 The web UI calls a pipeline by its title:
-`@hw.pipeline(title="Daily revenue")`, or else the first line of its
+`@mk.pipeline(title="Daily revenue")`, or else the first line of its
 docstring; the rest of the docstring describes it. Without either, it shows
 the pipeline's name.
 
@@ -106,13 +106,13 @@ and starts the pipeline again with new inputs and a fresh history, for
 pipelines that loop.
 
 ```python
-@hw.pipeline
+@mk.pipeline
 def daily(ctx, day: str):
     report = ctx.step(check_quality, day)
     if report["failed"]:
         try:
             approval = ctx.wait_signal("approve", timeout=timedelta(hours=24))
-        except hw.SignalTimeout:
+        except mk.SignalTimeout:
             return "not approved"
     return ctx.step(publish, day)
 ```
@@ -128,8 +128,8 @@ the run waits, and it survives restarts and deploys.
 ### Schedules
 
 ```python
-@hw.pipeline(schedule=hw.Schedule("0 3 * * *", interval="daily", catch_up="all"))
-def daily_revenue(ctx, interval: hw.Interval):
+@mk.pipeline(schedule=mk.Schedule("0 3 * * *", interval="daily", catch_up="all"))
+def daily_revenue(ctx, interval: mk.Interval):
     day = interval.start.date()          # yesterday (UTC); interval.end is today 00:00 UTC
     ...
 ```
@@ -151,8 +151,8 @@ build: a new build with another schedule, or none, replaces it.
 ### Subscriptions
 
 ```python
-@hw.pipeline(subscribe=hw.Subscription("raw.orders", debounce=60, max_batch=100))
-def on_new_orders(ctx, versions: list[hw.DataVersion]):
+@mk.pipeline(subscribe=mk.Subscription("raw.orders", debounce=60, max_batch=100))
+def on_new_orders(ctx, versions: list[mk.DataVersion]):
     for v in versions:
         ctx.step(load_into_warehouse, v)
 ```
@@ -184,13 +184,13 @@ on it becomes stuck rather than taking the wrong path.
 
 ## Steps
 
-`@hw.step(...)` options: `memo=True` or `memo="ttl:1h"` (reuse what an
+`@mk.step(...)` options: `memo=True` or `memo="ttl:1h"` (reuse what an
 earlier run produced when code, inputs and arguments are unchanged: its
 data version, or for a step without an output, its result),
-`output=hw.Dataset(name, partition="arg", keep=hw.Keep(versions=3, age=timedelta(days=30)))`
+`output=mk.Dataset(name, partition="arg", keep=mk.Keep(versions=3, age=timedelta(days=30)))`
 (`keep`: retention; per partition the latest and those kept by either rule
 stay, the rest expire; without it every version stays), `version=` (pin the
-code version), `timeout=` (seconds), `retry=hw.Retry(limit, backoff,
+code version), `timeout=` (seconds), `retry=mk.Retry(limit, backoff,
 initial, max)` or an int, `dock=`. Pass data versions as arguments: they
 travel as inputs (lineage, and content hashes in the fingerprint), not
 inside the arguments. Raise `moksha.NonRetryable` for failures retrying
@@ -203,7 +203,7 @@ Arguments and results are JSON; `date` and `datetime` round-trip.
 A memoized step is reused only while its code version is unchanged. The
 version covers the code the step can run: its own body and every function,
 class and module-level constant of your project it reaches, in any module
-(comments, docstrings, formatting and the `@hw.step(...)` line don't
+(comments, docstrings, formatting and the `@mk.step(...)` line don't
 count); the installed versions of the packages that code uses, with their
 requirements; the Python version; and the files under `deps=`. Changing a
 helper reruns the steps that call it and no others; bumping pandas reruns
@@ -234,30 +234,30 @@ annotation:
 import pandas as pd
 import polars as pl
 
-@hw.step(memo=True)
+@mk.step(memo=True)
 def orders(day: str) -> pl.DataFrame: ...
 
-@hw.step(memo=True)
+@mk.step(memo=True)
 def totals(orders: pl.LazyFrame) -> pl.DataFrame:     # scans the Parquet
     return orders.group_by("region").agg(pl.col("amount").sum()).collect()
 
-@hw.step
+@mk.step
 def report(totals: pd.DataFrame) -> str: ...           # converted on load
 
-@hw.pipeline
+@mk.pipeline
 def daily(ctx, day: str):
     return ctx.step(report, ctx.step(totals, ctx.step(orders, day)))
 ```
 
 - Annotation `pl.DataFrame`, `pl.LazyFrame`, `pd.DataFrame` or `pa.Table`:
-  loaded as that type. `hw.DataVersion`: the handle (files via `.files()`,
+  loaded as that type. `mk.DataVersion`: the handle (files via `.files()`,
   data via `.load(as_=…)`). None: loaded as it was written.
 - Memoization works as for files: the version's content hash covers the
   Parquet bytes, so an identical frame upstream lets downstream steps be
   reused. A frame can't be an argument or part of a result; it is returned
   on its own.
 - pandas, Polars and pyarrow are imported only when a step uses them; the
-  SDK needs none of them. `hw.register_codec(name, types, write, read,
+  SDK needs none of them. `mk.register_codec(name, types, write, read,
   describe)` adds a type; codecs write Parquet, so each can read what the
   others wrote.
 - Needs a server with a bucket (`moksha dev` has one).
@@ -310,7 +310,7 @@ A worker needs to reach only the server's API: no shared filesystem and no
 storage credentials. On the server's machine it reads and writes the
 server's bucket directory directly. Anywhere else (or with an `s3://`
 bucket) it moves data through URLs the server hands out for each running
-step: what a step writes to `hw.output().path` (a local directory) is
+step: what a step writes to `mk.output().path` (a local directory) is
 uploaded when it returns, and a data version's `files()`, `path()` and
 `load()` download what they read into a local directory first, checked
 against the version's manifest. Both directories are removed when the step

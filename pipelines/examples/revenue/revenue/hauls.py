@@ -18,13 +18,13 @@ import logging
 from decimal import Decimal
 from pathlib import Path
 
-import moksha as hw
+import moksha as mk
 
 SOURCE = Path(__file__).resolve().parent.parent / "data" / "orders.csv"
 log = logging.getLogger(__name__)
 
 
-@hw.step(output=hw.Dataset("raw.orders", partition="day"))
+@mk.step(output=mk.Dataset("raw.orders", partition="day"))
 def extract_orders(day: str) -> dict:
     """The day's orders from the source system (here: a CSV file)."""
     log.info("reading %s", SOURCE.name)
@@ -37,7 +37,7 @@ def extract_orders(day: str) -> dict:
         for r in rows:
             by_region[r["region"]] = by_region.get(r["region"], 0) + 1
         print(f"{len(rows)} orders for {day}: " + ", ".join(f"{n} {region}" for region, n in sorted(by_region.items())))
-    out = hw.output()
+    out = mk.output()
     with (out.path / "orders.csv").open("w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["order_id", "region", "amount"])
@@ -46,8 +46,8 @@ def extract_orders(day: str) -> dict:
     return {"rows": len(rows)}
 
 
-@hw.step(memo=True, output=hw.Dataset("mart.daily_revenue", partition="day"))
-def daily_revenue(orders: hw.DataVersion, day: str) -> dict:
+@mk.step(memo=True, output=mk.Dataset("mart.daily_revenue", partition="day"))
+def daily_revenue(orders: mk.DataVersion, day: str) -> dict:
     """Revenue per region."""
     totals: dict[str, Decimal] = {}
     with orders.path("orders.csv").open() as f:
@@ -61,7 +61,7 @@ def daily_revenue(orders: hw.DataVersion, day: str) -> dict:
     if totals:
         top = max(totals, key=lambda region: totals[region])
         log.info("%s brings the most revenue on %s", top, day)
-    out = hw.output()
+    out = mk.output()
     with (out.path / "revenue.csv").open("w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["region", "revenue"])
@@ -71,20 +71,20 @@ def daily_revenue(orders: hw.DataVersion, day: str) -> dict:
     return {"regions": len(totals), "total": str(total)}
 
 
-@hw.step(memo=True, output=hw.Dataset("reports.revenue", partition="day"))
-def revenue_report(revenue: hw.DataVersion, day: str) -> str:
+@mk.step(memo=True, output=mk.Dataset("reports.revenue", partition="day"))
+def revenue_report(revenue: mk.DataVersion, day: str) -> str:
     """A short text report."""
     with revenue.path("revenue.csv").open() as f:
         rows = list(csv.DictReader(f))
     lines = [f"Revenue on {day}"] + [f"  {r['region']:<5} {r['revenue']:>10}" for r in rows]
     text = "\n".join(lines) + "\n"
-    (hw.output().path / "report.txt").write_text(text)
+    (mk.output().path / "report.txt").write_text(text)
     print(text, end="")
     log.info("wrote report.txt (%d bytes)", len(text.encode()))
     return lines[0]
 
 
-@hw.pipeline(title="Daily revenue")
+@mk.pipeline(title="Daily revenue")
 def daily(ctx, day: str):
     """Orders for one day, revenue per region from them, and a short report."""
     orders = ctx.step(extract_orders, day)

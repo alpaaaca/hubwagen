@@ -167,7 +167,7 @@ func (c *Client) Schedules(ctx context.Context, w io.Writer) error {
 	}
 	scheds, subs := res.Msg.Schedules, res.Msg.Subscriptions
 	if len(scheds) == 0 && len(subs) == 0 {
-		_, err := fmt.Fprintln(w, "no schedules or subscriptions (a pipeline gets one with @hw.pipeline(schedule=...) or subscribe=...)")
+		_, err := fmt.Fprintln(w, "no schedules or subscriptions (a pipeline gets one with @mk.pipeline(schedule=...) or subscribe=...)")
 		return err
 	}
 	if len(subs) > 0 {
