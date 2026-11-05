@@ -1,7 +1,7 @@
-"""Runtime guards: haul code that reads the clock or randomness.
+"""Runtime guards: pipeline code that reads the clock or randomness.
 
-A haul is replayed many times and must make the same calls every time, so
-while haul code runs, a call *from user code* to time.time, datetime.now,
+A run is replayed many times and must make the same calls every time, so
+while pipeline code runs, a call *from user code* to time.time, datetime.now,
 the module-level random functions, uuid4 and the like raises
 NondeterminismError naming the line. Libraries that read the clock
 (logging, say) are left alone: the guard watches CALL events with
@@ -9,8 +9,8 @@ sys.monitoring (Python >= 3.12) and only looks at calls made from project
 files; library locations are disabled after their first event. Spike S1
 (docs/spikes/s1-python-replay.md) compared this with patching.
 
-sys.monitoring is process-wide while the worker runs lifts on other
-threads, so the guard only acts on the threads currently replaying a haul.
+sys.monitoring is process-wide while the worker runs steps on other
+threads, so the guard only acts on the threads currently replaying a run.
 """
 
 from __future__ import annotations
@@ -29,9 +29,9 @@ from ._codeversion import is_project_file
 
 
 class NondeterminismError(BaseException):
-    """Haul code read the clock or randomness. A BaseException, like
-    Blocked, so `except Exception:` in haul code can't swallow it; the
-    haul becomes stuck, and a build with fixed code resumes it."""
+    """Pipeline code read the clock or randomness. A BaseException, like
+    Blocked, so `except Exception:` in pipeline code can't swallow it; the
+    run becomes stuck, and a build with fixed code resumes it."""
 
 
 _FUNCS = {time.time: "time.time", time.time_ns: "time.time_ns", uuid.uuid1: "uuid.uuid1",
@@ -43,7 +43,7 @@ _RANDOM = random._inst  # the Random behind random.random(), random.choice(), ..
 
 
 def forbidden(callable_: object, arg0: object) -> str | None:
-    """What callable_ is, if haul code must not call it."""
+    """What callable_ is, if pipeline code must not call it."""
     try:
         name = _FUNCS.get(callable_)  # type: ignore[call-overload]
     except TypeError:  # unhashable
@@ -108,7 +108,7 @@ class _Guard:
         if not user:
             return sys.monitoring.DISABLE  # library code: never look here again
         if threading.get_ident() not in self._threads:
-            return None  # a lift on another thread
+            return None  # a step on another thread
         what = forbidden(callable_, arg0)
         if what is None:
             return None
@@ -129,7 +129,7 @@ _guard = _Guard()
 
 @contextmanager
 def guarded() -> Iterator[None]:
-    """Guard the haul code this thread runs inside the block."""
+    """Guard the pipeline code this thread runs inside the block."""
     _guard.enter()
     try:
         yield

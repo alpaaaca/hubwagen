@@ -16,7 +16,7 @@ import (
 	"github.com/alper/moksha/internal/state"
 )
 
-func TestConsolePrintsRunsAndWhatLiftsPrinted(t *testing.T) {
+func TestConsolePrintsRunsAndWhatStepsPrinted(t *testing.T) {
 	e, err := Start(ctx, Config{DataDir: t.TempDir()})
 	require.NoError(t, err)
 	defer e.Close()
@@ -29,32 +29,32 @@ func TestConsolePrintsRunsAndWhatLiftsPrinted(t *testing.T) {
 	go e.Console(cctx, 0, false, func(s string) { mu.Lock(); lines = append(lines, s); mu.Unlock() })
 	printed := func() []string { mu.Lock(); defer mu.Unlock(); return append([]string(nil), lines...) }
 
-	require.NoError(t, e.Core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Hauls: []string{"daily"},
-		Info: map[string]state.HaulInfo{"daily": {Title: "Daily revenue"}}}))
-	res, err := e.Core.StartHaul(ctx, core.StartHaulRequest{Tenant: "t", Name: "daily", Params: map[string]any{"day": "2026-10-24"}})
+	require.NoError(t, e.Core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Pipelines: []string{"daily"},
+		Info: map[string]state.RunInfo{"daily": {Title: "Daily revenue"}}}))
+	res, err := e.Core.StartRun(ctx, core.StartRunRequest{Tenant: "t", Name: "daily", Params: map[string]any{"day": "2026-10-24"}})
 	require.NoError(t, err)
 
-	// The haul asks for one lift; a worker runs it and prints.
-	task, ok, err := e.Core.Poll(ctx, core.PollRequest{WorkerID: "w", Docks: []string{core.DefaultDock}})
+	// The run asks for one step; a worker runs it and prints.
+	task, ok, err := e.Core.Poll(ctx, core.PollRequest{WorkerID: "w", Queues: []string{core.DefaultQueue}})
 	require.NoError(t, err)
 	require.True(t, ok)
-	lift := core.Command{Seq: 1, Kind: core.CommandLift, Name: "extract", Args: json.RawMessage(`{}`)}
-	require.NoError(t, e.Core.CompleteHaulTask(ctx, core.HaulTaskResult{TaskID: task.ID, BuildID: "b1", Commands: []core.Command{lift}}))
-	lt, ok, err := e.Core.Poll(ctx, core.PollRequest{WorkerID: "w", Docks: []string{core.DefaultDock}, Kinds: []core.TaskKind{core.TaskLift}})
+	step := core.Command{Seq: 1, Kind: core.CommandStep, Name: "extract", Args: json.RawMessage(`{}`)}
+	require.NoError(t, e.Core.CompleteRunTask(ctx, core.RunTaskResult{TaskID: task.ID, BuildID: "b1", Commands: []core.Command{step}}))
+	lt, ok, err := e.Core.Poll(ctx, core.PollRequest{WorkerID: "w", Queues: []string{core.DefaultQueue}, Kinds: []core.TaskKind{core.TaskStep}})
 	require.NoError(t, err)
 	require.True(t, ok)
 	now := time.Now()
-	require.NoError(t, e.Logs.Append(runlog.Attempt{HaulID: res.HaulID, Seq: 1, Number: 1}, []runlog.Line{
+	require.NoError(t, e.Logs.Append(runlog.Attempt{RunID: res.RunID, Seq: 1, Number: 1}, []runlog.Line{
 		{Time: now, Stream: "stdout", Text: "6 orders"},
 		{Time: now, Stream: "log", Level: "WARNING", Logger: "app", Text: "one order has no region"},
 		{Time: now, Stream: "stderr", Text: "Traceback:\n  line 1"},
 	}))
-	require.NoError(t, e.Core.CompleteLift(ctx, core.LiftResult{AttemptID: lt.ID, Status: state.AttemptSucceeded, Result: json.RawMessage(`6`)}))
-	task, ok, err = e.Core.Poll(ctx, core.PollRequest{WorkerID: "w", Docks: []string{core.DefaultDock}, Kinds: []core.TaskKind{core.TaskHaul}})
+	require.NoError(t, e.Core.CompleteStep(ctx, core.StepResult{AttemptID: lt.ID, Status: state.AttemptSucceeded, Result: json.RawMessage(`6`)}))
+	task, ok, err = e.Core.Poll(ctx, core.PollRequest{WorkerID: "w", Queues: []string{core.DefaultQueue}, Kinds: []core.TaskKind{core.TaskRun}})
 	require.NoError(t, err)
 	require.True(t, ok)
-	require.NoError(t, e.Core.CompleteHaulTask(ctx, core.HaulTaskResult{TaskID: task.ID, BuildID: "b1", Commands: []core.Command{lift},
-		Outcome: &core.HaulOutcome{Status: state.HaulCompleted}}))
+	require.NoError(t, e.Core.CompleteRunTask(ctx, core.RunTaskResult{TaskID: task.ID, BuildID: "b1", Commands: []core.Command{step},
+		Outcome: &core.RunOutcome{Status: state.RunCompleted}}))
 
 	require.Eventually(t, func() bool { return len(printed()) == 6 }, 5*time.Second, 10*time.Millisecond, "%q", printed())
 	got := printed()
@@ -86,8 +86,8 @@ func TestConsoleSaysWhyARunWaits(t *testing.T) {
 	go e.Console(cctx, 0, false, func(s string) { mu.Lock(); lines = append(lines, s); mu.Unlock() })
 	printed := func() []string { mu.Lock(); defer mu.Unlock(); return append([]string(nil), lines...) }
 
-	require.NoError(t, e.Core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Hauls: []string{"daily"}}))
-	_, err = e.Core.StartHaul(ctx, core.StartHaulRequest{Tenant: "t", Name: "daily", Params: map[string]any{"day": "2026-10-24"}})
+	require.NoError(t, e.Core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Pipelines: []string{"daily"}}))
+	_, err = e.Core.StartRun(ctx, core.StartRunRequest{Tenant: "t", Name: "daily", Params: map[string]any{"day": "2026-10-24"}})
 	require.NoError(t, err)
 
 	waits := func() []string {

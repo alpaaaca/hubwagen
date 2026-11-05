@@ -205,9 +205,9 @@ func (s *Store) Append(ctx context.Context, term int64, events []Event, apply fu
 			payload = "{}"
 		}
 		res, err := sqlTx.ExecContext(ctx,
-			`INSERT INTO events (term, ts, tenant, type, attempt_id, haul_id, payload)
+			`INSERT INTO events (term, ts, tenant, type, attempt_id, run_id, payload)
 			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			term, formatTime(e.Time), e.Tenant, string(e.Type), e.AttemptID, e.HaulID, payload)
+			term, formatTime(e.Time), e.Tenant, string(e.Type), e.AttemptID, e.RunID, payload)
 		if err != nil {
 			return nil, fmt.Errorf("append %s event: %w", e.Type, err)
 		}
@@ -255,11 +255,11 @@ func parseTimePtr(ns sql.NullString) (*time.Time, error) {
 	return &t, nil
 }
 
-// ClaimBucket ties the store to one bucket: its pallets' manifests and
+// ClaimBucket ties the store to one bucket: its data versions' manifests and
 // files are there, so a store opened with another bucket would point
 // workers at data they can't read. The first claim records base, or
 // legacy (where a store from before this check kept its data) if it already
-// has pallets; it returns the recorded bucket, which the caller compares.
+// has data versions; it returns the recorded bucket, which the caller compares.
 func (s *Store) ClaimBucket(ctx context.Context, base, legacy string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -277,7 +277,7 @@ func (s *Store) ClaimBucket(ctx context.Context, base, legacy string) (string, e
 		return "", err
 	}
 	var n int
-	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM pallets`).Scan(&n); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM data_versions`).Scan(&n); err != nil {
 		return "", err
 	}
 	v = base

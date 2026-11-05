@@ -1,6 +1,6 @@
 import { timestampDate, type Timestamp } from "@bufbuild/protobuf/wkt";
 
-import type { Haul, Lift } from "./gen/moksha/v1/haul_pb";
+import type { Run, Step } from "./gen/moksha/v1/run_pb";
 
 // Times are always shown in UTC, and say so: moksha runs on servers and
 // schedules in many places, and one clock for everyone is easier to compare.
@@ -78,7 +78,7 @@ export function duration(millis: number): string {
   return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")} min`;
 }
 
-// took is how long a haul or lift ran: until it finished, or until now while it runs.
+// took is how long a run or step ran: until it finished, or until now while it runs.
 export function took(from?: Timestamp, to?: Timestamp, now = Date.now()): number | undefined {
   const a = ms(from);
   if (a === undefined) return undefined;
@@ -146,15 +146,15 @@ export function Values({ json, empty = "" }: { json: string; empty?: string }) {
   return <span className="value">{short(scalar(v))}</span>;
 }
 
-// short keeps chips small: an ID (a ULID, such as a pallet's) by its end, long text by its start.
+// short keeps chips small: an ID (a ULID, such as a data version's) by its end, long text by its start.
 function short(s: string): string {
   if (/^[0-9A-HJKMNP-TV-Z]{26}$/.test(s)) return shortId(s);
   return s.length > 40 ? s.slice(0, 37) + "…" : s;
 }
 
-// liftStatus says where a lift is, in words for people: running, waiting
+// stepStatus says where a step is, in words for people: running, waiting
 // (for a worker or a free slot), retrying, reused, or how it ended.
-export function liftStatus(l: Lift): string {
+export function stepStatus(l: Step): string {
   if (l.reused) return "reused";
   switch (l.status) {
     case "dispatched":
@@ -174,9 +174,9 @@ export function Status({ status }: { status: string }) {
   return <span className={`status status-${status}`}>{status}</span>;
 }
 
-// steps sums up a haul's lifts in a few words.
-export function steps(h: Haul): string {
-  const c = h.liftCounts;
+// steps sums up a run's steps in a few words.
+export function steps(h: Run): string {
+  const c = h.stepCounts;
   if (!c || c.total === 0) return h.status === "running" ? "starting" : "no steps";
   const parts: string[] = [];
   const ran = c.completed - c.reused;
@@ -194,11 +194,11 @@ export function steps(h: Haul): string {
 // trigger says what started a run, in words.
 export function trigger(t: string): string {
   if (!t) return "";
-  if (t.startsWith("haul ")) return "by another run";
+  if (t.startsWith("run ")) return "by another run";
   if (t.startsWith("continue ")) return "continued from an earlier run";
   if (t === "schedule") return "on its schedule";
   if (t === "subscription") return "by new data";
   return `by ${t}`;
 }
 
-export const HAUL_STATUSES = ["running", "stuck", "completed", "failed", "cancelled", "continued"];
+export const RUN_STATUSES = ["running", "stuck", "completed", "failed", "cancelled", "continued"];

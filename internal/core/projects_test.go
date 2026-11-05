@@ -10,10 +10,10 @@ import (
 	"github.com/alper/moksha/internal/state"
 )
 
-func deployReq(project, build string, hauls ...string) DeployRequest {
+func deployReq(project, build string, runs ...string) DeployRequest {
 	return DeployRequest{Project: project, Image: "acme/" + project + ":" + build, By: "ana",
-		Build: BuildRequest{ID: build, Hauls: hauls, Lifts: map[string]string{"load": build}},
-		Pools: []state.DeployedPool{{Name: "default", Docks: []string{DefaultDock}, Min: 0, Max: 3, Lifts: 2, IdleAfter: time.Minute}}}
+		Build: BuildRequest{ID: build, Pipelines: runs, Steps: map[string]string{"load": build}},
+		Pools: []state.DeployedPool{{Name: "default", Queues: []string{DefaultQueue}, Min: 0, Max: 3, Steps: 2, IdleAfter: time.Minute}}}
 }
 
 func TestDeployRegistersTheBuildAndCountsVersions(t *testing.T) {
@@ -21,10 +21,10 @@ func TestDeployRegistersTheBuildAndCountsVersions(t *testing.T) {
 	d, err := h.core.Deploy(h.ctx, deployReq("revenue", "b1", "weekly"))
 	require.NoError(t, err)
 	assert.Equal(t, 1, d.Version)
-	assert.Equal(t, []string{"weekly"}, d.Hauls)
+	assert.Equal(t, []string{"weekly"}, d.Pipelines)
 
 	// Its pipeline starts with no worker yet: the deploy registered the build.
-	_, err = h.core.StartHaul(h.ctx, StartHaulRequest{Tenant: "t", Name: "weekly"})
+	_, err = h.core.StartRun(h.ctx, StartRunRequest{Tenant: "t", Name: "weekly"})
 	require.NoError(t, err)
 
 	d, err = h.core.Deploy(h.ctx, deployReq("revenue", "b2", "weekly"))
@@ -72,7 +72,7 @@ func TestDeleteProject(t *testing.T) {
 	h := newHarness(t)
 	_, err := h.core.Deploy(h.ctx, deployReq("revenue", "b1", "weekly"))
 	require.NoError(t, err)
-	run, err := h.core.StartHaul(h.ctx, StartHaulRequest{Tenant: "t", Name: "weekly"})
+	run, err := h.core.StartRun(h.ctx, StartRunRequest{Tenant: "t", Name: "weekly"})
 	require.NoError(t, err)
 
 	_, err = h.core.DeleteProject(h.ctx, "revenue", "ana", false)
@@ -82,12 +82,12 @@ func TestDeleteProject(t *testing.T) {
 	n, err := h.core.DeleteProject(h.ctx, "revenue", "ana", true)
 	require.NoError(t, err)
 	assert.Equal(t, 1, n)
-	got, err := h.store.GetHaul(h.ctx, run.HaulID)
+	got, err := h.store.GetRun(h.ctx, run.RunID)
 	require.NoError(t, err)
-	assert.Equal(t, state.HaulCancelled, got.Status)
+	assert.Equal(t, state.RunCancelled, got.Status)
 
-	_, err = h.core.StartHaul(h.ctx, StartHaulRequest{Tenant: "t", Name: "weekly"})
-	assert.ErrorIs(t, err, ErrUnknownHaul)
+	_, err = h.core.StartRun(h.ctx, StartRunRequest{Tenant: "t", Name: "weekly"})
+	assert.ErrorIs(t, err, ErrUnknownPipeline)
 	assert.ErrorContains(t, err, "belongs to project revenue, which was deleted")
 	_, err = h.core.DeleteProject(h.ctx, "revenue", "ana", false)
 	assert.ErrorIs(t, err, ErrNotFound)
@@ -96,7 +96,7 @@ func TestDeleteProject(t *testing.T) {
 	d, err := h.core.Deploy(h.ctx, deployReq("revenue", "b2", "weekly"))
 	require.NoError(t, err)
 	assert.Equal(t, 2, d.Version)
-	_, err = h.core.StartHaul(h.ctx, StartHaulRequest{Tenant: "t", Name: "weekly"})
+	_, err = h.core.StartRun(h.ctx, StartRunRequest{Tenant: "t", Name: "weekly"})
 	assert.NoError(t, err)
 }
 
@@ -116,7 +116,7 @@ func TestProjectsSurviveARestart(t *testing.T) {
 	assert.Equal(t, "gone", ps[0].Project)
 	assert.NotNil(t, ps[0].DeletedAt)
 	assert.Equal(t, "acme/revenue:b1", ps[1].Image)
-	_, err = h.core.StartHaul(h.ctx, StartHaulRequest{Tenant: "t", Name: "old"})
+	_, err = h.core.StartRun(h.ctx, StartRunRequest{Tenant: "t", Name: "old"})
 	assert.ErrorContains(t, err, "which was deleted")
 	d, err := h.core.Deploy(h.ctx, deployReq("revenue", "b3", "weekly"))
 	require.NoError(t, err)

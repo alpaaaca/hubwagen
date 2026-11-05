@@ -33,21 +33,21 @@ func TestStateSurvivesRestart(t *testing.T) {
 	dir := t.TempDir()
 	e, err := Start(ctx, Config{DataDir: dir})
 	require.NoError(t, err)
-	require.NoError(t, e.Core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Hauls: []string{"daily"}}))
-	res, err := e.Core.StartHaul(ctx, core.StartHaulRequest{Tenant: "t", Name: "daily", Params: map[string]any{"day": "2026-10-24"}})
+	require.NoError(t, e.Core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Pipelines: []string{"daily"}}))
+	res, err := e.Core.StartRun(ctx, core.StartRunRequest{Tenant: "t", Name: "daily", Params: map[string]any{"day": "2026-10-24"}})
 	require.NoError(t, err)
 	require.NoError(t, e.Close())
 
 	e, err = Start(ctx, Config{DataDir: dir})
 	require.NoError(t, err)
 	defer e.Close()
-	h, err := e.Store.GetHaul(ctx, res.HaulID)
+	h, err := e.Store.GetRun(ctx, res.RunID)
 	require.NoError(t, err)
-	assert.Equal(t, state.HaulRunning, h.Status)
-	task, ok, err := e.Core.Poll(ctx, core.PollRequest{WorkerID: "w", Docks: []string{core.DefaultDock}})
+	assert.Equal(t, state.RunRunning, h.Status)
+	task, ok, err := e.Core.Poll(ctx, core.PollRequest{WorkerID: "w", Queues: []string{core.DefaultQueue}})
 	require.NoError(t, err)
-	require.True(t, ok, "the queued haul task was restored")
-	assert.Equal(t, res.HaulID, task.HaulID)
+	require.True(t, ok, "the queued run task was restored")
+	assert.Equal(t, res.RunID, task.RunID)
 }
 
 func TestServesTheAPI(t *testing.T) {
@@ -56,16 +56,16 @@ func TestServesTheAPI(t *testing.T) {
 	defer e.Close()
 	require.NotEmpty(t, e.APIAddr)
 
-	for _, path := range []string{"WorkerService/Heartbeat", "HaulService/GetHaul"} {
-		resp, err := http.Post("http://"+e.APIAddr+"/moksha.v1."+path, "application/json", strings.NewReader(`{"workerId":"w1","haulId":"x"}`))
+	for _, path := range []string{"WorkerService/Heartbeat", "RunService/GetRun"} {
+		resp, err := http.Post("http://"+e.APIAddr+"/moksha.v1."+path, "application/json", strings.NewReader(`{"workerId":"w1","runId":"x"}`))
 		require.NoError(t, err)
 		resp.Body.Close()
 		assert.Contains(t, []int{http.StatusOK, http.StatusNotFound}, resp.StatusCode, path)
 	}
 
 	// A long poll in flight doesn't hold up Close.
-	go http.Post("http://"+e.APIAddr+"/moksha.v1.WorkerService/PollLiftTask", "application/json",
-		strings.NewReader(`{"workerId":"w1","docks":["default"],"wait":"30s"}`))
+	go http.Post("http://"+e.APIAddr+"/moksha.v1.WorkerService/PollStepTask", "application/json",
+		strings.NewReader(`{"workerId":"w1","queues":["default"],"wait":"30s"}`))
 	time.Sleep(100 * time.Millisecond)
 	began := time.Now()
 	require.NoError(t, e.Close())
@@ -98,18 +98,18 @@ func TestHealth(t *testing.T) {
 }
 
 func TestBuckets(t *testing.T) {
-	_, endpoint := s3fake.Start(t, "hwb")
-	s3 := &blob.S3Config{URL: "s3://hwb/prod", Endpoint: endpoint, PathStyle: true, AccessKeyID: "k", SecretAccessKey: "s"}
+	_, endpoint := s3fake.Start(t, "mkb")
+	s3 := &blob.S3Config{URL: "s3://mkb/prod", Endpoint: endpoint, PathStyle: true, AccessKeyID: "k", SecretAccessKey: "s"}
 
 	dir := t.TempDir()
 	e, err := Start(ctx, Config{DataDir: dir, S3: s3})
 	require.NoError(t, err)
-	assert.Equal(t, "s3://hwb/prod", e.Bucket.Base())
+	assert.Equal(t, "s3://mkb/prod", e.Bucket.Base())
 	assert.Empty(t, e.BucketID, "only file buckets have an ID for workers to find")
 	require.NoError(t, e.Close())
 
 	_, err = Start(ctx, Config{DataDir: dir})
-	assert.ErrorContains(t, err, "keeps its data versions in s3://hwb/prod", "a data dir stays with its bucket")
+	assert.ErrorContains(t, err, "keeps its data versions in s3://mkb/prod", "a data dir stays with its bucket")
 
 	dir = t.TempDir()
 	e, err = Start(ctx, Config{DataDir: dir})

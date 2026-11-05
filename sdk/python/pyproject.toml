@@ -1,7 +1,7 @@
 [project]
 name = "moksha"
 version = "0.1.0.dev0"
-description = "Python SDK for moksha: durable hauls and memoized lifts"
+description = "Python SDK for moksha: durable runs and memoized steps"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"

@@ -67,7 +67,7 @@ def test_file_bucket_through_the_server(moksha_bin, tmp_path):
 
 
 def test_s3_bucket_with_presigned_urls(moksha_bin, s3fake_bin, tmp_path):
-    endpoint, s3 = start_s3fake(s3fake_bin, "hwb")
+    endpoint, s3 = start_s3fake(s3fake_bin, "mkb")
     server = tmp_path / "server"
     server.mkdir()
     (server / "key_id").write_text("test-key\n")
@@ -77,7 +77,7 @@ def test_s3_bucket_with_presigned_urls(moksha_bin, s3fake_bin, tmp_path):
 apiVersion: moksha.dev/v1alpha1
 kind: Config
 bucket:
-  url: s3://hwb/prod
+  url: s3://mkb/prod
   endpoint: {endpoint}
   path_style: true
   access_key_id_file: key_id
@@ -93,11 +93,11 @@ bucket:
         stop(worker)
         stop(dev, signal.SIGINT)
         listing = urllib.request.urlopen(urllib.request.Request(
-            f"{endpoint}/hwb?list-type=2&prefix=prod/", headers={"Authorization": "AWS4-HMAC-SHA256 test"})).read().decode()
+            f"{endpoint}/mkb?list-type=2&prefix=prod/", headers={"Authorization": "AWS4-HMAC-SHA256 test"})).read().decode()
         stop(s3)
     keys = re.findall(r"<Key>([^<]+)</Key>", listing)
     assert len([k for k in keys if k.startswith("prod/data/") and k.endswith("/orders.csv")]) == 4
-    assert len([k for k in keys if k.startswith("prod/pallets/default/mart.daily_revenue/")]) == 2
+    assert len([k for k in keys if k.startswith("prod/data_versions/default/mart.daily_revenue/")]) == 2
     assert not (server / "data" / "bucket").exists(), "nothing in a local bucket"
     assert "Traceback" not in log.read_text()
 
@@ -113,7 +113,7 @@ def test_shares_bucket(tmp_path):
     assert _data.shares_bucket(task)
     assert not _data.is_remote("auto", task)
     assert _data.is_remote("remote", task)
-    s3 = {"bucket": "s3://hwb/prod", "bucketId": ""}
+    s3 = {"bucket": "s3://mkb/prod", "bucketId": ""}
     assert _data.is_remote("auto", s3)
     assert not _data.is_remote("auto", {"staging": "file:///srv/bucket/data/x/"}), "an older server's tasks"
     with pytest.raises(RuntimeError, match="not a local directory"):
@@ -131,15 +131,15 @@ def test_dataframes_through_the_server(moksha_bin, tmp_path):
     from conftest import SDK, wait
 
     url, dev = start_dev(moksha_bin, tmp_path)
-    worker = start_worker(url, "frame_hauls", SDK / "tests", tmp_path / "worker.log", "--data", "remote")
+    worker = start_worker(url, "frame_pipelines", SDK / "tests", tmp_path / "worker.log", "--data", "remote")
     try:
         client = mk.Client(url)
-        h = wait(client, client.start_haul("frames", {"day": "2026-10-24"}))
+        h = wait(client, client.start_run("frames", {"day": "2026-10-24"}))
         assert h["status"] == "completed", (h, (tmp_path / "worker.log").read_text())
         r = json.loads(h["resultJson"])
         assert r["report"] == {"totals": {"eu": 15, "us": 20}, "type": "DataFrame", "raw_files": ["data.parquet"]}
         assert r["reused"] == [False, False]
-        again = json.loads(wait(client, client.start_haul("frames", {"day": "2026-10-24"}))["resultJson"])
+        again = json.loads(wait(client, client.start_run("frames", {"day": "2026-10-24"}))["resultJson"])
         assert again["reused"] == [True, True]
     finally:
         stop(worker)

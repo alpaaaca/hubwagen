@@ -1,29 +1,29 @@
 import { useEffect, useRef } from "react";
 
 import { useApi } from "../api";
-import type { Lift } from "../gen/moksha/v1/haul_pb";
+import type { Step } from "../gen/moksha/v1/run_pb";
 import type { RunLogLine } from "../gen/moksha/v1/log_pb";
 import { clock } from "../format";
 import { POLL_MS, usePoll } from "../hooks";
 
-// Logs shows what a run's lifts printed and logged: all of them, lines
+// Logs shows what a run's steps printed and logged: all of them, lines
 // marked with their step, or one step's. It follows along while the run is
 // open.
 export function Logs({
-  haulId,
-  lifts,
+  runId,
+  steps,
   seq,
   onSelect,
   open,
 }: {
-  haulId: string;
-  lifts: Lift[];
+  runId: string;
+  steps: Step[];
   seq: number; // 0: all steps
   onSelect: (seq: number) => void;
   open: boolean;
 }) {
   const api = useApi();
-  const logs = usePoll(() => api.logs.getLogs({ haulId, seq }), [haulId, seq, open], open ? POLL_MS : 0);
+  const logs = usePoll(() => api.logs.getLogs({ runId, seq }), [runId, seq, open], open ? POLL_MS : 0);
   const box = useRef<HTMLDivElement>(null);
   const lines = logs.data?.lines ?? [];
   const atEnd = useRef(true);
@@ -34,7 +34,7 @@ export function Logs({
     if (el && atEnd.current) el.scrollTop = el.scrollHeight;
   }, [lines.length]);
 
-  const many = (name: string) => lifts.filter((l) => l.name === name).length > 1;
+  const many = (name: string) => steps.filter((l) => l.name === name).length > 1;
 
   return (
     <div className="logs">
@@ -42,7 +42,7 @@ export function Logs({
         <h2>Logs</h2>
         <select aria-label="logs of" value={seq} onChange={(e) => onSelect(Number(e.target.value))}>
           <option value={0}>all steps</option>
-          {lifts.map((l) => (
+          {steps.map((l) => (
             <option key={l.seq} value={l.seq}>
               {many(l.name) ? `${l.name} #${l.seq}` : l.name}
             </option>
@@ -67,7 +67,7 @@ export function Logs({
           <div className="dim">{seq ? "this step printed nothing" : "the steps printed nothing"}{open ? " yet" : ""}</div>
         )}
         {lines.map((l, i) => (
-          <LogRow key={i} line={l} step={seq ? "" : many(l.lift) ? `${l.lift} #${l.seq}` : l.lift} />
+          <LogRow key={i} line={l} step={seq ? "" : many(l.step) ? `${l.step} #${l.seq}` : l.step} />
         ))}
       </div>
     </div>

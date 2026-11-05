@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file moksha/v1/worker.proto.
  */
 export const file_moksha_v1_worker: GenFile = /*@__PURE__*/
-  fileDesc("ChZtb2tzaGEvdjEvd29ya2VyLnByb3RvEgltb2tzaGEudjEi7QIKFFJlZ2lzdGVyQnVpbGRSZXF1ZXN0EhAKCGJ1aWxkX2lkGAEgASgJEkgKDWxpZnRfdmVyc2lvbnMYAiADKAsyMS5tb2tzaGEudjEuUmVnaXN0ZXJCdWlsZFJlcXVlc3QuTGlmdFZlcnNpb25zRW50cnkSDQoFaGF1bHMYAyADKAkSKgoJc2NoZWR1bGVzGAQgAygLMhcubW9rc2hhLnYxLkhhdWxTY2hlZHVsZRIyCg1zdWJzY3JpcHRpb25zGAUgAygLMhsubW9rc2hhLnYxLkhhdWxTdWJzY3JpcHRpb24SLQoIZGF0YXNldHMYBiADKAsyGy5tb2tzaGEudjEuRGF0YXNldFJldGVudGlvbhImCgloYXVsX2luZm8YByADKAsyEy5tb2tzaGEudjEuSGF1bEluZm8aMwoRTGlmdFZlcnNpb25zRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASI8CghIYXVsSW5mbxIMCgRoYXVsGAEgASgJEg0KBXRpdGxlGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJImQKEERhdGFzZXRSZXRlbnRpb24SDAoEbmFtZRgBIAEoCRIVCg1rZWVwX3ZlcnNpb25zGAIgASgFEisKCGtlZXBfZm9yGAMgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uIp8BChBIYXVsU3Vic2NyaXB0aW9uEgwKBGhhdWwYASABKAkSEAoIZGF0YXNldHMYAiADKAkSKwoIZGVib3VuY2UYAyABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SKwoIbWF4X3dhaXQYBCABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SEQoJbWF4X2JhdGNoGAUgASgFImAKDEhhdWxTY2hlZHVsZRIMCgRoYXVsGAEgASgJEgwKBGNyb24YAiABKAkSEAoIdGltZXpvbmUYAyABKAkSEAoIaW50ZXJ2YWwYBCABKAkSEAoIY2F0Y2hfdXAYBSABKAkiFwoVUmVnaXN0ZXJCdWlsZFJlc3BvbnNlInIKE1BvbGxIYXVsVGFza1JlcXVlc3QSEQoJd29ya2VyX2lkGAEgASgJEg0KBWRvY2tzGAIgAygJEicKBHdhaXQYAyABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SEAoIYnVpbGRfaWQYBCABKAkiOQoUUG9sbEhhdWxUYXNrUmVzcG9uc2USIQoEdGFzaxgBIAEoCzITLm1va3NoYS52MS5IYXVsVGFzayJ7CghIYXVsVGFzaxIKCgJpZBgBIAEoCRIPCgdoYXVsX2lkGAIgASgJEgwKBG5hbWUYAyABKAkSDAoEZG9jaxgEIAEoCRITCgtwYXJhbXNfanNvbhgFIAEoCRIhCgdsb2dib29rGAYgAygLMhAubW9rc2hhLnYxLkV2ZW50ImIKBUV2ZW50EgsKA3NlcRgBIAEoAxIMCgR0eXBlGAIgASgJEigKBHRpbWUYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhQKDHBheWxvYWRfanNvbhgEIAEoCSLbAQoXQ29tcGxldGVIYXVsVGFza1JlcXVlc3QSDwoHdGFza19pZBgBIAEoCRIQCghidWlsZF9pZBgCIAEoCRIkCghjb21tYW5kcxgDIAMoCzISLm1va3NoYS52MS5Db21tYW5kEicKB291dGNvbWUYBCABKAsyFi5tb2tzaGEudjEuSGF1bE91dGNvbWUSIwoFZXJyb3IYBSABKAsyFC5tb2tzaGEudjEuVGFza0Vycm9yEikKB21hcmtlcnMYBiADKAsyGC5tb2tzaGEudjEuVmVyc2lvbk1hcmtlciIaChhDb21wbGV0ZUhhdWxUYXNrUmVzcG9uc2UiLgoNVmVyc2lvbk1hcmtlchIMCgRuYW1lGAEgASgJEg8KB3ZlcnNpb24YAiABKAUioQIKB0NvbW1hbmQSCwoDc2VxGAEgASgFEg4KBnNvdXJjZRgCIAEoCRImCgRsaWZ0GAMgASgLMhYubW9rc2hhLnYxLkxpZnRDb21tYW5kSAASKAoFc2xlZXAYBCABKAsyFy5tb2tzaGEudjEuU2xlZXBDb21tYW5kSAASNwoNbGF0ZXN0X3BhbGxldBgFIAEoCzIeLm1va3NoYS52MS5MYXRlc3RQYWxsZXRDb21tYW5kSAASMwoLd2FpdF9zaWduYWwYBiABKAsyHC5tb2tzaGEudjEuV2FpdFNpZ25hbENvbW1hbmRIABIxCgpzdGFydF9oYXVsGAcgASgLMhsubW9rc2hhLnYxLlN0YXJ0SGF1bENvbW1hbmRIAEIGCgRraW5kIlEKEFN0YXJ0SGF1bENvbW1hbmQSDAoEbmFtZRgBIAEoCRITCgtwYXJhbXNfanNvbhgCIAEoCRIMCgR3YWl0GAMgASgIEgwKBGRvY2sYBCABKAkiTQoRV2FpdFNpZ25hbENvbW1hbmQSDAoEbmFtZRgBIAEoCRIqCgd0aW1lb3V0GAIgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uIjkKE0xhdGVzdFBhbGxldENvbW1hbmQSDwoHZGF0YXNldBgBIAEoCRIRCglwYXJ0aXRpb24YAiABKAkijwIKC0xpZnRDb21tYW5kEgwKBG5hbWUYASABKAkSDAoEZG9jaxgCIAEoCRIRCglhcmdzX2pzb24YAyABKAkSKgoHdGltZW91dBgEIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIlCgVyZXRyeRgFIAEoCzIWLm1va3NoYS52MS5SZXRyeVBvbGljeRIhCgZvdXRwdXQYBiABKAsyES5tb2tzaGEudjEuT3V0cHV0EiMKBmlucHV0cxgHIAMoCzITLm1va3NoYS52MS5JbnB1dFJlZhIMCgRtZW1vGAggASgJEigKBmxpbWl0cxgJIAMoCzIYLm1va3NoYS52MS5QYXJhbGxlbExpbWl0IisKDVBhcmFsbGVsTGltaXQSDQoFZ3JvdXAYASABKAkSCwoDbWF4GAIgASgFIjsKDFNsZWVwQ29tbWFuZBIrCghkdXJhdGlvbhgBIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiKBAQoLUmV0cnlQb2xpY3kSDQoFbGltaXQYASABKAUSDwoHYmFja29mZhgCIAEoCRIqCgdpbml0aWFsGAMgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEiYKA21heBgEIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiJDCgZPdXRwdXQSDwoHZGF0YXNldBgBIAEoCRIRCglwYXJ0aXRpb24YAiABKAkSFQoNcGFydGl0aW9uX2tleRgDIAEoCSI6CghJbnB1dFJlZhIMCgRuYW1lGAEgASgJEg4KBnBhbGxldBgCIAEoCRIQCghsb2NhdGlvbhgDIAEoCSLoAQoLSGF1bE91dGNvbWUSLQoGc3RhdHVzGAEgASgOMh0ubW9rc2hhLnYxLkhhdWxPdXRjb21lLlN0YXR1cxITCgtyZXN1bHRfanNvbhgCIAEoCRIOCgZyZWFzb24YAyABKAkSDwoHbWVzc2FnZRgEIAEoCRITCgtwYXJhbXNfanNvbhgFIAEoCSJfCgZTdGF0dXMSFgoSU1RBVFVTX1VOU1BFQ0lGSUVEEAASFAoQU1RBVFVTX0NPTVBMRVRFRBABEhEKDVNUQVRVU19GQUlMRUQQAhIUChBTVEFUVVNfQ09OVElOVUVEEAMiLAoJVGFza0Vycm9yEg4KBnJlYXNvbhgBIAEoCRIPCgdtZXNzYWdlGAIgASgJInIKE1BvbGxMaWZ0VGFza1JlcXVlc3QSEQoJd29ya2VyX2lkGAEgASgJEg0KBWRvY2tzGAIgAygJEicKBHdhaXQYAyABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SEAoIYnVpbGRfaWQYBCABKAkiOQoUUG9sbExpZnRUYXNrUmVzcG9uc2USIQoEdGFzaxgBIAEoCzITLm1va3NoYS52MS5MaWZ0VGFzayLfAQoITGlmdFRhc2sSCgoCaWQYASABKAkSDwoHaGF1bF9pZBgCIAEoCRILCgNzZXEYAyABKAUSDAoEbmFtZRgEIAEoCRIMCgRkb2NrGAUgASgJEhEKCWFyZ3NfanNvbhgGIAEoCRIhCgZvdXRwdXQYByABKAsyES5tb2tzaGEudjEuT3V0cHV0Eg8KB3N0YWdpbmcYCCABKAkSIwoGaW5wdXRzGAkgAygLMhMubW9rc2hhLnYxLklucHV0UmVmEg4KBmJ1Y2tldBgKIAEoCRIRCglidWNrZXRfaWQYCyABKAkiogIKF0NvbXBsZXRlTGlmdFRhc2tSZXF1ZXN0EhIKCmF0dGVtcHRfaWQYASABKAkSOQoGc3RhdHVzGAIgASgOMikubW9rc2hhLnYxLkNvbXBsZXRlTGlmdFRhc2tSZXF1ZXN0LlN0YXR1cxITCgtyZXN1bHRfanNvbhgDIAEoCRIOCgZyZWFzb24YBCABKAkSDwoHbWVzc2FnZRgFIAEoCRIQCghub19yZXRyeRgGIAEoCBIlCgZvdXRwdXQYByABKAsyFS5tb2tzaGEudjEuTGlmdE91dHB1dCJJCgZTdGF0dXMSFgoSU1RBVFVTX1VOU1BFQ0lGSUVEEAASFAoQU1RBVFVTX1NVQ0NFRURFRBABEhEKDVNUQVRVU19GQUlMRUQQAiJTCgpMaWZ0T3V0cHV0Eh4KBWZpbGVzGAEgAygLMg8ubW9rc2hhLnYxLkZpbGUSEgoKc3RhdHNfanNvbhgCIAEoCRIRCgltZXRhX2pzb24YAyABKAkiMgoERmlsZRIMCgRwYXRoGAEgASgJEgwKBHNpemUYAiABKAMSDgoGc2hhMjU2GAMgASgJIhoKGENvbXBsZXRlTGlmdFRhc2tSZXNwb25zZSI3ChBIZWFydGJlYXRSZXF1ZXN0EhEKCXdvcmtlcl9pZBgBIAEoCRIQCgh0YXNrX2lkcxgCIAMoCSIhChFIZWFydGJlYXRSZXNwb25zZRIMCgRzdG9wGAEgAygJIogBCghUcmFuc2ZlchIMCgRwYXRoGAEgASgJEgsKA3VybBgCIAEoCRIxCgdoZWFkZXJzGAMgAygLMiAubW9rc2hhLnYxLlRyYW5zZmVyLkhlYWRlcnNFbnRyeRouCgxIZWFkZXJzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJKChRHZXRVcGxvYWRVUkxzUmVxdWVzdBISCgphdHRlbXB0X2lkGAEgASgJEh4KBWZpbGVzGAIgAygLMg8ubW9rc2hhLnYxLkZpbGUiOwoVR2V0VXBsb2FkVVJMc1Jlc3BvbnNlEiIKBWZpbGVzGAEgAygLMhMubW9rc2hhLnYxLlRyYW5zZmVyIjwKFkdldERvd25sb2FkVVJMc1JlcXVlc3QSEgoKYXR0ZW1wdF9pZBgBIAEoCRIOCgZwYWxsZXQYAiABKAkiVAoXR2V0RG93bmxvYWRVUkxzUmVzcG9uc2USFQoNbWFuaWZlc3RfanNvbhgBIAEoCRIiCgVmaWxlcxgCIAMoCzITLm1va3NoYS52MS5UcmFuc2ZlcjK1BQoNV29ya2VyU2VydmljZRJSCg1SZWdpc3RlckJ1aWxkEh8ubW9rc2hhLnYxLlJlZ2lzdGVyQnVpbGRSZXF1ZXN0GiAubW9rc2hhLnYxLlJlZ2lzdGVyQnVpbGRSZXNwb25zZRJPCgxQb2xsSGF1bFRhc2sSHi5tb2tzaGEudjEuUG9sbEhhdWxUYXNrUmVxdWVzdBofLm1va3NoYS52MS5Qb2xsSGF1bFRhc2tSZXNwb25zZRJbChBDb21wbGV0ZUhhdWxUYXNrEiIubW9rc2hhLnYxLkNvbXBsZXRlSGF1bFRhc2tSZXF1ZXN0GiMubW9rc2hhLnYxLkNvbXBsZXRlSGF1bFRhc2tSZXNwb25zZRJPCgxQb2xsTGlmdFRhc2sSHi5tb2tzaGEudjEuUG9sbExpZnRUYXNrUmVxdWVzdBofLm1va3NoYS52MS5Qb2xsTGlmdFRhc2tSZXNwb25zZRJbChBDb21wbGV0ZUxpZnRUYXNrEiIubW9rc2hhLnYxLkNvbXBsZXRlTGlmdFRhc2tSZXF1ZXN0GiMubW9rc2hhLnYxLkNvbXBsZXRlTGlmdFRhc2tSZXNwb25zZRJGCglIZWFydGJlYXQSGy5tb2tzaGEudjEuSGVhcnRiZWF0UmVxdWVzdBocLm1va3NoYS52MS5IZWFydGJlYXRSZXNwb25zZRJSCg1HZXRVcGxvYWRVUkxzEh8ubW9rc2hhLnYxLkdldFVwbG9hZFVSTHNSZXF1ZXN0GiAubW9rc2hhLnYxLkdldFVwbG9hZFVSTHNSZXNwb25zZRJYCg9HZXREb3dubG9hZFVSTHMSIS5tb2tzaGEudjEuR2V0RG93bmxvYWRVUkxzUmVxdWVzdBoiLm1va3NoYS52MS5HZXREb3dubG9hZFVSTHNSZXNwb25zZUI9WjtnaXRodWIuY29tL2FscGVyL21va3NoYS9pbnRlcm5hbC9hcGkvZ2VuL21va3NoYS92MTttb2tzaGF2MWIGcHJvdG8z", [file_google_protobuf_duration, file_google_protobuf_timestamp]);
+  fileDesc("ChZtb2tzaGEvdjEvd29ya2VyLnByb3RvEgltb2tzaGEudjEigQMKFFJlZ2lzdGVyQnVpbGRSZXF1ZXN0EhAKCGJ1aWxkX2lkGAEgASgJEkgKDXN0ZXBfdmVyc2lvbnMYAiADKAsyMS5tb2tzaGEudjEuUmVnaXN0ZXJCdWlsZFJlcXVlc3QuU3RlcFZlcnNpb25zRW50cnkSEQoJcGlwZWxpbmVzGAMgAygJEi4KCXNjaGVkdWxlcxgEIAMoCzIbLm1va3NoYS52MS5QaXBlbGluZVNjaGVkdWxlEjYKDXN1YnNjcmlwdGlvbnMYBSADKAsyHy5tb2tzaGEudjEuUGlwZWxpbmVTdWJzY3JpcHRpb24SLQoIZGF0YXNldHMYBiADKAsyGy5tb2tzaGEudjEuRGF0YXNldFJldGVudGlvbhIuCg1waXBlbGluZV9pbmZvGAcgAygLMhcubW9rc2hhLnYxLlBpcGVsaW5lSW5mbxozChFTdGVwVmVyc2lvbnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIkQKDFBpcGVsaW5lSW5mbxIQCghwaXBlbGluZRgBIAEoCRINCgV0aXRsZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCSJkChBEYXRhc2V0UmV0ZW50aW9uEgwKBG5hbWUYASABKAkSFQoNa2VlcF92ZXJzaW9ucxgCIAEoBRIrCghrZWVwX2ZvchgDIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiKnAQoUUGlwZWxpbmVTdWJzY3JpcHRpb24SEAoIcGlwZWxpbmUYASABKAkSEAoIZGF0YXNldHMYAiADKAkSKwoIZGVib3VuY2UYAyABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SKwoIbWF4X3dhaXQYBCABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SEQoJbWF4X2JhdGNoGAUgASgFImgKEFBpcGVsaW5lU2NoZWR1bGUSEAoIcGlwZWxpbmUYASABKAkSDAoEY3JvbhgCIAEoCRIQCgh0aW1lem9uZRgDIAEoCRIQCghpbnRlcnZhbBgEIAEoCRIQCghjYXRjaF91cBgFIAEoCSIXChVSZWdpc3RlckJ1aWxkUmVzcG9uc2UicgoSUG9sbFJ1blRhc2tSZXF1ZXN0EhEKCXdvcmtlcl9pZBgBIAEoCRIOCgZxdWV1ZXMYAiADKAkSJwoEd2FpdBgDIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIQCghidWlsZF9pZBgEIAEoCSI3ChNQb2xsUnVuVGFza1Jlc3BvbnNlEiAKBHRhc2sYASABKAsyEi5tb2tzaGEudjEuUnVuVGFzayJ8CgdSdW5UYXNrEgoKAmlkGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRIMCgRuYW1lGAMgASgJEg0KBXF1ZXVlGAQgASgJEhMKC3BhcmFtc19qc29uGAUgASgJEiMKCWV2ZW50X2xvZxgGIAMoCzIQLm1va3NoYS52MS5FdmVudCJiCgVFdmVudBILCgNzZXEYASABKAMSDAoEdHlwZRgCIAEoCRIoCgR0aW1lGAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIUCgxwYXlsb2FkX2pzb24YBCABKAki2QEKFkNvbXBsZXRlUnVuVGFza1JlcXVlc3QSDwoHdGFza19pZBgBIAEoCRIQCghidWlsZF9pZBgCIAEoCRIkCghjb21tYW5kcxgDIAMoCzISLm1va3NoYS52MS5Db21tYW5kEiYKB291dGNvbWUYBCABKAsyFS5tb2tzaGEudjEuUnVuT3V0Y29tZRIjCgVlcnJvchgFIAEoCzIULm1va3NoYS52MS5UYXNrRXJyb3ISKQoHbWFya2VycxgGIAMoCzIYLm1va3NoYS52MS5WZXJzaW9uTWFya2VyIhkKF0NvbXBsZXRlUnVuVGFza1Jlc3BvbnNlIi4KDVZlcnNpb25NYXJrZXISDAoEbmFtZRgBIAEoCRIPCgd2ZXJzaW9uGAIgASgFIqoCCgdDb21tYW5kEgsKA3NlcRgBIAEoBRIOCgZzb3VyY2UYAiABKAkSJgoEc3RlcBgDIAEoCzIWLm1va3NoYS52MS5TdGVwQ29tbWFuZEgAEigKBXNsZWVwGAQgASgLMhcubW9rc2hhLnYxLlNsZWVwQ29tbWFuZEgAEkIKE2xhdGVzdF9kYXRhX3ZlcnNpb24YBSABKAsyIy5tb2tzaGEudjEuTGF0ZXN0RGF0YVZlcnNpb25Db21tYW5kSAASMwoLd2FpdF9zaWduYWwYBiABKAsyHC5tb2tzaGEudjEuV2FpdFNpZ25hbENvbW1hbmRIABIvCglzdGFydF9ydW4YByABKAsyGi5tb2tzaGEudjEuU3RhcnRSdW5Db21tYW5kSABCBgoEa2luZCJRCg9TdGFydFJ1bkNvbW1hbmQSDAoEbmFtZRgBIAEoCRITCgtwYXJhbXNfanNvbhgCIAEoCRIMCgR3YWl0GAMgASgIEg0KBXF1ZXVlGAQgASgJIk0KEVdhaXRTaWduYWxDb21tYW5kEgwKBG5hbWUYASABKAkSKgoHdGltZW91dBgCIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiI+ChhMYXRlc3REYXRhVmVyc2lvbkNvbW1hbmQSDwoHZGF0YXNldBgBIAEoCRIRCglwYXJ0aXRpb24YAiABKAkikAIKC1N0ZXBDb21tYW5kEgwKBG5hbWUYASABKAkSDQoFcXVldWUYAiABKAkSEQoJYXJnc19qc29uGAMgASgJEioKB3RpbWVvdXQYBCABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SJQoFcmV0cnkYBSABKAsyFi5tb2tzaGEudjEuUmV0cnlQb2xpY3kSIQoGb3V0cHV0GAYgASgLMhEubW9rc2hhLnYxLk91dHB1dBIjCgZpbnB1dHMYByADKAsyEy5tb2tzaGEudjEuSW5wdXRSZWYSDAoEbWVtbxgIIAEoCRIoCgZsaW1pdHMYCSADKAsyGC5tb2tzaGEudjEuUGFyYWxsZWxMaW1pdCIrCg1QYXJhbGxlbExpbWl0Eg0KBWdyb3VwGAEgASgJEgsKA21heBgCIAEoBSI7CgxTbGVlcENvbW1hbmQSKwoIZHVyYXRpb24YASABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24igQEKC1JldHJ5UG9saWN5Eg0KBWxpbWl0GAEgASgFEg8KB2JhY2tvZmYYAiABKAkSKgoHaW5pdGlhbBgDIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhImCgNtYXgYBCABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24iQwoGT3V0cHV0Eg8KB2RhdGFzZXQYASABKAkSEQoJcGFydGl0aW9uGAIgASgJEhUKDXBhcnRpdGlvbl9rZXkYAyABKAkiQAoISW5wdXRSZWYSDAoEbmFtZRgBIAEoCRIUCgxkYXRhX3ZlcnNpb24YAiABKAkSEAoIbG9jYXRpb24YAyABKAki5gEKClJ1bk91dGNvbWUSLAoGc3RhdHVzGAEgASgOMhwubW9rc2hhLnYxLlJ1bk91dGNvbWUuU3RhdHVzEhMKC3Jlc3VsdF9qc29uGAIgASgJEg4KBnJlYXNvbhgDIAEoCRIPCgdtZXNzYWdlGAQgASgJEhMKC3BhcmFtc19qc29uGAUgASgJIl8KBlN0YXR1cxIWChJTVEFUVVNfVU5TUEVDSUZJRUQQABIUChBTVEFUVVNfQ09NUExFVEVEEAESEQoNU1RBVFVTX0ZBSUxFRBACEhQKEFNUQVRVU19DT05USU5VRUQQAyIsCglUYXNrRXJyb3ISDgoGcmVhc29uGAEgASgJEg8KB21lc3NhZ2UYAiABKAkicwoTUG9sbFN0ZXBUYXNrUmVxdWVzdBIRCgl3b3JrZXJfaWQYASABKAkSDgoGcXVldWVzGAIgAygJEicKBHdhaXQYAyABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SEAoIYnVpbGRfaWQYBCABKAkiOQoUUG9sbFN0ZXBUYXNrUmVzcG9uc2USIQoEdGFzaxgBIAEoCzITLm1va3NoYS52MS5TdGVwVGFzayLfAQoIU3RlcFRhc2sSCgoCaWQYASABKAkSDgoGcnVuX2lkGAIgASgJEgsKA3NlcRgDIAEoBRIMCgRuYW1lGAQgASgJEg0KBXF1ZXVlGAUgASgJEhEKCWFyZ3NfanNvbhgGIAEoCRIhCgZvdXRwdXQYByABKAsyES5tb2tzaGEudjEuT3V0cHV0Eg8KB3N0YWdpbmcYCCABKAkSIwoGaW5wdXRzGAkgAygLMhMubW9rc2hhLnYxLklucHV0UmVmEg4KBmJ1Y2tldBgKIAEoCRIRCglidWNrZXRfaWQYCyABKAkiogIKF0NvbXBsZXRlU3RlcFRhc2tSZXF1ZXN0EhIKCmF0dGVtcHRfaWQYASABKAkSOQoGc3RhdHVzGAIgASgOMikubW9rc2hhLnYxLkNvbXBsZXRlU3RlcFRhc2tSZXF1ZXN0LlN0YXR1cxITCgtyZXN1bHRfanNvbhgDIAEoCRIOCgZyZWFzb24YBCABKAkSDwoHbWVzc2FnZRgFIAEoCRIQCghub19yZXRyeRgGIAEoCBIlCgZvdXRwdXQYByABKAsyFS5tb2tzaGEudjEuU3RlcE91dHB1dCJJCgZTdGF0dXMSFgoSU1RBVFVTX1VOU1BFQ0lGSUVEEAASFAoQU1RBVFVTX1NVQ0NFRURFRBABEhEKDVNUQVRVU19GQUlMRUQQAiJTCgpTdGVwT3V0cHV0Eh4KBWZpbGVzGAEgAygLMg8ubW9rc2hhLnYxLkZpbGUSEgoKc3RhdHNfanNvbhgCIAEoCRIRCgltZXRhX2pzb24YAyABKAkiMgoERmlsZRIMCgRwYXRoGAEgASgJEgwKBHNpemUYAiABKAMSDgoGc2hhMjU2GAMgASgJIhoKGENvbXBsZXRlU3RlcFRhc2tSZXNwb25zZSI3ChBIZWFydGJlYXRSZXF1ZXN0EhEKCXdvcmtlcl9pZBgBIAEoCRIQCgh0YXNrX2lkcxgCIAMoCSIhChFIZWFydGJlYXRSZXNwb25zZRIMCgRzdG9wGAEgAygJIogBCghUcmFuc2ZlchIMCgRwYXRoGAEgASgJEgsKA3VybBgCIAEoCRIxCgdoZWFkZXJzGAMgAygLMiAubW9rc2hhLnYxLlRyYW5zZmVyLkhlYWRlcnNFbnRyeRouCgxIZWFkZXJzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJKChRHZXRVcGxvYWRVUkxzUmVxdWVzdBISCgphdHRlbXB0X2lkGAEgASgJEh4KBWZpbGVzGAIgAygLMg8ubW9rc2hhLnYxLkZpbGUiOwoVR2V0VXBsb2FkVVJMc1Jlc3BvbnNlEiIKBWZpbGVzGAEgAygLMhMubW9rc2hhLnYxLlRyYW5zZmVyIkIKFkdldERvd25sb2FkVVJMc1JlcXVlc3QSEgoKYXR0ZW1wdF9pZBgBIAEoCRIUCgxkYXRhX3ZlcnNpb24YAiABKAkiVAoXR2V0RG93bmxvYWRVUkxzUmVzcG9uc2USFQoNbWFuaWZlc3RfanNvbhgBIAEoCRIiCgVmaWxlcxgCIAMoCzITLm1va3NoYS52MS5UcmFuc2ZlcjKvBQoNV29ya2VyU2VydmljZRJSCg1SZWdpc3RlckJ1aWxkEh8ubW9rc2hhLnYxLlJlZ2lzdGVyQnVpbGRSZXF1ZXN0GiAubW9rc2hhLnYxLlJlZ2lzdGVyQnVpbGRSZXNwb25zZRJMCgtQb2xsUnVuVGFzaxIdLm1va3NoYS52MS5Qb2xsUnVuVGFza1JlcXVlc3QaHi5tb2tzaGEudjEuUG9sbFJ1blRhc2tSZXNwb25zZRJYCg9Db21wbGV0ZVJ1blRhc2sSIS5tb2tzaGEudjEuQ29tcGxldGVSdW5UYXNrUmVxdWVzdBoiLm1va3NoYS52MS5Db21wbGV0ZVJ1blRhc2tSZXNwb25zZRJPCgxQb2xsU3RlcFRhc2sSHi5tb2tzaGEudjEuUG9sbFN0ZXBUYXNrUmVxdWVzdBofLm1va3NoYS52MS5Qb2xsU3RlcFRhc2tSZXNwb25zZRJbChBDb21wbGV0ZVN0ZXBUYXNrEiIubW9rc2hhLnYxLkNvbXBsZXRlU3RlcFRhc2tSZXF1ZXN0GiMubW9rc2hhLnYxLkNvbXBsZXRlU3RlcFRhc2tSZXNwb25zZRJGCglIZWFydGJlYXQSGy5tb2tzaGEudjEuSGVhcnRiZWF0UmVxdWVzdBocLm1va3NoYS52MS5IZWFydGJlYXRSZXNwb25zZRJSCg1HZXRVcGxvYWRVUkxzEh8ubW9rc2hhLnYxLkdldFVwbG9hZFVSTHNSZXF1ZXN0GiAubW9rc2hhLnYxLkdldFVwbG9hZFVSTHNSZXNwb25zZRJYCg9HZXREb3dubG9hZFVSTHMSIS5tb2tzaGEudjEuR2V0RG93bmxvYWRVUkxzUmVxdWVzdBoiLm1va3NoYS52MS5HZXREb3dubG9hZFVSTHNSZXNwb25zZUI9WjtnaXRodWIuY29tL2FscGVyL21va3NoYS9pbnRlcm5hbC9hcGkvZ2VuL21va3NoYS92MTttb2tzaGF2MWIGcHJvdG8z", [file_google_protobuf_duration, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message moksha.v1.RegisterBuildRequest
@@ -24,39 +24,39 @@ export type RegisterBuildRequest = Message<"moksha.v1.RegisterBuildRequest"> & {
   buildId: string;
 
   /**
-   * Lift name → code version.
+   * Step name → code version.
    *
-   * @generated from field: map<string, string> lift_versions = 2;
+   * @generated from field: map<string, string> step_versions = 2;
    */
-  liftVersions: { [key: string]: string };
+  stepVersions: { [key: string]: string };
 
   /**
-   * The hauls this build defines. Workers that poll with this build get only
-   * these hauls' tasks, and only lifts in lift_versions.
+   * The pipelines this build defines. Workers that poll with this build get
+   * only these pipelines' run tasks, and only steps in step_versions.
    *
-   * @generated from field: repeated string hauls = 3;
+   * @generated from field: repeated string pipelines = 3;
    */
-  hauls: string[];
+  pipelines: string[];
 
   /**
-   * Schedules of hauls this build defines. The newest build that defines a
-   * haul decides its schedule; one that defines it without a schedule
-   * removes it.
+   * Schedules of pipelines this build defines. The newest build that
+   * defines a pipeline decides its schedule; one that defines it without a
+   * schedule removes it.
    *
-   * @generated from field: repeated moksha.v1.HaulSchedule schedules = 4;
+   * @generated from field: repeated moksha.v1.PipelineSchedule schedules = 4;
    */
-  schedules: HaulSchedule[];
+  schedules: PipelineSchedule[];
 
   /**
-   * Dataset subscriptions of hauls this build defines, decided like
+   * Dataset subscriptions of pipelines this build defines, decided like
    * schedules.
    *
-   * @generated from field: repeated moksha.v1.HaulSubscription subscriptions = 5;
+   * @generated from field: repeated moksha.v1.PipelineSubscription subscriptions = 5;
    */
-  subscriptions: HaulSubscription[];
+  subscriptions: PipelineSubscription[];
 
   /**
-   * Retention of datasets this build's lifts write. The newest build that
+   * Retention of datasets this build's steps write. The newest build that
    * declares a dataset decides; declaring it without keep removes it.
    *
    * @generated from field: repeated moksha.v1.DatasetRetention datasets = 6;
@@ -64,11 +64,11 @@ export type RegisterBuildRequest = Message<"moksha.v1.RegisterBuildRequest"> & {
   datasets: DatasetRetention[];
 
   /**
-   * What the hauls are, for people (the web UI), by haul name.
+   * What the pipelines are, for people (the web UI), by pipeline name.
    *
-   * @generated from field: repeated moksha.v1.HaulInfo haul_info = 7;
+   * @generated from field: repeated moksha.v1.PipelineInfo pipeline_info = 7;
    */
-  haulInfo: HaulInfo[];
+  pipelineInfo: PipelineInfo[];
 };
 
 /**
@@ -79,16 +79,16 @@ export const RegisterBuildRequestSchema: GenMessage<RegisterBuildRequest> = /*@_
   messageDesc(file_moksha_v1_worker, 0);
 
 /**
- * HaulInfo describes a haul for people: a title ("Daily revenue") and a
- * longer description.
+ * PipelineInfo describes a pipeline for people: a title ("Daily revenue")
+ * and a longer description.
  *
- * @generated from message moksha.v1.HaulInfo
+ * @generated from message moksha.v1.PipelineInfo
  */
-export type HaulInfo = Message<"moksha.v1.HaulInfo"> & {
+export type PipelineInfo = Message<"moksha.v1.PipelineInfo"> & {
   /**
-   * @generated from field: string haul = 1;
+   * @generated from field: string pipeline = 1;
    */
-  haul: string;
+  pipeline: string;
 
   /**
    * @generated from field: string title = 2;
@@ -102,14 +102,14 @@ export type HaulInfo = Message<"moksha.v1.HaulInfo"> & {
 };
 
 /**
- * Describes the message moksha.v1.HaulInfo.
- * Use `create(HaulInfoSchema)` to create a new message.
+ * Describes the message moksha.v1.PipelineInfo.
+ * Use `create(PipelineInfoSchema)` to create a new message.
  */
-export const HaulInfoSchema: GenMessage<HaulInfo> = /*@__PURE__*/
+export const PipelineInfoSchema: GenMessage<PipelineInfo> = /*@__PURE__*/
   messageDesc(file_moksha_v1_worker, 1);
 
 /**
- * DatasetRetention keeps, per partition, the latest pallet and those among
+ * DatasetRetention keeps, per partition, the latest data version and those among
  * the newest keep_versions or younger than keep_for; the rest expire.
  *
  * @generated from message moksha.v1.DatasetRetention
@@ -143,17 +143,17 @@ export const DatasetRetentionSchema: GenMessage<DatasetRetention> = /*@__PURE__*
   messageDesc(file_moksha_v1_worker, 2);
 
 /**
- * HaulSubscription starts a haul with the pallets committed to its
- * datasets, in batches: once none came for debounce, once max_batch wait,
- * or once the first waited max_wait.
+ * PipelineSubscription starts a run of a pipeline with the data versions
+ * committed to its datasets, in batches: once none came for debounce, once
+ * max_batch wait, or once the first waited max_wait.
  *
- * @generated from message moksha.v1.HaulSubscription
+ * @generated from message moksha.v1.PipelineSubscription
  */
-export type HaulSubscription = Message<"moksha.v1.HaulSubscription"> & {
+export type PipelineSubscription = Message<"moksha.v1.PipelineSubscription"> & {
   /**
-   * @generated from field: string haul = 1;
+   * @generated from field: string pipeline = 1;
    */
-  haul: string;
+  pipeline: string;
 
   /**
    * @generated from field: repeated string datasets = 2;
@@ -183,20 +183,20 @@ export type HaulSubscription = Message<"moksha.v1.HaulSubscription"> & {
 };
 
 /**
- * Describes the message moksha.v1.HaulSubscription.
- * Use `create(HaulSubscriptionSchema)` to create a new message.
+ * Describes the message moksha.v1.PipelineSubscription.
+ * Use `create(PipelineSubscriptionSchema)` to create a new message.
  */
-export const HaulSubscriptionSchema: GenMessage<HaulSubscription> = /*@__PURE__*/
+export const PipelineSubscriptionSchema: GenMessage<PipelineSubscription> = /*@__PURE__*/
   messageDesc(file_moksha_v1_worker, 3);
 
 /**
- * @generated from message moksha.v1.HaulSchedule
+ * @generated from message moksha.v1.PipelineSchedule
  */
-export type HaulSchedule = Message<"moksha.v1.HaulSchedule"> & {
+export type PipelineSchedule = Message<"moksha.v1.PipelineSchedule"> & {
   /**
-   * @generated from field: string haul = 1;
+   * @generated from field: string pipeline = 1;
    */
-  haul: string;
+  pipeline: string;
 
   /**
    * Standard 5-field cron.
@@ -229,10 +229,10 @@ export type HaulSchedule = Message<"moksha.v1.HaulSchedule"> & {
 };
 
 /**
- * Describes the message moksha.v1.HaulSchedule.
- * Use `create(HaulScheduleSchema)` to create a new message.
+ * Describes the message moksha.v1.PipelineSchedule.
+ * Use `create(PipelineScheduleSchema)` to create a new message.
  */
-export const HaulScheduleSchema: GenMessage<HaulSchedule> = /*@__PURE__*/
+export const PipelineScheduleSchema: GenMessage<PipelineSchedule> = /*@__PURE__*/
   messageDesc(file_moksha_v1_worker, 4);
 
 /**
@@ -249,18 +249,18 @@ export const RegisterBuildResponseSchema: GenMessage<RegisterBuildResponse> = /*
   messageDesc(file_moksha_v1_worker, 5);
 
 /**
- * @generated from message moksha.v1.PollHaulTaskRequest
+ * @generated from message moksha.v1.PollRunTaskRequest
  */
-export type PollHaulTaskRequest = Message<"moksha.v1.PollHaulTaskRequest"> & {
+export type PollRunTaskRequest = Message<"moksha.v1.PollRunTaskRequest"> & {
   /**
    * @generated from field: string worker_id = 1;
    */
   workerId: string;
 
   /**
-   * @generated from field: repeated string docks = 2;
+   * @generated from field: repeated string queues = 2;
    */
-  docks: string[];
+  queues: string[];
 
   /**
    * How long to wait for work; the server caps it. Unset: answer at once.
@@ -270,7 +270,7 @@ export type PollHaulTaskRequest = Message<"moksha.v1.PollHaulTaskRequest"> & {
   wait?: Duration | undefined;
 
   /**
-   * The worker's registered build: it gets only haul tasks its build
+   * The worker's registered build: it gets only run tasks its build
    * defines. Unset: any. An unknown build fails with FAILED_PRECONDITION;
    * register it and poll again.
    *
@@ -280,56 +280,56 @@ export type PollHaulTaskRequest = Message<"moksha.v1.PollHaulTaskRequest"> & {
 };
 
 /**
- * Describes the message moksha.v1.PollHaulTaskRequest.
- * Use `create(PollHaulTaskRequestSchema)` to create a new message.
+ * Describes the message moksha.v1.PollRunTaskRequest.
+ * Use `create(PollRunTaskRequestSchema)` to create a new message.
  */
-export const PollHaulTaskRequestSchema: GenMessage<PollHaulTaskRequest> = /*@__PURE__*/
+export const PollRunTaskRequestSchema: GenMessage<PollRunTaskRequest> = /*@__PURE__*/
   messageDesc(file_moksha_v1_worker, 6);
 
 /**
- * @generated from message moksha.v1.PollHaulTaskResponse
+ * @generated from message moksha.v1.PollRunTaskResponse
  */
-export type PollHaulTaskResponse = Message<"moksha.v1.PollHaulTaskResponse"> & {
+export type PollRunTaskResponse = Message<"moksha.v1.PollRunTaskResponse"> & {
   /**
    * Unset when there was no work in time.
    *
-   * @generated from field: moksha.v1.HaulTask task = 1;
+   * @generated from field: moksha.v1.RunTask task = 1;
    */
-  task?: HaulTask | undefined;
+  task?: RunTask | undefined;
 };
 
 /**
- * Describes the message moksha.v1.PollHaulTaskResponse.
- * Use `create(PollHaulTaskResponseSchema)` to create a new message.
+ * Describes the message moksha.v1.PollRunTaskResponse.
+ * Use `create(PollRunTaskResponseSchema)` to create a new message.
  */
-export const PollHaulTaskResponseSchema: GenMessage<PollHaulTaskResponse> = /*@__PURE__*/
+export const PollRunTaskResponseSchema: GenMessage<PollRunTaskResponse> = /*@__PURE__*/
   messageDesc(file_moksha_v1_worker, 7);
 
 /**
- * @generated from message moksha.v1.HaulTask
+ * @generated from message moksha.v1.RunTask
  */
-export type HaulTask = Message<"moksha.v1.HaulTask"> & {
+export type RunTask = Message<"moksha.v1.RunTask"> & {
   /**
    * @generated from field: string id = 1;
    */
   id: string;
 
   /**
-   * @generated from field: string haul_id = 2;
+   * @generated from field: string run_id = 2;
    */
-  haulId: string;
+  runId: string;
 
   /**
-   * The registered haul function.
+   * The registered pipeline function.
    *
    * @generated from field: string name = 3;
    */
   name: string;
 
   /**
-   * @generated from field: string dock = 4;
+   * @generated from field: string queue = 4;
    */
-  dock: string;
+  queue: string;
 
   /**
    * @generated from field: string params_json = 5;
@@ -337,21 +337,21 @@ export type HaulTask = Message<"moksha.v1.HaulTask"> & {
   paramsJson: string;
 
   /**
-   * The haul's events a replay reads, up to at least this task's dispatch:
-   * HaulStarted (params), LiftFinished (results), TimerFired, QueryAnswered
-   * and HaulTaskCompleted (the commands recorded so far, for the SDK's own
+   * The run's events a replay reads, up to at least this task's dispatch:
+   * RunStarted (params), StepFinished (results), TimerFired, QueryAnswered
+   * and RunTaskCompleted (the commands recorded so far, for the SDK's own
    * sequence check). Bookkeeping events are left out to keep it small.
    *
-   * @generated from field: repeated moksha.v1.Event logbook = 6;
+   * @generated from field: repeated moksha.v1.Event event_log = 6;
    */
-  logbook: Event[];
+  eventLog: Event[];
 };
 
 /**
- * Describes the message moksha.v1.HaulTask.
- * Use `create(HaulTaskSchema)` to create a new message.
+ * Describes the message moksha.v1.RunTask.
+ * Use `create(RunTaskSchema)` to create a new message.
  */
-export const HaulTaskSchema: GenMessage<HaulTask> = /*@__PURE__*/
+export const RunTaskSchema: GenMessage<RunTask> = /*@__PURE__*/
   messageDesc(file_moksha_v1_worker, 8);
 
 /**
@@ -387,9 +387,9 @@ export const EventSchema: GenMessage<Event> = /*@__PURE__*/
   messageDesc(file_moksha_v1_worker, 9);
 
 /**
- * @generated from message moksha.v1.CompleteHaulTaskRequest
+ * @generated from message moksha.v1.CompleteRunTaskRequest
  */
-export type CompleteHaulTaskRequest = Message<"moksha.v1.CompleteHaulTaskRequest"> & {
+export type CompleteRunTaskRequest = Message<"moksha.v1.CompleteRunTaskRequest"> & {
   /**
    * @generated from field: string task_id = 1;
    */
@@ -402,23 +402,23 @@ export type CompleteHaulTaskRequest = Message<"moksha.v1.CompleteHaulTaskRequest
 
   /**
    * Every command the replay issued, in order, from seq 1, including those
-   * already in the logbook.
+   * already in the event log.
    *
    * @generated from field: repeated moksha.v1.Command commands = 3;
    */
   commands: Command[];
 
   /**
-   * Set when the haul function returned or raised.
+   * Set when the pipeline function returned or raised.
    *
-   * @generated from field: moksha.v1.HaulOutcome outcome = 4;
+   * @generated from field: moksha.v1.RunOutcome outcome = 4;
    */
-  outcome?: HaulOutcome | undefined;
+  outcome?: RunOutcome | undefined;
 
   /**
-   * Set when the replay itself failed (not the haul code), or with reason
-   * "nondeterminism" when the haul code read the clock or randomness: then
-   * the haul becomes stuck instead of failed, and a new build resumes it.
+   * Set when the replay itself failed (not the pipeline code), or with reason
+   * "nondeterminism" when the pipeline code read the clock or randomness: then
+   * the run becomes stuck instead of failed, and a new build resumes it.
    *
    * @generated from field: moksha.v1.TaskError error = 5;
    */
@@ -426,8 +426,8 @@ export type CompleteHaulTaskRequest = Message<"moksha.v1.CompleteHaulTaskRequest
 
   /**
    * Every version marker the replay decided (ctx.version), including those
-   * already in the logbook. One decided differently from the logbook makes
-   * the haul stuck.
+   * already in the event log. One decided differently from the event log makes
+   * the run stuck.
    *
    * @generated from field: repeated moksha.v1.VersionMarker markers = 6;
    */
@@ -435,29 +435,29 @@ export type CompleteHaulTaskRequest = Message<"moksha.v1.CompleteHaulTaskRequest
 };
 
 /**
- * Describes the message moksha.v1.CompleteHaulTaskRequest.
- * Use `create(CompleteHaulTaskRequestSchema)` to create a new message.
+ * Describes the message moksha.v1.CompleteRunTaskRequest.
+ * Use `create(CompleteRunTaskRequestSchema)` to create a new message.
  */
-export const CompleteHaulTaskRequestSchema: GenMessage<CompleteHaulTaskRequest> = /*@__PURE__*/
+export const CompleteRunTaskRequestSchema: GenMessage<CompleteRunTaskRequest> = /*@__PURE__*/
   messageDesc(file_moksha_v1_worker, 10);
 
 /**
- * @generated from message moksha.v1.CompleteHaulTaskResponse
+ * @generated from message moksha.v1.CompleteRunTaskResponse
  */
-export type CompleteHaulTaskResponse = Message<"moksha.v1.CompleteHaulTaskResponse"> & {
+export type CompleteRunTaskResponse = Message<"moksha.v1.CompleteRunTaskResponse"> & {
 };
 
 /**
- * Describes the message moksha.v1.CompleteHaulTaskResponse.
- * Use `create(CompleteHaulTaskResponseSchema)` to create a new message.
+ * Describes the message moksha.v1.CompleteRunTaskResponse.
+ * Use `create(CompleteRunTaskResponseSchema)` to create a new message.
  */
-export const CompleteHaulTaskResponseSchema: GenMessage<CompleteHaulTaskResponse> = /*@__PURE__*/
+export const CompleteRunTaskResponseSchema: GenMessage<CompleteRunTaskResponse> = /*@__PURE__*/
   messageDesc(file_moksha_v1_worker, 11);
 
 /**
- * VersionMarker is which version of a change a haul takes. Markers are kept
+ * VersionMarker is which version of a change a run takes. Markers are kept
  * by name, outside the command sequence, so adding one to the code doesn't
- * contradict running hauls' logbooks.
+ * contradict running pipelines' event logs.
  *
  * @generated from message moksha.v1.VersionMarker
  */
@@ -490,7 +490,7 @@ export type Command = Message<"moksha.v1.Command"> & {
   seq: number;
 
   /**
-   * Where the haul code made the call ("app/hauls.py:42").
+   * Where the pipeline code made the call ("app/pipelines.py:42").
    *
    * @generated from field: string source = 2;
    */
@@ -501,10 +501,10 @@ export type Command = Message<"moksha.v1.Command"> & {
    */
   kind: {
     /**
-     * @generated from field: moksha.v1.LiftCommand lift = 3;
+     * @generated from field: moksha.v1.StepCommand step = 3;
      */
-    value: LiftCommand;
-    case: "lift";
+    value: StepCommand;
+    case: "step";
   } | {
     /**
      * @generated from field: moksha.v1.SleepCommand sleep = 4;
@@ -513,10 +513,10 @@ export type Command = Message<"moksha.v1.Command"> & {
     case: "sleep";
   } | {
     /**
-     * @generated from field: moksha.v1.LatestPalletCommand latest_pallet = 5;
+     * @generated from field: moksha.v1.LatestDataVersionCommand latest_data_version = 5;
      */
-    value: LatestPalletCommand;
-    case: "latestPallet";
+    value: LatestDataVersionCommand;
+    case: "latestDataVersion";
   } | {
     /**
      * @generated from field: moksha.v1.WaitSignalCommand wait_signal = 6;
@@ -525,10 +525,10 @@ export type Command = Message<"moksha.v1.Command"> & {
     case: "waitSignal";
   } | {
     /**
-     * @generated from field: moksha.v1.StartHaulCommand start_haul = 7;
+     * @generated from field: moksha.v1.StartRunCommand start_run = 7;
      */
-    value: StartHaulCommand;
-    case: "startHaul";
+    value: StartRunCommand;
+    case: "startRun";
   } | { case: undefined; value?: undefined };
 };
 
@@ -540,13 +540,13 @@ export const CommandSchema: GenMessage<Command> = /*@__PURE__*/
   messageDesc(file_moksha_v1_worker, 13);
 
 /**
- * StartHaulCommand starts another haul (a child) at once. The logbook
+ * StartRunCommand starts another run (a child) at once. The event log
  * answers it with ChildStarted (the child's ID) and, if wait is set, with
  * ChildFinished once the child ends (or at once if it couldn't start).
  *
- * @generated from message moksha.v1.StartHaulCommand
+ * @generated from message moksha.v1.StartRunCommand
  */
-export type StartHaulCommand = Message<"moksha.v1.StartHaulCommand"> & {
+export type StartRunCommand = Message<"moksha.v1.StartRunCommand"> & {
   /**
    * @generated from field: string name = 1;
    */
@@ -560,7 +560,7 @@ export type StartHaulCommand = Message<"moksha.v1.StartHaulCommand"> & {
   paramsJson: string;
 
   /**
-   * The haul waits for the child's result (ctx.haul); ending the haul
+   * The run waits for the child's result (ctx.run); ending the run
    * cancels it.
    *
    * @generated from field: bool wait = 3;
@@ -568,22 +568,22 @@ export type StartHaulCommand = Message<"moksha.v1.StartHaulCommand"> & {
   wait: boolean;
 
   /**
-   * Default: the starting haul's dock.
+   * Default: the starting run's queue.
    *
-   * @generated from field: string dock = 4;
+   * @generated from field: string queue = 4;
    */
-  dock: string;
+  queue: string;
 };
 
 /**
- * Describes the message moksha.v1.StartHaulCommand.
- * Use `create(StartHaulCommandSchema)` to create a new message.
+ * Describes the message moksha.v1.StartRunCommand.
+ * Use `create(StartRunCommandSchema)` to create a new message.
  */
-export const StartHaulCommandSchema: GenMessage<StartHaulCommand> = /*@__PURE__*/
+export const StartRunCommandSchema: GenMessage<StartRunCommand> = /*@__PURE__*/
   messageDesc(file_moksha_v1_worker, 14);
 
 /**
- * WaitSignalCommand waits for a signal by name. The logbook answers it with
+ * WaitSignalCommand waits for a signal by name. The event log answers it with
  * SignalDelivered: the signal's payload, or timed_out once timeout passed.
  *
  * @generated from message moksha.v1.WaitSignalCommand
@@ -610,13 +610,13 @@ export const WaitSignalCommandSchema: GenMessage<WaitSignalCommand> = /*@__PURE_
   messageDesc(file_moksha_v1_worker, 15);
 
 /**
- * LatestPalletCommand asks for a dataset partition's newest committed
- * pallet. The server answers at once and records the answer in the logbook
- * (QueryAnswered), so every replay sees the same pallet.
+ * LatestDataVersionCommand asks for a dataset partition's newest committed
+ * data version. The server answers at once and records the answer in the event log
+ * (QueryAnswered), so every replay sees the same data version.
  *
- * @generated from message moksha.v1.LatestPalletCommand
+ * @generated from message moksha.v1.LatestDataVersionCommand
  */
-export type LatestPalletCommand = Message<"moksha.v1.LatestPalletCommand"> & {
+export type LatestDataVersionCommand = Message<"moksha.v1.LatestDataVersionCommand"> & {
   /**
    * @generated from field: string dataset = 1;
    */
@@ -629,27 +629,27 @@ export type LatestPalletCommand = Message<"moksha.v1.LatestPalletCommand"> & {
 };
 
 /**
- * Describes the message moksha.v1.LatestPalletCommand.
- * Use `create(LatestPalletCommandSchema)` to create a new message.
+ * Describes the message moksha.v1.LatestDataVersionCommand.
+ * Use `create(LatestDataVersionCommandSchema)` to create a new message.
  */
-export const LatestPalletCommandSchema: GenMessage<LatestPalletCommand> = /*@__PURE__*/
+export const LatestDataVersionCommandSchema: GenMessage<LatestDataVersionCommand> = /*@__PURE__*/
   messageDesc(file_moksha_v1_worker, 16);
 
 /**
- * @generated from message moksha.v1.LiftCommand
+ * @generated from message moksha.v1.StepCommand
  */
-export type LiftCommand = Message<"moksha.v1.LiftCommand"> & {
+export type StepCommand = Message<"moksha.v1.StepCommand"> & {
   /**
    * @generated from field: string name = 1;
    */
   name: string;
 
   /**
-   * Default: the haul's dock.
+   * Default: the run's queue.
    *
-   * @generated from field: string dock = 2;
+   * @generated from field: string queue = 2;
    */
-  dock: string;
+  queue: string;
 
   /**
    * @generated from field: string args_json = 3;
@@ -669,14 +669,14 @@ export type LiftCommand = Message<"moksha.v1.LiftCommand"> & {
   retry?: RetryPolicy | undefined;
 
   /**
-   * The pallet the lift produces, if any.
+   * The data version the step produces, if any.
    *
    * @generated from field: moksha.v1.Output output = 6;
    */
   output?: Output | undefined;
 
   /**
-   * Pallets passed to the lift.
+   * Data versions passed to the step.
    *
    * @generated from field: repeated moksha.v1.InputRef inputs = 7;
    */
@@ -690,8 +690,8 @@ export type LiftCommand = Message<"moksha.v1.LiftCommand"> & {
   memo: string;
 
   /**
-   * Fan-out limits: the server starts this lift only while each group has
-   * fewer than max of the haul's lifts queued or running.
+   * Fan-out limits: the server starts this step only while each group has
+   * fewer than max of the run's steps queued or running.
    *
    * @generated from field: repeated moksha.v1.ParallelLimit limits = 9;
    */
@@ -699,10 +699,10 @@ export type LiftCommand = Message<"moksha.v1.LiftCommand"> & {
 };
 
 /**
- * Describes the message moksha.v1.LiftCommand.
- * Use `create(LiftCommandSchema)` to create a new message.
+ * Describes the message moksha.v1.StepCommand.
+ * Use `create(StepCommandSchema)` to create a new message.
  */
-export const LiftCommandSchema: GenMessage<LiftCommand> = /*@__PURE__*/
+export const StepCommandSchema: GenMessage<StepCommand> = /*@__PURE__*/
   messageDesc(file_moksha_v1_worker, 17);
 
 /**
@@ -710,7 +710,7 @@ export const LiftCommandSchema: GenMessage<LiftCommand> = /*@__PURE__*/
  */
 export type ParallelLimit = Message<"moksha.v1.ParallelLimit"> & {
   /**
-   * Per haul, e.g. "haul" or "gather:12".
+   * Per run, e.g. "run" or "gather:12".
    *
    * @generated from field: string group = 1;
    */
@@ -819,12 +819,12 @@ export type InputRef = Message<"moksha.v1.InputRef"> & {
   name: string;
 
   /**
-   * @generated from field: string pallet = 2;
+   * @generated from field: string data_version = 2;
    */
-  pallet: string;
+  dataVersion: string;
 
   /**
-   * The pallet's manifest (in lift tasks; ignored in commands).
+   * The data version's manifest (in step tasks; ignored in commands).
    *
    * @generated from field: string location = 3;
    */
@@ -839,13 +839,13 @@ export const InputRefSchema: GenMessage<InputRef> = /*@__PURE__*/
   messageDesc(file_moksha_v1_worker, 22);
 
 /**
- * @generated from message moksha.v1.HaulOutcome
+ * @generated from message moksha.v1.RunOutcome
  */
-export type HaulOutcome = Message<"moksha.v1.HaulOutcome"> & {
+export type RunOutcome = Message<"moksha.v1.RunOutcome"> & {
   /**
-   * @generated from field: moksha.v1.HaulOutcome.Status status = 1;
+   * @generated from field: moksha.v1.RunOutcome.Status status = 1;
    */
-  status: HaulOutcome_Status;
+  status: RunOutcome_Status;
 
   /**
    * @generated from field: string result_json = 2;
@@ -863,7 +863,7 @@ export type HaulOutcome = Message<"moksha.v1.HaulOutcome"> & {
   message: string;
 
   /**
-   * STATUS_CONTINUED: the next haul's params, a JSON object.
+   * STATUS_CONTINUED: the next run's params, a JSON object.
    *
    * @generated from field: string params_json = 5;
    */
@@ -871,16 +871,16 @@ export type HaulOutcome = Message<"moksha.v1.HaulOutcome"> & {
 };
 
 /**
- * Describes the message moksha.v1.HaulOutcome.
- * Use `create(HaulOutcomeSchema)` to create a new message.
+ * Describes the message moksha.v1.RunOutcome.
+ * Use `create(RunOutcomeSchema)` to create a new message.
  */
-export const HaulOutcomeSchema: GenMessage<HaulOutcome> = /*@__PURE__*/
+export const RunOutcomeSchema: GenMessage<RunOutcome> = /*@__PURE__*/
   messageDesc(file_moksha_v1_worker, 23);
 
 /**
- * @generated from enum moksha.v1.HaulOutcome.Status
+ * @generated from enum moksha.v1.RunOutcome.Status
  */
-export enum HaulOutcome_Status {
+export enum RunOutcome_Status {
   /**
    * @generated from enum value: STATUS_UNSPECIFIED = 0;
    */
@@ -897,8 +897,8 @@ export enum HaulOutcome_Status {
   FAILED = 2,
 
   /**
-   * continue_as_new: the haul ends and a new one of the same name starts
-   * with params_json and a fresh logbook.
+   * continue_as_new: the run ends and a new one of the same name starts
+   * with params_json and a fresh event log.
    *
    * @generated from enum value: STATUS_CONTINUED = 3;
    */
@@ -906,9 +906,9 @@ export enum HaulOutcome_Status {
 }
 
 /**
- * Describes the enum moksha.v1.HaulOutcome.Status.
+ * Describes the enum moksha.v1.RunOutcome.Status.
  */
-export const HaulOutcome_StatusSchema: GenEnum<HaulOutcome_Status> = /*@__PURE__*/
+export const RunOutcome_StatusSchema: GenEnum<RunOutcome_Status> = /*@__PURE__*/
   enumDesc(file_moksha_v1_worker, 23, 0);
 
 /**
@@ -934,18 +934,18 @@ export const TaskErrorSchema: GenMessage<TaskError> = /*@__PURE__*/
   messageDesc(file_moksha_v1_worker, 24);
 
 /**
- * @generated from message moksha.v1.PollLiftTaskRequest
+ * @generated from message moksha.v1.PollStepTaskRequest
  */
-export type PollLiftTaskRequest = Message<"moksha.v1.PollLiftTaskRequest"> & {
+export type PollStepTaskRequest = Message<"moksha.v1.PollStepTaskRequest"> & {
   /**
    * @generated from field: string worker_id = 1;
    */
   workerId: string;
 
   /**
-   * @generated from field: repeated string docks = 2;
+   * @generated from field: repeated string queues = 2;
    */
-  docks: string[];
+  queues: string[];
 
   /**
    * @generated from field: google.protobuf.Duration wait = 3;
@@ -953,7 +953,7 @@ export type PollLiftTaskRequest = Message<"moksha.v1.PollLiftTaskRequest"> & {
   wait?: Duration | undefined;
 
   /**
-   * As in PollHaulTaskRequest: only lifts the worker's build defines.
+   * As in PollRunTaskRequest: only steps the worker's build defines.
    *
    * @generated from field: string build_id = 4;
    */
@@ -961,35 +961,35 @@ export type PollLiftTaskRequest = Message<"moksha.v1.PollLiftTaskRequest"> & {
 };
 
 /**
- * Describes the message moksha.v1.PollLiftTaskRequest.
- * Use `create(PollLiftTaskRequestSchema)` to create a new message.
+ * Describes the message moksha.v1.PollStepTaskRequest.
+ * Use `create(PollStepTaskRequestSchema)` to create a new message.
  */
-export const PollLiftTaskRequestSchema: GenMessage<PollLiftTaskRequest> = /*@__PURE__*/
+export const PollStepTaskRequestSchema: GenMessage<PollStepTaskRequest> = /*@__PURE__*/
   messageDesc(file_moksha_v1_worker, 25);
 
 /**
- * @generated from message moksha.v1.PollLiftTaskResponse
+ * @generated from message moksha.v1.PollStepTaskResponse
  */
-export type PollLiftTaskResponse = Message<"moksha.v1.PollLiftTaskResponse"> & {
+export type PollStepTaskResponse = Message<"moksha.v1.PollStepTaskResponse"> & {
   /**
    * Unset when there was no work in time.
    *
-   * @generated from field: moksha.v1.LiftTask task = 1;
+   * @generated from field: moksha.v1.StepTask task = 1;
    */
-  task?: LiftTask | undefined;
+  task?: StepTask | undefined;
 };
 
 /**
- * Describes the message moksha.v1.PollLiftTaskResponse.
- * Use `create(PollLiftTaskResponseSchema)` to create a new message.
+ * Describes the message moksha.v1.PollStepTaskResponse.
+ * Use `create(PollStepTaskResponseSchema)` to create a new message.
  */
-export const PollLiftTaskResponseSchema: GenMessage<PollLiftTaskResponse> = /*@__PURE__*/
+export const PollStepTaskResponseSchema: GenMessage<PollStepTaskResponse> = /*@__PURE__*/
   messageDesc(file_moksha_v1_worker, 26);
 
 /**
- * @generated from message moksha.v1.LiftTask
+ * @generated from message moksha.v1.StepTask
  */
-export type LiftTask = Message<"moksha.v1.LiftTask"> & {
+export type StepTask = Message<"moksha.v1.StepTask"> & {
   /**
    * The attempt ID: report and heartbeat with it.
    *
@@ -998,9 +998,9 @@ export type LiftTask = Message<"moksha.v1.LiftTask"> & {
   id: string;
 
   /**
-   * @generated from field: string haul_id = 2;
+   * @generated from field: string run_id = 2;
    */
-  haulId: string;
+  runId: string;
 
   /**
    * @generated from field: int32 seq = 3;
@@ -1013,9 +1013,9 @@ export type LiftTask = Message<"moksha.v1.LiftTask"> & {
   name: string;
 
   /**
-   * @generated from field: string dock = 5;
+   * @generated from field: string queue = 5;
    */
-  dock: string;
+  queue: string;
 
   /**
    * @generated from field: string args_json = 6;
@@ -1023,7 +1023,7 @@ export type LiftTask = Message<"moksha.v1.LiftTask"> & {
   argsJson: string;
 
   /**
-   * For a lift with an output: where its pallet goes, and the prefix this
+   * For a step with an output: where its data version goes, and the prefix this
    * attempt writes its files to.
    *
    * @generated from field: moksha.v1.Output output = 7;
@@ -1036,7 +1036,7 @@ export type LiftTask = Message<"moksha.v1.LiftTask"> & {
   staging: string;
 
   /**
-   * The pallets passed to the lift, by argument name.
+   * The data versions passed to the step, by argument name.
    *
    * @generated from field: repeated moksha.v1.InputRef inputs = 9;
    */
@@ -1060,25 +1060,25 @@ export type LiftTask = Message<"moksha.v1.LiftTask"> & {
 };
 
 /**
- * Describes the message moksha.v1.LiftTask.
- * Use `create(LiftTaskSchema)` to create a new message.
+ * Describes the message moksha.v1.StepTask.
+ * Use `create(StepTaskSchema)` to create a new message.
  */
-export const LiftTaskSchema: GenMessage<LiftTask> = /*@__PURE__*/
+export const StepTaskSchema: GenMessage<StepTask> = /*@__PURE__*/
   messageDesc(file_moksha_v1_worker, 27);
 
 /**
- * @generated from message moksha.v1.CompleteLiftTaskRequest
+ * @generated from message moksha.v1.CompleteStepTaskRequest
  */
-export type CompleteLiftTaskRequest = Message<"moksha.v1.CompleteLiftTaskRequest"> & {
+export type CompleteStepTaskRequest = Message<"moksha.v1.CompleteStepTaskRequest"> & {
   /**
    * @generated from field: string attempt_id = 1;
    */
   attemptId: string;
 
   /**
-   * @generated from field: moksha.v1.CompleteLiftTaskRequest.Status status = 2;
+   * @generated from field: moksha.v1.CompleteStepTaskRequest.Status status = 2;
    */
-  status: CompleteLiftTaskRequest_Status;
+  status: CompleteStepTaskRequest_Status;
 
   /**
    * @generated from field: string result_json = 3;
@@ -1103,24 +1103,24 @@ export type CompleteLiftTaskRequest = Message<"moksha.v1.CompleteLiftTaskRequest
   noRetry: boolean;
 
   /**
-   * What a succeeded attempt of a lift with an output wrote.
+   * What a succeeded attempt of a step with an output wrote.
    *
-   * @generated from field: moksha.v1.LiftOutput output = 7;
+   * @generated from field: moksha.v1.StepOutput output = 7;
    */
-  output?: LiftOutput | undefined;
+  output?: StepOutput | undefined;
 };
 
 /**
- * Describes the message moksha.v1.CompleteLiftTaskRequest.
- * Use `create(CompleteLiftTaskRequestSchema)` to create a new message.
+ * Describes the message moksha.v1.CompleteStepTaskRequest.
+ * Use `create(CompleteStepTaskRequestSchema)` to create a new message.
  */
-export const CompleteLiftTaskRequestSchema: GenMessage<CompleteLiftTaskRequest> = /*@__PURE__*/
+export const CompleteStepTaskRequestSchema: GenMessage<CompleteStepTaskRequest> = /*@__PURE__*/
   messageDesc(file_moksha_v1_worker, 28);
 
 /**
- * @generated from enum moksha.v1.CompleteLiftTaskRequest.Status
+ * @generated from enum moksha.v1.CompleteStepTaskRequest.Status
  */
-export enum CompleteLiftTaskRequest_Status {
+export enum CompleteStepTaskRequest_Status {
   /**
    * @generated from enum value: STATUS_UNSPECIFIED = 0;
    */
@@ -1138,15 +1138,15 @@ export enum CompleteLiftTaskRequest_Status {
 }
 
 /**
- * Describes the enum moksha.v1.CompleteLiftTaskRequest.Status.
+ * Describes the enum moksha.v1.CompleteStepTaskRequest.Status.
  */
-export const CompleteLiftTaskRequest_StatusSchema: GenEnum<CompleteLiftTaskRequest_Status> = /*@__PURE__*/
+export const CompleteStepTaskRequest_StatusSchema: GenEnum<CompleteStepTaskRequest_Status> = /*@__PURE__*/
   enumDesc(file_moksha_v1_worker, 28, 0);
 
 /**
- * @generated from message moksha.v1.LiftOutput
+ * @generated from message moksha.v1.StepOutput
  */
-export type LiftOutput = Message<"moksha.v1.LiftOutput"> & {
+export type StepOutput = Message<"moksha.v1.StepOutput"> & {
   /**
    * @generated from field: repeated moksha.v1.File files = 1;
    */
@@ -1164,10 +1164,10 @@ export type LiftOutput = Message<"moksha.v1.LiftOutput"> & {
 };
 
 /**
- * Describes the message moksha.v1.LiftOutput.
- * Use `create(LiftOutputSchema)` to create a new message.
+ * Describes the message moksha.v1.StepOutput.
+ * Use `create(StepOutputSchema)` to create a new message.
  */
-export const LiftOutputSchema: GenMessage<LiftOutput> = /*@__PURE__*/
+export const StepOutputSchema: GenMessage<StepOutput> = /*@__PURE__*/
   messageDesc(file_moksha_v1_worker, 29);
 
 /**
@@ -1202,16 +1202,16 @@ export const FileSchema: GenMessage<File> = /*@__PURE__*/
   messageDesc(file_moksha_v1_worker, 30);
 
 /**
- * @generated from message moksha.v1.CompleteLiftTaskResponse
+ * @generated from message moksha.v1.CompleteStepTaskResponse
  */
-export type CompleteLiftTaskResponse = Message<"moksha.v1.CompleteLiftTaskResponse"> & {
+export type CompleteStepTaskResponse = Message<"moksha.v1.CompleteStepTaskResponse"> & {
 };
 
 /**
- * Describes the message moksha.v1.CompleteLiftTaskResponse.
- * Use `create(CompleteLiftTaskResponseSchema)` to create a new message.
+ * Describes the message moksha.v1.CompleteStepTaskResponse.
+ * Use `create(CompleteStepTaskResponseSchema)` to create a new message.
  */
-export const CompleteLiftTaskResponseSchema: GenMessage<CompleteLiftTaskResponse> = /*@__PURE__*/
+export const CompleteStepTaskResponseSchema: GenMessage<CompleteStepTaskResponse> = /*@__PURE__*/
   messageDesc(file_moksha_v1_worker, 31);
 
 /**
@@ -1224,7 +1224,7 @@ export type HeartbeatRequest = Message<"moksha.v1.HeartbeatRequest"> & {
   workerId: string;
 
   /**
-   * Haul task and lift attempt IDs the worker is running.
+   * Run task and step attempt IDs the worker is running.
    *
    * @generated from field: repeated string task_ids = 2;
    */
@@ -1296,7 +1296,7 @@ export type GetUploadURLsRequest = Message<"moksha.v1.GetUploadURLsRequest"> & {
   attemptId: string;
 
   /**
-   * The files the attempt wrote, as CompleteLiftTask will report them.
+   * The files the attempt wrote, as CompleteStepTask will report them.
    *
    * @generated from field: repeated moksha.v1.File files = 2;
    */
@@ -1337,11 +1337,11 @@ export type GetDownloadURLsRequest = Message<"moksha.v1.GetDownloadURLsRequest">
   attemptId: string;
 
   /**
-   * One of the attempt's input pallets.
+   * One of the attempt's input data versions.
    *
-   * @generated from field: string pallet = 2;
+   * @generated from field: string data_version = 2;
    */
-  pallet: string;
+  dataVersion: string;
 };
 
 /**
@@ -1356,7 +1356,7 @@ export const GetDownloadURLsRequestSchema: GenMessage<GetDownloadURLsRequest> = 
  */
 export type GetDownloadURLsResponse = Message<"moksha.v1.GetDownloadURLsResponse"> & {
   /**
-   * The pallet's manifest, as stored.
+   * The data version's manifest, as stored.
    *
    * @generated from field: string manifest_json = 1;
    */
@@ -1379,11 +1379,11 @@ export const GetDownloadURLsResponseSchema: GenMessage<GetDownloadURLsResponse> 
 
 /**
  * WorkerService is what workers call: they register their build, long-poll
- * docks for haul tasks and lift tasks, report results and send heartbeats.
+ * queues for run tasks and step tasks, report results and send heartbeats.
  * It is a Connect service, so besides gRPC it can be called as plain HTTP:
  * POST /moksha.v1.WorkerService/<Method> with a JSON body.
  *
- * JSON values that belong to user code (arguments, results, haul params,
+ * JSON values that belong to user code (arguments, results, run params,
  * event payloads, stats) travel as JSON text in *_json fields, so numbers
  * keep the exact form they were written in.
  *
@@ -1391,9 +1391,9 @@ export const GetDownloadURLsResponseSchema: GenMessage<GetDownloadURLsResponse> 
  */
 export const WorkerService: GenService<{
   /**
-   * RegisterBuild announces a worker build: the hauls it defines and the
-   * code version of each of its lifts. Builds are immutable. A new build
-   * gives stuck hauls another replay.
+   * RegisterBuild announces a worker build: the pipelines it defines and the
+   * code version of each of its steps. Builds are immutable. A new build
+   * gives stuck runs another replay.
    *
    * @generated from rpc moksha.v1.WorkerService.RegisterBuild
    */
@@ -1403,45 +1403,45 @@ export const WorkerService: GenService<{
     output: typeof RegisterBuildResponseSchema;
   },
   /**
-   * PollHaulTask waits up to `wait` for a haul to replay.
+   * PollRunTask waits up to `wait` for a run to replay.
    *
-   * @generated from rpc moksha.v1.WorkerService.PollHaulTask
+   * @generated from rpc moksha.v1.WorkerService.PollRunTask
    */
-  pollHaulTask: {
+  pollRunTask: {
     methodKind: "unary";
-    input: typeof PollHaulTaskRequestSchema;
-    output: typeof PollHaulTaskResponseSchema;
+    input: typeof PollRunTaskRequestSchema;
+    output: typeof PollRunTaskResponseSchema;
   },
   /**
-   * CompleteHaulTask reports every command a replay issued, and how the haul
+   * CompleteRunTask reports every command a replay issued, and how the run
    * function ended if it did.
    *
-   * @generated from rpc moksha.v1.WorkerService.CompleteHaulTask
+   * @generated from rpc moksha.v1.WorkerService.CompleteRunTask
    */
-  completeHaulTask: {
+  completeRunTask: {
     methodKind: "unary";
-    input: typeof CompleteHaulTaskRequestSchema;
-    output: typeof CompleteHaulTaskResponseSchema;
+    input: typeof CompleteRunTaskRequestSchema;
+    output: typeof CompleteRunTaskResponseSchema;
   },
   /**
-   * PollLiftTask waits up to `wait` for a lift attempt to run.
+   * PollStepTask waits up to `wait` for a step attempt to run.
    *
-   * @generated from rpc moksha.v1.WorkerService.PollLiftTask
+   * @generated from rpc moksha.v1.WorkerService.PollStepTask
    */
-  pollLiftTask: {
+  pollStepTask: {
     methodKind: "unary";
-    input: typeof PollLiftTaskRequestSchema;
-    output: typeof PollLiftTaskResponseSchema;
+    input: typeof PollStepTaskRequestSchema;
+    output: typeof PollStepTaskResponseSchema;
   },
   /**
-   * CompleteLiftTask reports a lift attempt's result.
+   * CompleteStepTask reports a step attempt's result.
    *
-   * @generated from rpc moksha.v1.WorkerService.CompleteLiftTask
+   * @generated from rpc moksha.v1.WorkerService.CompleteStepTask
    */
-  completeLiftTask: {
+  completeStepTask: {
     methodKind: "unary";
-    input: typeof CompleteLiftTaskRequestSchema;
-    output: typeof CompleteLiftTaskResponseSchema;
+    input: typeof CompleteStepTaskRequestSchema;
+    output: typeof CompleteStepTaskResponseSchema;
   },
   /**
    * Heartbeat keeps the leases of a worker's running tasks alive and tells it
@@ -1456,7 +1456,7 @@ export const WorkerService: GenService<{
   },
   /**
    * GetUploadURLs and GetDownloadURLs are for workers that can't reach the
-   * bucket as a local directory (see LiftTask.bucket_id): URLs to PUT a
+   * bucket as a local directory (see StepTask.bucket_id): URLs to PUT a
    * running attempt's output files to its staging prefix, and to GET the
    * files of its inputs. They are presigned URLs of the object store, or
    * paths on this server (relative URLs, resolved against the server's).

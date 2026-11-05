@@ -23,27 +23,27 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type ExpirePalletsRequest struct {
+type ExpireDataVersionsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	DryRun        bool                   `protobuf:"varint,1,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ExpirePalletsRequest) Reset() {
-	*x = ExpirePalletsRequest{}
+func (x *ExpireDataVersionsRequest) Reset() {
+	*x = ExpireDataVersionsRequest{}
 	mi := &file_moksha_v1_catalog_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ExpirePalletsRequest) String() string {
+func (x *ExpireDataVersionsRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ExpirePalletsRequest) ProtoMessage() {}
+func (*ExpireDataVersionsRequest) ProtoMessage() {}
 
-func (x *ExpirePalletsRequest) ProtoReflect() protoreflect.Message {
+func (x *ExpireDataVersionsRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_catalog_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -55,40 +55,40 @@ func (x *ExpirePalletsRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ExpirePalletsRequest.ProtoReflect.Descriptor instead.
-func (*ExpirePalletsRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ExpireDataVersionsRequest.ProtoReflect.Descriptor instead.
+func (*ExpireDataVersionsRequest) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_catalog_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *ExpirePalletsRequest) GetDryRun() bool {
+func (x *ExpireDataVersionsRequest) GetDryRun() bool {
 	if x != nil {
 		return x.DryRun
 	}
 	return false
 }
 
-type ExpiredPallet struct {
+type ExpiredDataVersion struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Pallet        *Pallet                `protobuf:"bytes,1,opt,name=pallet,proto3" json:"pallet,omitempty"`
+	DataVersion   *DataVersion           `protobuf:"bytes,1,opt,name=data_version,json=dataVersion,proto3" json:"data_version,omitempty"`
 	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ExpiredPallet) Reset() {
-	*x = ExpiredPallet{}
+func (x *ExpiredDataVersion) Reset() {
+	*x = ExpiredDataVersion{}
 	mi := &file_moksha_v1_catalog_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ExpiredPallet) String() string {
+func (x *ExpiredDataVersion) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ExpiredPallet) ProtoMessage() {}
+func (*ExpiredDataVersion) ProtoMessage() {}
 
-func (x *ExpiredPallet) ProtoReflect() protoreflect.Message {
+func (x *ExpiredDataVersion) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_catalog_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -100,46 +100,46 @@ func (x *ExpiredPallet) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ExpiredPallet.ProtoReflect.Descriptor instead.
-func (*ExpiredPallet) Descriptor() ([]byte, []int) {
+// Deprecated: Use ExpiredDataVersion.ProtoReflect.Descriptor instead.
+func (*ExpiredDataVersion) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_catalog_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ExpiredPallet) GetPallet() *Pallet {
+func (x *ExpiredDataVersion) GetDataVersion() *DataVersion {
 	if x != nil {
-		return x.Pallet
+		return x.DataVersion
 	}
 	return nil
 }
 
-func (x *ExpiredPallet) GetReason() string {
+func (x *ExpiredDataVersion) GetReason() string {
 	if x != nil {
 		return x.Reason
 	}
 	return ""
 }
 
-type ExpirePalletsResponse struct {
+type ExpireDataVersionsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Expired       []*ExpiredPallet       `protobuf:"bytes,1,rep,name=expired,proto3" json:"expired,omitempty"`
+	Expired       []*ExpiredDataVersion  `protobuf:"bytes,1,rep,name=expired,proto3" json:"expired,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ExpirePalletsResponse) Reset() {
-	*x = ExpirePalletsResponse{}
+func (x *ExpireDataVersionsResponse) Reset() {
+	*x = ExpireDataVersionsResponse{}
 	mi := &file_moksha_v1_catalog_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ExpirePalletsResponse) String() string {
+func (x *ExpireDataVersionsResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ExpirePalletsResponse) ProtoMessage() {}
+func (*ExpireDataVersionsResponse) ProtoMessage() {}
 
-func (x *ExpirePalletsResponse) ProtoReflect() protoreflect.Message {
+func (x *ExpireDataVersionsResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_catalog_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -151,12 +151,12 @@ func (x *ExpirePalletsResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ExpirePalletsResponse.ProtoReflect.Descriptor instead.
-func (*ExpirePalletsResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ExpireDataVersionsResponse.ProtoReflect.Descriptor instead.
+func (*ExpireDataVersionsResponse) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_catalog_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *ExpirePalletsResponse) GetExpired() []*ExpiredPallet {
+func (x *ExpireDataVersionsResponse) GetExpired() []*ExpiredDataVersion {
 	if x != nil {
 		return x.Expired
 	}
@@ -217,32 +217,32 @@ func (x *ListStaleRequest) GetDataset() string {
 	return ""
 }
 
-type StalePallet struct {
+type StaleDataVersion struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The partition's latest pallet.
-	Pallet  *Pallet  `protobuf:"bytes,1,opt,name=pallet,proto3" json:"pallet,omitempty"`
-	Lift    string   `protobuf:"bytes,2,opt,name=lift,proto3" json:"lift,omitempty"`
-	Reasons []string `protobuf:"bytes,3,rep,name=reasons,proto3" json:"reasons,omitempty"`
-	// The haul that built it: starting it again with its params refreshes it.
-	Haul          *HaulRef `protobuf:"bytes,4,opt,name=haul,proto3" json:"haul,omitempty"`
+	// The partition's latest data version.
+	DataVersion *DataVersion `protobuf:"bytes,1,opt,name=data_version,json=dataVersion,proto3" json:"data_version,omitempty"`
+	Step        string       `protobuf:"bytes,2,opt,name=step,proto3" json:"step,omitempty"`
+	Reasons     []string     `protobuf:"bytes,3,rep,name=reasons,proto3" json:"reasons,omitempty"`
+	// The run that built it: starting it again with its params refreshes it.
+	Run           *RunRef `protobuf:"bytes,4,opt,name=run,proto3" json:"run,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *StalePallet) Reset() {
-	*x = StalePallet{}
+func (x *StaleDataVersion) Reset() {
+	*x = StaleDataVersion{}
 	mi := &file_moksha_v1_catalog_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *StalePallet) String() string {
+func (x *StaleDataVersion) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*StalePallet) ProtoMessage() {}
+func (*StaleDataVersion) ProtoMessage() {}
 
-func (x *StalePallet) ProtoReflect() protoreflect.Message {
+func (x *StaleDataVersion) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_catalog_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -254,42 +254,42 @@ func (x *StalePallet) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use StalePallet.ProtoReflect.Descriptor instead.
-func (*StalePallet) Descriptor() ([]byte, []int) {
+// Deprecated: Use StaleDataVersion.ProtoReflect.Descriptor instead.
+func (*StaleDataVersion) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_catalog_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *StalePallet) GetPallet() *Pallet {
+func (x *StaleDataVersion) GetDataVersion() *DataVersion {
 	if x != nil {
-		return x.Pallet
+		return x.DataVersion
 	}
 	return nil
 }
 
-func (x *StalePallet) GetLift() string {
+func (x *StaleDataVersion) GetStep() string {
 	if x != nil {
-		return x.Lift
+		return x.Step
 	}
 	return ""
 }
 
-func (x *StalePallet) GetReasons() []string {
+func (x *StaleDataVersion) GetReasons() []string {
 	if x != nil {
 		return x.Reasons
 	}
 	return nil
 }
 
-func (x *StalePallet) GetHaul() *HaulRef {
+func (x *StaleDataVersion) GetRun() *RunRef {
 	if x != nil {
-		return x.Haul
+		return x.Run
 	}
 	return nil
 }
 
 type ListStaleResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Stale         []*StalePallet         `protobuf:"bytes,1,rep,name=stale,proto3" json:"stale,omitempty"`
+	Stale         []*StaleDataVersion    `protobuf:"bytes,1,rep,name=stale,proto3" json:"stale,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -324,17 +324,17 @@ func (*ListStaleResponse) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_catalog_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *ListStaleResponse) GetStale() []*StalePallet {
+func (x *ListStaleResponse) GetStale() []*StaleDataVersion {
 	if x != nil {
 		return x.Stale
 	}
 	return nil
 }
 
-type InvalidatePalletRequest struct {
+type InvalidateDataVersionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Required; recorded with every pallet marked.
+	// Required; recorded with every data version marked.
 	Reason string `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
 	// Who asked, for the record.
 	By            string `protobuf:"bytes,3,opt,name=by,proto3" json:"by,omitempty"`
@@ -343,20 +343,20 @@ type InvalidatePalletRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *InvalidatePalletRequest) Reset() {
-	*x = InvalidatePalletRequest{}
+func (x *InvalidateDataVersionRequest) Reset() {
+	*x = InvalidateDataVersionRequest{}
 	mi := &file_moksha_v1_catalog_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *InvalidatePalletRequest) String() string {
+func (x *InvalidateDataVersionRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*InvalidatePalletRequest) ProtoMessage() {}
+func (*InvalidateDataVersionRequest) ProtoMessage() {}
 
-func (x *InvalidatePalletRequest) ProtoReflect() protoreflect.Message {
+func (x *InvalidateDataVersionRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_catalog_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -368,42 +368,42 @@ func (x *InvalidatePalletRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use InvalidatePalletRequest.ProtoReflect.Descriptor instead.
-func (*InvalidatePalletRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use InvalidateDataVersionRequest.ProtoReflect.Descriptor instead.
+func (*InvalidateDataVersionRequest) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_catalog_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *InvalidatePalletRequest) GetId() string {
+func (x *InvalidateDataVersionRequest) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *InvalidatePalletRequest) GetReason() string {
+func (x *InvalidateDataVersionRequest) GetReason() string {
 	if x != nil {
 		return x.Reason
 	}
 	return ""
 }
 
-func (x *InvalidatePalletRequest) GetBy() string {
+func (x *InvalidateDataVersionRequest) GetBy() string {
 	if x != nil {
 		return x.By
 	}
 	return ""
 }
 
-func (x *InvalidatePalletRequest) GetDryRun() bool {
+func (x *InvalidateDataVersionRequest) GetDryRun() bool {
 	if x != nil {
 		return x.DryRun
 	}
 	return false
 }
 
-// HaulRef is a haul that built an invalidated pallet: replaying it with the
+// RunRef is a run that built an invalidated data version: replaying it with the
 // same params recomputes what was invalidated.
-type HaulRef struct {
+type RunRef struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
@@ -413,20 +413,20 @@ type HaulRef struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *HaulRef) Reset() {
-	*x = HaulRef{}
+func (x *RunRef) Reset() {
+	*x = RunRef{}
 	mi := &file_moksha_v1_catalog_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *HaulRef) String() string {
+func (x *RunRef) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*HaulRef) ProtoMessage() {}
+func (*RunRef) ProtoMessage() {}
 
-func (x *HaulRef) ProtoReflect() protoreflect.Message {
+func (x *RunRef) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_catalog_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -438,62 +438,62 @@ func (x *HaulRef) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use HaulRef.ProtoReflect.Descriptor instead.
-func (*HaulRef) Descriptor() ([]byte, []int) {
+// Deprecated: Use RunRef.ProtoReflect.Descriptor instead.
+func (*RunRef) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_catalog_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *HaulRef) GetId() string {
+func (x *RunRef) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *HaulRef) GetName() string {
+func (x *RunRef) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-func (x *HaulRef) GetParamsJson() string {
+func (x *RunRef) GetParamsJson() string {
 	if x != nil {
 		return x.ParamsJson
 	}
 	return ""
 }
 
-func (x *HaulRef) GetTenant() string {
+func (x *RunRef) GetTenant() string {
 	if x != nil {
 		return x.Tenant
 	}
 	return ""
 }
 
-type InvalidatePalletResponse struct {
+type InvalidateDataVersionResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The pallet itself first.
-	Pallets       []*Pallet  `protobuf:"bytes,1,rep,name=pallets,proto3" json:"pallets,omitempty"`
-	Hauls         []*HaulRef `protobuf:"bytes,2,rep,name=hauls,proto3" json:"hauls,omitempty"`
+	// The data version itself first.
+	DataVersions  []*DataVersion `protobuf:"bytes,1,rep,name=data_versions,json=dataVersions,proto3" json:"data_versions,omitempty"`
+	Runs          []*RunRef      `protobuf:"bytes,2,rep,name=runs,proto3" json:"runs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *InvalidatePalletResponse) Reset() {
-	*x = InvalidatePalletResponse{}
+func (x *InvalidateDataVersionResponse) Reset() {
+	*x = InvalidateDataVersionResponse{}
 	mi := &file_moksha_v1_catalog_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *InvalidatePalletResponse) String() string {
+func (x *InvalidateDataVersionResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*InvalidatePalletResponse) ProtoMessage() {}
+func (*InvalidateDataVersionResponse) ProtoMessage() {}
 
-func (x *InvalidatePalletResponse) ProtoReflect() protoreflect.Message {
+func (x *InvalidateDataVersionResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_catalog_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -505,21 +505,21 @@ func (x *InvalidatePalletResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use InvalidatePalletResponse.ProtoReflect.Descriptor instead.
-func (*InvalidatePalletResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use InvalidateDataVersionResponse.ProtoReflect.Descriptor instead.
+func (*InvalidateDataVersionResponse) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_catalog_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *InvalidatePalletResponse) GetPallets() []*Pallet {
+func (x *InvalidateDataVersionResponse) GetDataVersions() []*DataVersion {
 	if x != nil {
-		return x.Pallets
+		return x.DataVersions
 	}
 	return nil
 }
 
-func (x *InvalidatePalletResponse) GetHauls() []*HaulRef {
+func (x *InvalidateDataVersionResponse) GetRuns() []*RunRef {
 	if x != nil {
-		return x.Hauls
+		return x.Runs
 	}
 	return nil
 }
@@ -611,7 +611,7 @@ func (x *Dataset) GetKeepFor() *durationpb.Duration {
 	return nil
 }
 
-type Pallet struct {
+type DataVersion struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	Id        string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Tenant    string                 `protobuf:"bytes,2,opt,name=tenant,proto3" json:"tenant,omitempty"`
@@ -623,9 +623,9 @@ type Pallet struct {
 	Fingerprint string `protobuf:"bytes,7,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
 	StatsJson   string `protobuf:"bytes,8,opt,name=stats_json,json=statsJson,proto3" json:"stats_json,omitempty"`
 	MetaJson    string `protobuf:"bytes,9,opt,name=meta_json,json=metaJson,proto3" json:"meta_json,omitempty"`
-	// Who built it: a haul and its lift command.
-	HaulId  string `protobuf:"bytes,10,opt,name=haul_id,json=haulId,proto3" json:"haul_id,omitempty"`
-	LiftSeq int32  `protobuf:"varint,11,opt,name=lift_seq,json=liftSeq,proto3" json:"lift_seq,omitempty"`
+	// Who built it: a run and its step command.
+	RunId   string `protobuf:"bytes,10,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	StepSeq int32  `protobuf:"varint,11,opt,name=step_seq,json=stepSeq,proto3" json:"step_seq,omitempty"`
 	// pending, committed, invalid or expired.
 	State string `protobuf:"bytes,12,opt,name=state,proto3" json:"state,omitempty"`
 	// Why it is invalid or expired.
@@ -637,20 +637,20 @@ type Pallet struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *Pallet) Reset() {
-	*x = Pallet{}
+func (x *DataVersion) Reset() {
+	*x = DataVersion{}
 	mi := &file_moksha_v1_catalog_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Pallet) String() string {
+func (x *DataVersion) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Pallet) ProtoMessage() {}
+func (*DataVersion) ProtoMessage() {}
 
-func (x *Pallet) ProtoReflect() protoreflect.Message {
+func (x *DataVersion) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_catalog_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -662,117 +662,117 @@ func (x *Pallet) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Pallet.ProtoReflect.Descriptor instead.
-func (*Pallet) Descriptor() ([]byte, []int) {
+// Deprecated: Use DataVersion.ProtoReflect.Descriptor instead.
+func (*DataVersion) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_catalog_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *Pallet) GetId() string {
+func (x *DataVersion) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *Pallet) GetTenant() string {
+func (x *DataVersion) GetTenant() string {
 	if x != nil {
 		return x.Tenant
 	}
 	return ""
 }
 
-func (x *Pallet) GetDataset() string {
+func (x *DataVersion) GetDataset() string {
 	if x != nil {
 		return x.Dataset
 	}
 	return ""
 }
 
-func (x *Pallet) GetPartition() string {
+func (x *DataVersion) GetPartition() string {
 	if x != nil {
 		return x.Partition
 	}
 	return ""
 }
 
-func (x *Pallet) GetLocation() string {
+func (x *DataVersion) GetLocation() string {
 	if x != nil {
 		return x.Location
 	}
 	return ""
 }
 
-func (x *Pallet) GetContentHash() string {
+func (x *DataVersion) GetContentHash() string {
 	if x != nil {
 		return x.ContentHash
 	}
 	return ""
 }
 
-func (x *Pallet) GetFingerprint() string {
+func (x *DataVersion) GetFingerprint() string {
 	if x != nil {
 		return x.Fingerprint
 	}
 	return ""
 }
 
-func (x *Pallet) GetStatsJson() string {
+func (x *DataVersion) GetStatsJson() string {
 	if x != nil {
 		return x.StatsJson
 	}
 	return ""
 }
 
-func (x *Pallet) GetMetaJson() string {
+func (x *DataVersion) GetMetaJson() string {
 	if x != nil {
 		return x.MetaJson
 	}
 	return ""
 }
 
-func (x *Pallet) GetHaulId() string {
+func (x *DataVersion) GetRunId() string {
 	if x != nil {
-		return x.HaulId
+		return x.RunId
 	}
 	return ""
 }
 
-func (x *Pallet) GetLiftSeq() int32 {
+func (x *DataVersion) GetStepSeq() int32 {
 	if x != nil {
-		return x.LiftSeq
+		return x.StepSeq
 	}
 	return 0
 }
 
-func (x *Pallet) GetState() string {
+func (x *DataVersion) GetState() string {
 	if x != nil {
 		return x.State
 	}
 	return ""
 }
 
-func (x *Pallet) GetReason() string {
+func (x *DataVersion) GetReason() string {
 	if x != nil {
 		return x.Reason
 	}
 	return ""
 }
 
-func (x *Pallet) GetCreatedAt() *timestamppb.Timestamp {
+func (x *DataVersion) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.CreatedAt
 	}
 	return nil
 }
 
-func (x *Pallet) GetCommittedAt() *timestamppb.Timestamp {
+func (x *DataVersion) GetCommittedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.CommittedAt
 	}
 	return nil
 }
 
-func (x *Pallet) GetRetiredAt() *timestamppb.Timestamp {
+func (x *DataVersion) GetRetiredAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.RetiredAt
 	}
@@ -942,9 +942,9 @@ func (x *ListPartitionsRequest) GetLimit() int32 {
 type Partition struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	Partition string                 `protobuf:"bytes,1,opt,name=partition,proto3" json:"partition,omitempty"`
-	Latest    *Pallet                `protobuf:"bytes,2,opt,name=latest,proto3" json:"latest,omitempty"`
-	// Committed pallets of the partition.
-	Pallets       int32 `protobuf:"varint,3,opt,name=pallets,proto3" json:"pallets,omitempty"`
+	Latest    *DataVersion           `protobuf:"bytes,2,opt,name=latest,proto3" json:"latest,omitempty"`
+	// Committed data versions of the partition.
+	DataVersions  int32 `protobuf:"varint,3,opt,name=data_versions,json=dataVersions,proto3" json:"data_versions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -986,16 +986,16 @@ func (x *Partition) GetPartition() string {
 	return ""
 }
 
-func (x *Partition) GetLatest() *Pallet {
+func (x *Partition) GetLatest() *DataVersion {
 	if x != nil {
 		return x.Latest
 	}
 	return nil
 }
 
-func (x *Partition) GetPallets() int32 {
+func (x *Partition) GetDataVersions() int32 {
 	if x != nil {
-		return x.Pallets
+		return x.DataVersions
 	}
 	return 0
 }
@@ -1044,7 +1044,7 @@ func (x *ListPartitionsResponse) GetPartitions() []*Partition {
 	return nil
 }
 
-type ListPalletsRequest struct {
+type ListDataVersionsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Default: "default".
 	Tenant  string `protobuf:"bytes,1,opt,name=tenant,proto3" json:"tenant,omitempty"`
@@ -1053,7 +1053,7 @@ type ListPalletsRequest struct {
 	Partition *string `protobuf:"bytes,3,opt,name=partition,proto3,oneof" json:"partition,omitempty"`
 	// Empty: any.
 	States []string `protobuf:"bytes,4,rep,name=states,proto3" json:"states,omitempty"`
-	// Only pallets older than this one (paging).
+	// Only data versions older than this one (paging).
 	BeforeId string `protobuf:"bytes,5,opt,name=before_id,json=beforeId,proto3" json:"before_id,omitempty"`
 	// Default 50, at most 1000.
 	Limit         int32 `protobuf:"varint,6,opt,name=limit,proto3" json:"limit,omitempty"`
@@ -1061,20 +1061,20 @@ type ListPalletsRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListPalletsRequest) Reset() {
-	*x = ListPalletsRequest{}
+func (x *ListDataVersionsRequest) Reset() {
+	*x = ListDataVersionsRequest{}
 	mi := &file_moksha_v1_catalog_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListPalletsRequest) String() string {
+func (x *ListDataVersionsRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListPalletsRequest) ProtoMessage() {}
+func (*ListDataVersionsRequest) ProtoMessage() {}
 
-func (x *ListPalletsRequest) ProtoReflect() protoreflect.Message {
+func (x *ListDataVersionsRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_catalog_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1086,74 +1086,74 @@ func (x *ListPalletsRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListPalletsRequest.ProtoReflect.Descriptor instead.
-func (*ListPalletsRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListDataVersionsRequest.ProtoReflect.Descriptor instead.
+func (*ListDataVersionsRequest) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_catalog_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *ListPalletsRequest) GetTenant() string {
+func (x *ListDataVersionsRequest) GetTenant() string {
 	if x != nil {
 		return x.Tenant
 	}
 	return ""
 }
 
-func (x *ListPalletsRequest) GetDataset() string {
+func (x *ListDataVersionsRequest) GetDataset() string {
 	if x != nil {
 		return x.Dataset
 	}
 	return ""
 }
 
-func (x *ListPalletsRequest) GetPartition() string {
+func (x *ListDataVersionsRequest) GetPartition() string {
 	if x != nil && x.Partition != nil {
 		return *x.Partition
 	}
 	return ""
 }
 
-func (x *ListPalletsRequest) GetStates() []string {
+func (x *ListDataVersionsRequest) GetStates() []string {
 	if x != nil {
 		return x.States
 	}
 	return nil
 }
 
-func (x *ListPalletsRequest) GetBeforeId() string {
+func (x *ListDataVersionsRequest) GetBeforeId() string {
 	if x != nil {
 		return x.BeforeId
 	}
 	return ""
 }
 
-func (x *ListPalletsRequest) GetLimit() int32 {
+func (x *ListDataVersionsRequest) GetLimit() int32 {
 	if x != nil {
 		return x.Limit
 	}
 	return 0
 }
 
-type ListPalletsResponse struct {
+type ListDataVersionsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Pallets       []*Pallet              `protobuf:"bytes,1,rep,name=pallets,proto3" json:"pallets,omitempty"`
+	DataVersions  []*DataVersion         `protobuf:"bytes,1,rep,name=data_versions,json=dataVersions,proto3" json:"data_versions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListPalletsResponse) Reset() {
-	*x = ListPalletsResponse{}
+func (x *ListDataVersionsResponse) Reset() {
+	*x = ListDataVersionsResponse{}
 	mi := &file_moksha_v1_catalog_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListPalletsResponse) String() string {
+func (x *ListDataVersionsResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListPalletsResponse) ProtoMessage() {}
+func (*ListDataVersionsResponse) ProtoMessage() {}
 
-func (x *ListPalletsResponse) ProtoReflect() protoreflect.Message {
+func (x *ListDataVersionsResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_catalog_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1165,39 +1165,39 @@ func (x *ListPalletsResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListPalletsResponse.ProtoReflect.Descriptor instead.
-func (*ListPalletsResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListDataVersionsResponse.ProtoReflect.Descriptor instead.
+func (*ListDataVersionsResponse) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_catalog_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *ListPalletsResponse) GetPallets() []*Pallet {
+func (x *ListDataVersionsResponse) GetDataVersions() []*DataVersion {
 	if x != nil {
-		return x.Pallets
+		return x.DataVersions
 	}
 	return nil
 }
 
-type GetPalletRequest struct {
+type GetDataVersionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetPalletRequest) Reset() {
-	*x = GetPalletRequest{}
+func (x *GetDataVersionRequest) Reset() {
+	*x = GetDataVersionRequest{}
 	mi := &file_moksha_v1_catalog_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetPalletRequest) String() string {
+func (x *GetDataVersionRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetPalletRequest) ProtoMessage() {}
+func (*GetDataVersionRequest) ProtoMessage() {}
 
-func (x *GetPalletRequest) ProtoReflect() protoreflect.Message {
+func (x *GetDataVersionRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_catalog_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1209,12 +1209,12 @@ func (x *GetPalletRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetPalletRequest.ProtoReflect.Descriptor instead.
-func (*GetPalletRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetDataVersionRequest.ProtoReflect.Descriptor instead.
+func (*GetDataVersionRequest) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_catalog_proto_rawDescGZIP(), []int{18}
 }
 
-func (x *GetPalletRequest) GetId() string {
+func (x *GetDataVersionRequest) GetId() string {
 	if x != nil {
 		return x.Id
 	}
@@ -1286,7 +1286,7 @@ type Manifest struct {
 	// The prefix its files are under.
 	Data  string          `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
 	Files []*ManifestFile `protobuf:"bytes,2,rep,name=files,proto3" json:"files,omitempty"`
-	// What the lift returned, if not null.
+	// What the step returned, if not null.
 	ResultJson    string `protobuf:"bytes,3,opt,name=result_json,json=resultJson,proto3" json:"result_json,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1343,10 +1343,10 @@ func (x *Manifest) GetResultJson() string {
 	return ""
 }
 
-// LineageEdge: pallet_id was built from input_id, passed as name.
+// LineageEdge: data_version_id was built from input_id, passed as name.
 type LineageEdge struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	PalletId      string                 `protobuf:"bytes,1,opt,name=pallet_id,json=palletId,proto3" json:"pallet_id,omitempty"`
+	DataVersionId string                 `protobuf:"bytes,1,opt,name=data_version_id,json=dataVersionId,proto3" json:"data_version_id,omitempty"`
 	InputId       string                 `protobuf:"bytes,2,opt,name=input_id,json=inputId,proto3" json:"input_id,omitempty"`
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1383,9 +1383,9 @@ func (*LineageEdge) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_catalog_proto_rawDescGZIP(), []int{21}
 }
 
-func (x *LineageEdge) GetPalletId() string {
+func (x *LineageEdge) GetDataVersionId() string {
 	if x != nil {
-		return x.PalletId
+		return x.DataVersionId
 	}
 	return ""
 }
@@ -1406,8 +1406,8 @@ func (x *LineageEdge) GetName() string {
 
 type Lineage struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Including the pallet itself.
-	Pallets       []*Pallet      `protobuf:"bytes,1,rep,name=pallets,proto3" json:"pallets,omitempty"`
+	// Including the data version itself.
+	DataVersions  []*DataVersion `protobuf:"bytes,1,rep,name=data_versions,json=dataVersions,proto3" json:"data_versions,omitempty"`
 	Edges         []*LineageEdge `protobuf:"bytes,2,rep,name=edges,proto3" json:"edges,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1443,9 +1443,9 @@ func (*Lineage) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_catalog_proto_rawDescGZIP(), []int{22}
 }
 
-func (x *Lineage) GetPallets() []*Pallet {
+func (x *Lineage) GetDataVersions() []*DataVersion {
 	if x != nil {
-		return x.Pallets
+		return x.DataVersions
 	}
 	return nil
 }
@@ -1457,11 +1457,11 @@ func (x *Lineage) GetEdges() []*LineageEdge {
 	return nil
 }
 
-type GetPalletResponse struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	Pallet *Pallet                `protobuf:"bytes,1,opt,name=pallet,proto3" json:"pallet,omitempty"`
-	// The lift that built it.
-	Lift string `protobuf:"bytes,2,opt,name=lift,proto3" json:"lift,omitempty"`
+type GetDataVersionResponse struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	DataVersion *DataVersion           `protobuf:"bytes,1,opt,name=data_version,json=dataVersion,proto3" json:"data_version,omitempty"`
+	// The step that built it.
+	Step string `protobuf:"bytes,2,opt,name=step,proto3" json:"step,omitempty"`
 	// Unset when it can't be read (expired, or the bucket isn't reachable).
 	Manifest      *Manifest `protobuf:"bytes,3,opt,name=manifest,proto3" json:"manifest,omitempty"`
 	ManifestError string    `protobuf:"bytes,4,opt,name=manifest_error,json=manifestError,proto3" json:"manifest_error,omitempty"`
@@ -1471,20 +1471,20 @@ type GetPalletResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetPalletResponse) Reset() {
-	*x = GetPalletResponse{}
+func (x *GetDataVersionResponse) Reset() {
+	*x = GetDataVersionResponse{}
 	mi := &file_moksha_v1_catalog_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetPalletResponse) String() string {
+func (x *GetDataVersionResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetPalletResponse) ProtoMessage() {}
+func (*GetDataVersionResponse) ProtoMessage() {}
 
-func (x *GetPalletResponse) ProtoReflect() protoreflect.Message {
+func (x *GetDataVersionResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_catalog_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1496,47 +1496,47 @@ func (x *GetPalletResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetPalletResponse.ProtoReflect.Descriptor instead.
-func (*GetPalletResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetDataVersionResponse.ProtoReflect.Descriptor instead.
+func (*GetDataVersionResponse) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_catalog_proto_rawDescGZIP(), []int{23}
 }
 
-func (x *GetPalletResponse) GetPallet() *Pallet {
+func (x *GetDataVersionResponse) GetDataVersion() *DataVersion {
 	if x != nil {
-		return x.Pallet
+		return x.DataVersion
 	}
 	return nil
 }
 
-func (x *GetPalletResponse) GetLift() string {
+func (x *GetDataVersionResponse) GetStep() string {
 	if x != nil {
-		return x.Lift
+		return x.Step
 	}
 	return ""
 }
 
-func (x *GetPalletResponse) GetManifest() *Manifest {
+func (x *GetDataVersionResponse) GetManifest() *Manifest {
 	if x != nil {
 		return x.Manifest
 	}
 	return nil
 }
 
-func (x *GetPalletResponse) GetManifestError() string {
+func (x *GetDataVersionResponse) GetManifestError() string {
 	if x != nil {
 		return x.ManifestError
 	}
 	return ""
 }
 
-func (x *GetPalletResponse) GetUpstream() *Lineage {
+func (x *GetDataVersionResponse) GetUpstream() *Lineage {
 	if x != nil {
 		return x.Upstream
 	}
 	return nil
 }
 
-func (x *GetPalletResponse) GetDownstream() *Lineage {
+func (x *GetDataVersionResponse) GetDownstream() *Lineage {
 	if x != nil {
 		return x.Downstream
 	}
@@ -1547,38 +1547,38 @@ var File_moksha_v1_catalog_proto protoreflect.FileDescriptor
 
 const file_moksha_v1_catalog_proto_rawDesc = "" +
 	"\n" +
-	"\x17moksha/v1/catalog.proto\x12\tmoksha.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"/\n" +
-	"\x14ExpirePalletsRequest\x12\x17\n" +
-	"\adry_run\x18\x01 \x01(\bR\x06dryRun\"R\n" +
-	"\rExpiredPallet\x12)\n" +
-	"\x06pallet\x18\x01 \x01(\v2\x11.moksha.v1.PalletR\x06pallet\x12\x16\n" +
-	"\x06reason\x18\x02 \x01(\tR\x06reason\"K\n" +
-	"\x15ExpirePalletsResponse\x122\n" +
-	"\aexpired\x18\x01 \x03(\v2\x18.moksha.v1.ExpiredPalletR\aexpired\"D\n" +
+	"\x17moksha/v1/catalog.proto\x12\tmoksha.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"4\n" +
+	"\x19ExpireDataVersionsRequest\x12\x17\n" +
+	"\adry_run\x18\x01 \x01(\bR\x06dryRun\"g\n" +
+	"\x12ExpiredDataVersion\x129\n" +
+	"\fdata_version\x18\x01 \x01(\v2\x16.moksha.v1.DataVersionR\vdataVersion\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"U\n" +
+	"\x1aExpireDataVersionsResponse\x127\n" +
+	"\aexpired\x18\x01 \x03(\v2\x1d.moksha.v1.ExpiredDataVersionR\aexpired\"D\n" +
 	"\x10ListStaleRequest\x12\x16\n" +
 	"\x06tenant\x18\x01 \x01(\tR\x06tenant\x12\x18\n" +
-	"\adataset\x18\x02 \x01(\tR\adataset\"\x8e\x01\n" +
-	"\vStalePallet\x12)\n" +
-	"\x06pallet\x18\x01 \x01(\v2\x11.moksha.v1.PalletR\x06pallet\x12\x12\n" +
-	"\x04lift\x18\x02 \x01(\tR\x04lift\x12\x18\n" +
-	"\areasons\x18\x03 \x03(\tR\areasons\x12&\n" +
-	"\x04haul\x18\x04 \x01(\v2\x12.moksha.v1.HaulRefR\x04haul\"A\n" +
-	"\x11ListStaleResponse\x12,\n" +
-	"\x05stale\x18\x01 \x03(\v2\x16.moksha.v1.StalePalletR\x05stale\"j\n" +
-	"\x17InvalidatePalletRequest\x12\x0e\n" +
+	"\adataset\x18\x02 \x01(\tR\adataset\"\xa0\x01\n" +
+	"\x10StaleDataVersion\x129\n" +
+	"\fdata_version\x18\x01 \x01(\v2\x16.moksha.v1.DataVersionR\vdataVersion\x12\x12\n" +
+	"\x04step\x18\x02 \x01(\tR\x04step\x12\x18\n" +
+	"\areasons\x18\x03 \x03(\tR\areasons\x12#\n" +
+	"\x03run\x18\x04 \x01(\v2\x11.moksha.v1.RunRefR\x03run\"F\n" +
+	"\x11ListStaleResponse\x121\n" +
+	"\x05stale\x18\x01 \x03(\v2\x1b.moksha.v1.StaleDataVersionR\x05stale\"o\n" +
+	"\x1cInvalidateDataVersionRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\x12\x0e\n" +
 	"\x02by\x18\x03 \x01(\tR\x02by\x12\x17\n" +
-	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"f\n" +
-	"\aHaulRef\x12\x0e\n" +
+	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"e\n" +
+	"\x06RunRef\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1f\n" +
 	"\vparams_json\x18\x03 \x01(\tR\n" +
 	"paramsJson\x12\x16\n" +
-	"\x06tenant\x18\x04 \x01(\tR\x06tenant\"q\n" +
-	"\x18InvalidatePalletResponse\x12+\n" +
-	"\apallets\x18\x01 \x03(\v2\x11.moksha.v1.PalletR\apallets\x12(\n" +
-	"\x05hauls\x18\x02 \x03(\v2\x12.moksha.v1.HaulRefR\x05hauls\"\xf0\x01\n" +
+	"\x06tenant\x18\x04 \x01(\tR\x06tenant\"\x83\x01\n" +
+	"\x1dInvalidateDataVersionResponse\x12;\n" +
+	"\rdata_versions\x18\x01 \x03(\v2\x16.moksha.v1.DataVersionR\fdataVersions\x12%\n" +
+	"\x04runs\x18\x02 \x03(\v2\x11.moksha.v1.RunRefR\x04runs\"\xf0\x01\n" +
 	"\aDataset\x12\x16\n" +
 	"\x06tenant\x18\x01 \x01(\tR\x06tenant\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12#\n" +
@@ -1586,8 +1586,8 @@ const file_moksha_v1_catalog_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12#\n" +
 	"\rkeep_versions\x18\x05 \x01(\x05R\fkeepVersions\x124\n" +
-	"\bkeep_for\x18\x06 \x01(\v2\x19.google.protobuf.DurationR\akeepFor\"\x9c\x04\n" +
-	"\x06Pallet\x12\x0e\n" +
+	"\bkeep_for\x18\x06 \x01(\v2\x19.google.protobuf.DurationR\akeepFor\"\x9f\x04\n" +
+	"\vDataVersion\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06tenant\x18\x02 \x01(\tR\x06tenant\x12\x18\n" +
 	"\adataset\x18\x03 \x01(\tR\adataset\x12\x1c\n" +
@@ -1597,10 +1597,10 @@ const file_moksha_v1_catalog_proto_rawDesc = "" +
 	"\vfingerprint\x18\a \x01(\tR\vfingerprint\x12\x1d\n" +
 	"\n" +
 	"stats_json\x18\b \x01(\tR\tstatsJson\x12\x1b\n" +
-	"\tmeta_json\x18\t \x01(\tR\bmetaJson\x12\x17\n" +
-	"\ahaul_id\x18\n" +
-	" \x01(\tR\x06haulId\x12\x19\n" +
-	"\blift_seq\x18\v \x01(\x05R\aliftSeq\x12\x14\n" +
+	"\tmeta_json\x18\t \x01(\tR\bmetaJson\x12\x15\n" +
+	"\x06run_id\x18\n" +
+	" \x01(\tR\x05runId\x12\x19\n" +
+	"\bstep_seq\x18\v \x01(\x05R\astepSeq\x12\x14\n" +
 	"\x05state\x18\f \x01(\tR\x05state\x12\x16\n" +
 	"\x06reason\x18\r \x01(\tR\x06reason\x129\n" +
 	"\n" +
@@ -1616,16 +1616,16 @@ const file_moksha_v1_catalog_proto_rawDesc = "" +
 	"\x06tenant\x18\x01 \x01(\tR\x06tenant\x12\x18\n" +
 	"\adataset\x18\x02 \x01(\tR\adataset\x12\x14\n" +
 	"\x05after\x18\x03 \x01(\tR\x05after\x12\x14\n" +
-	"\x05limit\x18\x04 \x01(\x05R\x05limit\"n\n" +
+	"\x05limit\x18\x04 \x01(\x05R\x05limit\"~\n" +
 	"\tPartition\x12\x1c\n" +
-	"\tpartition\x18\x01 \x01(\tR\tpartition\x12)\n" +
-	"\x06latest\x18\x02 \x01(\v2\x11.moksha.v1.PalletR\x06latest\x12\x18\n" +
-	"\apallets\x18\x03 \x01(\x05R\apallets\"N\n" +
+	"\tpartition\x18\x01 \x01(\tR\tpartition\x12.\n" +
+	"\x06latest\x18\x02 \x01(\v2\x16.moksha.v1.DataVersionR\x06latest\x12#\n" +
+	"\rdata_versions\x18\x03 \x01(\x05R\fdataVersions\"N\n" +
 	"\x16ListPartitionsResponse\x124\n" +
 	"\n" +
 	"partitions\x18\x01 \x03(\v2\x14.moksha.v1.PartitionR\n" +
-	"partitions\"\xc2\x01\n" +
-	"\x12ListPalletsRequest\x12\x16\n" +
+	"partitions\"\xc7\x01\n" +
+	"\x17ListDataVersionsRequest\x12\x16\n" +
 	"\x06tenant\x18\x01 \x01(\tR\x06tenant\x12\x18\n" +
 	"\adataset\x18\x02 \x01(\tR\adataset\x12!\n" +
 	"\tpartition\x18\x03 \x01(\tH\x00R\tpartition\x88\x01\x01\x12\x16\n" +
@@ -1633,10 +1633,10 @@ const file_moksha_v1_catalog_proto_rawDesc = "" +
 	"\tbefore_id\x18\x05 \x01(\tR\bbeforeId\x12\x14\n" +
 	"\x05limit\x18\x06 \x01(\x05R\x05limitB\f\n" +
 	"\n" +
-	"_partition\"B\n" +
-	"\x13ListPalletsResponse\x12+\n" +
-	"\apallets\x18\x01 \x03(\v2\x11.moksha.v1.PalletR\apallets\"\"\n" +
-	"\x10GetPalletRequest\x12\x0e\n" +
+	"_partition\"W\n" +
+	"\x18ListDataVersionsResponse\x12;\n" +
+	"\rdata_versions\x18\x01 \x03(\v2\x16.moksha.v1.DataVersionR\fdataVersions\"'\n" +
+	"\x15GetDataVersionRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"N\n" +
 	"\fManifestFile\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x12\n" +
@@ -1646,31 +1646,31 @@ const file_moksha_v1_catalog_proto_rawDesc = "" +
 	"\x04data\x18\x01 \x01(\tR\x04data\x12-\n" +
 	"\x05files\x18\x02 \x03(\v2\x17.moksha.v1.ManifestFileR\x05files\x12\x1f\n" +
 	"\vresult_json\x18\x03 \x01(\tR\n" +
-	"resultJson\"Y\n" +
-	"\vLineageEdge\x12\x1b\n" +
-	"\tpallet_id\x18\x01 \x01(\tR\bpalletId\x12\x19\n" +
+	"resultJson\"d\n" +
+	"\vLineageEdge\x12&\n" +
+	"\x0fdata_version_id\x18\x01 \x01(\tR\rdataVersionId\x12\x19\n" +
 	"\binput_id\x18\x02 \x01(\tR\ainputId\x12\x12\n" +
-	"\x04name\x18\x03 \x01(\tR\x04name\"d\n" +
-	"\aLineage\x12+\n" +
-	"\apallets\x18\x01 \x03(\v2\x11.moksha.v1.PalletR\apallets\x12,\n" +
-	"\x05edges\x18\x02 \x03(\v2\x16.moksha.v1.LineageEdgeR\x05edges\"\x8e\x02\n" +
-	"\x11GetPalletResponse\x12)\n" +
-	"\x06pallet\x18\x01 \x01(\v2\x11.moksha.v1.PalletR\x06pallet\x12\x12\n" +
-	"\x04lift\x18\x02 \x01(\tR\x04lift\x12/\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\"t\n" +
+	"\aLineage\x12;\n" +
+	"\rdata_versions\x18\x01 \x03(\v2\x16.moksha.v1.DataVersionR\fdataVersions\x12,\n" +
+	"\x05edges\x18\x02 \x03(\v2\x16.moksha.v1.LineageEdgeR\x05edges\"\xa3\x02\n" +
+	"\x16GetDataVersionResponse\x129\n" +
+	"\fdata_version\x18\x01 \x01(\v2\x16.moksha.v1.DataVersionR\vdataVersion\x12\x12\n" +
+	"\x04step\x18\x02 \x01(\tR\x04step\x12/\n" +
 	"\bmanifest\x18\x03 \x01(\v2\x13.moksha.v1.ManifestR\bmanifest\x12%\n" +
 	"\x0emanifest_error\x18\x04 \x01(\tR\rmanifestError\x12.\n" +
 	"\bupstream\x18\x05 \x01(\v2\x12.moksha.v1.LineageR\bupstream\x122\n" +
 	"\n" +
 	"downstream\x18\x06 \x01(\v2\x12.moksha.v1.LineageR\n" +
-	"downstream2\xc7\x04\n" +
+	"downstream2\x83\x05\n" +
 	"\x0eCatalogService\x12O\n" +
 	"\fListDatasets\x12\x1e.moksha.v1.ListDatasetsRequest\x1a\x1f.moksha.v1.ListDatasetsResponse\x12U\n" +
-	"\x0eListPartitions\x12 .moksha.v1.ListPartitionsRequest\x1a!.moksha.v1.ListPartitionsResponse\x12L\n" +
-	"\vListPallets\x12\x1d.moksha.v1.ListPalletsRequest\x1a\x1e.moksha.v1.ListPalletsResponse\x12F\n" +
-	"\tGetPallet\x12\x1b.moksha.v1.GetPalletRequest\x1a\x1c.moksha.v1.GetPalletResponse\x12[\n" +
-	"\x10InvalidatePallet\x12\".moksha.v1.InvalidatePalletRequest\x1a#.moksha.v1.InvalidatePalletResponse\x12F\n" +
-	"\tListStale\x12\x1b.moksha.v1.ListStaleRequest\x1a\x1c.moksha.v1.ListStaleResponse\x12R\n" +
-	"\rExpirePallets\x12\x1f.moksha.v1.ExpirePalletsRequest\x1a .moksha.v1.ExpirePalletsResponseB=Z;github.com/alper/moksha/internal/api/gen/moksha/v1;mokshav1b\x06proto3"
+	"\x0eListPartitions\x12 .moksha.v1.ListPartitionsRequest\x1a!.moksha.v1.ListPartitionsResponse\x12[\n" +
+	"\x10ListDataVersions\x12\".moksha.v1.ListDataVersionsRequest\x1a#.moksha.v1.ListDataVersionsResponse\x12U\n" +
+	"\x0eGetDataVersion\x12 .moksha.v1.GetDataVersionRequest\x1a!.moksha.v1.GetDataVersionResponse\x12j\n" +
+	"\x15InvalidateDataVersion\x12'.moksha.v1.InvalidateDataVersionRequest\x1a(.moksha.v1.InvalidateDataVersionResponse\x12F\n" +
+	"\tListStale\x12\x1b.moksha.v1.ListStaleRequest\x1a\x1c.moksha.v1.ListStaleResponse\x12a\n" +
+	"\x12ExpireDataVersions\x12$.moksha.v1.ExpireDataVersionsRequest\x1a%.moksha.v1.ExpireDataVersionsResponseB=Z;github.com/alper/moksha/internal/api/gen/moksha/v1;mokshav1b\x06proto3"
 
 var (
 	file_moksha_v1_catalog_proto_rawDescOnce sync.Once
@@ -1686,71 +1686,71 @@ func file_moksha_v1_catalog_proto_rawDescGZIP() []byte {
 
 var file_moksha_v1_catalog_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_moksha_v1_catalog_proto_goTypes = []any{
-	(*ExpirePalletsRequest)(nil),     // 0: moksha.v1.ExpirePalletsRequest
-	(*ExpiredPallet)(nil),            // 1: moksha.v1.ExpiredPallet
-	(*ExpirePalletsResponse)(nil),    // 2: moksha.v1.ExpirePalletsResponse
-	(*ListStaleRequest)(nil),         // 3: moksha.v1.ListStaleRequest
-	(*StalePallet)(nil),              // 4: moksha.v1.StalePallet
-	(*ListStaleResponse)(nil),        // 5: moksha.v1.ListStaleResponse
-	(*InvalidatePalletRequest)(nil),  // 6: moksha.v1.InvalidatePalletRequest
-	(*HaulRef)(nil),                  // 7: moksha.v1.HaulRef
-	(*InvalidatePalletResponse)(nil), // 8: moksha.v1.InvalidatePalletResponse
-	(*Dataset)(nil),                  // 9: moksha.v1.Dataset
-	(*Pallet)(nil),                   // 10: moksha.v1.Pallet
-	(*ListDatasetsRequest)(nil),      // 11: moksha.v1.ListDatasetsRequest
-	(*ListDatasetsResponse)(nil),     // 12: moksha.v1.ListDatasetsResponse
-	(*ListPartitionsRequest)(nil),    // 13: moksha.v1.ListPartitionsRequest
-	(*Partition)(nil),                // 14: moksha.v1.Partition
-	(*ListPartitionsResponse)(nil),   // 15: moksha.v1.ListPartitionsResponse
-	(*ListPalletsRequest)(nil),       // 16: moksha.v1.ListPalletsRequest
-	(*ListPalletsResponse)(nil),      // 17: moksha.v1.ListPalletsResponse
-	(*GetPalletRequest)(nil),         // 18: moksha.v1.GetPalletRequest
-	(*ManifestFile)(nil),             // 19: moksha.v1.ManifestFile
-	(*Manifest)(nil),                 // 20: moksha.v1.Manifest
-	(*LineageEdge)(nil),              // 21: moksha.v1.LineageEdge
-	(*Lineage)(nil),                  // 22: moksha.v1.Lineage
-	(*GetPalletResponse)(nil),        // 23: moksha.v1.GetPalletResponse
-	(*timestamppb.Timestamp)(nil),    // 24: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),      // 25: google.protobuf.Duration
+	(*ExpireDataVersionsRequest)(nil),     // 0: moksha.v1.ExpireDataVersionsRequest
+	(*ExpiredDataVersion)(nil),            // 1: moksha.v1.ExpiredDataVersion
+	(*ExpireDataVersionsResponse)(nil),    // 2: moksha.v1.ExpireDataVersionsResponse
+	(*ListStaleRequest)(nil),              // 3: moksha.v1.ListStaleRequest
+	(*StaleDataVersion)(nil),              // 4: moksha.v1.StaleDataVersion
+	(*ListStaleResponse)(nil),             // 5: moksha.v1.ListStaleResponse
+	(*InvalidateDataVersionRequest)(nil),  // 6: moksha.v1.InvalidateDataVersionRequest
+	(*RunRef)(nil),                        // 7: moksha.v1.RunRef
+	(*InvalidateDataVersionResponse)(nil), // 8: moksha.v1.InvalidateDataVersionResponse
+	(*Dataset)(nil),                       // 9: moksha.v1.Dataset
+	(*DataVersion)(nil),                   // 10: moksha.v1.DataVersion
+	(*ListDatasetsRequest)(nil),           // 11: moksha.v1.ListDatasetsRequest
+	(*ListDatasetsResponse)(nil),          // 12: moksha.v1.ListDatasetsResponse
+	(*ListPartitionsRequest)(nil),         // 13: moksha.v1.ListPartitionsRequest
+	(*Partition)(nil),                     // 14: moksha.v1.Partition
+	(*ListPartitionsResponse)(nil),        // 15: moksha.v1.ListPartitionsResponse
+	(*ListDataVersionsRequest)(nil),       // 16: moksha.v1.ListDataVersionsRequest
+	(*ListDataVersionsResponse)(nil),      // 17: moksha.v1.ListDataVersionsResponse
+	(*GetDataVersionRequest)(nil),         // 18: moksha.v1.GetDataVersionRequest
+	(*ManifestFile)(nil),                  // 19: moksha.v1.ManifestFile
+	(*Manifest)(nil),                      // 20: moksha.v1.Manifest
+	(*LineageEdge)(nil),                   // 21: moksha.v1.LineageEdge
+	(*Lineage)(nil),                       // 22: moksha.v1.Lineage
+	(*GetDataVersionResponse)(nil),        // 23: moksha.v1.GetDataVersionResponse
+	(*timestamppb.Timestamp)(nil),         // 24: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),           // 25: google.protobuf.Duration
 }
 var file_moksha_v1_catalog_proto_depIdxs = []int32{
-	10, // 0: moksha.v1.ExpiredPallet.pallet:type_name -> moksha.v1.Pallet
-	1,  // 1: moksha.v1.ExpirePalletsResponse.expired:type_name -> moksha.v1.ExpiredPallet
-	10, // 2: moksha.v1.StalePallet.pallet:type_name -> moksha.v1.Pallet
-	7,  // 3: moksha.v1.StalePallet.haul:type_name -> moksha.v1.HaulRef
-	4,  // 4: moksha.v1.ListStaleResponse.stale:type_name -> moksha.v1.StalePallet
-	10, // 5: moksha.v1.InvalidatePalletResponse.pallets:type_name -> moksha.v1.Pallet
-	7,  // 6: moksha.v1.InvalidatePalletResponse.hauls:type_name -> moksha.v1.HaulRef
+	10, // 0: moksha.v1.ExpiredDataVersion.data_version:type_name -> moksha.v1.DataVersion
+	1,  // 1: moksha.v1.ExpireDataVersionsResponse.expired:type_name -> moksha.v1.ExpiredDataVersion
+	10, // 2: moksha.v1.StaleDataVersion.data_version:type_name -> moksha.v1.DataVersion
+	7,  // 3: moksha.v1.StaleDataVersion.run:type_name -> moksha.v1.RunRef
+	4,  // 4: moksha.v1.ListStaleResponse.stale:type_name -> moksha.v1.StaleDataVersion
+	10, // 5: moksha.v1.InvalidateDataVersionResponse.data_versions:type_name -> moksha.v1.DataVersion
+	7,  // 6: moksha.v1.InvalidateDataVersionResponse.runs:type_name -> moksha.v1.RunRef
 	24, // 7: moksha.v1.Dataset.created_at:type_name -> google.protobuf.Timestamp
 	25, // 8: moksha.v1.Dataset.keep_for:type_name -> google.protobuf.Duration
-	24, // 9: moksha.v1.Pallet.created_at:type_name -> google.protobuf.Timestamp
-	24, // 10: moksha.v1.Pallet.committed_at:type_name -> google.protobuf.Timestamp
-	24, // 11: moksha.v1.Pallet.retired_at:type_name -> google.protobuf.Timestamp
+	24, // 9: moksha.v1.DataVersion.created_at:type_name -> google.protobuf.Timestamp
+	24, // 10: moksha.v1.DataVersion.committed_at:type_name -> google.protobuf.Timestamp
+	24, // 11: moksha.v1.DataVersion.retired_at:type_name -> google.protobuf.Timestamp
 	9,  // 12: moksha.v1.ListDatasetsResponse.datasets:type_name -> moksha.v1.Dataset
-	10, // 13: moksha.v1.Partition.latest:type_name -> moksha.v1.Pallet
+	10, // 13: moksha.v1.Partition.latest:type_name -> moksha.v1.DataVersion
 	14, // 14: moksha.v1.ListPartitionsResponse.partitions:type_name -> moksha.v1.Partition
-	10, // 15: moksha.v1.ListPalletsResponse.pallets:type_name -> moksha.v1.Pallet
+	10, // 15: moksha.v1.ListDataVersionsResponse.data_versions:type_name -> moksha.v1.DataVersion
 	19, // 16: moksha.v1.Manifest.files:type_name -> moksha.v1.ManifestFile
-	10, // 17: moksha.v1.Lineage.pallets:type_name -> moksha.v1.Pallet
+	10, // 17: moksha.v1.Lineage.data_versions:type_name -> moksha.v1.DataVersion
 	21, // 18: moksha.v1.Lineage.edges:type_name -> moksha.v1.LineageEdge
-	10, // 19: moksha.v1.GetPalletResponse.pallet:type_name -> moksha.v1.Pallet
-	20, // 20: moksha.v1.GetPalletResponse.manifest:type_name -> moksha.v1.Manifest
-	22, // 21: moksha.v1.GetPalletResponse.upstream:type_name -> moksha.v1.Lineage
-	22, // 22: moksha.v1.GetPalletResponse.downstream:type_name -> moksha.v1.Lineage
+	10, // 19: moksha.v1.GetDataVersionResponse.data_version:type_name -> moksha.v1.DataVersion
+	20, // 20: moksha.v1.GetDataVersionResponse.manifest:type_name -> moksha.v1.Manifest
+	22, // 21: moksha.v1.GetDataVersionResponse.upstream:type_name -> moksha.v1.Lineage
+	22, // 22: moksha.v1.GetDataVersionResponse.downstream:type_name -> moksha.v1.Lineage
 	11, // 23: moksha.v1.CatalogService.ListDatasets:input_type -> moksha.v1.ListDatasetsRequest
 	13, // 24: moksha.v1.CatalogService.ListPartitions:input_type -> moksha.v1.ListPartitionsRequest
-	16, // 25: moksha.v1.CatalogService.ListPallets:input_type -> moksha.v1.ListPalletsRequest
-	18, // 26: moksha.v1.CatalogService.GetPallet:input_type -> moksha.v1.GetPalletRequest
-	6,  // 27: moksha.v1.CatalogService.InvalidatePallet:input_type -> moksha.v1.InvalidatePalletRequest
+	16, // 25: moksha.v1.CatalogService.ListDataVersions:input_type -> moksha.v1.ListDataVersionsRequest
+	18, // 26: moksha.v1.CatalogService.GetDataVersion:input_type -> moksha.v1.GetDataVersionRequest
+	6,  // 27: moksha.v1.CatalogService.InvalidateDataVersion:input_type -> moksha.v1.InvalidateDataVersionRequest
 	3,  // 28: moksha.v1.CatalogService.ListStale:input_type -> moksha.v1.ListStaleRequest
-	0,  // 29: moksha.v1.CatalogService.ExpirePallets:input_type -> moksha.v1.ExpirePalletsRequest
+	0,  // 29: moksha.v1.CatalogService.ExpireDataVersions:input_type -> moksha.v1.ExpireDataVersionsRequest
 	12, // 30: moksha.v1.CatalogService.ListDatasets:output_type -> moksha.v1.ListDatasetsResponse
 	15, // 31: moksha.v1.CatalogService.ListPartitions:output_type -> moksha.v1.ListPartitionsResponse
-	17, // 32: moksha.v1.CatalogService.ListPallets:output_type -> moksha.v1.ListPalletsResponse
-	23, // 33: moksha.v1.CatalogService.GetPallet:output_type -> moksha.v1.GetPalletResponse
-	8,  // 34: moksha.v1.CatalogService.InvalidatePallet:output_type -> moksha.v1.InvalidatePalletResponse
+	17, // 32: moksha.v1.CatalogService.ListDataVersions:output_type -> moksha.v1.ListDataVersionsResponse
+	23, // 33: moksha.v1.CatalogService.GetDataVersion:output_type -> moksha.v1.GetDataVersionResponse
+	8,  // 34: moksha.v1.CatalogService.InvalidateDataVersion:output_type -> moksha.v1.InvalidateDataVersionResponse
 	5,  // 35: moksha.v1.CatalogService.ListStale:output_type -> moksha.v1.ListStaleResponse
-	2,  // 36: moksha.v1.CatalogService.ExpirePallets:output_type -> moksha.v1.ExpirePalletsResponse
+	2,  // 36: moksha.v1.CatalogService.ExpireDataVersions:output_type -> moksha.v1.ExpireDataVersionsResponse
 	30, // [30:37] is the sub-list for method output_type
 	23, // [23:30] is the sub-list for method input_type
 	23, // [23:23] is the sub-list for extension type_name

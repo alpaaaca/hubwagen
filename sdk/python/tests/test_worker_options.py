@@ -9,37 +9,37 @@ from pathlib import Path
 from moksha import worker
 
 
-def test_docks_and_lifts_come_from_the_worker_group(monkeypatch):
-    monkeypatch.delenv("MOKSHA_DOCKS", raising=False)
-    monkeypatch.delenv("MOKSHA_LIFTS", raising=False)
+def test_queues_and_steps_come_from_the_worker_group(monkeypatch):
+    monkeypatch.delenv("MOKSHA_QUEUES", raising=False)
+    monkeypatch.delenv("MOKSHA_STEPS", raising=False)
     args = worker.parse_args([])
-    assert (args.dock, args.lifts) == (["default"], 4)
+    assert (args.queue, args.steps) == (["default"], 4)
 
-    monkeypatch.setenv("MOKSHA_DOCKS", "gpu,default")
-    monkeypatch.setenv("MOKSHA_LIFTS", "2")
+    monkeypatch.setenv("MOKSHA_QUEUES", "gpu,default")
+    monkeypatch.setenv("MOKSHA_STEPS", "2")
     args = worker.parse_args([])
-    assert (args.dock, args.lifts) == (["gpu", "default"], 2)
+    assert (args.queue, args.steps) == (["gpu", "default"], 2)
 
-    args = worker.parse_args(["--dock", "cpu", "--lifts", "8"])
-    assert (args.dock, args.lifts) == (["cpu"], 8), "flags win"
+    args = worker.parse_args(["--queue", "cpu", "--steps", "8"])
+    assert (args.queue, args.steps) == (["cpu"], 8), "flags win"
 
 
 def test_build_json_is_what_a_worker_registers():
     import moksha as mk
 
-    @mk.lift(name="build_json_load")
+    @mk.step(name="build_json_load")
     def load(x: int) -> int:
         return x
 
-    @mk.haul(name="build_json_daily")
+    @mk.pipeline(name="build_json_daily")
     def daily(ctx, x: int):
         return ctx.step(load, x)
 
     reg = worker.registration("b-test")
     assert reg["buildId"] == "b-test"
-    assert "build_json_daily" in reg["hauls"]
-    assert reg["liftVersions"]["build_json_load"].startswith("py-")
-    assert {"schedules", "subscriptions", "datasets", "haulInfo"} <= set(reg)
+    assert "build_json_daily" in reg["pipelines"]
+    assert reg["stepVersions"]["build_json_load"].startswith("py-")
+    assert {"schedules", "subscriptions", "datasets", "pipelineInfo"} <= set(reg)
 
 
 def test_a_worker_stops_on_sigterm_while_it_waits_for_the_server(tmp_path):

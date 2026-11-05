@@ -6,18 +6,18 @@ import { createConnectTransport } from "@connectrpc/connect-web";
 import { createContext, useContext, type ReactNode } from "react";
 
 import { CatalogService } from "./gen/moksha/v1/catalog_pb";
-import { HaulService } from "./gen/moksha/v1/haul_pb";
+import { RunService } from "./gen/moksha/v1/run_pb";
 import { LogService } from "./gen/moksha/v1/log_pb";
 
 export type Api = {
-  hauls: Client<typeof HaulService>;
+  runs: Client<typeof RunService>;
   catalog: Client<typeof CatalogService>;
   logs: Client<typeof LogService>;
 };
 
 export function apiFor(transport: Transport): Api {
   return {
-    hauls: createClient(HaulService, transport),
+    runs: createClient(RunService, transport),
     catalog: createClient(CatalogService, transport),
     logs: createClient(LogService, transport),
   };

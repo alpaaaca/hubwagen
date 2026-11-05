@@ -58,8 +58,6 @@ class StepCall:
     args: dict[str, Any]
 
 
-LiftCall = StepCall  # the engine's name
-
 
 @dataclass
 class Run:
@@ -72,18 +70,13 @@ class Run:
     params: dict | None = None  # continued: the next run's inputs
     steps: list[StepCall] = field(default_factory=list)
     children: list[tuple[str, dict]] = field(default_factory=list)  # runs it started: (pipeline, inputs)
-    logbook: list[dict] = field(default_factory=list)
-
-    @property
-    def lifts(self) -> list[StepCall]:  # the engine's name
-        return self.steps
+    event_log: list[dict] = field(default_factory=list)
 
 
 def run(pipeline: Callable | str, params: dict | None = None, *, steps: dict[str, Any] | None = None,
         run_steps: bool = False, signals: dict[str, Any] | None = None,
         versions: dict[str, DataVersion | None] | None = None, children: dict[str, Any] | None = None,
-        now: _dt.datetime = START, haul_id: str = "test-haul", lifts: dict[str, Any] | None = None,
-        run_lifts: bool = False, pallets: dict[str, DataVersion | None] | None = None) -> Run:
+        now: _dt.datetime = START, run_id: str = "test-run") -> Run:
     """Run a pipeline to its end with these inputs (params), against
     scripted results.
 
@@ -95,42 +88,39 @@ def run(pipeline: Callable | str, params: dict | None = None, *, steps: dict[str
     versions: dataset name → what ctx.latest_version returns (default None).
     children: name of a pipeline it runs (ctx.run) → its result, a function
     called with its inputs, or an exception (that run fails).
-    lifts, run_lifts and pallets are the engine's names for steps, run_steps
-    and versions.
     """
-    d = _haul_def(pipeline)
-    sim = _Server({**(lifts or {}), **(steps or {})}, run_steps or run_lifts, signals or {},
-                  {**(pallets or {}), **(versions or {})}, children or {}, now)
-    logbook = [sim.event("HaulStarted", {"name": d.name, "params": encode(params or {})})]
+    d = _pipeline_def(pipeline)
+    sim = _Server(steps or {}, run_steps, signals or {}, versions or {}, children or {}, now)
+    event_log = [sim.event("RunStarted", {"name": d.name, "params": encode(params or {})})]
     for _ in range(MAX_ROUNDS):
-        r = _replay.replay(d, haul_id, encode(params or {}), logbook)
+        r = _replay.replay(d, run_id, encode(params or {}), event_log)
         if r.nondeterministic or r.mismatch:
             raise TestingError(f"pipeline {d.name} isn't deterministic: {r.mismatch}")
-        recorded = sum(len(json.loads(e["payloadJson"]).get("commands") or []) for e in logbook
-                       if e["type"] == "HaulTaskCompleted")
+        recorded = sum(len(json.loads(e["payloadJson"]).get("commands") or []) for e in event_log
+                       if e["type"] == "RunTaskCompleted")
         new = r.commands[recorded:]
-        known = {m["name"] for e in logbook if e["type"] == "HaulTaskCompleted"
+        known = {m["name"] for e in event_log if e["type"] == "RunTaskCompleted"
                  for m in json.loads(e["payloadJson"]).get("markers") or []}
         markers = [m for m in r.markers if m["name"] not in known]
-        logbook.append(sim.event("HaulTaskCompleted", {"commands": [_recorded(c) for c in new],
+        event_log.append(sim.event("RunTaskCompleted", {"commands": [_recorded(c) for c in new],
                                                       **({"markers": markers} if markers else {})}))
         if r.outcome:
-            return _finish(d, haul_id, params, logbook, r.outcome, sim)
+            return _finish(d, run_id, params, event_log, r.outcome, sim)
         if not new:
             raise TestingError(f"pipeline {d.name} is blocked with nothing left to answer it")
         for cmd in new:
-            logbook += sim.answer(cmd)
+            event_log += sim.answer(cmd)
     raise TestingError(f"pipeline {d.name} didn't end within {MAX_ROUNDS} replays")
 
 
-def _finish(d, haul_id, params, logbook, outcome, sim) -> Run:
-    # One more replay of the whole logbook must end the same way.
-    again = _replay.replay(d, haul_id, encode(params or {}), logbook)
+def _finish(d, run_id, params, event_log, outcome, sim) -> Run:
+    # One more replay of the whole event log must end the same way.
+    again = _replay.replay(d, run_id, encode(params or {}), event_log)
     if again.outcome != outcome or again.mismatch:
         raise TestingError(f"pipeline {d.name} ended differently on a replay of its own history: "
                            f"{again.mismatch or again.outcome}")
     status = {"STATUS_COMPLETED": "completed", "STATUS_FAILED": "failed", "STATUS_CONTINUED": "continued"}[outcome["status"]]
-    out = Run(status=status, steps=sim.lift_calls, children=sim.child_calls, logbook=logbook,
+    out = Run(status=status, steps=sim.step_calls, children=sim.child_calls, event_log=event_log,
               reason=outcome.get("reason", ""), message=outcome.get("message", ""))
     if "resultJson" in outcome:
         out.result = decode(json.loads(outcome["resultJson"]))
@@ -139,18 +129,18 @@ def _finish(d, haul_id, params, logbook, outcome, sim) -> Run:
     return out
 
 
-def _haul_def(haul: Callable | str) -> _model.HaulDef:
-    d = _model.HAULS.get(haul) if isinstance(haul, str) else getattr(haul, "__moksha_haul__", None)
+def _pipeline_def(run: Callable | str) -> _model.PipelineDef:
+    d = _model.PIPELINES.get(run) if isinstance(run, str) else getattr(run, "__moksha_pipeline__", None)
     if d is None:
-        raise TypeError(f"{haul!r} is not a pipeline (decorate it with @moksha.pipeline)")
+        raise TypeError(f"{run!r} is not a pipeline (decorate it with @moksha.pipeline)")
     return d
 
 
 def _recorded(cmd: dict) -> dict:
     """A command as the server records it (core's shape)."""
-    for key, kind, target in (("lift", "lift", "name"), ("sleep", "sleep", None),
-                              ("latestPallet", "latest_pallet", "dataset"), ("waitSignal", "wait_signal", "name"),
-                              ("startHaul", "start_haul", "name")):
+    for key, kind, target in (("step", "step", "name"), ("sleep", "sleep", None),
+                              ("latestDataVersion", "latest_version", "dataset"), ("waitSignal", "wait_signal", "name"),
+                              ("startRun", "start_run", "name")):
         if key in cmd:
             out = {"seq": cmd["seq"], "kind": kind}
             if target:
@@ -166,11 +156,11 @@ def _seconds(duration: str) -> float:
 class _Server:
     """Answers commands the way the server would, from the script."""
 
-    def __init__(self, lifts, run_lifts, signals, pallets, children, now):
-        self.lifts, self.run_lifts, self.pallets, self.children = lifts, run_lifts, pallets, children
+    def __init__(self, steps, run_steps, signals, data_versions, children, now):
+        self.steps, self.run_steps, self.data_versions, self.children = steps, run_steps, data_versions, children
         self.signals = {k: list(v) if isinstance(v, list) else [v] for k, v in signals.items()}
         self.now = now
-        self.lift_calls: list[StepCall] = []
+        self.step_calls: list[StepCall] = []
         self.child_calls: list[tuple[str, dict]] = []
 
     def event(self, type_: str, payload: dict) -> dict:
@@ -178,16 +168,16 @@ class _Server:
 
     def answer(self, cmd: dict) -> list[dict]:
         seq = cmd["seq"]
-        if "lift" in cmd:
-            return [self._lift(seq, cmd["lift"])]
+        if "step" in cmd:
+            return [self._step(seq, cmd["step"])]
         if "sleep" in cmd:
             self.now += _dt.timedelta(seconds=_seconds(cmd["sleep"]["duration"]))
             return [self.event("TimerFired", {"seq": seq})]
-        if "latestPallet" in cmd:
-            p = self.pallets.get(cmd["latestPallet"]["dataset"])
+        if "latestDataVersion" in cmd:
+            p = self.data_versions.get(cmd["latestDataVersion"]["dataset"])
             answer = None if p is None else {"id": p.id, "dataset": p.dataset, "partition": p.partition,
                                              "meta": p.meta, "stats": p.stats}
-            return [self.event("QueryAnswered", {"seq": seq, "pallet": answer})]
+            return [self.event("QueryAnswered", {"seq": seq, "data_version": answer})]
         if "waitSignal" in cmd:
             w = cmd["waitSignal"]
             left = self.signals.get(w["name"])
@@ -199,46 +189,46 @@ class _Server:
                 return [self.event("SignalDelivered", {"seq": seq, "name": w["name"], "timed_out": True})]
             raise TestingError(f"command {seq}: the run waits for signal {w['name']!r} with no timeout; "
                                f"script it: signals={{{w['name']!r}: ...}}")
-        if "startHaul" in cmd:
-            return self._child(seq, cmd["startHaul"])
+        if "startRun" in cmd:
+            return self._child(seq, cmd["startRun"])
         raise TestingError(f"command {seq}: unknown {cmd}")
 
-    def _lift(self, seq: int, body: dict) -> dict:
+    def _step(self, seq: int, body: dict) -> dict:
         name = body["name"]
-        pallets = {i["name"]: DataVersion(id=i["pallet"]) for i in body.get("inputs", [])}
-        args = decode(json.loads(body.get("argsJson") or "{}"), pallets)
-        self.lift_calls.append(StepCall(seq, name, args))
-        script = self.lifts.get(name, _MISSING)
+        data_versions = {i["name"]: DataVersion(id=i["data_version"]) for i in body.get("inputs", [])}
+        args = decode(json.loads(body.get("argsJson") or "{}"), data_versions)
+        self.step_calls.append(StepCall(seq, name, args))
+        script = self.steps.get(name, _MISSING)
         if script is _MISSING:
-            if not self.run_lifts:
+            if not self.run_steps:
                 raise TestingError(f"command {seq}: step {name} isn't scripted; pass steps={{{name!r}: ...}} "
                                    "or run_steps=True")
-            script = _model.lift_def(name).fn
+            script = _model.step_def(name).fn
         payload: dict[str, Any] = {"seq": seq, "status": "completed"}
         try:
             result = script(**args) if callable(script) and not isinstance(script, type) else script
             if isinstance(result, BaseException) or (isinstance(result, type) and issubclass(result, BaseException)):
                 raise result
-        except Exception as e:  # noqa: BLE001 - the scripted lift failed
+        except Exception as e:  # noqa: BLE001 - the scripted step failed
             payload.update(status="failed", reason=type(e).__name__, message=str(e))
-            return self.event("LiftFinished", payload)
+            return self.event("StepFinished", payload)
         payload["result"] = encode(result)
         if "output" in body:
-            payload["pallet"] = f"pallet-{seq}"
-        return self.event("LiftFinished", payload)
+            payload["data_version"] = f"data_version-{seq}"
+        return self.event("StepFinished", payload)
 
     def _child(self, seq: int, body: dict) -> list[dict]:
         name = body["name"]
         params = decode(json.loads(body.get("paramsJson") or "{}"))
         self.child_calls.append((name, params))
         child = f"child-{seq}"
-        events = [self.event("ChildStarted", {"seq": seq, "name": name, "haul": child})]
+        events = [self.event("ChildStarted", {"seq": seq, "name": name, "run": child})]
         if not body.get("wait"):
             return events
         script = self.children.get(name, _MISSING)
         if script is _MISSING:
             raise TestingError(f"command {seq}: the run of {name} isn't scripted; pass children={{{name!r}: ...}}")
-        payload: dict[str, Any] = {"seq": seq, "name": name, "haul": child, "status": "completed"}
+        payload: dict[str, Any] = {"seq": seq, "name": name, "run": child, "status": "completed"}
         try:
             result = script(**params) if callable(script) and not isinstance(script, type) else script
             if isinstance(result, BaseException) or (isinstance(result, type) and issubclass(result, BaseException)):
@@ -252,25 +242,25 @@ class _Server:
 _MISSING = object()
 
 
-# --- replaying recorded logbooks ---------------------------------------------
+# --- replaying recorded event logs ---------------------------------------------
 
-def replay_recorded(haul: dict, logbook: list[dict]) -> str | None:
-    """Replay one recorded run (GetLogbook's) against the code imported
+def replay_recorded(run: dict, event_log: list[dict]) -> str | None:
+    """Replay one recorded run (GetEventLog's) against the code imported
     now. Returns why it would be stuck, or None if it replays as recorded."""
-    d = _model.HAULS.get(haul["name"])
+    d = _model.PIPELINES.get(run["name"])
     if d is None:
-        return f"no pipeline {haul['name']!r} in this code"
-    params = json.loads(haul.get("paramsJson") or "{}")
-    r = _replay.replay(d, haul["id"], params, logbook)
+        return f"no pipeline {run['name']!r} in this code"
+    params = json.loads(run.get("paramsJson") or "{}")
+    r = _replay.replay(d, run["id"], params, event_log)
     if r.nondeterministic or r.mismatch:
         return r.mismatch
     final = None
-    for e in logbook:
-        if e["type"] == "HaulTaskCompleted":
+    for e in event_log:
+        if e["type"] == "RunTaskCompleted":
             final = json.loads(e["payloadJson"]).get("outcome") or final
-    if final is not None and haul["status"] in ("completed", "failed", "continued"):
+    if final is not None and run["status"] in ("completed", "failed", "continued"):
         if r.outcome is None:
-            return f"the run {haul['status']}, the replay doesn't end"
+            return f"the run {run['status']}, the replay doesn't end"
         status = {"STATUS_COMPLETED": "completed", "STATUS_FAILED": "failed", "STATUS_CONTINUED": "continued"}[r.outcome["status"]]
         if status != final["status"]:
             return f"the run {final['status']}, the replay {status}"
@@ -293,7 +283,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--server", default=os.environ.get("MOKSHA_SERVER", "http://127.0.0.1:7070"))
     p.add_argument("--replay", action="append", default=[], metavar="RUN_ID", help="replay this run (repeatable)")
     p.add_argument("--replay-recent", type=int, default=0, metavar="N", help="replay the N most recent runs")
-    p.add_argument("--pipeline", "--haul", dest="haul", help="with --replay-recent: only runs of this pipeline")
+    p.add_argument("--pipeline", dest="run", help="with --replay-recent: only runs of this pipeline")
     args = p.parse_args(argv)
     if not args.replay and not args.replay_recent:
         p.error("nothing to replay: pass --replay RUN_ID or --replay-recent N")
@@ -308,15 +298,15 @@ def main(argv: list[str] | None = None) -> int:
     ids = list(args.replay)
     if args.replay_recent:
         body: dict[str, Any] = {"limit": args.replay_recent}
-        if args.haul:
-            body["name"] = args.haul
-        ids += [h["id"] for h in client.call("HaulService", "ListHauls", body).get("hauls", [])]
+        if args.run:
+            body["name"] = args.run
+        ids += [h["id"] for h in client.call("RunService", "ListRuns", body).get("runs", [])]
     failed = 0
     for hid in ids:
-        res = client.call("HaulService", "GetLogbook", {"haulId": hid})
-        haul = res["haul"]
-        why = replay_recorded(haul, res.get("logbook", []))
-        label = f"{hid} {haul['name']} ({haul['status']})"
+        res = client.call("RunService", "GetEventLog", {"runId": hid})
+        run = res["run"]
+        why = replay_recorded(run, res.get("eventLog", []))
+        label = f"{hid} {run['name']} ({run['status']})"
         if why:
             failed += 1
             print(f"FAIL {label}: {why}")

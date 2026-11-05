@@ -12,13 +12,13 @@ import (
 type batch struct {
 	events []state.Event
 
-	catalog []func(tx *state.Tx) error // datasets, builds, pallets and lineage, in order
+	catalog []func(tx *state.Tx) error // datasets, builds, data versions and lineage, in order
 
-	hauls        []*haulState
-	haulTasks    []*haulTaskState
-	lifts        []*liftState
-	liftAttempts []*liftAttemptState
-	timers       []*haulTimer
+	runs         []*runState
+	runTasks     []*runTaskState
+	steps        []*stepState
+	stepAttempts []*stepAttemptState
+	timers       []*runTimer
 
 	seen map[any]bool
 
@@ -30,8 +30,8 @@ func newBatch() *batch { return &batch{seen: map[any]bool{}} }
 
 func (b *batch) empty() bool {
 	return len(b.events) == 0 && len(b.catalog) == 0 &&
-		len(b.hauls) == 0 && len(b.haulTasks) == 0 && len(b.lifts) == 0 &&
-		len(b.liftAttempts) == 0 && len(b.timers) == 0
+		len(b.runs) == 0 && len(b.runTasks) == 0 && len(b.steps) == 0 &&
+		len(b.stepAttempts) == 0 && len(b.timers) == 0
 }
 
 // write is the Store.Append callback. Order follows foreign keys.
@@ -41,29 +41,29 @@ func (b *batch) write(tx *state.Tx) error {
 			return err
 		}
 	}
-	for _, h := range b.hauls {
-		if err := tx.PutHaul(h.rec); err != nil {
-			return fmt.Errorf("haul %s: %w", h.rec.ID, err)
+	for _, h := range b.runs {
+		if err := tx.PutRun(h.rec); err != nil {
+			return fmt.Errorf("run %s: %w", h.rec.ID, err)
 		}
 	}
-	for _, t := range b.haulTasks {
-		if err := tx.PutHaulTask(t.rec); err != nil {
-			return fmt.Errorf("haul task %s: %w", t.rec.ID, err)
+	for _, t := range b.runTasks {
+		if err := tx.PutRunTask(t.rec); err != nil {
+			return fmt.Errorf("run task %s: %w", t.rec.ID, err)
 		}
 	}
-	for _, l := range b.lifts {
-		if err := tx.PutLift(l.rec); err != nil {
-			return fmt.Errorf("lift %s/%d: %w", l.rec.HaulID, l.rec.Seq, err)
+	for _, l := range b.steps {
+		if err := tx.PutStep(l.rec); err != nil {
+			return fmt.Errorf("step %s/%d: %w", l.rec.RunID, l.rec.Seq, err)
 		}
 	}
-	for _, a := range b.liftAttempts {
-		if err := tx.PutLiftAttempt(a.rec); err != nil {
-			return fmt.Errorf("lift attempt %s: %w", a.rec.ID, err)
+	for _, a := range b.stepAttempts {
+		if err := tx.PutStepAttempt(a.rec); err != nil {
+			return fmt.Errorf("step attempt %s: %w", a.rec.ID, err)
 		}
 	}
 	for _, t := range b.timers {
 		if err := tx.PutTimer(t.rec); err != nil {
-			return fmt.Errorf("timer %s/%d: %w", t.rec.HaulID, t.rec.Seq, err)
+			return fmt.Errorf("timer %s/%d: %w", t.rec.RunID, t.rec.Seq, err)
 		}
 	}
 	return nil
@@ -79,7 +79,7 @@ func dirty[T any](b *batch, list *[]*T, v *T) {
 
 func (c *Core) effect(f func()) { c.b.effects = append(c.b.effects, f) }
 
-// emit records an event that belongs to no haul (a leader term, a build, a
+// emit records an event that belongs to no run (a leader term, a build, a
 // dataset) in the current batch.
 func (c *Core) emit(typ state.EventType, tenant string, payload any) {
 	c.b.events = append(c.b.events, state.Event{
@@ -87,12 +87,12 @@ func (c *Core) emit(typ state.EventType, tenant string, payload any) {
 	})
 }
 
-// emitHaul records an event in a haul's logbook. attemptID is a haul task or
-// lift attempt ID, or empty.
-func (c *Core) emitHaul(typ state.EventType, tenant, haulID, attemptID string, payload any) {
+// emitRun records an event in a run's event log. attemptID is a run task or
+// step attempt ID, or empty.
+func (c *Core) emitRun(typ state.EventType, tenant, runID, attemptID string, payload any) {
 	c.b.events = append(c.b.events, state.Event{
 		Time: c.now(), Tenant: tenant, Type: typ,
-		HaulID: haulID, AttemptID: attemptID, Payload: marshalPayload(typ, payload),
+		RunID: runID, AttemptID: attemptID, Payload: marshalPayload(typ, payload),
 	})
 }
 

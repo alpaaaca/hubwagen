@@ -1,7 +1,7 @@
 """moksha lint: find pipeline code that won't replay the same way twice.
 
     python -m moksha.lint                  # the modules in ./pyproject.toml ([tool.moksha])
-    python -m moksha.lint app/hauls.py src # files, directories or module names
+    python -m moksha.lint app/pipelines.py src # files, directories or module names
 
 A run of a pipeline is replayed against what it already did many times, on
 any worker, so pipeline code must make the same calls in the same order
@@ -9,16 +9,16 @@ every time. The runtime guards catch the clock and randomness while a run
 replays; lint catches more, and
 before anything runs, by reading the source (nothing is imported):
 
-    HW001  the clock (time.time, datetime.now, date.today, ...)
-    HW002  randomness (random.*, uuid4, os.urandom, secrets)
-    HW003  iterating a set: its order can differ between processes
-    HW004  I/O, network, subprocesses or environment variables
-    HW005  `except:` or `except BaseException`: swallows the replay's Blocked
-    HW006  a step called directly instead of through ctx.step
+    MK001  the clock (time.time, datetime.now, date.today, ...)
+    MK002  randomness (random.*, uuid4, os.urandom, secrets)
+    MK003  iterating a set: its order can differ between processes
+    MK004  I/O, network, subprocesses or environment variables
+    MK005  `except:` or `except BaseException`: swallows the replay's Blocked
+    MK006  a step called directly instead of through ctx.step
 
-Only code inside functions decorated with moksha's @pipeline (or @haul) is checked
+Only code inside functions decorated with moksha's @pipeline (or @pipeline) is checked
 (nested functions included, helpers it calls not). Silence a line with
-`# noqa: HW004` (or a bare `# noqa`). Exits 1 if anything is found.
+`# noqa: MK004` (or a bare `# noqa`). Exits 1 if anything is found.
 """
 
 from __future__ import annotations
@@ -62,15 +62,15 @@ def lint_source(source: str, path: str = "<string>") -> list[Finding]:
     try:
         tree = ast.parse(source, path)
     except SyntaxError as e:
-        return [Finding(path, e.lineno or 1, (e.offset or 1) - 1, "HW000", f"syntax error: {e.msg}")]
+        return [Finding(path, e.lineno or 1, (e.offset or 1) - 1, "MK000", f"syntax error: {e.msg}")]
     names = _imports(tree)
-    lifts = {n.name for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
-             and any(_decorated(d, names, "step", "lift") for d in n.decorator_list)}
+    steps = {n.name for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+             and any(_decorated(d, names, "step", "step") for d in n.decorator_list)}
     findings: list[Finding] = []
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and \
-                any(_decorated(d, names, "pipeline", "haul") for d in node.decorator_list):
-            findings += _HaulChecker(path, names, lifts, node.name).check(node)
+                any(_decorated(d, names, "pipeline") for d in node.decorator_list):
+            findings += _PipelineChecker(path, names, steps, node.name).check(node)
     lines = source.splitlines()
     return sorted({f for f in findings if not _silenced(f, lines)}, key=lambda f: (f.line, f.col, f.code))
 
@@ -118,9 +118,9 @@ def _decorated(d: ast.expr, names: dict[str, str], *what: str) -> bool:
     return _qualified(d, names) in {f"moksha{m}.{w}" for w in what for m in ("", "._model")}
 
 
-class _HaulChecker(ast.NodeVisitor):
-    def __init__(self, path: str, names: dict[str, str], lifts: set[str], haul: str):
-        self.path, self.names, self.lifts, self.haul = path, names, lifts, haul
+class _PipelineChecker(ast.NodeVisitor):
+    def __init__(self, path: str, names: dict[str, str], steps: set[str], pipeline: str):
+        self.path, self.names, self.steps, self.pipeline = path, names, steps, pipeline
         self.findings: list[Finding] = []
         self.sets: set[str] = set()  # local names bound to sets
 
@@ -130,25 +130,25 @@ class _HaulChecker(ast.NodeVisitor):
         return self.findings
 
     def add(self, node: ast.AST, code: str, message: str) -> None:
-        self.findings.append(Finding(self.path, node.lineno, node.col_offset, code, f"pipeline {self.haul}: {message}"))
+        self.findings.append(Finding(self.path, node.lineno, node.col_offset, code, f"pipeline {self.pipeline}: {message}"))
 
     def visit_Call(self, node: ast.Call) -> None:
         q = _qualified(node.func, self.names)
         if q in CLOCK:
-            self.add(node, "HW001", f"{q}() reads the clock; use ctx.now()")
+            self.add(node, "MK001", f"{q}() reads the clock; use ctx.now()")
         elif q in RANDOM or (q and q.startswith(RANDOM_PREFIXES)):
-            self.add(node, "HW002", f"{q}() is random; use ctx.random() or a step")
+            self.add(node, "MK002", f"{q}() is random; use ctx.random() or a step")
         elif q in IO_CALLS or (q and q.startswith(IO_PREFIXES)):
-            self.add(node, "HW004", f"{q}() does I/O; do it in a step")
+            self.add(node, "MK004", f"{q}() does I/O; do it in a step")
         elif isinstance(node.func, ast.Attribute) and node.func.attr in IO_METHODS:
-            self.add(node, "HW004", f".{node.func.attr}() does I/O; do it in a step")
-        elif isinstance(node.func, ast.Name) and node.func.id in self.lifts:
-            self.add(node, "HW006", f"step {node.func.id} called directly runs inside the pipeline; use ctx.step({node.func.id}, ...)")
+            self.add(node, "MK004", f".{node.func.attr}() does I/O; do it in a step")
+        elif isinstance(node.func, ast.Name) and node.func.id in self.steps:
+            self.add(node, "MK006", f"step {node.func.id} called directly runs inside the pipeline; use ctx.step({node.func.id}, ...)")
         self.generic_visit(node)
 
     def visit_Attribute(self, node: ast.Attribute) -> None:
         if _qualified(node, self.names) == "os.environ":
-            self.add(node, "HW004", "os.environ reads the environment; pass it as an input or read it in a step")
+            self.add(node, "MK004", "os.environ reads the environment; pass it as an input or read it in a step")
         self.generic_visit(node)
 
     def visit_Assign(self, node: ast.Assign) -> None:
@@ -171,14 +171,14 @@ class _HaulChecker(ast.NodeVisitor):
     def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
         types = node.type.elts if isinstance(node.type, ast.Tuple) else [node.type]
         if node.type is None:
-            self.add(node, "HW005", "bare `except:` swallows the replay's Blocked; catch Exception")
+            self.add(node, "MK005", "bare `except:` swallows the replay's Blocked; catch Exception")
         elif any(t is not None and _qualified(t, self.names) == "BaseException" for t in types):
-            self.add(node, "HW005", "`except BaseException` swallows the replay's Blocked; catch Exception")
+            self.add(node, "MK005", "`except BaseException` swallows the replay's Blocked; catch Exception")
         self.generic_visit(node)
 
     def _iterates(self, it: ast.expr) -> None:
         if self._is_set(it):
-            self.add(it, "HW003", "iterating a set: its order differs between processes; iterate sorted(...)")
+            self.add(it, "MK003", "iterating a set: its order differs between processes; iterate sorted(...)")
 
     def _is_set(self, e: ast.expr) -> bool:
         if isinstance(e, (ast.Set, ast.SetComp)):

@@ -24,7 +24,7 @@ services:
     image: ${REVENUE_IMAGE:-revenue-worker:dev}
     environment:
       MOKSHA_SERVER: http://server:7070
-      MOKSHA_LIFTS: "2"
+      MOKSHA_STEPS: "2"
     depends_on: [server]   # the workers retry until the server answers
     deploy:
       replicas: ${REVENUE_WORKERS:-2}

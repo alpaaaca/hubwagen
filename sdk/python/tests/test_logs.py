@@ -1,4 +1,4 @@
-"""Capturing a lift's output per thread (moksha._logs)."""
+"""Capturing a step's output per thread (moksha._logs)."""
 
 import io
 import logging
@@ -29,7 +29,7 @@ def test_a_capture_takes_its_threads_output_only(monkeypatch, capsys):
         t = threading.Thread(target=elsewhere)
         t.start()
         t.join()
-    print("after the lift")
+    print("after the step")
     c.flush(final=True)
 
     got = [(l["stream"], l.get("level"), l["text"].splitlines()[0]) for l in sent]
@@ -43,11 +43,11 @@ def test_a_capture_takes_its_threads_output_only(monkeypatch, capsys):
     assert "KeyError: 'k'" in sent[3]["text"], "with the traceback"
     assert all(l["time"].endswith("Z") for l in sent)
     out = capsys.readouterr().out
-    assert "from another thread" in out and "after the lift" in out
+    assert "from another thread" in out and "after the step" in out
     assert "hello" not in out, "echo off: captured output stays out of the terminal"
 
 
-def test_echo_marks_lines_with_the_lift(monkeypatch):
+def test_echo_marks_lines_with_the_step(monkeypatch):
     fake = io.StringIO()
     monkeypatch.setattr(sys, "stdout", fake)
     c = _logs.Capture("report", lambda lines: None, echo=True)

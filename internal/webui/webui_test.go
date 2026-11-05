@@ -31,7 +31,7 @@ func TestServeTheBuiltUI(t *testing.T) {
 	assert.Contains(t, w.Header().Get("Cache-Control"), "immutable", "hashed asset names never change")
 
 	assert.Equal(t, "<svg/>", get(h, "/favicon.svg").Body.String())
-	assert.Equal(t, "<div id=root></div>", get(h, "/hauls/01M6").Body.String(), "a client-side route gets the page")
+	assert.Equal(t, "<div id=root></div>", get(h, "/runs/01M6").Body.String(), "a client-side route gets the page")
 }
 
 func TestPlaceholderWithoutABuild(t *testing.T) {

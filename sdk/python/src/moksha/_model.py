@@ -1,8 +1,4 @@
-"""Datasets, data versions and the registry of pipelines and steps.
-
-The engine calls a pipeline a haul, a step a lift and a data version a
-pallet; those names are what the server speaks, and stay as aliases here.
-"""
+"""Datasets, data versions and the registry of pipelines and steps."""
 
 from __future__ import annotations
 
@@ -187,8 +183,6 @@ class DataVersion:
         return _codecs.load(self.path(_codecs.FILE), _codecs.frame_tag(m.get("result")), as_)
 
 
-Pallet = DataVersion  # the engine's name
-
 
 @dataclass(frozen=True)
 class Retry:
@@ -207,23 +201,16 @@ class StepFailed(Exception):
         super().__init__(f"{step} failed ({reason}): {message}" if message else f"{step} failed ({reason})")
         self.step, self.reason, self.message = step, reason, message
 
-    @property
-    def lift(self) -> str:  # the engine's name
-        return self.step
-
-
-LiftFailed = StepFailed  # the engine's name
-
 
 class NonRetryable(Exception):
     """Raise from a step for a failure that will repeat on every attempt."""
 
 
 @dataclass
-class HaulDef:
+class PipelineDef:
     name: str
     fn: Callable
-    dock: str | None
+    queue: str | None
     max_parallel: int | None = None  # steps of one run queued or running at once
     schedule: Schedule | None = None
     subscribe: Subscription | None = None
@@ -234,17 +221,17 @@ class HaulDef:
     def _computed_version(self) -> str:
         from . import _codeversion
 
-        return _codeversion.code_version(self.fn, name=self.name, haul=True)
+        return _codeversion.code_version(self.fn, name=self.name, pipeline=True)
 
     def code_version(self) -> str:
-        """The haul's code version, computed like a lift's. It goes into the
-        build ID, so fixed haul code is a new build (which resumes stuck
-        hauls)."""
+        """The run's code version, computed like a step's. It goes into the
+        build ID, so fixed pipeline code is a new build (which resumes stuck
+        runs)."""
         return self._computed_version
 
 
 @dataclass
-class LiftDef:
+class StepDef:
     name: str
     fn: Callable
     memo: str  # "", "fingerprint" or "ttl:<duration>"
@@ -253,7 +240,7 @@ class LiftDef:
     deps: tuple[str, ...]
     timeout: float | None
     retry: Retry | None
-    dock: str | None
+    queue: str | None
 
     @functools.cached_property
     def _computed_version(self) -> str:
@@ -262,14 +249,14 @@ class LiftDef:
         return _codeversion.code_version(self.fn, self.deps, self.name)
 
     def code_version(self) -> str:
-        """The lift's code version: `version=` if given, else a hash of the
+        """The step's code version: `version=` if given, else a hash of the
         code it can run, the packages it uses and its `deps=` files (see
         _codeversion). Computed once per process."""
         return self.version or self._computed_version
 
 
-HAULS: dict[str, HaulDef] = {}
-LIFTS: dict[str, LiftDef] = {}
+PIPELINES: dict[str, PipelineDef] = {}
+STEPS: dict[str, StepDef] = {}
 
 
 def _register(registry: dict, d) -> None:
@@ -280,7 +267,7 @@ def _register(registry: dict, d) -> None:
 
 
 def pipeline(fn: Callable | None = None, *, name: str | None = None, title: str | None = None,
-             dock: str | None = None, max_parallel: int | None = None, schedule: Schedule | str | None = None,
+             queue: str | None = None, max_parallel: int | None = None, schedule: Schedule | str | None = None,
              subscribe: Subscription | str | list | None = None):
     """Mark a function as a pipeline: the code that decides which steps run,
     called as fn(ctx, **inputs). Each run of it survives crashes and
@@ -294,8 +281,7 @@ def pipeline(fn: Callable | None = None, *, name: str | None = None, title: str 
     new data versions in those datasets start it: it takes a `versions`
     input (a list of moksha.DataVersion). title ("Daily revenue") is what
     the web UI calls it; without one, the docstring's first line is; the
-    rest of the docstring describes it. (The engine calls a pipeline a
-    haul.)"""
+    rest of the docstring describes it."""
     if max_parallel is not None and (not isinstance(max_parallel, int) or max_parallel < 1):
         raise ValueError(f"pipeline: max_parallel must be a positive integer, got {max_parallel!r}")
     if isinstance(schedule, str):
@@ -304,22 +290,21 @@ def pipeline(fn: Callable | None = None, *, name: str | None = None, title: str 
         subscribe = Subscription(subscribe)
 
     def wrap(f: Callable) -> Callable:
-        d = HaulDef(name=name or f.__name__, fn=f, dock=dock, max_parallel=max_parallel, schedule=schedule,
+        d = PipelineDef(name=name or f.__name__, fn=f, queue=queue, max_parallel=max_parallel, schedule=schedule,
                     subscribe=subscribe, **_describe(f, title))
         takes = inspect.signature(f).parameters
-        if subscribe is not None and "versions" not in takes and "pallets" not in takes:
+        if subscribe is not None and "versions" not in takes:
             raise ValueError(f"pipeline {d.name}: a subscribed pipeline takes a `versions` input "
                              "(a list of moksha.DataVersion)")
         if schedule is not None and "interval" not in takes:
             raise ValueError(f"pipeline {d.name}: a scheduled pipeline takes an `interval` input (a moksha.Interval)")
-        _register(HAULS, d)
-        f.__moksha_haul__ = d
+        _register(PIPELINES, d)
+        f.__moksha_pipeline__ = d
         return f
 
     return wrap(fn) if fn is not None else wrap
 
 
-haul = pipeline  # the engine's name
 
 
 def _describe(f: Callable, title: str | None) -> dict[str, str]:
@@ -344,7 +329,7 @@ def _memo(memo: bool | str | None) -> str:
 
 def step(fn: Callable | None = None, *, name: str | None = None, memo: bool | str = False,
          output: Dataset | None = None, version: str | None = None, deps: tuple[str, ...] | list[str] = (),
-         timeout: float | _dt.timedelta | None = None, retry: Retry | int | None = None, dock: str | None = None):
+         timeout: float | _dt.timedelta | None = None, retry: Retry | int | None = None, queue: str | None = None):
     """Mark a function as a step: one unit of real work (a query, an API
     call, a computation), run on a worker and retried by policy. With
     output=, what it writes becomes a new version of that dataset: return a
@@ -352,7 +337,7 @@ def step(fn: Callable | None = None, *, name: str | None = None, memo: bool | st
     step that comes again with the same code, inputs and arguments reuses
     what an earlier run produced instead of running: its data version, or
     without an output, its result. The function stays callable as is, for
-    tests. (The engine calls a step a lift.)"""
+    tests."""
     memo_s = _memo(memo)
     if isinstance(timeout, _dt.timedelta):
         timeout = timeout.total_seconds()
@@ -360,25 +345,24 @@ def step(fn: Callable | None = None, *, name: str | None = None, memo: bool | st
         retry = Retry(limit=retry)
 
     def wrap(f: Callable) -> Callable:
-        d = LiftDef(name=name or f.__name__, fn=f, memo=memo_s, output=output, version=version,
-                    deps=tuple(deps), timeout=timeout, retry=retry, dock=dock)
+        d = StepDef(name=name or f.__name__, fn=f, memo=memo_s, output=output, version=version,
+                    deps=tuple(deps), timeout=timeout, retry=retry, queue=queue)
         if output is not None and output.partition and output.partition not in inspect.signature(f).parameters:
             raise ValueError(f"step {d.name}: output partition {output.partition!r} is not one of its arguments")
-        _register(LIFTS, d)
-        f.__moksha_lift__ = d
+        _register(STEPS, d)
+        f.__moksha_step__ = d
         return f
 
     return wrap(fn) if fn is not None else wrap
 
 
-lift = step  # the engine's name
 
 
-def lift_def(f: Callable | str) -> LiftDef:
+def step_def(f: Callable | str) -> StepDef:
     if isinstance(f, str):
-        d = LIFTS.get(f)
+        d = STEPS.get(f)
     else:
-        d = getattr(f, "__moksha_lift__", None)
+        d = getattr(f, "__moksha_step__", None)
     if d is None:
         raise TypeError(f"{f!r} is not a step (decorate it with @moksha.step)")
     return d
@@ -395,8 +379,8 @@ def encode(v: Any) -> Any:
     if _codecs.for_value(v) is not None:
         raise TypeError(f"a {type(v).__name__} isn't JSON: return it from a step on its own (it becomes a data version) "
                         "and pass the step's handle on")
-    if isinstance(v, Pallet):
-        return {"$pallet": v.id, "dataset": v.dataset, "partition": v.partition}
+    if isinstance(v, DataVersion):
+        return {"$data_version": v.id, "dataset": v.dataset, "partition": v.partition}
     if isinstance(v, Interval):
         return {"$interval": {"start": v.start.isoformat(), "end": v.end.isoformat()}}
     if isinstance(v, _dt.datetime):
@@ -416,7 +400,7 @@ def _parse_time(s: str) -> _dt.datetime:
     return _dt.datetime.fromisoformat(s.replace("Z", "+00:00"))
 
 
-def decode(v: Any, pallets: dict[str, Pallet] | None = None) -> Any:
+def decode(v: Any, data_versions: dict[str, DataVersion] | None = None) -> Any:
     if isinstance(v, dict):
         if "$date" in v and len(v) == 1:
             return _dt.date.fromisoformat(v["$date"])
@@ -425,11 +409,11 @@ def decode(v: Any, pallets: dict[str, Pallet] | None = None) -> Any:
         if "$interval" in v and len(v) == 1:
             iv = v["$interval"]
             return Interval(_parse_time(iv["start"]), _parse_time(iv["end"]))
-        if "$input" in v and len(v) == 1 and pallets is not None:
-            return pallets[v["$input"]]
-        if "$pallet" in v:
-            return Pallet(id=v["$pallet"], dataset=v.get("dataset", ""), partition=v.get("partition", ""))
-        return {k: decode(x, pallets) for k, x in v.items()}
+        if "$input" in v and len(v) == 1 and data_versions is not None:
+            return data_versions[v["$input"]]
+        if "$data_version" in v:
+            return DataVersion(id=v["$data_version"], dataset=v.get("dataset", ""), partition=v.get("partition", ""))
+        return {k: decode(x, data_versions) for k, x in v.items()}
     if isinstance(v, list):
-        return [decode(x, pallets) for x in v]
+        return [decode(x, data_versions) for x in v]
     return v

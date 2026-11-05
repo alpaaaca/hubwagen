@@ -7,7 +7,7 @@ for that day.
 
 import moksha as mk
 
-from .hauls import daily
+from .pipelines import daily
 
 
 @mk.pipeline(title="Nightly revenue",

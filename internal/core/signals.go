@@ -11,20 +11,20 @@ import (
 	"github.com/alper/moksha/internal/state"
 )
 
-// Signals are input from outside delivered to a running haul (an approval, a
-// file that arrived). SignalHaul records a signal on the haul (SignalReceived);
-// a wait_signal command waits for one by name. A signal sent before the haul
+// Signals are input from outside delivered to a run in progress (an approval, a
+// file that arrived). SignalRun records a signal on the run (SignalReceived);
+// a wait_signal command waits for one by name. A signal sent before the run
 // waits is kept until a wait takes it; each signal goes to one wait, and of
 // several waits for a name, the oldest takes it first. A wait with a timeout
 // starts a timer under its own seq; if it fires first, the wait gets a
-// timeout instead. Either way the logbook records SignalDelivered for the
+// timeout instead. Either way the event log records SignalDelivered for the
 // wait's seq, and that is what a replay reads.
 //
-// Both waits and kept signals are derived from the logbook, so a new leader
-// rebuilds them from the haul's events (restoreSignals).
+// Both waits and kept signals are derived from the event log, so a new leader
+// rebuilds them from the run's events (restoreSignals).
 
-// ErrHaulFinished: the haul is no longer open (signals can't reach it).
-var ErrHaulFinished = errors.New("haul finished")
+// ErrRunFinished: the run is no longer open (signals can't reach it).
+var ErrRunFinished = errors.New("run finished")
 
 type signalWait struct {
 	seq  int
@@ -38,16 +38,16 @@ type keptSignal struct {
 	Payload json.RawMessage `json:"payload,omitempty"`
 }
 
-// SignalRequest sends a signal to a haul. Payload is JSON (default null).
+// SignalRequest sends a signal to a run. Payload is JSON (default null).
 type SignalRequest struct {
-	HaulID  string
+	RunID   string
 	Name    string
 	Payload json.RawMessage
 }
 
-// SignalHaul records a signal for an open haul and delivers it to a waiting
+// SignalRun records a signal for an open run and delivers it to a waiting
 // wait_signal, if there is one. It returns the signal's ID.
-func (c *Core) SignalHaul(ctx context.Context, req SignalRequest) (string, error) {
+func (c *Core) SignalRun(ctx context.Context, req SignalRequest) (string, error) {
 	return submit(ctx, c, func(c *Core) (string, error) {
 		if req.Name == "" {
 			return "", fmt.Errorf("%w: a signal needs a name", ErrInvalid)
@@ -59,16 +59,16 @@ func (c *Core) SignalHaul(ctx context.Context, req SignalRequest) (string, error
 		if !json.Valid(payload) {
 			return "", fmt.Errorf("%w: signal payload is not JSON", ErrInvalid)
 		}
-		h := c.hauls[req.HaulID]
+		h := c.runs[req.RunID]
 		if h == nil {
-			rec, err := c.cfg.Store.GetHaul(ctx, req.HaulID)
+			rec, err := c.cfg.Store.GetRun(ctx, req.RunID)
 			switch {
 			case errors.Is(err, state.ErrNotFound):
-				return "", fmt.Errorf("%w: haul %s", ErrNotFound, req.HaulID)
+				return "", fmt.Errorf("%w: run %s", ErrNotFound, req.RunID)
 			case err != nil:
 				return "", err
 			}
-			return "", fmt.Errorf("%w: haul %s is %s", ErrHaulFinished, req.HaulID, rec.Status)
+			return "", fmt.Errorf("%w: run %s is %s", ErrRunFinished, req.RunID, rec.Status)
 		}
 		s := keptSignal{ID: c.cfg.NewID(), Name: req.Name, Payload: json.RawMessage(payload)}
 		c.emitH(state.EventSignalReceived, h, "", signalReceivedPayload{Signal: s.ID, Name: s.Name, Payload: s.Payload})
@@ -83,7 +83,7 @@ func (c *Core) SignalHaul(ctx context.Context, req SignalRequest) (string, error
 
 // waitSignal handles a wait_signal command: a kept signal answers it at once,
 // otherwise it waits, with a timer if it has a timeout.
-func (c *Core) waitSignal(h *haulState, cmd Command) {
+func (c *Core) waitSignal(h *runState, cmd Command) {
 	w := &signalWait{seq: cmd.Seq, name: cmd.Name}
 	if i := slices.IndexFunc(h.signals, func(s keptSignal) bool { return s.Name == cmd.Name }); i >= 0 {
 		s := h.signals[i]
@@ -98,7 +98,7 @@ func (c *Core) waitSignal(h *haulState, cmd Command) {
 }
 
 // deliverSignal ends wait w with signal s, or with a timeout if s is nil.
-func (c *Core) deliverSignal(h *haulState, w *signalWait, s *keptSignal) {
+func (c *Core) deliverSignal(h *runState, w *signalWait, s *keptSignal) {
 	delete(h.waits, w.seq)
 	p := signalDeliveredPayload{Seq: w.seq, Name: w.name}
 	if s == nil {
@@ -113,7 +113,7 @@ func (c *Core) deliverSignal(h *haulState, w *signalWait, s *keptSignal) {
 	c.wake(h)
 }
 
-func oldestWait(h *haulState, name string) *signalWait {
+func oldestWait(h *runState, name string) *signalWait {
 	var oldest *signalWait
 	for _, w := range h.waits {
 		if w.name == name && (oldest == nil || w.seq < oldest.seq) {
@@ -123,10 +123,10 @@ func oldestWait(h *haulState, name string) *signalWait {
 	return oldest
 }
 
-// restoreSignals rebuilds a haul's waits and kept signals from its logbook:
+// restoreSignals rebuilds a run's waits and kept signals from its event log:
 // wait_signal commands without a SignalDelivered are waiting, and signals
 // received but not delivered are kept, in the order they arrived.
-func restoreSignals(h *haulState, evs []state.Event) error {
+func restoreSignals(h *runState, evs []state.Event) error {
 	delivered := map[int]bool{}
 	taken := map[string]bool{}
 	var received []keptSignal
@@ -135,13 +135,13 @@ func restoreSignals(h *haulState, evs []state.Event) error {
 		case state.EventSignalReceived:
 			var p signalReceivedPayload
 			if err := json.Unmarshal(e.Payload, &p); err != nil {
-				return fmt.Errorf("haul %s: event %d: %w", h.rec.ID, e.Seq, err)
+				return fmt.Errorf("run %s: event %d: %w", h.rec.ID, e.Seq, err)
 			}
 			received = append(received, keptSignal{ID: p.Signal, Name: p.Name, Payload: p.Payload})
 		case state.EventSignalDelivered:
 			var p signalDeliveredPayload
 			if err := json.Unmarshal(e.Payload, &p); err != nil {
-				return fmt.Errorf("haul %s: event %d: %w", h.rec.ID, e.Seq, err)
+				return fmt.Errorf("run %s: event %d: %w", h.rec.ID, e.Seq, err)
 			}
 			delivered[p.Seq] = true
 			if p.Signal != "" {

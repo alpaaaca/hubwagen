@@ -41,7 +41,7 @@ func TestAppendAssignsSeqAndTerm(t *testing.T) {
 
 	got, err := s.Append(ctx, term, []Event{
 		{Type: EventLeaderTermStarted, Time: t0},
-		{Type: EventHaulStarted, Tenant: "t", HaulID: "h1", Time: t0, Payload: json.RawMessage(`{"name":"x"}`)},
+		{Type: EventRunStarted, Tenant: "t", RunID: "h1", Time: t0, Payload: json.RawMessage(`{"name":"x"}`)},
 	}, nil)
 	require.NoError(t, err)
 	require.Len(t, got, 2)
@@ -59,15 +59,15 @@ func TestAppendAssignsSeqAndTerm(t *testing.T) {
 func TestAppendIsAtomic(t *testing.T) {
 	s, _ := openFile(t)
 	boom := errors.New("boom")
-	_, err := s.Append(ctx, s.Term(), []Event{{Type: EventHaulStarted, HaulID: "h1"}}, func(tx *Tx) error {
-		require.NoError(t, tx.PutHaul(haul("h1", HaulRunning)))
+	_, err := s.Append(ctx, s.Term(), []Event{{Type: EventRunStarted, RunID: "h1"}}, func(tx *Tx) error {
+		require.NoError(t, tx.PutRun(run("h1", RunRunning)))
 		return boom
 	})
 	assert.ErrorIs(t, err, boom)
 
-	_, err = s.GetHaul(ctx, "h1")
+	_, err = s.GetRun(ctx, "h1")
 	assert.ErrorIs(t, err, ErrNotFound, "projection write rolled back")
-	evs, err := s.HaulEvents(ctx, "h1")
+	evs, err := s.RunEvents(ctx, "h1")
 	require.NoError(t, err)
 	assert.Empty(t, evs, "event rolled back with it")
 }
@@ -126,7 +126,7 @@ func TestAppendFencedByNewerTermFromAnotherProcess(t *testing.T) {
 func TestEventsSinceFiltersByTenant(t *testing.T) {
 	s, _ := openFile(t)
 	_, err := s.Append(ctx, s.Term(), []Event{
-		{Type: EventHaulStarted, Tenant: "a"}, {Type: EventHaulStarted, Tenant: "b"}, {Type: EventHaulStarted, Tenant: "a"},
+		{Type: EventRunStarted, Tenant: "a"}, {Type: EventRunStarted, Tenant: "b"}, {Type: EventRunStarted, Tenant: "a"},
 	}, nil)
 	require.NoError(t, err)
 
@@ -142,10 +142,10 @@ func TestMemoryStore(t *testing.T) {
 	defer s.Close()
 	_, err = s.StartTerm(ctx, 0)
 	require.NoError(t, err)
-	put(t, s, nil, func(tx *Tx) error { return tx.PutHaul(haul("h1", HaulRunning)) })
-	h, err := s.GetHaul(ctx, "h1")
+	put(t, s, nil, func(tx *Tx) error { return tx.PutRun(run("h1", RunRunning)) })
+	h, err := s.GetRun(ctx, "h1")
 	require.NoError(t, err)
-	assert.Equal(t, HaulRunning, h.Status)
+	assert.Equal(t, RunRunning, h.Status)
 }
 
 func TestReadsRunConcurrentlyWithWrites(t *testing.T) {
@@ -170,8 +170,8 @@ func TestReadsRunConcurrentlyWithWrites(t *testing.T) {
 	}
 	for i := 0; i < 50; i++ {
 		id := fmt.Sprintf("h%03d", i)
-		_, err := s.Append(ctx, s.Term(), []Event{{Type: EventHaulStarted, HaulID: id}}, func(tx *Tx) error {
-			return tx.PutHaul(haul(id, HaulRunning))
+		_, err := s.Append(ctx, s.Term(), []Event{{Type: EventRunStarted, RunID: id}}, func(tx *Tx) error {
+			return tx.PutRun(run(id, RunRunning))
 		})
 		require.NoError(t, err)
 	}
@@ -191,8 +191,8 @@ func TestPathWithSpaces(t *testing.T) {
 	defer s.Close()
 	_, err = s.StartTerm(ctx, 0)
 	require.NoError(t, err)
-	put(t, s, nil, func(tx *Tx) error { return tx.PutHaul(haul("h1", HaulRunning)) })
-	_, err = s.GetHaul(ctx, "h1")
+	put(t, s, nil, func(tx *Tx) error { return tx.PutRun(run("h1", RunRunning)) })
+	_, err = s.GetRun(ctx, "h1")
 	require.NoError(t, err)
 }
 
@@ -206,12 +206,12 @@ func BenchmarkAppend(b *testing.B) {
 			defer s.Close()
 			_, err = s.StartTerm(ctx, 0)
 			require.NoError(b, err)
-			_, err = s.Append(ctx, s.Term(), nil, func(tx *Tx) error { return tx.PutHaul(haul("h", HaulRunning)) })
+			_, err = s.Append(ctx, s.Term(), nil, func(tx *Tx) error { return tx.PutRun(run("h", RunRunning)) })
 			require.NoError(b, err)
 
 			events := make([]Event, size)
 			for i := range events {
-				events[i] = Event{Type: EventLiftScheduled, Tenant: "t", HaulID: "h", Time: t0, Payload: json.RawMessage(`{"seq":1}`)}
+				events[i] = Event{Type: EventStepScheduled, Tenant: "t", RunID: "h", Time: t0, Payload: json.RawMessage(`{"seq":1}`)}
 			}
 			seq := 0
 			b.ResetTimer()
@@ -219,7 +219,7 @@ func BenchmarkAppend(b *testing.B) {
 				_, err := s.Append(ctx, s.Term(), events, func(tx *Tx) error {
 					for j := 0; j < size; j++ {
 						seq++
-						if err := tx.PutLift(lift("h", seq, LiftScheduled)); err != nil {
+						if err := tx.PutStep(step("h", seq, StepScheduled)); err != nil {
 							return err
 						}
 					}

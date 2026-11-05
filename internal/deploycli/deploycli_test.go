@@ -30,8 +30,8 @@ func project(t *testing.T, yaml string) *config.Project {
 	return p
 }
 
-const versionsJSON = `{"build": "b-new", "hauls": {"daily": {"version": "py-h1"}, "weekly": {"version": "py-h2"}},
-  "lifts": {"extract": {"version": "py-1"}, "build": {"version": "py-2b"}, "report": {"version": "py-9"}}}`
+const versionsJSON = `{"build": "b-new", "pipelines": {"daily": {"version": "py-h1"}, "weekly": {"version": "py-h2"}},
+  "steps": {"extract": {"version": "py-1"}, "build": {"version": "py-2b"}, "report": {"version": "py-9"}}}`
 
 func TestCompareAndReport(t *testing.T) {
 	var v Versions
@@ -48,7 +48,7 @@ func TestCompareAndReport(t *testing.T) {
 	assert.Equal(t, map[Change]int{Changed: 1, Unchanged: 1, Added: 1, Removed: 1}, d.Counts())
 	assert.Equal(t, "b-old", d.Newest.BuildId)
 
-	p := project(t, "pools:\n  - {name: default, min: 1, max: 6, lifts: 2}\n  - {name: gpu, docks: [gpu], min: 2, max: 2, lifts: 1}\n")
+	p := project(t, "pools:\n  - {name: default, min: 1, max: 6, steps: 2}\n  - {name: gpu, queues: [gpu], min: 2, max: 2, steps: 1}\n")
 	assert.Equal(t, `Project revenue: build b-new (from image ghcr.io/acme/revenue:dry-run)
 The server's newest build: b-old, registered 2026-10-30 18:42 UTC
 
@@ -65,8 +65,8 @@ Pipelines
   gone     not in this code: no new runs of it once deployed
 
 Pools
-  default   1–6 workers, 2 steps at once each, docks default
-  gpu       2 workers, 1 step at once each, docks gpu
+  default   1–6 workers, 2 steps at once each, queues default
+  gpu       2 workers, 1 step at once each, queues gpu
 `, Report(p, Source{Image: "ghcr.io/acme/revenue:dry-run"}, d))
 }
 
@@ -97,7 +97,7 @@ J
 	v, src, err := BuildVersions(context.Background(), p, Options{Out: &log})
 	require.NoError(t, err)
 	assert.Equal(t, "b-new", v.Build)
-	assert.Equal(t, "py-2b", v.Lifts["build"].Version)
+	assert.Equal(t, "py-2b", v.Steps["build"].Version)
 	assert.Equal(t, Source{}, src)
 	assert.Contains(t, log.String(), "in ", "the worker's stderr goes to the log")
 }
@@ -129,8 +129,8 @@ func TestBuildVersionsSaysWhatWentWrong(t *testing.T) {
 }
 
 func TestDeployRequest(t *testing.T) {
-	reg := &mokshav1.RegisterBuildRequest{BuildId: "b-new", Hauls: []string{"daily"}}
-	p := project(t, "build: {dockerfile: Dockerfile, image: localhost/revenue}\npools:\n  - {name: default, min: 1, max: 4, lifts: 2, idle_after: 90s}\nenv: {LOG_LEVEL: info}\n")
+	reg := &mokshav1.RegisterBuildRequest{BuildId: "b-new", Pipelines: []string{"daily"}}
+	p := project(t, "build: {dockerfile: Dockerfile, image: localhost/revenue}\npools:\n  - {name: default, min: 1, max: 4, steps: 2, idle_after: 90s}\nenv: {LOG_LEVEL: info}\n")
 	req, err := DeployRequest(p, Source{Image: "localhost/revenue:dry-run"}, reg, "python3", "ana@laptop")
 	require.NoError(t, err)
 	assert.Equal(t, "localhost/revenue:b-new", req.Image, "the build's tag")
@@ -138,7 +138,7 @@ func TestDeployRequest(t *testing.T) {
 	assert.Equal(t, map[string]string{"LOG_LEVEL": "info"}, req.Env)
 	require.Len(t, req.Pools, 1)
 	assert.Equal(t, []any{"default", []string{"default"}, int32(1), int32(4), int32(2), 90 * time.Second},
-		[]any{req.Pools[0].Name, req.Pools[0].Docks, req.Pools[0].Min, req.Pools[0].Max, req.Pools[0].Lifts, req.Pools[0].IdleAfter.AsDuration()})
+		[]any{req.Pools[0].Name, req.Pools[0].Queues, req.Pools[0].Min, req.Pools[0].Max, req.Pools[0].Steps, req.Pools[0].IdleAfter.AsDuration()})
 
 	// In place: the directory, the interpreter found on PATH, PYTHONPATH as here.
 	fake(t, "python3", "exit 0\n")
@@ -159,12 +159,12 @@ func TestDeployRequest(t *testing.T) {
 
 func TestRegistrationInPlace(t *testing.T) {
 	fake(t, "python3", `[ "$*" = "-m moksha.worker --build-json" ] || exit 9
-echo '{"buildId": "b-new", "hauls": ["daily"], "liftVersions": {"load": "py-1"}, "schedules": [{"haul": "daily", "cron": "0 3 * * *", "interval": "daily", "catchUp": "latest"}]}'
+echo '{"buildId": "b-new", "pipelines": ["daily"], "stepVersions": {"load": "py-1"}, "schedules": [{"pipeline": "daily", "cron": "0 3 * * *", "interval": "daily", "catchUp": "latest"}]}'
 `)
 	reg, err := Registration(context.Background(), project(t, "pools: [{name: default}]\n"), Source{}, Options{Out: io.Discard})
 	require.NoError(t, err)
 	assert.Equal(t, "b-new", reg.BuildId)
-	assert.Equal(t, "py-1", reg.LiftVersions["load"])
+	assert.Equal(t, "py-1", reg.StepVersions["load"])
 	require.Len(t, reg.Schedules, 1)
 	assert.Equal(t, "latest", reg.Schedules[0].CatchUp)
 

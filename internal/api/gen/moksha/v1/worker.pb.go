@@ -23,26 +23,26 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type HaulOutcome_Status int32
+type RunOutcome_Status int32
 
 const (
-	HaulOutcome_STATUS_UNSPECIFIED HaulOutcome_Status = 0
-	HaulOutcome_STATUS_COMPLETED   HaulOutcome_Status = 1
-	HaulOutcome_STATUS_FAILED      HaulOutcome_Status = 2
-	// continue_as_new: the haul ends and a new one of the same name starts
-	// with params_json and a fresh logbook.
-	HaulOutcome_STATUS_CONTINUED HaulOutcome_Status = 3
+	RunOutcome_STATUS_UNSPECIFIED RunOutcome_Status = 0
+	RunOutcome_STATUS_COMPLETED   RunOutcome_Status = 1
+	RunOutcome_STATUS_FAILED      RunOutcome_Status = 2
+	// continue_as_new: the run ends and a new one of the same name starts
+	// with params_json and a fresh event log.
+	RunOutcome_STATUS_CONTINUED RunOutcome_Status = 3
 )
 
-// Enum value maps for HaulOutcome_Status.
+// Enum value maps for RunOutcome_Status.
 var (
-	HaulOutcome_Status_name = map[int32]string{
+	RunOutcome_Status_name = map[int32]string{
 		0: "STATUS_UNSPECIFIED",
 		1: "STATUS_COMPLETED",
 		2: "STATUS_FAILED",
 		3: "STATUS_CONTINUED",
 	}
-	HaulOutcome_Status_value = map[string]int32{
+	RunOutcome_Status_value = map[string]int32{
 		"STATUS_UNSPECIFIED": 0,
 		"STATUS_COMPLETED":   1,
 		"STATUS_FAILED":      2,
@@ -50,102 +50,102 @@ var (
 	}
 )
 
-func (x HaulOutcome_Status) Enum() *HaulOutcome_Status {
-	p := new(HaulOutcome_Status)
+func (x RunOutcome_Status) Enum() *RunOutcome_Status {
+	p := new(RunOutcome_Status)
 	*p = x
 	return p
 }
 
-func (x HaulOutcome_Status) String() string {
+func (x RunOutcome_Status) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (HaulOutcome_Status) Descriptor() protoreflect.EnumDescriptor {
+func (RunOutcome_Status) Descriptor() protoreflect.EnumDescriptor {
 	return file_moksha_v1_worker_proto_enumTypes[0].Descriptor()
 }
 
-func (HaulOutcome_Status) Type() protoreflect.EnumType {
+func (RunOutcome_Status) Type() protoreflect.EnumType {
 	return &file_moksha_v1_worker_proto_enumTypes[0]
 }
 
-func (x HaulOutcome_Status) Number() protoreflect.EnumNumber {
+func (x RunOutcome_Status) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use HaulOutcome_Status.Descriptor instead.
-func (HaulOutcome_Status) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use RunOutcome_Status.Descriptor instead.
+func (RunOutcome_Status) EnumDescriptor() ([]byte, []int) {
 	return file_moksha_v1_worker_proto_rawDescGZIP(), []int{23, 0}
 }
 
-type CompleteLiftTaskRequest_Status int32
+type CompleteStepTaskRequest_Status int32
 
 const (
-	CompleteLiftTaskRequest_STATUS_UNSPECIFIED CompleteLiftTaskRequest_Status = 0
-	CompleteLiftTaskRequest_STATUS_SUCCEEDED   CompleteLiftTaskRequest_Status = 1
-	CompleteLiftTaskRequest_STATUS_FAILED      CompleteLiftTaskRequest_Status = 2
+	CompleteStepTaskRequest_STATUS_UNSPECIFIED CompleteStepTaskRequest_Status = 0
+	CompleteStepTaskRequest_STATUS_SUCCEEDED   CompleteStepTaskRequest_Status = 1
+	CompleteStepTaskRequest_STATUS_FAILED      CompleteStepTaskRequest_Status = 2
 )
 
-// Enum value maps for CompleteLiftTaskRequest_Status.
+// Enum value maps for CompleteStepTaskRequest_Status.
 var (
-	CompleteLiftTaskRequest_Status_name = map[int32]string{
+	CompleteStepTaskRequest_Status_name = map[int32]string{
 		0: "STATUS_UNSPECIFIED",
 		1: "STATUS_SUCCEEDED",
 		2: "STATUS_FAILED",
 	}
-	CompleteLiftTaskRequest_Status_value = map[string]int32{
+	CompleteStepTaskRequest_Status_value = map[string]int32{
 		"STATUS_UNSPECIFIED": 0,
 		"STATUS_SUCCEEDED":   1,
 		"STATUS_FAILED":      2,
 	}
 )
 
-func (x CompleteLiftTaskRequest_Status) Enum() *CompleteLiftTaskRequest_Status {
-	p := new(CompleteLiftTaskRequest_Status)
+func (x CompleteStepTaskRequest_Status) Enum() *CompleteStepTaskRequest_Status {
+	p := new(CompleteStepTaskRequest_Status)
 	*p = x
 	return p
 }
 
-func (x CompleteLiftTaskRequest_Status) String() string {
+func (x CompleteStepTaskRequest_Status) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (CompleteLiftTaskRequest_Status) Descriptor() protoreflect.EnumDescriptor {
+func (CompleteStepTaskRequest_Status) Descriptor() protoreflect.EnumDescriptor {
 	return file_moksha_v1_worker_proto_enumTypes[1].Descriptor()
 }
 
-func (CompleteLiftTaskRequest_Status) Type() protoreflect.EnumType {
+func (CompleteStepTaskRequest_Status) Type() protoreflect.EnumType {
 	return &file_moksha_v1_worker_proto_enumTypes[1]
 }
 
-func (x CompleteLiftTaskRequest_Status) Number() protoreflect.EnumNumber {
+func (x CompleteStepTaskRequest_Status) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use CompleteLiftTaskRequest_Status.Descriptor instead.
-func (CompleteLiftTaskRequest_Status) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use CompleteStepTaskRequest_Status.Descriptor instead.
+func (CompleteStepTaskRequest_Status) EnumDescriptor() ([]byte, []int) {
 	return file_moksha_v1_worker_proto_rawDescGZIP(), []int{28, 0}
 }
 
 type RegisterBuildRequest struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	BuildId string                 `protobuf:"bytes,1,opt,name=build_id,json=buildId,proto3" json:"build_id,omitempty"`
-	// Lift name → code version.
-	LiftVersions map[string]string `protobuf:"bytes,2,rep,name=lift_versions,json=liftVersions,proto3" json:"lift_versions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// The hauls this build defines. Workers that poll with this build get only
-	// these hauls' tasks, and only lifts in lift_versions.
-	Hauls []string `protobuf:"bytes,3,rep,name=hauls,proto3" json:"hauls,omitempty"`
-	// Schedules of hauls this build defines. The newest build that defines a
-	// haul decides its schedule; one that defines it without a schedule
-	// removes it.
-	Schedules []*HaulSchedule `protobuf:"bytes,4,rep,name=schedules,proto3" json:"schedules,omitempty"`
-	// Dataset subscriptions of hauls this build defines, decided like
+	// Step name → code version.
+	StepVersions map[string]string `protobuf:"bytes,2,rep,name=step_versions,json=stepVersions,proto3" json:"step_versions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// The pipelines this build defines. Workers that poll with this build get
+	// only these pipelines' run tasks, and only steps in step_versions.
+	Pipelines []string `protobuf:"bytes,3,rep,name=pipelines,proto3" json:"pipelines,omitempty"`
+	// Schedules of pipelines this build defines. The newest build that
+	// defines a pipeline decides its schedule; one that defines it without a
+	// schedule removes it.
+	Schedules []*PipelineSchedule `protobuf:"bytes,4,rep,name=schedules,proto3" json:"schedules,omitempty"`
+	// Dataset subscriptions of pipelines this build defines, decided like
 	// schedules.
-	Subscriptions []*HaulSubscription `protobuf:"bytes,5,rep,name=subscriptions,proto3" json:"subscriptions,omitempty"`
-	// Retention of datasets this build's lifts write. The newest build that
+	Subscriptions []*PipelineSubscription `protobuf:"bytes,5,rep,name=subscriptions,proto3" json:"subscriptions,omitempty"`
+	// Retention of datasets this build's steps write. The newest build that
 	// declares a dataset decides; declaring it without keep removes it.
 	Datasets []*DatasetRetention `protobuf:"bytes,6,rep,name=datasets,proto3" json:"datasets,omitempty"`
-	// What the hauls are, for people (the web UI), by haul name.
-	HaulInfo      []*HaulInfo `protobuf:"bytes,7,rep,name=haul_info,json=haulInfo,proto3" json:"haul_info,omitempty"`
+	// What the pipelines are, for people (the web UI), by pipeline name.
+	PipelineInfo  []*PipelineInfo `protobuf:"bytes,7,rep,name=pipeline_info,json=pipelineInfo,proto3" json:"pipeline_info,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -187,28 +187,28 @@ func (x *RegisterBuildRequest) GetBuildId() string {
 	return ""
 }
 
-func (x *RegisterBuildRequest) GetLiftVersions() map[string]string {
+func (x *RegisterBuildRequest) GetStepVersions() map[string]string {
 	if x != nil {
-		return x.LiftVersions
+		return x.StepVersions
 	}
 	return nil
 }
 
-func (x *RegisterBuildRequest) GetHauls() []string {
+func (x *RegisterBuildRequest) GetPipelines() []string {
 	if x != nil {
-		return x.Hauls
+		return x.Pipelines
 	}
 	return nil
 }
 
-func (x *RegisterBuildRequest) GetSchedules() []*HaulSchedule {
+func (x *RegisterBuildRequest) GetSchedules() []*PipelineSchedule {
 	if x != nil {
 		return x.Schedules
 	}
 	return nil
 }
 
-func (x *RegisterBuildRequest) GetSubscriptions() []*HaulSubscription {
+func (x *RegisterBuildRequest) GetSubscriptions() []*PipelineSubscription {
 	if x != nil {
 		return x.Subscriptions
 	}
@@ -222,38 +222,38 @@ func (x *RegisterBuildRequest) GetDatasets() []*DatasetRetention {
 	return nil
 }
 
-func (x *RegisterBuildRequest) GetHaulInfo() []*HaulInfo {
+func (x *RegisterBuildRequest) GetPipelineInfo() []*PipelineInfo {
 	if x != nil {
-		return x.HaulInfo
+		return x.PipelineInfo
 	}
 	return nil
 }
 
-// HaulInfo describes a haul for people: a title ("Daily revenue") and a
-// longer description.
-type HaulInfo struct {
+// PipelineInfo describes a pipeline for people: a title ("Daily revenue")
+// and a longer description.
+type PipelineInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Haul          string                 `protobuf:"bytes,1,opt,name=haul,proto3" json:"haul,omitempty"`
+	Pipeline      string                 `protobuf:"bytes,1,opt,name=pipeline,proto3" json:"pipeline,omitempty"`
 	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
 	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *HaulInfo) Reset() {
-	*x = HaulInfo{}
+func (x *PipelineInfo) Reset() {
+	*x = PipelineInfo{}
 	mi := &file_moksha_v1_worker_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *HaulInfo) String() string {
+func (x *PipelineInfo) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*HaulInfo) ProtoMessage() {}
+func (*PipelineInfo) ProtoMessage() {}
 
-func (x *HaulInfo) ProtoReflect() protoreflect.Message {
+func (x *PipelineInfo) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_worker_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -265,33 +265,33 @@ func (x *HaulInfo) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use HaulInfo.ProtoReflect.Descriptor instead.
-func (*HaulInfo) Descriptor() ([]byte, []int) {
+// Deprecated: Use PipelineInfo.ProtoReflect.Descriptor instead.
+func (*PipelineInfo) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_worker_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *HaulInfo) GetHaul() string {
+func (x *PipelineInfo) GetPipeline() string {
 	if x != nil {
-		return x.Haul
+		return x.Pipeline
 	}
 	return ""
 }
 
-func (x *HaulInfo) GetTitle() string {
+func (x *PipelineInfo) GetTitle() string {
 	if x != nil {
 		return x.Title
 	}
 	return ""
 }
 
-func (x *HaulInfo) GetDescription() string {
+func (x *PipelineInfo) GetDescription() string {
 	if x != nil {
 		return x.Description
 	}
 	return ""
 }
 
-// DatasetRetention keeps, per partition, the latest pallet and those among
+// DatasetRetention keeps, per partition, the latest data version and those among
 // the newest keep_versions or younger than keep_for; the rest expire.
 type DatasetRetention struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -355,12 +355,12 @@ func (x *DatasetRetention) GetKeepFor() *durationpb.Duration {
 	return nil
 }
 
-// HaulSubscription starts a haul with the pallets committed to its
-// datasets, in batches: once none came for debounce, once max_batch wait,
-// or once the first waited max_wait.
-type HaulSubscription struct {
+// PipelineSubscription starts a run of a pipeline with the data versions
+// committed to its datasets, in batches: once none came for debounce, once
+// max_batch wait, or once the first waited max_wait.
+type PipelineSubscription struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
-	Haul     string                 `protobuf:"bytes,1,opt,name=haul,proto3" json:"haul,omitempty"`
+	Pipeline string                 `protobuf:"bytes,1,opt,name=pipeline,proto3" json:"pipeline,omitempty"`
 	Datasets []string               `protobuf:"bytes,2,rep,name=datasets,proto3" json:"datasets,omitempty"`
 	// Default: none (start at once).
 	Debounce *durationpb.Duration `protobuf:"bytes,3,opt,name=debounce,proto3" json:"debounce,omitempty"`
@@ -372,20 +372,20 @@ type HaulSubscription struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *HaulSubscription) Reset() {
-	*x = HaulSubscription{}
+func (x *PipelineSubscription) Reset() {
+	*x = PipelineSubscription{}
 	mi := &file_moksha_v1_worker_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *HaulSubscription) String() string {
+func (x *PipelineSubscription) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*HaulSubscription) ProtoMessage() {}
+func (*PipelineSubscription) ProtoMessage() {}
 
-func (x *HaulSubscription) ProtoReflect() protoreflect.Message {
+func (x *PipelineSubscription) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_worker_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -397,49 +397,49 @@ func (x *HaulSubscription) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use HaulSubscription.ProtoReflect.Descriptor instead.
-func (*HaulSubscription) Descriptor() ([]byte, []int) {
+// Deprecated: Use PipelineSubscription.ProtoReflect.Descriptor instead.
+func (*PipelineSubscription) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_worker_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *HaulSubscription) GetHaul() string {
+func (x *PipelineSubscription) GetPipeline() string {
 	if x != nil {
-		return x.Haul
+		return x.Pipeline
 	}
 	return ""
 }
 
-func (x *HaulSubscription) GetDatasets() []string {
+func (x *PipelineSubscription) GetDatasets() []string {
 	if x != nil {
 		return x.Datasets
 	}
 	return nil
 }
 
-func (x *HaulSubscription) GetDebounce() *durationpb.Duration {
+func (x *PipelineSubscription) GetDebounce() *durationpb.Duration {
 	if x != nil {
 		return x.Debounce
 	}
 	return nil
 }
 
-func (x *HaulSubscription) GetMaxWait() *durationpb.Duration {
+func (x *PipelineSubscription) GetMaxWait() *durationpb.Duration {
 	if x != nil {
 		return x.MaxWait
 	}
 	return nil
 }
 
-func (x *HaulSubscription) GetMaxBatch() int32 {
+func (x *PipelineSubscription) GetMaxBatch() int32 {
 	if x != nil {
 		return x.MaxBatch
 	}
 	return 0
 }
 
-type HaulSchedule struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Haul  string                 `protobuf:"bytes,1,opt,name=haul,proto3" json:"haul,omitempty"`
+type PipelineSchedule struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Pipeline string                 `protobuf:"bytes,1,opt,name=pipeline,proto3" json:"pipeline,omitempty"`
 	// Standard 5-field cron.
 	Cron string `protobuf:"bytes,2,opt,name=cron,proto3" json:"cron,omitempty"`
 	// IANA name; empty is UTC.
@@ -453,20 +453,20 @@ type HaulSchedule struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *HaulSchedule) Reset() {
-	*x = HaulSchedule{}
+func (x *PipelineSchedule) Reset() {
+	*x = PipelineSchedule{}
 	mi := &file_moksha_v1_worker_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *HaulSchedule) String() string {
+func (x *PipelineSchedule) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*HaulSchedule) ProtoMessage() {}
+func (*PipelineSchedule) ProtoMessage() {}
 
-func (x *HaulSchedule) ProtoReflect() protoreflect.Message {
+func (x *PipelineSchedule) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_worker_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -478,40 +478,40 @@ func (x *HaulSchedule) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use HaulSchedule.ProtoReflect.Descriptor instead.
-func (*HaulSchedule) Descriptor() ([]byte, []int) {
+// Deprecated: Use PipelineSchedule.ProtoReflect.Descriptor instead.
+func (*PipelineSchedule) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_worker_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *HaulSchedule) GetHaul() string {
+func (x *PipelineSchedule) GetPipeline() string {
 	if x != nil {
-		return x.Haul
+		return x.Pipeline
 	}
 	return ""
 }
 
-func (x *HaulSchedule) GetCron() string {
+func (x *PipelineSchedule) GetCron() string {
 	if x != nil {
 		return x.Cron
 	}
 	return ""
 }
 
-func (x *HaulSchedule) GetTimezone() string {
+func (x *PipelineSchedule) GetTimezone() string {
 	if x != nil {
 		return x.Timezone
 	}
 	return ""
 }
 
-func (x *HaulSchedule) GetInterval() string {
+func (x *PipelineSchedule) GetInterval() string {
 	if x != nil {
 		return x.Interval
 	}
 	return ""
 }
 
-func (x *HaulSchedule) GetCatchUp() string {
+func (x *PipelineSchedule) GetCatchUp() string {
 	if x != nil {
 		return x.CatchUp
 	}
@@ -554,13 +554,13 @@ func (*RegisterBuildResponse) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_worker_proto_rawDescGZIP(), []int{5}
 }
 
-type PollHaulTaskRequest struct {
+type PollRunTaskRequest struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	WorkerId string                 `protobuf:"bytes,1,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"`
-	Docks    []string               `protobuf:"bytes,2,rep,name=docks,proto3" json:"docks,omitempty"`
+	Queues   []string               `protobuf:"bytes,2,rep,name=queues,proto3" json:"queues,omitempty"`
 	// How long to wait for work; the server caps it. Unset: answer at once.
 	Wait *durationpb.Duration `protobuf:"bytes,3,opt,name=wait,proto3" json:"wait,omitempty"`
-	// The worker's registered build: it gets only haul tasks its build
+	// The worker's registered build: it gets only run tasks its build
 	// defines. Unset: any. An unknown build fails with FAILED_PRECONDITION;
 	// register it and poll again.
 	BuildId       string `protobuf:"bytes,4,opt,name=build_id,json=buildId,proto3" json:"build_id,omitempty"`
@@ -568,20 +568,20 @@ type PollHaulTaskRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *PollHaulTaskRequest) Reset() {
-	*x = PollHaulTaskRequest{}
+func (x *PollRunTaskRequest) Reset() {
+	*x = PollRunTaskRequest{}
 	mi := &file_moksha_v1_worker_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *PollHaulTaskRequest) String() string {
+func (x *PollRunTaskRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*PollHaulTaskRequest) ProtoMessage() {}
+func (*PollRunTaskRequest) ProtoMessage() {}
 
-func (x *PollHaulTaskRequest) ProtoReflect() protoreflect.Message {
+func (x *PollRunTaskRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_worker_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -593,61 +593,61 @@ func (x *PollHaulTaskRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use PollHaulTaskRequest.ProtoReflect.Descriptor instead.
-func (*PollHaulTaskRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use PollRunTaskRequest.ProtoReflect.Descriptor instead.
+func (*PollRunTaskRequest) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_worker_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *PollHaulTaskRequest) GetWorkerId() string {
+func (x *PollRunTaskRequest) GetWorkerId() string {
 	if x != nil {
 		return x.WorkerId
 	}
 	return ""
 }
 
-func (x *PollHaulTaskRequest) GetDocks() []string {
+func (x *PollRunTaskRequest) GetQueues() []string {
 	if x != nil {
-		return x.Docks
+		return x.Queues
 	}
 	return nil
 }
 
-func (x *PollHaulTaskRequest) GetWait() *durationpb.Duration {
+func (x *PollRunTaskRequest) GetWait() *durationpb.Duration {
 	if x != nil {
 		return x.Wait
 	}
 	return nil
 }
 
-func (x *PollHaulTaskRequest) GetBuildId() string {
+func (x *PollRunTaskRequest) GetBuildId() string {
 	if x != nil {
 		return x.BuildId
 	}
 	return ""
 }
 
-type PollHaulTaskResponse struct {
+type PollRunTaskResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unset when there was no work in time.
-	Task          *HaulTask `protobuf:"bytes,1,opt,name=task,proto3" json:"task,omitempty"`
+	Task          *RunTask `protobuf:"bytes,1,opt,name=task,proto3" json:"task,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *PollHaulTaskResponse) Reset() {
-	*x = PollHaulTaskResponse{}
+func (x *PollRunTaskResponse) Reset() {
+	*x = PollRunTaskResponse{}
 	mi := &file_moksha_v1_worker_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *PollHaulTaskResponse) String() string {
+func (x *PollRunTaskResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*PollHaulTaskResponse) ProtoMessage() {}
+func (*PollRunTaskResponse) ProtoMessage() {}
 
-func (x *PollHaulTaskResponse) ProtoReflect() protoreflect.Message {
+func (x *PollRunTaskResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_worker_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -659,49 +659,49 @@ func (x *PollHaulTaskResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use PollHaulTaskResponse.ProtoReflect.Descriptor instead.
-func (*PollHaulTaskResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use PollRunTaskResponse.ProtoReflect.Descriptor instead.
+func (*PollRunTaskResponse) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_worker_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *PollHaulTaskResponse) GetTask() *HaulTask {
+func (x *PollRunTaskResponse) GetTask() *RunTask {
 	if x != nil {
 		return x.Task
 	}
 	return nil
 }
 
-type HaulTask struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	Id     string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	HaulId string                 `protobuf:"bytes,2,opt,name=haul_id,json=haulId,proto3" json:"haul_id,omitempty"`
-	// The registered haul function.
+type RunTask struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	RunId string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	// The registered pipeline function.
 	Name       string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Dock       string `protobuf:"bytes,4,opt,name=dock,proto3" json:"dock,omitempty"`
+	Queue      string `protobuf:"bytes,4,opt,name=queue,proto3" json:"queue,omitempty"`
 	ParamsJson string `protobuf:"bytes,5,opt,name=params_json,json=paramsJson,proto3" json:"params_json,omitempty"`
-	// The haul's events a replay reads, up to at least this task's dispatch:
-	// HaulStarted (params), LiftFinished (results), TimerFired, QueryAnswered
-	// and HaulTaskCompleted (the commands recorded so far, for the SDK's own
+	// The run's events a replay reads, up to at least this task's dispatch:
+	// RunStarted (params), StepFinished (results), TimerFired, QueryAnswered
+	// and RunTaskCompleted (the commands recorded so far, for the SDK's own
 	// sequence check). Bookkeeping events are left out to keep it small.
-	Logbook       []*Event `protobuf:"bytes,6,rep,name=logbook,proto3" json:"logbook,omitempty"`
+	EventLog      []*Event `protobuf:"bytes,6,rep,name=event_log,json=eventLog,proto3" json:"event_log,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *HaulTask) Reset() {
-	*x = HaulTask{}
+func (x *RunTask) Reset() {
+	*x = RunTask{}
 	mi := &file_moksha_v1_worker_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *HaulTask) String() string {
+func (x *RunTask) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*HaulTask) ProtoMessage() {}
+func (*RunTask) ProtoMessage() {}
 
-func (x *HaulTask) ProtoReflect() protoreflect.Message {
+func (x *RunTask) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_worker_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -713,49 +713,49 @@ func (x *HaulTask) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use HaulTask.ProtoReflect.Descriptor instead.
-func (*HaulTask) Descriptor() ([]byte, []int) {
+// Deprecated: Use RunTask.ProtoReflect.Descriptor instead.
+func (*RunTask) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_worker_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *HaulTask) GetId() string {
+func (x *RunTask) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *HaulTask) GetHaulId() string {
+func (x *RunTask) GetRunId() string {
 	if x != nil {
-		return x.HaulId
+		return x.RunId
 	}
 	return ""
 }
 
-func (x *HaulTask) GetName() string {
+func (x *RunTask) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-func (x *HaulTask) GetDock() string {
+func (x *RunTask) GetQueue() string {
 	if x != nil {
-		return x.Dock
+		return x.Queue
 	}
 	return ""
 }
 
-func (x *HaulTask) GetParamsJson() string {
+func (x *RunTask) GetParamsJson() string {
 	if x != nil {
 		return x.ParamsJson
 	}
 	return ""
 }
 
-func (x *HaulTask) GetLogbook() []*Event {
+func (x *RunTask) GetEventLog() []*Event {
 	if x != nil {
-		return x.Logbook
+		return x.EventLog
 	}
 	return nil
 }
@@ -828,41 +828,41 @@ func (x *Event) GetPayloadJson() string {
 	return ""
 }
 
-type CompleteHaulTaskRequest struct {
+type CompleteRunTaskRequest struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	TaskId  string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	BuildId string                 `protobuf:"bytes,2,opt,name=build_id,json=buildId,proto3" json:"build_id,omitempty"`
 	// Every command the replay issued, in order, from seq 1, including those
-	// already in the logbook.
+	// already in the event log.
 	Commands []*Command `protobuf:"bytes,3,rep,name=commands,proto3" json:"commands,omitempty"`
-	// Set when the haul function returned or raised.
-	Outcome *HaulOutcome `protobuf:"bytes,4,opt,name=outcome,proto3" json:"outcome,omitempty"`
-	// Set when the replay itself failed (not the haul code), or with reason
-	// "nondeterminism" when the haul code read the clock or randomness: then
-	// the haul becomes stuck instead of failed, and a new build resumes it.
+	// Set when the pipeline function returned or raised.
+	Outcome *RunOutcome `protobuf:"bytes,4,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	// Set when the replay itself failed (not the pipeline code), or with reason
+	// "nondeterminism" when the pipeline code read the clock or randomness: then
+	// the run becomes stuck instead of failed, and a new build resumes it.
 	Error *TaskError `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
 	// Every version marker the replay decided (ctx.version), including those
-	// already in the logbook. One decided differently from the logbook makes
-	// the haul stuck.
+	// already in the event log. One decided differently from the event log makes
+	// the run stuck.
 	Markers       []*VersionMarker `protobuf:"bytes,6,rep,name=markers,proto3" json:"markers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *CompleteHaulTaskRequest) Reset() {
-	*x = CompleteHaulTaskRequest{}
+func (x *CompleteRunTaskRequest) Reset() {
+	*x = CompleteRunTaskRequest{}
 	mi := &file_moksha_v1_worker_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CompleteHaulTaskRequest) String() string {
+func (x *CompleteRunTaskRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CompleteHaulTaskRequest) ProtoMessage() {}
+func (*CompleteRunTaskRequest) ProtoMessage() {}
 
-func (x *CompleteHaulTaskRequest) ProtoReflect() protoreflect.Message {
+func (x *CompleteRunTaskRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_worker_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -874,73 +874,73 @@ func (x *CompleteHaulTaskRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CompleteHaulTaskRequest.ProtoReflect.Descriptor instead.
-func (*CompleteHaulTaskRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use CompleteRunTaskRequest.ProtoReflect.Descriptor instead.
+func (*CompleteRunTaskRequest) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_worker_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *CompleteHaulTaskRequest) GetTaskId() string {
+func (x *CompleteRunTaskRequest) GetTaskId() string {
 	if x != nil {
 		return x.TaskId
 	}
 	return ""
 }
 
-func (x *CompleteHaulTaskRequest) GetBuildId() string {
+func (x *CompleteRunTaskRequest) GetBuildId() string {
 	if x != nil {
 		return x.BuildId
 	}
 	return ""
 }
 
-func (x *CompleteHaulTaskRequest) GetCommands() []*Command {
+func (x *CompleteRunTaskRequest) GetCommands() []*Command {
 	if x != nil {
 		return x.Commands
 	}
 	return nil
 }
 
-func (x *CompleteHaulTaskRequest) GetOutcome() *HaulOutcome {
+func (x *CompleteRunTaskRequest) GetOutcome() *RunOutcome {
 	if x != nil {
 		return x.Outcome
 	}
 	return nil
 }
 
-func (x *CompleteHaulTaskRequest) GetError() *TaskError {
+func (x *CompleteRunTaskRequest) GetError() *TaskError {
 	if x != nil {
 		return x.Error
 	}
 	return nil
 }
 
-func (x *CompleteHaulTaskRequest) GetMarkers() []*VersionMarker {
+func (x *CompleteRunTaskRequest) GetMarkers() []*VersionMarker {
 	if x != nil {
 		return x.Markers
 	}
 	return nil
 }
 
-type CompleteHaulTaskResponse struct {
+type CompleteRunTaskResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *CompleteHaulTaskResponse) Reset() {
-	*x = CompleteHaulTaskResponse{}
+func (x *CompleteRunTaskResponse) Reset() {
+	*x = CompleteRunTaskResponse{}
 	mi := &file_moksha_v1_worker_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CompleteHaulTaskResponse) String() string {
+func (x *CompleteRunTaskResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CompleteHaulTaskResponse) ProtoMessage() {}
+func (*CompleteRunTaskResponse) ProtoMessage() {}
 
-func (x *CompleteHaulTaskResponse) ProtoReflect() protoreflect.Message {
+func (x *CompleteRunTaskResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_worker_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -952,14 +952,14 @@ func (x *CompleteHaulTaskResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CompleteHaulTaskResponse.ProtoReflect.Descriptor instead.
-func (*CompleteHaulTaskResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use CompleteRunTaskResponse.ProtoReflect.Descriptor instead.
+func (*CompleteRunTaskResponse) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_worker_proto_rawDescGZIP(), []int{11}
 }
 
-// VersionMarker is which version of a change a haul takes. Markers are kept
+// VersionMarker is which version of a change a run takes. Markers are kept
 // by name, outside the command sequence, so adding one to the code doesn't
-// contradict running hauls' logbooks.
+// contradict running pipelines' event logs.
 type VersionMarker struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -1015,15 +1015,15 @@ func (x *VersionMarker) GetVersion() int32 {
 type Command struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Seq   int32                  `protobuf:"varint,1,opt,name=seq,proto3" json:"seq,omitempty"`
-	// Where the haul code made the call ("app/hauls.py:42").
+	// Where the pipeline code made the call ("app/pipelines.py:42").
 	Source string `protobuf:"bytes,2,opt,name=source,proto3" json:"source,omitempty"`
 	// Types that are valid to be assigned to Kind:
 	//
-	//	*Command_Lift
+	//	*Command_Step
 	//	*Command_Sleep
-	//	*Command_LatestPallet
+	//	*Command_LatestDataVersion
 	//	*Command_WaitSignal
-	//	*Command_StartHaul
+	//	*Command_StartRun
 	Kind          isCommand_Kind `protobuf_oneof:"kind"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1080,10 +1080,10 @@ func (x *Command) GetKind() isCommand_Kind {
 	return nil
 }
 
-func (x *Command) GetLift() *LiftCommand {
+func (x *Command) GetStep() *StepCommand {
 	if x != nil {
-		if x, ok := x.Kind.(*Command_Lift); ok {
-			return x.Lift
+		if x, ok := x.Kind.(*Command_Step); ok {
+			return x.Step
 		}
 	}
 	return nil
@@ -1098,10 +1098,10 @@ func (x *Command) GetSleep() *SleepCommand {
 	return nil
 }
 
-func (x *Command) GetLatestPallet() *LatestPalletCommand {
+func (x *Command) GetLatestDataVersion() *LatestDataVersionCommand {
 	if x != nil {
-		if x, ok := x.Kind.(*Command_LatestPallet); ok {
-			return x.LatestPallet
+		if x, ok := x.Kind.(*Command_LatestDataVersion); ok {
+			return x.LatestDataVersion
 		}
 	}
 	return nil
@@ -1116,10 +1116,10 @@ func (x *Command) GetWaitSignal() *WaitSignalCommand {
 	return nil
 }
 
-func (x *Command) GetStartHaul() *StartHaulCommand {
+func (x *Command) GetStartRun() *StartRunCommand {
 	if x != nil {
-		if x, ok := x.Kind.(*Command_StartHaul); ok {
-			return x.StartHaul
+		if x, ok := x.Kind.(*Command_StartRun); ok {
+			return x.StartRun
 		}
 	}
 	return nil
@@ -1129,67 +1129,67 @@ type isCommand_Kind interface {
 	isCommand_Kind()
 }
 
-type Command_Lift struct {
-	Lift *LiftCommand `protobuf:"bytes,3,opt,name=lift,proto3,oneof"`
+type Command_Step struct {
+	Step *StepCommand `protobuf:"bytes,3,opt,name=step,proto3,oneof"`
 }
 
 type Command_Sleep struct {
 	Sleep *SleepCommand `protobuf:"bytes,4,opt,name=sleep,proto3,oneof"`
 }
 
-type Command_LatestPallet struct {
-	LatestPallet *LatestPalletCommand `protobuf:"bytes,5,opt,name=latest_pallet,json=latestPallet,proto3,oneof"`
+type Command_LatestDataVersion struct {
+	LatestDataVersion *LatestDataVersionCommand `protobuf:"bytes,5,opt,name=latest_data_version,json=latestDataVersion,proto3,oneof"`
 }
 
 type Command_WaitSignal struct {
 	WaitSignal *WaitSignalCommand `protobuf:"bytes,6,opt,name=wait_signal,json=waitSignal,proto3,oneof"`
 }
 
-type Command_StartHaul struct {
-	StartHaul *StartHaulCommand `protobuf:"bytes,7,opt,name=start_haul,json=startHaul,proto3,oneof"`
+type Command_StartRun struct {
+	StartRun *StartRunCommand `protobuf:"bytes,7,opt,name=start_run,json=startRun,proto3,oneof"`
 }
 
-func (*Command_Lift) isCommand_Kind() {}
+func (*Command_Step) isCommand_Kind() {}
 
 func (*Command_Sleep) isCommand_Kind() {}
 
-func (*Command_LatestPallet) isCommand_Kind() {}
+func (*Command_LatestDataVersion) isCommand_Kind() {}
 
 func (*Command_WaitSignal) isCommand_Kind() {}
 
-func (*Command_StartHaul) isCommand_Kind() {}
+func (*Command_StartRun) isCommand_Kind() {}
 
-// StartHaulCommand starts another haul (a child) at once. The logbook
+// StartRunCommand starts another run (a child) at once. The event log
 // answers it with ChildStarted (the child's ID) and, if wait is set, with
 // ChildFinished once the child ends (or at once if it couldn't start).
-type StartHaulCommand struct {
+type StartRunCommand struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// A JSON object.
 	ParamsJson string `protobuf:"bytes,2,opt,name=params_json,json=paramsJson,proto3" json:"params_json,omitempty"`
-	// The haul waits for the child's result (ctx.haul); ending the haul
+	// The run waits for the child's result (ctx.run); ending the run
 	// cancels it.
 	Wait bool `protobuf:"varint,3,opt,name=wait,proto3" json:"wait,omitempty"`
-	// Default: the starting haul's dock.
-	Dock          string `protobuf:"bytes,4,opt,name=dock,proto3" json:"dock,omitempty"`
+	// Default: the starting run's queue.
+	Queue         string `protobuf:"bytes,4,opt,name=queue,proto3" json:"queue,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *StartHaulCommand) Reset() {
-	*x = StartHaulCommand{}
+func (x *StartRunCommand) Reset() {
+	*x = StartRunCommand{}
 	mi := &file_moksha_v1_worker_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *StartHaulCommand) String() string {
+func (x *StartRunCommand) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*StartHaulCommand) ProtoMessage() {}
+func (*StartRunCommand) ProtoMessage() {}
 
-func (x *StartHaulCommand) ProtoReflect() protoreflect.Message {
+func (x *StartRunCommand) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_worker_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1201,40 +1201,40 @@ func (x *StartHaulCommand) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use StartHaulCommand.ProtoReflect.Descriptor instead.
-func (*StartHaulCommand) Descriptor() ([]byte, []int) {
+// Deprecated: Use StartRunCommand.ProtoReflect.Descriptor instead.
+func (*StartRunCommand) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_worker_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *StartHaulCommand) GetName() string {
+func (x *StartRunCommand) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-func (x *StartHaulCommand) GetParamsJson() string {
+func (x *StartRunCommand) GetParamsJson() string {
 	if x != nil {
 		return x.ParamsJson
 	}
 	return ""
 }
 
-func (x *StartHaulCommand) GetWait() bool {
+func (x *StartRunCommand) GetWait() bool {
 	if x != nil {
 		return x.Wait
 	}
 	return false
 }
 
-func (x *StartHaulCommand) GetDock() string {
+func (x *StartRunCommand) GetQueue() string {
 	if x != nil {
-		return x.Dock
+		return x.Queue
 	}
 	return ""
 }
 
-// WaitSignalCommand waits for a signal by name. The logbook answers it with
+// WaitSignalCommand waits for a signal by name. The event log answers it with
 // SignalDelivered: the signal's payload, or timed_out once timeout passed.
 type WaitSignalCommand struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1289,10 +1289,10 @@ func (x *WaitSignalCommand) GetTimeout() *durationpb.Duration {
 	return nil
 }
 
-// LatestPalletCommand asks for a dataset partition's newest committed
-// pallet. The server answers at once and records the answer in the logbook
-// (QueryAnswered), so every replay sees the same pallet.
-type LatestPalletCommand struct {
+// LatestDataVersionCommand asks for a dataset partition's newest committed
+// data version. The server answers at once and records the answer in the event log
+// (QueryAnswered), so every replay sees the same data version.
+type LatestDataVersionCommand struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Dataset       string                 `protobuf:"bytes,1,opt,name=dataset,proto3" json:"dataset,omitempty"`
 	Partition     string                 `protobuf:"bytes,2,opt,name=partition,proto3" json:"partition,omitempty"`
@@ -1300,20 +1300,20 @@ type LatestPalletCommand struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *LatestPalletCommand) Reset() {
-	*x = LatestPalletCommand{}
+func (x *LatestDataVersionCommand) Reset() {
+	*x = LatestDataVersionCommand{}
 	mi := &file_moksha_v1_worker_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *LatestPalletCommand) String() string {
+func (x *LatestDataVersionCommand) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*LatestPalletCommand) ProtoMessage() {}
+func (*LatestDataVersionCommand) ProtoMessage() {}
 
-func (x *LatestPalletCommand) ProtoReflect() protoreflect.Message {
+func (x *LatestDataVersionCommand) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_worker_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1325,61 +1325,61 @@ func (x *LatestPalletCommand) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use LatestPalletCommand.ProtoReflect.Descriptor instead.
-func (*LatestPalletCommand) Descriptor() ([]byte, []int) {
+// Deprecated: Use LatestDataVersionCommand.ProtoReflect.Descriptor instead.
+func (*LatestDataVersionCommand) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_worker_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *LatestPalletCommand) GetDataset() string {
+func (x *LatestDataVersionCommand) GetDataset() string {
 	if x != nil {
 		return x.Dataset
 	}
 	return ""
 }
 
-func (x *LatestPalletCommand) GetPartition() string {
+func (x *LatestDataVersionCommand) GetPartition() string {
 	if x != nil {
 		return x.Partition
 	}
 	return ""
 }
 
-type LiftCommand struct {
+type StepCommand struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Default: the haul's dock.
-	Dock     string `protobuf:"bytes,2,opt,name=dock,proto3" json:"dock,omitempty"`
+	// Default: the run's queue.
+	Queue    string `protobuf:"bytes,2,opt,name=queue,proto3" json:"queue,omitempty"`
 	ArgsJson string `protobuf:"bytes,3,opt,name=args_json,json=argsJson,proto3" json:"args_json,omitempty"`
 	// Per attempt, enforced by the server. Unset: none.
 	Timeout *durationpb.Duration `protobuf:"bytes,4,opt,name=timeout,proto3" json:"timeout,omitempty"`
 	Retry   *RetryPolicy         `protobuf:"bytes,5,opt,name=retry,proto3" json:"retry,omitempty"`
-	// The pallet the lift produces, if any.
+	// The data version the step produces, if any.
 	Output *Output `protobuf:"bytes,6,opt,name=output,proto3" json:"output,omitempty"`
-	// Pallets passed to the lift.
+	// Data versions passed to the step.
 	Inputs []*InputRef `protobuf:"bytes,7,rep,name=inputs,proto3" json:"inputs,omitempty"`
 	// "" or "never", "fingerprint", or "ttl:<duration>".
 	Memo string `protobuf:"bytes,8,opt,name=memo,proto3" json:"memo,omitempty"`
-	// Fan-out limits: the server starts this lift only while each group has
-	// fewer than max of the haul's lifts queued or running.
+	// Fan-out limits: the server starts this step only while each group has
+	// fewer than max of the run's steps queued or running.
 	Limits        []*ParallelLimit `protobuf:"bytes,9,rep,name=limits,proto3" json:"limits,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *LiftCommand) Reset() {
-	*x = LiftCommand{}
+func (x *StepCommand) Reset() {
+	*x = StepCommand{}
 	mi := &file_moksha_v1_worker_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *LiftCommand) String() string {
+func (x *StepCommand) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*LiftCommand) ProtoMessage() {}
+func (*StepCommand) ProtoMessage() {}
 
-func (x *LiftCommand) ProtoReflect() protoreflect.Message {
+func (x *StepCommand) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_worker_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1391,68 +1391,68 @@ func (x *LiftCommand) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use LiftCommand.ProtoReflect.Descriptor instead.
-func (*LiftCommand) Descriptor() ([]byte, []int) {
+// Deprecated: Use StepCommand.ProtoReflect.Descriptor instead.
+func (*StepCommand) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_worker_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *LiftCommand) GetName() string {
+func (x *StepCommand) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-func (x *LiftCommand) GetDock() string {
+func (x *StepCommand) GetQueue() string {
 	if x != nil {
-		return x.Dock
+		return x.Queue
 	}
 	return ""
 }
 
-func (x *LiftCommand) GetArgsJson() string {
+func (x *StepCommand) GetArgsJson() string {
 	if x != nil {
 		return x.ArgsJson
 	}
 	return ""
 }
 
-func (x *LiftCommand) GetTimeout() *durationpb.Duration {
+func (x *StepCommand) GetTimeout() *durationpb.Duration {
 	if x != nil {
 		return x.Timeout
 	}
 	return nil
 }
 
-func (x *LiftCommand) GetRetry() *RetryPolicy {
+func (x *StepCommand) GetRetry() *RetryPolicy {
 	if x != nil {
 		return x.Retry
 	}
 	return nil
 }
 
-func (x *LiftCommand) GetOutput() *Output {
+func (x *StepCommand) GetOutput() *Output {
 	if x != nil {
 		return x.Output
 	}
 	return nil
 }
 
-func (x *LiftCommand) GetInputs() []*InputRef {
+func (x *StepCommand) GetInputs() []*InputRef {
 	if x != nil {
 		return x.Inputs
 	}
 	return nil
 }
 
-func (x *LiftCommand) GetMemo() string {
+func (x *StepCommand) GetMemo() string {
 	if x != nil {
 		return x.Memo
 	}
 	return ""
 }
 
-func (x *LiftCommand) GetLimits() []*ParallelLimit {
+func (x *StepCommand) GetLimits() []*ParallelLimit {
 	if x != nil {
 		return x.Limits
 	}
@@ -1461,7 +1461,7 @@ func (x *LiftCommand) GetLimits() []*ParallelLimit {
 
 type ParallelLimit struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Per haul, e.g. "haul" or "gather:12".
+	// Per run, e.g. "run" or "gather:12".
 	Group         string `protobuf:"bytes,1,opt,name=group,proto3" json:"group,omitempty"`
 	Max           int32  `protobuf:"varint,2,opt,name=max,proto3" json:"max,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1687,10 +1687,10 @@ func (x *Output) GetPartitionKey() string {
 }
 
 type InputRef struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	Name   string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Pallet string                 `protobuf:"bytes,2,opt,name=pallet,proto3" json:"pallet,omitempty"`
-	// The pallet's manifest (in lift tasks; ignored in commands).
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Name        string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	DataVersion string                 `protobuf:"bytes,2,opt,name=data_version,json=dataVersion,proto3" json:"data_version,omitempty"`
+	// The data version's manifest (in step tasks; ignored in commands).
 	Location      string `protobuf:"bytes,3,opt,name=location,proto3" json:"location,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1733,9 +1733,9 @@ func (x *InputRef) GetName() string {
 	return ""
 }
 
-func (x *InputRef) GetPallet() string {
+func (x *InputRef) GetDataVersion() string {
 	if x != nil {
-		return x.Pallet
+		return x.DataVersion
 	}
 	return ""
 }
@@ -1747,32 +1747,32 @@ func (x *InputRef) GetLocation() string {
 	return ""
 }
 
-type HaulOutcome struct {
+type RunOutcome struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
-	Status     HaulOutcome_Status     `protobuf:"varint,1,opt,name=status,proto3,enum=moksha.v1.HaulOutcome_Status" json:"status,omitempty"`
+	Status     RunOutcome_Status      `protobuf:"varint,1,opt,name=status,proto3,enum=moksha.v1.RunOutcome_Status" json:"status,omitempty"`
 	ResultJson string                 `protobuf:"bytes,2,opt,name=result_json,json=resultJson,proto3" json:"result_json,omitempty"`
 	Reason     string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
 	Message    string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
-	// STATUS_CONTINUED: the next haul's params, a JSON object.
+	// STATUS_CONTINUED: the next run's params, a JSON object.
 	ParamsJson    string `protobuf:"bytes,5,opt,name=params_json,json=paramsJson,proto3" json:"params_json,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *HaulOutcome) Reset() {
-	*x = HaulOutcome{}
+func (x *RunOutcome) Reset() {
+	*x = RunOutcome{}
 	mi := &file_moksha_v1_worker_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *HaulOutcome) String() string {
+func (x *RunOutcome) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*HaulOutcome) ProtoMessage() {}
+func (*RunOutcome) ProtoMessage() {}
 
-func (x *HaulOutcome) ProtoReflect() protoreflect.Message {
+func (x *RunOutcome) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_worker_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1784,40 +1784,40 @@ func (x *HaulOutcome) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use HaulOutcome.ProtoReflect.Descriptor instead.
-func (*HaulOutcome) Descriptor() ([]byte, []int) {
+// Deprecated: Use RunOutcome.ProtoReflect.Descriptor instead.
+func (*RunOutcome) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_worker_proto_rawDescGZIP(), []int{23}
 }
 
-func (x *HaulOutcome) GetStatus() HaulOutcome_Status {
+func (x *RunOutcome) GetStatus() RunOutcome_Status {
 	if x != nil {
 		return x.Status
 	}
-	return HaulOutcome_STATUS_UNSPECIFIED
+	return RunOutcome_STATUS_UNSPECIFIED
 }
 
-func (x *HaulOutcome) GetResultJson() string {
+func (x *RunOutcome) GetResultJson() string {
 	if x != nil {
 		return x.ResultJson
 	}
 	return ""
 }
 
-func (x *HaulOutcome) GetReason() string {
+func (x *RunOutcome) GetReason() string {
 	if x != nil {
 		return x.Reason
 	}
 	return ""
 }
 
-func (x *HaulOutcome) GetMessage() string {
+func (x *RunOutcome) GetMessage() string {
 	if x != nil {
 		return x.Message
 	}
 	return ""
 }
 
-func (x *HaulOutcome) GetParamsJson() string {
+func (x *RunOutcome) GetParamsJson() string {
 	if x != nil {
 		return x.ParamsJson
 	}
@@ -1876,31 +1876,31 @@ func (x *TaskError) GetMessage() string {
 	return ""
 }
 
-type PollLiftTaskRequest struct {
+type PollStepTaskRequest struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	WorkerId string                 `protobuf:"bytes,1,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"`
-	Docks    []string               `protobuf:"bytes,2,rep,name=docks,proto3" json:"docks,omitempty"`
+	Queues   []string               `protobuf:"bytes,2,rep,name=queues,proto3" json:"queues,omitempty"`
 	Wait     *durationpb.Duration   `protobuf:"bytes,3,opt,name=wait,proto3" json:"wait,omitempty"`
-	// As in PollHaulTaskRequest: only lifts the worker's build defines.
+	// As in PollRunTaskRequest: only steps the worker's build defines.
 	BuildId       string `protobuf:"bytes,4,opt,name=build_id,json=buildId,proto3" json:"build_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *PollLiftTaskRequest) Reset() {
-	*x = PollLiftTaskRequest{}
+func (x *PollStepTaskRequest) Reset() {
+	*x = PollStepTaskRequest{}
 	mi := &file_moksha_v1_worker_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *PollLiftTaskRequest) String() string {
+func (x *PollStepTaskRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*PollLiftTaskRequest) ProtoMessage() {}
+func (*PollStepTaskRequest) ProtoMessage() {}
 
-func (x *PollLiftTaskRequest) ProtoReflect() protoreflect.Message {
+func (x *PollStepTaskRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_worker_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1912,61 +1912,61 @@ func (x *PollLiftTaskRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use PollLiftTaskRequest.ProtoReflect.Descriptor instead.
-func (*PollLiftTaskRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use PollStepTaskRequest.ProtoReflect.Descriptor instead.
+func (*PollStepTaskRequest) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_worker_proto_rawDescGZIP(), []int{25}
 }
 
-func (x *PollLiftTaskRequest) GetWorkerId() string {
+func (x *PollStepTaskRequest) GetWorkerId() string {
 	if x != nil {
 		return x.WorkerId
 	}
 	return ""
 }
 
-func (x *PollLiftTaskRequest) GetDocks() []string {
+func (x *PollStepTaskRequest) GetQueues() []string {
 	if x != nil {
-		return x.Docks
+		return x.Queues
 	}
 	return nil
 }
 
-func (x *PollLiftTaskRequest) GetWait() *durationpb.Duration {
+func (x *PollStepTaskRequest) GetWait() *durationpb.Duration {
 	if x != nil {
 		return x.Wait
 	}
 	return nil
 }
 
-func (x *PollLiftTaskRequest) GetBuildId() string {
+func (x *PollStepTaskRequest) GetBuildId() string {
 	if x != nil {
 		return x.BuildId
 	}
 	return ""
 }
 
-type PollLiftTaskResponse struct {
+type PollStepTaskResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unset when there was no work in time.
-	Task          *LiftTask `protobuf:"bytes,1,opt,name=task,proto3" json:"task,omitempty"`
+	Task          *StepTask `protobuf:"bytes,1,opt,name=task,proto3" json:"task,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *PollLiftTaskResponse) Reset() {
-	*x = PollLiftTaskResponse{}
+func (x *PollStepTaskResponse) Reset() {
+	*x = PollStepTaskResponse{}
 	mi := &file_moksha_v1_worker_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *PollLiftTaskResponse) String() string {
+func (x *PollStepTaskResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*PollLiftTaskResponse) ProtoMessage() {}
+func (*PollStepTaskResponse) ProtoMessage() {}
 
-func (x *PollLiftTaskResponse) ProtoReflect() protoreflect.Message {
+func (x *PollStepTaskResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_worker_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1978,32 +1978,32 @@ func (x *PollLiftTaskResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use PollLiftTaskResponse.ProtoReflect.Descriptor instead.
-func (*PollLiftTaskResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use PollStepTaskResponse.ProtoReflect.Descriptor instead.
+func (*PollStepTaskResponse) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_worker_proto_rawDescGZIP(), []int{26}
 }
 
-func (x *PollLiftTaskResponse) GetTask() *LiftTask {
+func (x *PollStepTaskResponse) GetTask() *StepTask {
 	if x != nil {
 		return x.Task
 	}
 	return nil
 }
 
-type LiftTask struct {
+type StepTask struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The attempt ID: report and heartbeat with it.
 	Id       string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	HaulId   string `protobuf:"bytes,2,opt,name=haul_id,json=haulId,proto3" json:"haul_id,omitempty"`
+	RunId    string `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	Seq      int32  `protobuf:"varint,3,opt,name=seq,proto3" json:"seq,omitempty"`
 	Name     string `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
-	Dock     string `protobuf:"bytes,5,opt,name=dock,proto3" json:"dock,omitempty"`
+	Queue    string `protobuf:"bytes,5,opt,name=queue,proto3" json:"queue,omitempty"`
 	ArgsJson string `protobuf:"bytes,6,opt,name=args_json,json=argsJson,proto3" json:"args_json,omitempty"`
-	// For a lift with an output: where its pallet goes, and the prefix this
+	// For a step with an output: where its data version goes, and the prefix this
 	// attempt writes its files to.
 	Output  *Output `protobuf:"bytes,7,opt,name=output,proto3" json:"output,omitempty"`
 	Staging string  `protobuf:"bytes,8,opt,name=staging,proto3" json:"staging,omitempty"`
-	// The pallets passed to the lift, by argument name.
+	// The data versions passed to the step, by argument name.
 	Inputs []*InputRef `protobuf:"bytes,9,rep,name=inputs,proto3" json:"inputs,omitempty"`
 	// The bucket's base URI, and the ID in its .moksha-bucket file when it
 	// is a file:// bucket. A worker that finds that file with that ID under
@@ -2016,20 +2016,20 @@ type LiftTask struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *LiftTask) Reset() {
-	*x = LiftTask{}
+func (x *StepTask) Reset() {
+	*x = StepTask{}
 	mi := &file_moksha_v1_worker_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *LiftTask) String() string {
+func (x *StepTask) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*LiftTask) ProtoMessage() {}
+func (*StepTask) ProtoMessage() {}
 
-func (x *LiftTask) ProtoReflect() protoreflect.Message {
+func (x *StepTask) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_worker_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2041,117 +2041,117 @@ func (x *LiftTask) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use LiftTask.ProtoReflect.Descriptor instead.
-func (*LiftTask) Descriptor() ([]byte, []int) {
+// Deprecated: Use StepTask.ProtoReflect.Descriptor instead.
+func (*StepTask) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_worker_proto_rawDescGZIP(), []int{27}
 }
 
-func (x *LiftTask) GetId() string {
+func (x *StepTask) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *LiftTask) GetHaulId() string {
+func (x *StepTask) GetRunId() string {
 	if x != nil {
-		return x.HaulId
+		return x.RunId
 	}
 	return ""
 }
 
-func (x *LiftTask) GetSeq() int32 {
+func (x *StepTask) GetSeq() int32 {
 	if x != nil {
 		return x.Seq
 	}
 	return 0
 }
 
-func (x *LiftTask) GetName() string {
+func (x *StepTask) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-func (x *LiftTask) GetDock() string {
+func (x *StepTask) GetQueue() string {
 	if x != nil {
-		return x.Dock
+		return x.Queue
 	}
 	return ""
 }
 
-func (x *LiftTask) GetArgsJson() string {
+func (x *StepTask) GetArgsJson() string {
 	if x != nil {
 		return x.ArgsJson
 	}
 	return ""
 }
 
-func (x *LiftTask) GetOutput() *Output {
+func (x *StepTask) GetOutput() *Output {
 	if x != nil {
 		return x.Output
 	}
 	return nil
 }
 
-func (x *LiftTask) GetStaging() string {
+func (x *StepTask) GetStaging() string {
 	if x != nil {
 		return x.Staging
 	}
 	return ""
 }
 
-func (x *LiftTask) GetInputs() []*InputRef {
+func (x *StepTask) GetInputs() []*InputRef {
 	if x != nil {
 		return x.Inputs
 	}
 	return nil
 }
 
-func (x *LiftTask) GetBucket() string {
+func (x *StepTask) GetBucket() string {
 	if x != nil {
 		return x.Bucket
 	}
 	return ""
 }
 
-func (x *LiftTask) GetBucketId() string {
+func (x *StepTask) GetBucketId() string {
 	if x != nil {
 		return x.BucketId
 	}
 	return ""
 }
 
-type CompleteLiftTaskRequest struct {
+type CompleteStepTaskRequest struct {
 	state      protoimpl.MessageState         `protogen:"open.v1"`
 	AttemptId  string                         `protobuf:"bytes,1,opt,name=attempt_id,json=attemptId,proto3" json:"attempt_id,omitempty"`
-	Status     CompleteLiftTaskRequest_Status `protobuf:"varint,2,opt,name=status,proto3,enum=moksha.v1.CompleteLiftTaskRequest_Status" json:"status,omitempty"`
+	Status     CompleteStepTaskRequest_Status `protobuf:"varint,2,opt,name=status,proto3,enum=moksha.v1.CompleteStepTaskRequest_Status" json:"status,omitempty"`
 	ResultJson string                         `protobuf:"bytes,3,opt,name=result_json,json=resultJson,proto3" json:"result_json,omitempty"`
 	Reason     string                         `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
 	Message    string                         `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
 	// The failure will repeat on every attempt: don't retry.
 	NoRetry bool `protobuf:"varint,6,opt,name=no_retry,json=noRetry,proto3" json:"no_retry,omitempty"`
-	// What a succeeded attempt of a lift with an output wrote.
-	Output        *LiftOutput `protobuf:"bytes,7,opt,name=output,proto3" json:"output,omitempty"`
+	// What a succeeded attempt of a step with an output wrote.
+	Output        *StepOutput `protobuf:"bytes,7,opt,name=output,proto3" json:"output,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *CompleteLiftTaskRequest) Reset() {
-	*x = CompleteLiftTaskRequest{}
+func (x *CompleteStepTaskRequest) Reset() {
+	*x = CompleteStepTaskRequest{}
 	mi := &file_moksha_v1_worker_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CompleteLiftTaskRequest) String() string {
+func (x *CompleteStepTaskRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CompleteLiftTaskRequest) ProtoMessage() {}
+func (*CompleteStepTaskRequest) ProtoMessage() {}
 
-func (x *CompleteLiftTaskRequest) ProtoReflect() protoreflect.Message {
+func (x *CompleteStepTaskRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_worker_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2163,61 +2163,61 @@ func (x *CompleteLiftTaskRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CompleteLiftTaskRequest.ProtoReflect.Descriptor instead.
-func (*CompleteLiftTaskRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use CompleteStepTaskRequest.ProtoReflect.Descriptor instead.
+func (*CompleteStepTaskRequest) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_worker_proto_rawDescGZIP(), []int{28}
 }
 
-func (x *CompleteLiftTaskRequest) GetAttemptId() string {
+func (x *CompleteStepTaskRequest) GetAttemptId() string {
 	if x != nil {
 		return x.AttemptId
 	}
 	return ""
 }
 
-func (x *CompleteLiftTaskRequest) GetStatus() CompleteLiftTaskRequest_Status {
+func (x *CompleteStepTaskRequest) GetStatus() CompleteStepTaskRequest_Status {
 	if x != nil {
 		return x.Status
 	}
-	return CompleteLiftTaskRequest_STATUS_UNSPECIFIED
+	return CompleteStepTaskRequest_STATUS_UNSPECIFIED
 }
 
-func (x *CompleteLiftTaskRequest) GetResultJson() string {
+func (x *CompleteStepTaskRequest) GetResultJson() string {
 	if x != nil {
 		return x.ResultJson
 	}
 	return ""
 }
 
-func (x *CompleteLiftTaskRequest) GetReason() string {
+func (x *CompleteStepTaskRequest) GetReason() string {
 	if x != nil {
 		return x.Reason
 	}
 	return ""
 }
 
-func (x *CompleteLiftTaskRequest) GetMessage() string {
+func (x *CompleteStepTaskRequest) GetMessage() string {
 	if x != nil {
 		return x.Message
 	}
 	return ""
 }
 
-func (x *CompleteLiftTaskRequest) GetNoRetry() bool {
+func (x *CompleteStepTaskRequest) GetNoRetry() bool {
 	if x != nil {
 		return x.NoRetry
 	}
 	return false
 }
 
-func (x *CompleteLiftTaskRequest) GetOutput() *LiftOutput {
+func (x *CompleteStepTaskRequest) GetOutput() *StepOutput {
 	if x != nil {
 		return x.Output
 	}
 	return nil
 }
 
-type LiftOutput struct {
+type StepOutput struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Files         []*File                `protobuf:"bytes,1,rep,name=files,proto3" json:"files,omitempty"`
 	StatsJson     string                 `protobuf:"bytes,2,opt,name=stats_json,json=statsJson,proto3" json:"stats_json,omitempty"`
@@ -2226,20 +2226,20 @@ type LiftOutput struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *LiftOutput) Reset() {
-	*x = LiftOutput{}
+func (x *StepOutput) Reset() {
+	*x = StepOutput{}
 	mi := &file_moksha_v1_worker_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *LiftOutput) String() string {
+func (x *StepOutput) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*LiftOutput) ProtoMessage() {}
+func (*StepOutput) ProtoMessage() {}
 
-func (x *LiftOutput) ProtoReflect() protoreflect.Message {
+func (x *StepOutput) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_worker_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2251,26 +2251,26 @@ func (x *LiftOutput) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use LiftOutput.ProtoReflect.Descriptor instead.
-func (*LiftOutput) Descriptor() ([]byte, []int) {
+// Deprecated: Use StepOutput.ProtoReflect.Descriptor instead.
+func (*StepOutput) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_worker_proto_rawDescGZIP(), []int{29}
 }
 
-func (x *LiftOutput) GetFiles() []*File {
+func (x *StepOutput) GetFiles() []*File {
 	if x != nil {
 		return x.Files
 	}
 	return nil
 }
 
-func (x *LiftOutput) GetStatsJson() string {
+func (x *StepOutput) GetStatsJson() string {
 	if x != nil {
 		return x.StatsJson
 	}
 	return ""
 }
 
-func (x *LiftOutput) GetMetaJson() string {
+func (x *StepOutput) GetMetaJson() string {
 	if x != nil {
 		return x.MetaJson
 	}
@@ -2339,26 +2339,26 @@ func (x *File) GetSha256() string {
 	return ""
 }
 
-type CompleteLiftTaskResponse struct {
+type CompleteStepTaskResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *CompleteLiftTaskResponse) Reset() {
-	*x = CompleteLiftTaskResponse{}
+func (x *CompleteStepTaskResponse) Reset() {
+	*x = CompleteStepTaskResponse{}
 	mi := &file_moksha_v1_worker_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CompleteLiftTaskResponse) String() string {
+func (x *CompleteStepTaskResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CompleteLiftTaskResponse) ProtoMessage() {}
+func (*CompleteStepTaskResponse) ProtoMessage() {}
 
-func (x *CompleteLiftTaskResponse) ProtoReflect() protoreflect.Message {
+func (x *CompleteStepTaskResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_moksha_v1_worker_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2370,15 +2370,15 @@ func (x *CompleteLiftTaskResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CompleteLiftTaskResponse.ProtoReflect.Descriptor instead.
-func (*CompleteLiftTaskResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use CompleteStepTaskResponse.ProtoReflect.Descriptor instead.
+func (*CompleteStepTaskResponse) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_worker_proto_rawDescGZIP(), []int{31}
 }
 
 type HeartbeatRequest struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	WorkerId string                 `protobuf:"bytes,1,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"`
-	// Haul task and lift attempt IDs the worker is running.
+	// Run task and step attempt IDs the worker is running.
 	TaskIds       []string `protobuf:"bytes,2,rep,name=task_ids,json=taskIds,proto3" json:"task_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2537,7 +2537,7 @@ func (x *Transfer) GetHeaders() map[string]string {
 type GetUploadURLsRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	AttemptId string                 `protobuf:"bytes,1,opt,name=attempt_id,json=attemptId,proto3" json:"attempt_id,omitempty"`
-	// The files the attempt wrote, as CompleteLiftTask will report them.
+	// The files the attempt wrote, as CompleteStepTask will report them.
 	Files         []*File `protobuf:"bytes,2,rep,name=files,proto3" json:"files,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2634,8 +2634,8 @@ func (x *GetUploadURLsResponse) GetFiles() []*Transfer {
 type GetDownloadURLsRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	AttemptId string                 `protobuf:"bytes,1,opt,name=attempt_id,json=attemptId,proto3" json:"attempt_id,omitempty"`
-	// One of the attempt's input pallets.
-	Pallet        string `protobuf:"bytes,2,opt,name=pallet,proto3" json:"pallet,omitempty"`
+	// One of the attempt's input data versions.
+	DataVersion   string `protobuf:"bytes,2,opt,name=data_version,json=dataVersion,proto3" json:"data_version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2677,16 +2677,16 @@ func (x *GetDownloadURLsRequest) GetAttemptId() string {
 	return ""
 }
 
-func (x *GetDownloadURLsRequest) GetPallet() string {
+func (x *GetDownloadURLsRequest) GetDataVersion() string {
 	if x != nil {
-		return x.Pallet
+		return x.DataVersion
 	}
 	return ""
 }
 
 type GetDownloadURLsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The pallet's manifest, as stored.
+	// The data version's manifest, as stored.
 	ManifestJson string `protobuf:"bytes,1,opt,name=manifest_json,json=manifestJson,proto3" json:"manifest_json,omitempty"`
 	// One per file in the manifest.
 	Files         []*Transfer `protobuf:"bytes,2,rep,name=files,proto3" json:"files,omitempty"`
@@ -2742,96 +2742,95 @@ var File_moksha_v1_worker_proto protoreflect.FileDescriptor
 
 const file_moksha_v1_worker_proto_rawDesc = "" +
 	"\n" +
-	"\x16moksha/v1/worker.proto\x12\tmoksha.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc5\x03\n" +
+	"\x16moksha/v1/worker.proto\x12\tmoksha.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe1\x03\n" +
 	"\x14RegisterBuildRequest\x12\x19\n" +
 	"\bbuild_id\x18\x01 \x01(\tR\abuildId\x12V\n" +
-	"\rlift_versions\x18\x02 \x03(\v21.moksha.v1.RegisterBuildRequest.LiftVersionsEntryR\fliftVersions\x12\x14\n" +
-	"\x05hauls\x18\x03 \x03(\tR\x05hauls\x125\n" +
-	"\tschedules\x18\x04 \x03(\v2\x17.moksha.v1.HaulScheduleR\tschedules\x12A\n" +
-	"\rsubscriptions\x18\x05 \x03(\v2\x1b.moksha.v1.HaulSubscriptionR\rsubscriptions\x127\n" +
-	"\bdatasets\x18\x06 \x03(\v2\x1b.moksha.v1.DatasetRetentionR\bdatasets\x120\n" +
-	"\thaul_info\x18\a \x03(\v2\x13.moksha.v1.HaulInfoR\bhaulInfo\x1a?\n" +
-	"\x11LiftVersionsEntry\x12\x10\n" +
+	"\rstep_versions\x18\x02 \x03(\v21.moksha.v1.RegisterBuildRequest.StepVersionsEntryR\fstepVersions\x12\x1c\n" +
+	"\tpipelines\x18\x03 \x03(\tR\tpipelines\x129\n" +
+	"\tschedules\x18\x04 \x03(\v2\x1b.moksha.v1.PipelineScheduleR\tschedules\x12E\n" +
+	"\rsubscriptions\x18\x05 \x03(\v2\x1f.moksha.v1.PipelineSubscriptionR\rsubscriptions\x127\n" +
+	"\bdatasets\x18\x06 \x03(\v2\x1b.moksha.v1.DatasetRetentionR\bdatasets\x12<\n" +
+	"\rpipeline_info\x18\a \x03(\v2\x17.moksha.v1.PipelineInfoR\fpipelineInfo\x1a?\n" +
+	"\x11StepVersionsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"V\n" +
-	"\bHaulInfo\x12\x12\n" +
-	"\x04haul\x18\x01 \x01(\tR\x04haul\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"b\n" +
+	"\fPipelineInfo\x12\x1a\n" +
+	"\bpipeline\x18\x01 \x01(\tR\bpipeline\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\"\x81\x01\n" +
 	"\x10DatasetRetention\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
 	"\rkeep_versions\x18\x02 \x01(\x05R\fkeepVersions\x124\n" +
-	"\bkeep_for\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\akeepFor\"\xcc\x01\n" +
-	"\x10HaulSubscription\x12\x12\n" +
-	"\x04haul\x18\x01 \x01(\tR\x04haul\x12\x1a\n" +
+	"\bkeep_for\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\akeepFor\"\xd8\x01\n" +
+	"\x14PipelineSubscription\x12\x1a\n" +
+	"\bpipeline\x18\x01 \x01(\tR\bpipeline\x12\x1a\n" +
 	"\bdatasets\x18\x02 \x03(\tR\bdatasets\x125\n" +
 	"\bdebounce\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\bdebounce\x124\n" +
 	"\bmax_wait\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\amaxWait\x12\x1b\n" +
-	"\tmax_batch\x18\x05 \x01(\x05R\bmaxBatch\"\x89\x01\n" +
-	"\fHaulSchedule\x12\x12\n" +
-	"\x04haul\x18\x01 \x01(\tR\x04haul\x12\x12\n" +
+	"\tmax_batch\x18\x05 \x01(\x05R\bmaxBatch\"\x95\x01\n" +
+	"\x10PipelineSchedule\x12\x1a\n" +
+	"\bpipeline\x18\x01 \x01(\tR\bpipeline\x12\x12\n" +
 	"\x04cron\x18\x02 \x01(\tR\x04cron\x12\x1a\n" +
 	"\btimezone\x18\x03 \x01(\tR\btimezone\x12\x1a\n" +
 	"\binterval\x18\x04 \x01(\tR\binterval\x12\x19\n" +
 	"\bcatch_up\x18\x05 \x01(\tR\acatchUp\"\x17\n" +
-	"\x15RegisterBuildResponse\"\x92\x01\n" +
-	"\x13PollHaulTaskRequest\x12\x1b\n" +
-	"\tworker_id\x18\x01 \x01(\tR\bworkerId\x12\x14\n" +
-	"\x05docks\x18\x02 \x03(\tR\x05docks\x12-\n" +
+	"\x15RegisterBuildResponse\"\x93\x01\n" +
+	"\x12PollRunTaskRequest\x12\x1b\n" +
+	"\tworker_id\x18\x01 \x01(\tR\bworkerId\x12\x16\n" +
+	"\x06queues\x18\x02 \x03(\tR\x06queues\x12-\n" +
 	"\x04wait\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x04wait\x12\x19\n" +
-	"\bbuild_id\x18\x04 \x01(\tR\abuildId\"?\n" +
-	"\x14PollHaulTaskResponse\x12'\n" +
-	"\x04task\x18\x01 \x01(\v2\x13.moksha.v1.HaulTaskR\x04task\"\xa8\x01\n" +
-	"\bHaulTask\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
-	"\ahaul_id\x18\x02 \x01(\tR\x06haulId\x12\x12\n" +
-	"\x04name\x18\x03 \x01(\tR\x04name\x12\x12\n" +
-	"\x04dock\x18\x04 \x01(\tR\x04dock\x12\x1f\n" +
+	"\bbuild_id\x18\x04 \x01(\tR\abuildId\"=\n" +
+	"\x13PollRunTaskResponse\x12&\n" +
+	"\x04task\x18\x01 \x01(\v2\x12.moksha.v1.RunTaskR\x04task\"\xaa\x01\n" +
+	"\aRunTask\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x14\n" +
+	"\x05queue\x18\x04 \x01(\tR\x05queue\x12\x1f\n" +
 	"\vparams_json\x18\x05 \x01(\tR\n" +
-	"paramsJson\x12*\n" +
-	"\alogbook\x18\x06 \x03(\v2\x10.moksha.v1.EventR\alogbook\"\x80\x01\n" +
+	"paramsJson\x12-\n" +
+	"\tevent_log\x18\x06 \x03(\v2\x10.moksha.v1.EventR\beventLog\"\x80\x01\n" +
 	"\x05Event\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x03R\x03seq\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12.\n" +
 	"\x04time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x04time\x12!\n" +
-	"\fpayload_json\x18\x04 \x01(\tR\vpayloadJson\"\x8f\x02\n" +
-	"\x17CompleteHaulTaskRequest\x12\x17\n" +
+	"\fpayload_json\x18\x04 \x01(\tR\vpayloadJson\"\x8d\x02\n" +
+	"\x16CompleteRunTaskRequest\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x19\n" +
 	"\bbuild_id\x18\x02 \x01(\tR\abuildId\x12.\n" +
-	"\bcommands\x18\x03 \x03(\v2\x12.moksha.v1.CommandR\bcommands\x120\n" +
-	"\aoutcome\x18\x04 \x01(\v2\x16.moksha.v1.HaulOutcomeR\aoutcome\x12*\n" +
+	"\bcommands\x18\x03 \x03(\v2\x12.moksha.v1.CommandR\bcommands\x12/\n" +
+	"\aoutcome\x18\x04 \x01(\v2\x15.moksha.v1.RunOutcomeR\aoutcome\x12*\n" +
 	"\x05error\x18\x05 \x01(\v2\x14.moksha.v1.TaskErrorR\x05error\x122\n" +
-	"\amarkers\x18\x06 \x03(\v2\x18.moksha.v1.VersionMarkerR\amarkers\"\x1a\n" +
-	"\x18CompleteHaulTaskResponse\"=\n" +
+	"\amarkers\x18\x06 \x03(\v2\x18.moksha.v1.VersionMarkerR\amarkers\"\x19\n" +
+	"\x17CompleteRunTaskResponse\"=\n" +
 	"\rVersionMarker\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
-	"\aversion\x18\x02 \x01(\x05R\aversion\"\xe0\x02\n" +
+	"\aversion\x18\x02 \x01(\x05R\aversion\"\xed\x02\n" +
 	"\aCommand\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x05R\x03seq\x12\x16\n" +
 	"\x06source\x18\x02 \x01(\tR\x06source\x12,\n" +
-	"\x04lift\x18\x03 \x01(\v2\x16.moksha.v1.LiftCommandH\x00R\x04lift\x12/\n" +
-	"\x05sleep\x18\x04 \x01(\v2\x17.moksha.v1.SleepCommandH\x00R\x05sleep\x12E\n" +
-	"\rlatest_pallet\x18\x05 \x01(\v2\x1e.moksha.v1.LatestPalletCommandH\x00R\flatestPallet\x12?\n" +
+	"\x04step\x18\x03 \x01(\v2\x16.moksha.v1.StepCommandH\x00R\x04step\x12/\n" +
+	"\x05sleep\x18\x04 \x01(\v2\x17.moksha.v1.SleepCommandH\x00R\x05sleep\x12U\n" +
+	"\x13latest_data_version\x18\x05 \x01(\v2#.moksha.v1.LatestDataVersionCommandH\x00R\x11latestDataVersion\x12?\n" +
 	"\vwait_signal\x18\x06 \x01(\v2\x1c.moksha.v1.WaitSignalCommandH\x00R\n" +
-	"waitSignal\x12<\n" +
-	"\n" +
-	"start_haul\x18\a \x01(\v2\x1b.moksha.v1.StartHaulCommandH\x00R\tstartHaulB\x06\n" +
-	"\x04kind\"o\n" +
-	"\x10StartHaulCommand\x12\x12\n" +
+	"waitSignal\x129\n" +
+	"\tstart_run\x18\a \x01(\v2\x1a.moksha.v1.StartRunCommandH\x00R\bstartRunB\x06\n" +
+	"\x04kind\"p\n" +
+	"\x0fStartRunCommand\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1f\n" +
 	"\vparams_json\x18\x02 \x01(\tR\n" +
 	"paramsJson\x12\x12\n" +
-	"\x04wait\x18\x03 \x01(\bR\x04wait\x12\x12\n" +
-	"\x04dock\x18\x04 \x01(\tR\x04dock\"\\\n" +
+	"\x04wait\x18\x03 \x01(\bR\x04wait\x12\x14\n" +
+	"\x05queue\x18\x04 \x01(\tR\x05queue\"\\\n" +
 	"\x11WaitSignalCommand\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x123\n" +
-	"\atimeout\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\atimeout\"M\n" +
-	"\x13LatestPalletCommand\x12\x18\n" +
+	"\atimeout\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\atimeout\"R\n" +
+	"\x18LatestDataVersionCommand\x12\x18\n" +
 	"\adataset\x18\x01 \x01(\tR\adataset\x12\x1c\n" +
-	"\tpartition\x18\x02 \x01(\tR\tpartition\"\xd3\x02\n" +
-	"\vLiftCommand\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
-	"\x04dock\x18\x02 \x01(\tR\x04dock\x12\x1b\n" +
+	"\tpartition\x18\x02 \x01(\tR\tpartition\"\xd5\x02\n" +
+	"\vStepCommand\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05queue\x18\x02 \x01(\tR\x05queue\x12\x1b\n" +
 	"\targs_json\x18\x03 \x01(\tR\bargsJson\x123\n" +
 	"\atimeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12,\n" +
 	"\x05retry\x18\x05 \x01(\v2\x16.moksha.v1.RetryPolicyR\x05retry\x12)\n" +
@@ -2852,13 +2851,14 @@ const file_moksha_v1_worker_proto_rawDesc = "" +
 	"\x06Output\x12\x18\n" +
 	"\adataset\x18\x01 \x01(\tR\adataset\x12\x1c\n" +
 	"\tpartition\x18\x02 \x01(\tR\tpartition\x12#\n" +
-	"\rpartition_key\x18\x03 \x01(\tR\fpartitionKey\"R\n" +
+	"\rpartition_key\x18\x03 \x01(\tR\fpartitionKey\"]\n" +
 	"\bInputRef\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
-	"\x06pallet\x18\x02 \x01(\tR\x06pallet\x12\x1a\n" +
-	"\blocation\x18\x03 \x01(\tR\blocation\"\x99\x02\n" +
-	"\vHaulOutcome\x125\n" +
-	"\x06status\x18\x01 \x01(\x0e2\x1d.moksha.v1.HaulOutcome.StatusR\x06status\x12\x1f\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
+	"\fdata_version\x18\x02 \x01(\tR\vdataVersion\x12\x1a\n" +
+	"\blocation\x18\x03 \x01(\tR\blocation\"\x97\x02\n" +
+	"\n" +
+	"RunOutcome\x124\n" +
+	"\x06status\x18\x01 \x01(\x0e2\x1c.moksha.v1.RunOutcome.StatusR\x06status\x12\x1f\n" +
 	"\vresult_json\x18\x02 \x01(\tR\n" +
 	"resultJson\x12\x16\n" +
 	"\x06reason\x18\x03 \x01(\tR\x06reason\x12\x18\n" +
@@ -2872,20 +2872,20 @@ const file_moksha_v1_worker_proto_rawDesc = "" +
 	"\x10STATUS_CONTINUED\x10\x03\"=\n" +
 	"\tTaskError\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\x92\x01\n" +
-	"\x13PollLiftTaskRequest\x12\x1b\n" +
-	"\tworker_id\x18\x01 \x01(\tR\bworkerId\x12\x14\n" +
-	"\x05docks\x18\x02 \x03(\tR\x05docks\x12-\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\x94\x01\n" +
+	"\x13PollStepTaskRequest\x12\x1b\n" +
+	"\tworker_id\x18\x01 \x01(\tR\bworkerId\x12\x16\n" +
+	"\x06queues\x18\x02 \x03(\tR\x06queues\x12-\n" +
 	"\x04wait\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x04wait\x12\x19\n" +
 	"\bbuild_id\x18\x04 \x01(\tR\abuildId\"?\n" +
-	"\x14PollLiftTaskResponse\x12'\n" +
-	"\x04task\x18\x01 \x01(\v2\x13.moksha.v1.LiftTaskR\x04task\"\xb1\x02\n" +
-	"\bLiftTask\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
-	"\ahaul_id\x18\x02 \x01(\tR\x06haulId\x12\x10\n" +
+	"\x14PollStepTaskResponse\x12'\n" +
+	"\x04task\x18\x01 \x01(\v2\x13.moksha.v1.StepTaskR\x04task\"\xb1\x02\n" +
+	"\bStepTask\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x10\n" +
 	"\x03seq\x18\x03 \x01(\x05R\x03seq\x12\x12\n" +
-	"\x04name\x18\x04 \x01(\tR\x04name\x12\x12\n" +
-	"\x04dock\x18\x05 \x01(\tR\x04dock\x12\x1b\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\x12\x14\n" +
+	"\x05queue\x18\x05 \x01(\tR\x05queue\x12\x1b\n" +
 	"\targs_json\x18\x06 \x01(\tR\bargsJson\x12)\n" +
 	"\x06output\x18\a \x01(\v2\x11.moksha.v1.OutputR\x06output\x12\x18\n" +
 	"\astaging\x18\b \x01(\tR\astaging\x12+\n" +
@@ -2893,22 +2893,22 @@ const file_moksha_v1_worker_proto_rawDesc = "" +
 	"\x06bucket\x18\n" +
 	" \x01(\tR\x06bucket\x12\x1b\n" +
 	"\tbucket_id\x18\v \x01(\tR\bbucketId\"\xe3\x02\n" +
-	"\x17CompleteLiftTaskRequest\x12\x1d\n" +
+	"\x17CompleteStepTaskRequest\x12\x1d\n" +
 	"\n" +
 	"attempt_id\x18\x01 \x01(\tR\tattemptId\x12A\n" +
-	"\x06status\x18\x02 \x01(\x0e2).moksha.v1.CompleteLiftTaskRequest.StatusR\x06status\x12\x1f\n" +
+	"\x06status\x18\x02 \x01(\x0e2).moksha.v1.CompleteStepTaskRequest.StatusR\x06status\x12\x1f\n" +
 	"\vresult_json\x18\x03 \x01(\tR\n" +
 	"resultJson\x12\x16\n" +
 	"\x06reason\x18\x04 \x01(\tR\x06reason\x12\x18\n" +
 	"\amessage\x18\x05 \x01(\tR\amessage\x12\x19\n" +
 	"\bno_retry\x18\x06 \x01(\bR\anoRetry\x12-\n" +
-	"\x06output\x18\a \x01(\v2\x15.moksha.v1.LiftOutputR\x06output\"I\n" +
+	"\x06output\x18\a \x01(\v2\x15.moksha.v1.StepOutputR\x06output\"I\n" +
 	"\x06Status\x12\x16\n" +
 	"\x12STATUS_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10STATUS_SUCCEEDED\x10\x01\x12\x11\n" +
 	"\rSTATUS_FAILED\x10\x02\"o\n" +
 	"\n" +
-	"LiftOutput\x12%\n" +
+	"StepOutput\x12%\n" +
 	"\x05files\x18\x01 \x03(\v2\x0f.moksha.v1.FileR\x05files\x12\x1d\n" +
 	"\n" +
 	"stats_json\x18\x02 \x01(\tR\tstatsJson\x12\x1b\n" +
@@ -2917,7 +2917,7 @@ const file_moksha_v1_worker_proto_rawDesc = "" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x12\n" +
 	"\x04size\x18\x02 \x01(\x03R\x04size\x12\x16\n" +
 	"\x06sha256\x18\x03 \x01(\tR\x06sha256\"\x1a\n" +
-	"\x18CompleteLiftTaskResponse\"J\n" +
+	"\x18CompleteStepTaskResponse\"J\n" +
 	"\x10HeartbeatRequest\x12\x1b\n" +
 	"\tworker_id\x18\x01 \x01(\tR\bworkerId\x12\x19\n" +
 	"\btask_ids\x18\x02 \x03(\tR\ataskIds\"'\n" +
@@ -2935,20 +2935,20 @@ const file_moksha_v1_worker_proto_rawDesc = "" +
 	"attempt_id\x18\x01 \x01(\tR\tattemptId\x12%\n" +
 	"\x05files\x18\x02 \x03(\v2\x0f.moksha.v1.FileR\x05files\"B\n" +
 	"\x15GetUploadURLsResponse\x12)\n" +
-	"\x05files\x18\x01 \x03(\v2\x13.moksha.v1.TransferR\x05files\"O\n" +
+	"\x05files\x18\x01 \x03(\v2\x13.moksha.v1.TransferR\x05files\"Z\n" +
 	"\x16GetDownloadURLsRequest\x12\x1d\n" +
 	"\n" +
-	"attempt_id\x18\x01 \x01(\tR\tattemptId\x12\x16\n" +
-	"\x06pallet\x18\x02 \x01(\tR\x06pallet\"i\n" +
+	"attempt_id\x18\x01 \x01(\tR\tattemptId\x12!\n" +
+	"\fdata_version\x18\x02 \x01(\tR\vdataVersion\"i\n" +
 	"\x17GetDownloadURLsResponse\x12#\n" +
 	"\rmanifest_json\x18\x01 \x01(\tR\fmanifestJson\x12)\n" +
-	"\x05files\x18\x02 \x03(\v2\x13.moksha.v1.TransferR\x05files2\xb5\x05\n" +
+	"\x05files\x18\x02 \x03(\v2\x13.moksha.v1.TransferR\x05files2\xaf\x05\n" +
 	"\rWorkerService\x12R\n" +
-	"\rRegisterBuild\x12\x1f.moksha.v1.RegisterBuildRequest\x1a .moksha.v1.RegisterBuildResponse\x12O\n" +
-	"\fPollHaulTask\x12\x1e.moksha.v1.PollHaulTaskRequest\x1a\x1f.moksha.v1.PollHaulTaskResponse\x12[\n" +
-	"\x10CompleteHaulTask\x12\".moksha.v1.CompleteHaulTaskRequest\x1a#.moksha.v1.CompleteHaulTaskResponse\x12O\n" +
-	"\fPollLiftTask\x12\x1e.moksha.v1.PollLiftTaskRequest\x1a\x1f.moksha.v1.PollLiftTaskResponse\x12[\n" +
-	"\x10CompleteLiftTask\x12\".moksha.v1.CompleteLiftTaskRequest\x1a#.moksha.v1.CompleteLiftTaskResponse\x12F\n" +
+	"\rRegisterBuild\x12\x1f.moksha.v1.RegisterBuildRequest\x1a .moksha.v1.RegisterBuildResponse\x12L\n" +
+	"\vPollRunTask\x12\x1d.moksha.v1.PollRunTaskRequest\x1a\x1e.moksha.v1.PollRunTaskResponse\x12X\n" +
+	"\x0fCompleteRunTask\x12!.moksha.v1.CompleteRunTaskRequest\x1a\".moksha.v1.CompleteRunTaskResponse\x12O\n" +
+	"\fPollStepTask\x12\x1e.moksha.v1.PollStepTaskRequest\x1a\x1f.moksha.v1.PollStepTaskResponse\x12[\n" +
+	"\x10CompleteStepTask\x12\".moksha.v1.CompleteStepTaskRequest\x1a#.moksha.v1.CompleteStepTaskResponse\x12F\n" +
 	"\tHeartbeat\x12\x1b.moksha.v1.HeartbeatRequest\x1a\x1c.moksha.v1.HeartbeatResponse\x12R\n" +
 	"\rGetUploadURLs\x12\x1f.moksha.v1.GetUploadURLsRequest\x1a .moksha.v1.GetUploadURLsResponse\x12X\n" +
 	"\x0fGetDownloadURLs\x12!.moksha.v1.GetDownloadURLsRequest\x1a\".moksha.v1.GetDownloadURLsResponseB=Z;github.com/alper/moksha/internal/api/gen/moksha/v1;mokshav1b\x06proto3"
@@ -2968,40 +2968,40 @@ func file_moksha_v1_worker_proto_rawDescGZIP() []byte {
 var file_moksha_v1_worker_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_moksha_v1_worker_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
 var file_moksha_v1_worker_proto_goTypes = []any{
-	(HaulOutcome_Status)(0),             // 0: moksha.v1.HaulOutcome.Status
-	(CompleteLiftTaskRequest_Status)(0), // 1: moksha.v1.CompleteLiftTaskRequest.Status
+	(RunOutcome_Status)(0),              // 0: moksha.v1.RunOutcome.Status
+	(CompleteStepTaskRequest_Status)(0), // 1: moksha.v1.CompleteStepTaskRequest.Status
 	(*RegisterBuildRequest)(nil),        // 2: moksha.v1.RegisterBuildRequest
-	(*HaulInfo)(nil),                    // 3: moksha.v1.HaulInfo
+	(*PipelineInfo)(nil),                // 3: moksha.v1.PipelineInfo
 	(*DatasetRetention)(nil),            // 4: moksha.v1.DatasetRetention
-	(*HaulSubscription)(nil),            // 5: moksha.v1.HaulSubscription
-	(*HaulSchedule)(nil),                // 6: moksha.v1.HaulSchedule
+	(*PipelineSubscription)(nil),        // 5: moksha.v1.PipelineSubscription
+	(*PipelineSchedule)(nil),            // 6: moksha.v1.PipelineSchedule
 	(*RegisterBuildResponse)(nil),       // 7: moksha.v1.RegisterBuildResponse
-	(*PollHaulTaskRequest)(nil),         // 8: moksha.v1.PollHaulTaskRequest
-	(*PollHaulTaskResponse)(nil),        // 9: moksha.v1.PollHaulTaskResponse
-	(*HaulTask)(nil),                    // 10: moksha.v1.HaulTask
+	(*PollRunTaskRequest)(nil),          // 8: moksha.v1.PollRunTaskRequest
+	(*PollRunTaskResponse)(nil),         // 9: moksha.v1.PollRunTaskResponse
+	(*RunTask)(nil),                     // 10: moksha.v1.RunTask
 	(*Event)(nil),                       // 11: moksha.v1.Event
-	(*CompleteHaulTaskRequest)(nil),     // 12: moksha.v1.CompleteHaulTaskRequest
-	(*CompleteHaulTaskResponse)(nil),    // 13: moksha.v1.CompleteHaulTaskResponse
+	(*CompleteRunTaskRequest)(nil),      // 12: moksha.v1.CompleteRunTaskRequest
+	(*CompleteRunTaskResponse)(nil),     // 13: moksha.v1.CompleteRunTaskResponse
 	(*VersionMarker)(nil),               // 14: moksha.v1.VersionMarker
 	(*Command)(nil),                     // 15: moksha.v1.Command
-	(*StartHaulCommand)(nil),            // 16: moksha.v1.StartHaulCommand
+	(*StartRunCommand)(nil),             // 16: moksha.v1.StartRunCommand
 	(*WaitSignalCommand)(nil),           // 17: moksha.v1.WaitSignalCommand
-	(*LatestPalletCommand)(nil),         // 18: moksha.v1.LatestPalletCommand
-	(*LiftCommand)(nil),                 // 19: moksha.v1.LiftCommand
+	(*LatestDataVersionCommand)(nil),    // 18: moksha.v1.LatestDataVersionCommand
+	(*StepCommand)(nil),                 // 19: moksha.v1.StepCommand
 	(*ParallelLimit)(nil),               // 20: moksha.v1.ParallelLimit
 	(*SleepCommand)(nil),                // 21: moksha.v1.SleepCommand
 	(*RetryPolicy)(nil),                 // 22: moksha.v1.RetryPolicy
 	(*Output)(nil),                      // 23: moksha.v1.Output
 	(*InputRef)(nil),                    // 24: moksha.v1.InputRef
-	(*HaulOutcome)(nil),                 // 25: moksha.v1.HaulOutcome
+	(*RunOutcome)(nil),                  // 25: moksha.v1.RunOutcome
 	(*TaskError)(nil),                   // 26: moksha.v1.TaskError
-	(*PollLiftTaskRequest)(nil),         // 27: moksha.v1.PollLiftTaskRequest
-	(*PollLiftTaskResponse)(nil),        // 28: moksha.v1.PollLiftTaskResponse
-	(*LiftTask)(nil),                    // 29: moksha.v1.LiftTask
-	(*CompleteLiftTaskRequest)(nil),     // 30: moksha.v1.CompleteLiftTaskRequest
-	(*LiftOutput)(nil),                  // 31: moksha.v1.LiftOutput
+	(*PollStepTaskRequest)(nil),         // 27: moksha.v1.PollStepTaskRequest
+	(*PollStepTaskResponse)(nil),        // 28: moksha.v1.PollStepTaskResponse
+	(*StepTask)(nil),                    // 29: moksha.v1.StepTask
+	(*CompleteStepTaskRequest)(nil),     // 30: moksha.v1.CompleteStepTaskRequest
+	(*StepOutput)(nil),                  // 31: moksha.v1.StepOutput
 	(*File)(nil),                        // 32: moksha.v1.File
-	(*CompleteLiftTaskResponse)(nil),    // 33: moksha.v1.CompleteLiftTaskResponse
+	(*CompleteStepTaskResponse)(nil),    // 33: moksha.v1.CompleteStepTaskResponse
 	(*HeartbeatRequest)(nil),            // 34: moksha.v1.HeartbeatRequest
 	(*HeartbeatResponse)(nil),           // 35: moksha.v1.HeartbeatResponse
 	(*Transfer)(nil),                    // 36: moksha.v1.Transfer
@@ -3009,67 +3009,67 @@ var file_moksha_v1_worker_proto_goTypes = []any{
 	(*GetUploadURLsResponse)(nil),       // 38: moksha.v1.GetUploadURLsResponse
 	(*GetDownloadURLsRequest)(nil),      // 39: moksha.v1.GetDownloadURLsRequest
 	(*GetDownloadURLsResponse)(nil),     // 40: moksha.v1.GetDownloadURLsResponse
-	nil,                                 // 41: moksha.v1.RegisterBuildRequest.LiftVersionsEntry
+	nil,                                 // 41: moksha.v1.RegisterBuildRequest.StepVersionsEntry
 	nil,                                 // 42: moksha.v1.Transfer.HeadersEntry
 	(*durationpb.Duration)(nil),         // 43: google.protobuf.Duration
 	(*timestamppb.Timestamp)(nil),       // 44: google.protobuf.Timestamp
 }
 var file_moksha_v1_worker_proto_depIdxs = []int32{
-	41, // 0: moksha.v1.RegisterBuildRequest.lift_versions:type_name -> moksha.v1.RegisterBuildRequest.LiftVersionsEntry
-	6,  // 1: moksha.v1.RegisterBuildRequest.schedules:type_name -> moksha.v1.HaulSchedule
-	5,  // 2: moksha.v1.RegisterBuildRequest.subscriptions:type_name -> moksha.v1.HaulSubscription
+	41, // 0: moksha.v1.RegisterBuildRequest.step_versions:type_name -> moksha.v1.RegisterBuildRequest.StepVersionsEntry
+	6,  // 1: moksha.v1.RegisterBuildRequest.schedules:type_name -> moksha.v1.PipelineSchedule
+	5,  // 2: moksha.v1.RegisterBuildRequest.subscriptions:type_name -> moksha.v1.PipelineSubscription
 	4,  // 3: moksha.v1.RegisterBuildRequest.datasets:type_name -> moksha.v1.DatasetRetention
-	3,  // 4: moksha.v1.RegisterBuildRequest.haul_info:type_name -> moksha.v1.HaulInfo
+	3,  // 4: moksha.v1.RegisterBuildRequest.pipeline_info:type_name -> moksha.v1.PipelineInfo
 	43, // 5: moksha.v1.DatasetRetention.keep_for:type_name -> google.protobuf.Duration
-	43, // 6: moksha.v1.HaulSubscription.debounce:type_name -> google.protobuf.Duration
-	43, // 7: moksha.v1.HaulSubscription.max_wait:type_name -> google.protobuf.Duration
-	43, // 8: moksha.v1.PollHaulTaskRequest.wait:type_name -> google.protobuf.Duration
-	10, // 9: moksha.v1.PollHaulTaskResponse.task:type_name -> moksha.v1.HaulTask
-	11, // 10: moksha.v1.HaulTask.logbook:type_name -> moksha.v1.Event
+	43, // 6: moksha.v1.PipelineSubscription.debounce:type_name -> google.protobuf.Duration
+	43, // 7: moksha.v1.PipelineSubscription.max_wait:type_name -> google.protobuf.Duration
+	43, // 8: moksha.v1.PollRunTaskRequest.wait:type_name -> google.protobuf.Duration
+	10, // 9: moksha.v1.PollRunTaskResponse.task:type_name -> moksha.v1.RunTask
+	11, // 10: moksha.v1.RunTask.event_log:type_name -> moksha.v1.Event
 	44, // 11: moksha.v1.Event.time:type_name -> google.protobuf.Timestamp
-	15, // 12: moksha.v1.CompleteHaulTaskRequest.commands:type_name -> moksha.v1.Command
-	25, // 13: moksha.v1.CompleteHaulTaskRequest.outcome:type_name -> moksha.v1.HaulOutcome
-	26, // 14: moksha.v1.CompleteHaulTaskRequest.error:type_name -> moksha.v1.TaskError
-	14, // 15: moksha.v1.CompleteHaulTaskRequest.markers:type_name -> moksha.v1.VersionMarker
-	19, // 16: moksha.v1.Command.lift:type_name -> moksha.v1.LiftCommand
+	15, // 12: moksha.v1.CompleteRunTaskRequest.commands:type_name -> moksha.v1.Command
+	25, // 13: moksha.v1.CompleteRunTaskRequest.outcome:type_name -> moksha.v1.RunOutcome
+	26, // 14: moksha.v1.CompleteRunTaskRequest.error:type_name -> moksha.v1.TaskError
+	14, // 15: moksha.v1.CompleteRunTaskRequest.markers:type_name -> moksha.v1.VersionMarker
+	19, // 16: moksha.v1.Command.step:type_name -> moksha.v1.StepCommand
 	21, // 17: moksha.v1.Command.sleep:type_name -> moksha.v1.SleepCommand
-	18, // 18: moksha.v1.Command.latest_pallet:type_name -> moksha.v1.LatestPalletCommand
+	18, // 18: moksha.v1.Command.latest_data_version:type_name -> moksha.v1.LatestDataVersionCommand
 	17, // 19: moksha.v1.Command.wait_signal:type_name -> moksha.v1.WaitSignalCommand
-	16, // 20: moksha.v1.Command.start_haul:type_name -> moksha.v1.StartHaulCommand
+	16, // 20: moksha.v1.Command.start_run:type_name -> moksha.v1.StartRunCommand
 	43, // 21: moksha.v1.WaitSignalCommand.timeout:type_name -> google.protobuf.Duration
-	43, // 22: moksha.v1.LiftCommand.timeout:type_name -> google.protobuf.Duration
-	22, // 23: moksha.v1.LiftCommand.retry:type_name -> moksha.v1.RetryPolicy
-	23, // 24: moksha.v1.LiftCommand.output:type_name -> moksha.v1.Output
-	24, // 25: moksha.v1.LiftCommand.inputs:type_name -> moksha.v1.InputRef
-	20, // 26: moksha.v1.LiftCommand.limits:type_name -> moksha.v1.ParallelLimit
+	43, // 22: moksha.v1.StepCommand.timeout:type_name -> google.protobuf.Duration
+	22, // 23: moksha.v1.StepCommand.retry:type_name -> moksha.v1.RetryPolicy
+	23, // 24: moksha.v1.StepCommand.output:type_name -> moksha.v1.Output
+	24, // 25: moksha.v1.StepCommand.inputs:type_name -> moksha.v1.InputRef
+	20, // 26: moksha.v1.StepCommand.limits:type_name -> moksha.v1.ParallelLimit
 	43, // 27: moksha.v1.SleepCommand.duration:type_name -> google.protobuf.Duration
 	43, // 28: moksha.v1.RetryPolicy.initial:type_name -> google.protobuf.Duration
 	43, // 29: moksha.v1.RetryPolicy.max:type_name -> google.protobuf.Duration
-	0,  // 30: moksha.v1.HaulOutcome.status:type_name -> moksha.v1.HaulOutcome.Status
-	43, // 31: moksha.v1.PollLiftTaskRequest.wait:type_name -> google.protobuf.Duration
-	29, // 32: moksha.v1.PollLiftTaskResponse.task:type_name -> moksha.v1.LiftTask
-	23, // 33: moksha.v1.LiftTask.output:type_name -> moksha.v1.Output
-	24, // 34: moksha.v1.LiftTask.inputs:type_name -> moksha.v1.InputRef
-	1,  // 35: moksha.v1.CompleteLiftTaskRequest.status:type_name -> moksha.v1.CompleteLiftTaskRequest.Status
-	31, // 36: moksha.v1.CompleteLiftTaskRequest.output:type_name -> moksha.v1.LiftOutput
-	32, // 37: moksha.v1.LiftOutput.files:type_name -> moksha.v1.File
+	0,  // 30: moksha.v1.RunOutcome.status:type_name -> moksha.v1.RunOutcome.Status
+	43, // 31: moksha.v1.PollStepTaskRequest.wait:type_name -> google.protobuf.Duration
+	29, // 32: moksha.v1.PollStepTaskResponse.task:type_name -> moksha.v1.StepTask
+	23, // 33: moksha.v1.StepTask.output:type_name -> moksha.v1.Output
+	24, // 34: moksha.v1.StepTask.inputs:type_name -> moksha.v1.InputRef
+	1,  // 35: moksha.v1.CompleteStepTaskRequest.status:type_name -> moksha.v1.CompleteStepTaskRequest.Status
+	31, // 36: moksha.v1.CompleteStepTaskRequest.output:type_name -> moksha.v1.StepOutput
+	32, // 37: moksha.v1.StepOutput.files:type_name -> moksha.v1.File
 	42, // 38: moksha.v1.Transfer.headers:type_name -> moksha.v1.Transfer.HeadersEntry
 	32, // 39: moksha.v1.GetUploadURLsRequest.files:type_name -> moksha.v1.File
 	36, // 40: moksha.v1.GetUploadURLsResponse.files:type_name -> moksha.v1.Transfer
 	36, // 41: moksha.v1.GetDownloadURLsResponse.files:type_name -> moksha.v1.Transfer
 	2,  // 42: moksha.v1.WorkerService.RegisterBuild:input_type -> moksha.v1.RegisterBuildRequest
-	8,  // 43: moksha.v1.WorkerService.PollHaulTask:input_type -> moksha.v1.PollHaulTaskRequest
-	12, // 44: moksha.v1.WorkerService.CompleteHaulTask:input_type -> moksha.v1.CompleteHaulTaskRequest
-	27, // 45: moksha.v1.WorkerService.PollLiftTask:input_type -> moksha.v1.PollLiftTaskRequest
-	30, // 46: moksha.v1.WorkerService.CompleteLiftTask:input_type -> moksha.v1.CompleteLiftTaskRequest
+	8,  // 43: moksha.v1.WorkerService.PollRunTask:input_type -> moksha.v1.PollRunTaskRequest
+	12, // 44: moksha.v1.WorkerService.CompleteRunTask:input_type -> moksha.v1.CompleteRunTaskRequest
+	27, // 45: moksha.v1.WorkerService.PollStepTask:input_type -> moksha.v1.PollStepTaskRequest
+	30, // 46: moksha.v1.WorkerService.CompleteStepTask:input_type -> moksha.v1.CompleteStepTaskRequest
 	34, // 47: moksha.v1.WorkerService.Heartbeat:input_type -> moksha.v1.HeartbeatRequest
 	37, // 48: moksha.v1.WorkerService.GetUploadURLs:input_type -> moksha.v1.GetUploadURLsRequest
 	39, // 49: moksha.v1.WorkerService.GetDownloadURLs:input_type -> moksha.v1.GetDownloadURLsRequest
 	7,  // 50: moksha.v1.WorkerService.RegisterBuild:output_type -> moksha.v1.RegisterBuildResponse
-	9,  // 51: moksha.v1.WorkerService.PollHaulTask:output_type -> moksha.v1.PollHaulTaskResponse
-	13, // 52: moksha.v1.WorkerService.CompleteHaulTask:output_type -> moksha.v1.CompleteHaulTaskResponse
-	28, // 53: moksha.v1.WorkerService.PollLiftTask:output_type -> moksha.v1.PollLiftTaskResponse
-	33, // 54: moksha.v1.WorkerService.CompleteLiftTask:output_type -> moksha.v1.CompleteLiftTaskResponse
+	9,  // 51: moksha.v1.WorkerService.PollRunTask:output_type -> moksha.v1.PollRunTaskResponse
+	13, // 52: moksha.v1.WorkerService.CompleteRunTask:output_type -> moksha.v1.CompleteRunTaskResponse
+	28, // 53: moksha.v1.WorkerService.PollStepTask:output_type -> moksha.v1.PollStepTaskResponse
+	33, // 54: moksha.v1.WorkerService.CompleteStepTask:output_type -> moksha.v1.CompleteStepTaskResponse
 	35, // 55: moksha.v1.WorkerService.Heartbeat:output_type -> moksha.v1.HeartbeatResponse
 	38, // 56: moksha.v1.WorkerService.GetUploadURLs:output_type -> moksha.v1.GetUploadURLsResponse
 	40, // 57: moksha.v1.WorkerService.GetDownloadURLs:output_type -> moksha.v1.GetDownloadURLsResponse
@@ -3086,11 +3086,11 @@ func file_moksha_v1_worker_proto_init() {
 		return
 	}
 	file_moksha_v1_worker_proto_msgTypes[13].OneofWrappers = []any{
-		(*Command_Lift)(nil),
+		(*Command_Step)(nil),
 		(*Command_Sleep)(nil),
-		(*Command_LatestPallet)(nil),
+		(*Command_LatestDataVersion)(nil),
 		(*Command_WaitSignal)(nil),
-		(*Command_StartHaul)(nil),
+		(*Command_StartRun)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

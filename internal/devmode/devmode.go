@@ -1,5 +1,5 @@
 // Package devmode is what `moksha dev` adds to the server (package
-// server): it prints runs and what their lifts print (Console), or the
+// server): it prints runs and what their steps print (Console), or the
 // engine's events (Follow, Describe).
 package devmode
 

@@ -1,4 +1,4 @@
-"""The replay engine on hand-built logbooks: no server."""
+"""The replay engine on hand-built event logs: no server."""
 
 import datetime as dt
 import json
@@ -13,103 +13,103 @@ def ev(type_, payload, time="2026-10-26T10:00:00Z"):
     return {"type": type_, "time": time, "payloadJson": json.dumps(payload)}
 
 
-START = ev("HaulStarted", {"name": "h", "params": {}}, "2026-10-26T09:00:00Z")
+START = ev("RunStarted", {"name": "h", "params": {}}, "2026-10-26T09:00:00Z")
 
 
 def finished(seq, result=None, status="completed", time="2026-10-26T10:00:00Z", **kw):
-    return ev("LiftFinished", {"seq": seq, "status": status, "result": result, **kw}, time)
+    return ev("StepFinished", {"seq": seq, "status": status, "result": result, **kw}, time)
 
 
-@mk.lift
+@mk.step
 def add(a: int, b: int) -> int:
     return a + b
 
 
-@mk.lift(memo=True, output=mk.Dataset("raw.orders", partition="day"), timeout=60, retry=mk.Retry(limit=2, initial=5))
+@mk.step(memo=True, output=mk.Dataset("raw.orders", partition="day"), timeout=60, retry=mk.Retry(limit=2, initial=5))
 def extract(day: dt.date) -> int:
     return 1
 
 
-@mk.lift(memo="ttl:1h", output=mk.Dataset("mart.revenue"))
-def build(orders: mk.Pallet, factor: float = 1.0) -> int:
+@mk.step(memo="ttl:1h", output=mk.Dataset("mart.revenue"))
+def build(orders: mk.DataVersion, factor: float = 1.0) -> int:
     return 2
 
 
-def run(fn, logbook, params=None, haul_id="h1"):
+def run(fn, event_log, params=None, run_id="h1"):
     # Not registered: test functions share names.
-    return _replay.replay(_model.HaulDef(fn.__name__, fn, None), haul_id, params or {}, [START, *logbook])
+    return _replay.replay(_model.PipelineDef(fn.__name__, fn, None), run_id, params or {}, [START, *event_log])
 
 
 def test_blocks_at_the_first_call_without_a_result():
-    def seq_haul(ctx):
-        x = ctx.lift(add, 1, 2)
-        return ctx.lift(add, x, 10)
+    def seq_run(ctx):
+        x = ctx.step(add, 1, 2)
+        return ctx.step(add, x, 10)
 
-    r = run(seq_haul, [])
+    r = run(seq_run, [])
     assert r.outcome is None
-    assert [c["lift"]["name"] for c in r.commands] == ["add"]
-    assert json.loads(r.commands[0]["lift"]["argsJson"]) == {"a": 1, "b": 2}
-    assert r.commands[0]["source"] == f"{__file__}:{seq_haul.__code__.co_firstlineno + 1}", "the line of the call"
+    assert [c["step"]["name"] for c in r.commands] == ["add"]
+    assert json.loads(r.commands[0]["step"]["argsJson"]) == {"a": 1, "b": 2}
+    assert r.commands[0]["source"] == f"{__file__}:{seq_run.__code__.co_firstlineno + 1}", "the line of the call"
 
-    r = run(seq_haul, [finished(1, 3)])
+    r = run(seq_run, [finished(1, 3)])
     assert [c["seq"] for c in r.commands] == [1, 2]
-    assert json.loads(r.commands[1]["lift"]["argsJson"]) == {"a": 3, "b": 10}
+    assert json.loads(r.commands[1]["step"]["argsJson"]) == {"a": 3, "b": 10}
     assert r.outcome is None
 
-    r = run(seq_haul, [finished(1, 3), finished(2, 13)])
+    r = run(seq_run, [finished(1, 3), finished(2, 13)])
     assert r.outcome == {"status": "STATUS_COMPLETED", "resultJson": "13"}
 
 
-def test_lift_command_carries_policy_output_and_memo():
+def test_step_command_carries_policy_output_and_memo():
     def h(ctx):
-        return ctx.lift(extract, dt.date(2026, 10, 24))
+        return ctx.step(extract, dt.date(2026, 10, 24))
 
-    lift = run(h, []).commands[0]["lift"]
-    assert lift["memo"] == "fingerprint"
-    assert lift["timeout"] == "60s"
-    assert lift["retry"] == {"limit": 2, "backoff": "fixed", "initial": "5s"}
-    assert lift["output"] == {"dataset": "raw.orders", "partitionKey": "day", "partition": "2026-10-24"}
-    assert json.loads(lift["argsJson"]) == {"day": {"$date": "2026-10-24"}}
+    step = run(h, []).commands[0]["step"]
+    assert step["memo"] == "fingerprint"
+    assert step["timeout"] == "60s"
+    assert step["retry"] == {"limit": 2, "backoff": "fixed", "initial": "5s"}
+    assert step["output"] == {"dataset": "raw.orders", "partitionKey": "day", "partition": "2026-10-24"}
+    assert json.loads(step["argsJson"]) == {"day": {"$date": "2026-10-24"}}
 
 
-def test_pallets_become_inputs_and_results_become_pallets():
+def test_data_versions_become_inputs_and_results_become_data_versions():
     def h(ctx):
-        orders = ctx.lift(extract, dt.date(2026, 10, 24))
-        return ctx.lift(build, orders, factor=2.0)
+        orders = ctx.step(extract, dt.date(2026, 10, 24))
+        return ctx.step(build, orders, factor=2.0)
 
-    r = run(h, [finished(1, 1, pallet="p1", reused=True)])
-    lift = r.commands[1]["lift"]
-    assert lift["inputs"] == [{"name": "orders", "pallet": "p1"}]
-    assert json.loads(lift["argsJson"]) == {"orders": {"$input": "orders"}, "factor": 2.0}, "the pallet ID stays out of the args"
-    assert lift["memo"] == "ttl:1h"
+    r = run(h, [finished(1, 1, data_version="p1", reused=True)])
+    step = r.commands[1]["step"]
+    assert step["inputs"] == [{"name": "orders", "data_version": "p1"}]
+    assert json.loads(step["argsJson"]) == {"orders": {"$input": "orders"}, "factor": 2.0}, "the data version ID stays out of the args"
+    assert step["memo"] == "ttl:1h"
 
-    r = run(h, [finished(1, 1, pallet="p1", reused=True), finished(2, 7, pallet="p2")])
-    assert json.loads(r.outcome["resultJson"]) == {"$pallet": "p2", "dataset": "mart.revenue", "partition": ""}
+    r = run(h, [finished(1, 1, data_version="p1", reused=True), finished(2, 7, data_version="p2")])
+    assert json.loads(r.outcome["resultJson"]) == {"$data_version": "p2", "dataset": "mart.revenue", "partition": ""}
 
 
-def test_returned_pallet_details():
+def test_returned_data_version_details():
     seen = {}
 
     def h(ctx):
-        seen["p"] = ctx.lift(extract, dt.date(2026, 10, 24))
+        seen["p"] = ctx.step(extract, dt.date(2026, 10, 24))
 
-    run(h, [finished(1, {"rows": 3}, pallet="p1", reused=True)])
+    run(h, [finished(1, {"rows": 3}, data_version="p1", reused=True)])
     p = seen["p"]
     assert (p.id, p.dataset, p.partition, p.result, p.reused) == ("p1", "raw.orders", "2026-10-24", {"rows": 3}, True)
 
 
-def test_failed_lift_raises_in_the_haul():
+def test_failed_step_raises_in_the_run():
     def h(ctx):
         try:
-            ctx.lift(add, 1, 2)
-        except mk.LiftFailed as e:
+            ctx.step(add, 1, 2)
+        except mk.StepFailed as e:
             return f"fallback after {e.reason}"
 
     r = run(h, [finished(1, status="failed", reason="ValueError", message="boom")])
     assert json.loads(r.outcome["resultJson"]) == "fallback after ValueError"
 
     def unhandled(ctx):
-        ctx.lift(add, 1, 2)
+        ctx.step(add, 1, 2)
 
     r = run(unhandled, [finished(1, status="failed", reason="ValueError", message="boom")])
     assert r.outcome["status"] == "STATUS_FAILED"
@@ -120,7 +120,7 @@ def test_failed_lift_raises_in_the_haul():
 def test_except_exception_cannot_swallow_blocked():
     def careful(ctx):
         try:
-            return ctx.lift(add, 1, 2)
+            return ctx.step(add, 1, 2)
         except Exception:
             return "made up"
 
@@ -130,7 +130,7 @@ def test_except_exception_cannot_swallow_blocked():
 
 def test_fan_out_with_gather():
     def h(ctx):
-        hs = [ctx.lift_async(add, i, i) for i in range(3)]
+        hs = [ctx.step_async(add, i, i) for i in range(3)]
         return sum(ctx.gather(hs))
 
     r = run(h, [])
@@ -148,7 +148,7 @@ def test_sleep_and_now():
         times.append(ctx.now())
         ctx.sleep(dt.timedelta(minutes=15))
         times.append(ctx.now())
-        ctx.lift(add, 1, 1)
+        ctx.step(add, 1, 1)
         times.append(ctx.now())
 
     r = run(h, [])
@@ -163,48 +163,48 @@ def test_sleep_and_now():
     ]
 
 
-def test_random_is_the_same_on_every_replay_of_a_haul():
+def test_random_is_the_same_on_every_replay_of_a_run():
     draws = []
 
     def h(ctx):
         draws.append((ctx.random(), ctx.rng.randint(1, 1000)))
-        ctx.lift(add, 1, 1)
+        ctx.step(add, 1, 1)
 
-    run(h, [], haul_id="h1")
-    run(h, [], haul_id="h1")
-    run(h, [], haul_id="h2")
+    run(h, [], run_id="h1")
+    run(h, [], run_id="h1")
+    run(h, [], run_id="h2")
     assert draws[0] == draws[1] != draws[2]
 
 
-def test_latest_pallet():
+def test_latest_data_version():
     seen = []
 
     def h(ctx):
-        seen.append(ctx.latest_pallet(mk.Dataset("raw.orders"), partition=dt.date(2026, 10, 24)))
+        seen.append(ctx.latest_version(mk.Dataset("raw.orders"), partition=dt.date(2026, 10, 24)))
         return "ok"
 
     r = run(h, [])
-    assert r.commands[0]["latestPallet"] == {"dataset": "raw.orders", "partition": "2026-10-24"}
-    run(h, [ev("QueryAnswered", {"seq": 1, "pallet": None})])
-    run(h, [ev("QueryAnswered", {"seq": 1, "pallet": {"id": "p9", "dataset": "raw.orders", "location": "file:///m.json", "meta": {"max_ts": "x"}}})])
+    assert r.commands[0]["latestDataVersion"] == {"dataset": "raw.orders", "partition": "2026-10-24"}
+    run(h, [ev("QueryAnswered", {"seq": 1, "data_version": None})])
+    run(h, [ev("QueryAnswered", {"seq": 1, "data_version": {"id": "p9", "dataset": "raw.orders", "location": "file:///m.json", "meta": {"max_ts": "x"}}})])
     assert seen[0] is None and seen[1].id == "p9" and seen[1].meta == {"max_ts": "x"}
 
 
-def test_contradicting_the_logbook_stops_the_replay():
+def test_contradicting_the_event_log_stops_the_replay():
     calls = []
 
     def h(ctx):
         calls.append("before")
-        ctx.lift(add, 1, 2)
+        ctx.step(add, 1, 2)
         calls.append("after")
 
-    recorded = ev("HaulTaskCompleted", {"number": 1, "commands": [{"seq": 1, "kind": "lift", "name": "extract", "source": "old.py:7"}]})
+    recorded = ev("RunTaskCompleted", {"number": 1, "commands": [{"seq": 1, "kind": "step", "name": "extract", "source": "old.py:7"}]})
     r = run(h, [recorded, finished(1, 3)])
     assert r.outcome is None
     assert calls == ["before"], "nothing after the contradiction ran"
-    assert len(r.commands) == 1, "the contradicting command is sent, so the server marks the haul stuck"
-    assert r.mismatch.startswith("command 1: replay issued lift 'add' at ")
-    assert r.mismatch.endswith("the logbook has lift 'extract' at old.py:7")
+    assert len(r.commands) == 1, "the contradicting command is sent, so the server marks the run stuck"
+    assert r.mismatch.startswith("command 1: replay issued step 'add' at ")
+    assert r.mismatch.endswith("the event log has step 'extract' at old.py:7")
 
 
 def test_params_are_decoded():
@@ -220,30 +220,30 @@ def test_params_are_decoded():
 
 
 def test_memo_without_output():
-    @mk.lift(memo=True)
+    @mk.step(memo=True)
     def rate(day: str) -> float:
         return 1.08
 
-    r = run(lambda ctx: ctx.lift(rate, "2026-10-24"), [])
-    lift = r.commands[0]["lift"]
-    assert lift["memo"] == "fingerprint"
-    assert "output" not in lift
+    r = run(lambda ctx: ctx.step(rate, "2026-10-24"), [])
+    step = r.commands[0]["step"]
+    assert step["memo"] == "fingerprint"
+    assert "output" not in step
 
 
 def test_decorator_checks():
     with pytest.raises(ValueError, match="memo="):
-        mk.lift(lambda: 1, name="y", memo="always", output=mk.Dataset("d"))
+        mk.step(lambda: 1, name="y", memo="always", output=mk.Dataset("d"))
     with pytest.raises(ValueError, match="not one of its arguments"):
-        mk.lift(lambda x: 1, name="z", output=mk.Dataset("d", partition="day"))
-    r = run(lambda ctx: ctx.lift(print), [])
+        mk.step(lambda x: 1, name="z", output=mk.Dataset("d", partition="day"))
+    r = run(lambda ctx: ctx.step(print), [])
     assert r.outcome["reason"] == "TypeError" and "not a step" in r.outcome["message"]
-    assert add(1, 2) == 3, "a lift is still a plain function"
+    assert add(1, 2) == 3, "a step is still a plain function"
 
 
 def test_wait_signal():
     def gate(ctx):
         approval = ctx.wait_signal("approve", timeout=dt.timedelta(hours=24))
-        return ctx.lift(add, approval["n"], 1)
+        return ctx.step(add, approval["n"], 1)
 
     r = run(gate, [])
     assert r.commands == [{"seq": 1, "source": r.commands[0]["source"], "waitSignal": {"name": "approve", "timeout": "86400s"}}]
@@ -251,8 +251,8 @@ def test_wait_signal():
 
     got = ev("SignalDelivered", {"seq": 1, "name": "approve", "signal": "s1", "payload": {"n": 2}})
     r = run(gate, [got])
-    assert r.commands[1]["lift"]["name"] == "add"
-    assert json.loads(r.commands[1]["lift"]["argsJson"]) == {"a": 2, "b": 1}
+    assert r.commands[1]["step"]["name"] == "add"
+    assert json.loads(r.commands[1]["step"]["argsJson"]) == {"a": 2, "b": 1}
 
 
 def test_wait_signal_timeout_raises():
@@ -270,10 +270,10 @@ def test_wait_signal_timeout_raises():
 
 
 def completed(commands, markers=None):
-    return ev("HaulTaskCompleted", {"number": 1, "commands": commands, **({"markers": markers} if markers else {})})
+    return ev("RunTaskCompleted", {"number": 1, "commands": commands, **({"markers": markers} if markers else {})})
 
 
-def test_version_new_haul_takes_max():
+def test_version_new_run_takes_max():
     def h(ctx):
         return ctx.version("gate", max=2)
 
@@ -283,13 +283,13 @@ def test_version_new_haul_takes_max():
 
 
 def test_version_inside_recorded_history_takes_min():
-    """A haul that ran before the marker existed keeps the old branch."""
+    """A run that ran before the marker existed keeps the old branch."""
     def h(ctx):
         if ctx.version("gate", max=2) >= 2:
-            return ctx.lift(add, 10, 10)
-        return ctx.lift(add, 1, 1)
+            return ctx.step(add, 10, 10)
+        return ctx.step(add, 1, 1)
 
-    old = completed([{"seq": 1, "kind": "lift", "name": "add"}])
+    old = completed([{"seq": 1, "kind": "step", "name": "add"}])
     r = run(h, [old, finished(1, 2)])
     assert json.loads(r.outcome["resultJson"]) == 2
     assert r.markers == [{"name": "gate", "version": 1}]
@@ -306,88 +306,88 @@ def test_version_recorded_is_kept_and_checked():
         return ctx.version("gate", min=3, max=3)
 
     r = run(dropped_old, [completed([], [{"name": "gate", "version": 2}])])
-    assert r.nondeterministic, "a haul on a version the code no longer has is stuck"
+    assert r.nondeterministic, "a run on a version the code no longer has is stuck"
     assert "took version 2, the code supports 3 to 3" in r.mismatch
 
     bad = run(lambda ctx: ctx.version("gate", min=2, max=1), []).outcome
     assert bad["reason"] == "ValueError"
 
 
-def test_gather_max_parallel_limits_the_new_lifts():
+def test_gather_max_parallel_limits_the_new_steps():
     def fan(ctx):
-        return ctx.gather([ctx.lift_async(add, i, 0) for i in range(3)], max_parallel=2)
+        return ctx.gather([ctx.step_async(add, i, 0) for i in range(3)], max_parallel=2)
 
     r = run(fan, [])
-    assert [c["lift"]["limits"] for c in r.commands] == [[{"group": "gather:1", "max": 2}]] * 3
+    assert [c["step"]["limits"] for c in r.commands] == [[{"group": "gather:1", "max": 2}]] * 3
 
     # Recorded commands were sent with their limits already: not again.
-    recorded = ev("HaulTaskCompleted", {"number": 1, "commands": [{"seq": i, "kind": "lift", "name": "add"} for i in (1, 2, 3)]})
+    recorded = ev("RunTaskCompleted", {"number": 1, "commands": [{"seq": i, "kind": "step", "name": "add"} for i in (1, 2, 3)]})
     r = run(fan, [recorded])
-    assert all("limits" not in c["lift"] for c in r.commands)
+    assert all("limits" not in c["step"] for c in r.commands)
 
     bad = run(lambda ctx: ctx.gather([], max_parallel=0), []).outcome
     assert bad["reason"] == "ValueError"
 
 
-def test_haul_max_parallel_limits_every_lift():
-    @mk.haul(name="limited_haul", max_parallel=3)
+def test_run_max_parallel_limits_every_step():
+    @mk.pipeline(name="limited_run", max_parallel=3)
     def limited(ctx):
-        ctx.lift_async(add, 1, 2)
-        return ctx.gather([ctx.lift_async(add, 3, 4)], max_parallel=1)
+        ctx.step_async(add, 1, 2)
+        return ctx.gather([ctx.step_async(add, 3, 4)], max_parallel=1)
 
-    r = _replay.replay(limited.__moksha_haul__, "h1", {}, [START])
-    assert r.commands[0]["lift"]["limits"] == [{"group": "haul", "max": 3}]
-    assert r.commands[1]["lift"]["limits"] == [{"group": "haul", "max": 3}, {"group": "gather:2", "max": 1}]
+    r = _replay.replay(limited.__moksha_pipeline__, "h1", {}, [START])
+    assert r.commands[0]["step"]["limits"] == [{"group": "run", "max": 3}]
+    assert r.commands[1]["step"]["limits"] == [{"group": "run", "max": 3}, {"group": "gather:2", "max": 1}]
     with pytest.raises(ValueError, match="max_parallel"):
-        mk.haul(lambda ctx: 1, name="bad_limit", max_parallel=0)
+        mk.pipeline(lambda ctx: 1, name="bad_limit", max_parallel=0)
 
 
-@mk.haul(name="replay_child")
+@mk.pipeline(name="replay_child")
 def replay_child(ctx, day: str, n: int = 1):
     return n
 
 
-def test_child_haul_waits_for_its_result():
+def test_child_run_waits_for_its_result():
     def parent(ctx):
-        return ctx.haul(replay_child, day="2026-10-24", n=2)
+        return ctx.run(replay_child, day="2026-10-24", n=2)
 
     r = run(parent, [])
-    assert r.commands[0]["startHaul"] == {"name": "replay_child", "paramsJson": '{"day": "2026-10-24", "n": 2}', "wait": True}
+    assert r.commands[0]["startRun"] == {"name": "replay_child", "paramsJson": '{"day": "2026-10-24", "n": 2}', "wait": True}
     assert r.outcome is None
 
-    started = ev("ChildStarted", {"seq": 1, "name": "replay_child", "haul": "c1"})
+    started = ev("ChildStarted", {"seq": 1, "name": "replay_child", "run": "c1"})
     assert run(parent, [started]).outcome is None, "started, not finished: still waiting"
-    done = ev("ChildFinished", {"seq": 1, "name": "replay_child", "haul": "c1", "status": "completed", "result": 2})
+    done = ev("ChildFinished", {"seq": 1, "name": "replay_child", "run": "c1", "status": "completed", "result": 2})
     assert json.loads(run(parent, [started, done]).outcome["resultJson"]) == 2
 
 
 def test_child_failure_raises():
     def parent(ctx):
         try:
-            return ctx.haul("replay_child", day="x")
-        except mk.ChildFailed as e:
-            return [e.status, e.reason, e.message, e.haul_id]
+            return ctx.run("replay_child", day="x")
+        except mk.RunFailed as e:
+            return [e.status, e.reason, e.message, e.run_id]
 
-    failed = ev("ChildFinished", {"seq": 1, "name": "replay_child", "haul": "c1", "status": "failed",
+    failed = ev("ChildFinished", {"seq": 1, "name": "replay_child", "run": "c1", "status": "failed",
                                   "reason": "ValueError", "message": "bad day"})
     assert json.loads(run(parent, [failed]).outcome["resultJson"]) == ["failed", "ValueError", "bad day", "c1"]
 
 
-def test_start_haul_returns_the_child_id():
+def test_start_run_returns_the_child_id():
     def parent(ctx):
-        return ctx.start_haul(replay_child, day="x")
+        return ctx.start_run(replay_child, day="x")
 
     r = run(parent, [])
-    assert "wait" not in r.commands[0]["startHaul"]
-    started = ev("ChildStarted", {"seq": 1, "name": "replay_child", "haul": "c1"})
+    assert "wait" not in r.commands[0]["startRun"]
+    started = ev("ChildStarted", {"seq": 1, "name": "replay_child", "run": "c1"})
     assert json.loads(run(parent, [started]).outcome["resultJson"]) == "c1"
     cant = ev("ChildFinished", {"seq": 1, "name": "replay_child", "status": "failed", "reason": "start_failed",
-                                "message": "no registered build defines haul"})
+                                "message": "no registered build defines run"})
     assert run(parent, [cant]).outcome["reason"] == "RunFailed"
 
 
 def test_child_params_are_checked_against_its_signature():
-    r = run(lambda ctx: ctx.haul(replay_child, nope=1), [])
+    r = run(lambda ctx: ctx.run(replay_child, nope=1), [])
     assert r.outcome["reason"] == "TypeError"
     assert r.commands == [], "nothing was started"
 
@@ -403,9 +403,9 @@ def test_continue_as_new():
     assert r.outcome == {"status": "STATUS_CONTINUED", "paramsJson": '{"cursor": 15}'}
 
 
-def test_scheduled_haul_gets_its_interval():
+def test_scheduled_run_gets_its_interval():
     with pytest.raises(ValueError, match="takes an `interval` input"):
-        mk.haul(lambda ctx, day: 1, name="no_interval", schedule="0 3 * * *")
+        mk.pipeline(lambda ctx, day: 1, name="no_interval", schedule="0 3 * * *")
     with pytest.raises(ValueError, match="catch_up"):
         mk.Schedule("0 3 * * *", catch_up="sometimes")
     with pytest.raises(ValueError, match="5 fields"):
@@ -428,29 +428,14 @@ def test_subscription_declaration():
     with pytest.raises(ValueError, match="max_wait >= debounce"):
         mk.Subscription("raw.a", debounce=60, max_wait=10)
     with pytest.raises(ValueError, match="`versions` input"):
-        mk.haul(lambda ctx: 1, name="no_pallets", subscribe="raw.a")
+        mk.pipeline(lambda ctx: 1, name="no_data_versions", subscribe="raw.a")
 
-    def on_orders(ctx, pallets: list):
-        return [p.id for p in pallets]
-
-    r = run(on_orders, [], params={"pallets": [{"$pallet": "p1", "dataset": "raw.a", "partition": ""}]})
-    assert json.loads(r.outcome["resultJson"]) == ["p1"]
-
-    # In plain words: the new data versions come as `versions`.
+    # The new data versions come as `versions`.
     def on_versions(ctx, versions: list[mk.DataVersion]):
         return [v.id for v in versions]
 
-    r = run(on_versions, [], params={"pallets": [{"$pallet": "p2", "dataset": "raw.a", "partition": ""}]})
+    r = run(on_versions, [], params={"versions": [{"$data_version": "p2", "dataset": "raw.a", "partition": ""}]})
     assert json.loads(r.outcome["resultJson"]) == ["p2"]
-
-
-def test_the_engines_names_still_work():
-    assert (mk.haul, mk.lift, mk.Pallet, mk.LiftFailed, mk.ChildFailed) == \
-        (mk.pipeline, mk.step, mk.DataVersion, mk.StepFailed, mk.RunFailed)
-    assert (mk.Ctx.lift, mk.Ctx.lift_async, mk.Ctx.haul, mk.Ctx.start_haul, mk.Ctx.latest_pallet) == \
-        (mk.Ctx.step, mk.Ctx.step_async, mk.Ctx.run, mk.Ctx.start_run, mk.Ctx.latest_version)
-    e = mk.StepFailed("extract", "ValueError", "boom")
-    assert (str(e), e.step, e.lift) == ("extract failed (ValueError): boom", "extract", "extract")
 
 
 def test_keep():
@@ -462,48 +447,48 @@ def test_keep():
     assert mk.Dataset("a", keep=mk.Keep(versions=1)) == mk.Dataset("a", keep=mk.Keep(versions=1))
 
 
-def test_lifts_must_agree_on_a_datasets_keep():
+def test_steps_must_agree_on_a_datasets_keep():
     from moksha import worker
 
-    saved = dict(_model.LIFTS)
+    saved = dict(_model.STEPS)
     try:
-        mk.lift(lambda: 1, name="k1", output=mk.Dataset("k.ds", keep=mk.Keep(versions=2)))
-        mk.lift(lambda: 1, name="k2", output=mk.Dataset("k.ds"))  # no keep: takes the other's
+        mk.step(lambda: 1, name="k1", output=mk.Dataset("k.ds", keep=mk.Keep(versions=2)))
+        mk.step(lambda: 1, name="k2", output=mk.Dataset("k.ds"))  # no keep: takes the other's
         assert worker.datasets()["k.ds"] == mk.Keep(versions=2)
-        mk.lift(lambda: 1, name="k3", output=mk.Dataset("k.ds", keep=mk.Keep(versions=5)))
+        mk.step(lambda: 1, name="k3", output=mk.Dataset("k.ds", keep=mk.Keep(versions=5)))
         with pytest.raises(SystemExit, match="dataset k.ds: steps k1 and k3 declare different keep"):
             worker.datasets()
     finally:
-        _model.LIFTS.clear()
-        _model.LIFTS.update(saved)
+        _model.STEPS.clear()
+        _model.STEPS.update(saved)
 
 
-def test_haul_title_and_description():
-    @mk.haul(name="titled_from_doc")
+def test_run_title_and_description():
+    @mk.pipeline(name="titled_from_doc")
     def from_doc(ctx):
         """Daily revenue
 
         Orders for one day, and a report."""
 
-    @mk.haul(name="titled", title="Weekly revenue")
+    @mk.pipeline(name="titled", title="Weekly revenue")
     def titled(ctx):
         """Seven days of orders."""
 
-    @mk.haul(name="untitled")
+    @mk.pipeline(name="untitled")
     def untitled(ctx):
         pass
 
-    got = {n: (_model.HAULS[n].title, _model.HAULS[n].description) for n in ("titled_from_doc", "titled", "untitled")}
+    got = {n: (_model.PIPELINES[n].title, _model.PIPELINES[n].description) for n in ("titled_from_doc", "titled", "untitled")}
     assert got == {"titled_from_doc": ("Daily revenue", "Orders for one day, and a report."),
                    "titled": ("Weekly revenue", "Seven days of orders."),
                    "untitled": ("", "")}
 
 
-def test_a_haul_started_without_an_input_fails_and_says_which():
+def test_a_run_started_without_an_input_fails_and_says_which():
     def nightly(ctx, interval: mk.Interval):
         return interval.start
 
-    d = _model.HaulDef("nightly", nightly, None, schedule=mk.Schedule("0 3 * * *", interval="daily"))
+    d = _model.PipelineDef("nightly", nightly, None, schedule=mk.Schedule("0 3 * * *", interval="daily"))
     r = _replay.replay(d, "h1", {}, [START])
     assert r.outcome["status"] == "STATUS_FAILED"
     assert "pipeline nightly was started with inputs {}" in r.outcome["message"]

@@ -1,17 +1,17 @@
-"""The worker: `python -m moksha.worker [app.hauls more.modules]`.
+"""The worker: `python -m moksha.worker [app.pipelines more.modules]`.
 
-It imports the modules (registering their hauls and lifts; with none given,
+It imports the modules (registering their pipelines and steps; with none given,
 the ones listed under [tool.moksha] modules in ./pyproject.toml), registers
-the build with the server, and then polls: one thread replays hauls, a few
-run lifts, one sends heartbeats for running lifts. It polls with its build,
-so it gets only the hauls and lifts its code defines. Ctrl-C stops polling
-and lets running lifts finish.
+the build with the server, and then polls: one thread replays runs, a few
+run steps, one sends heartbeats for running steps. It polls with its build,
+so it gets only the pipelines and steps its code defines. Ctrl-C stops polling
+and lets running steps finish.
 
-What a lift prints and logs is captured and sent to the server as it runs
-(see _logs), so the web UI shows it with the lift.
+What a step prints and logs is captured and sent to the server as it runs
+(see _logs), so the web UI shows it with the step.
 
-A lift's result is kept, and its attempt heartbeated, until the server
-accepts it: if the leader is down when the lift finishes, the worker retries
+A step's result is kept, and its attempt heartbeated, until the server
+accepts it: if the leader is down when the step finishes, the worker retries
 until it is back. Started by `moksha dev` or `moksha workers`
 ($MOKSHA_SUPERVISOR_PID set), the worker stops the same way when that
 process is gone, so a killed supervisor leaves no workers behind.
@@ -43,23 +43,23 @@ log = logging.getLogger("moksha.worker")
 
 POLL_WAIT = "20s"
 HEARTBEAT_EVERY = 20.0  # seconds; the server's timeout is longer (a minute in dev)
-LOG_FLUSH_EVERY = 0.5  # seconds: how often running lifts' output goes to the server
+LOG_FLUSH_EVERY = 0.5  # seconds: how often running steps' output goes to the server
 DELIVER_BACKOFF = (0.5, 10.0)  # seconds: first and longest wait between tries to deliver a result
 SUPERVISOR_CHECK_EVERY = 1.0  # seconds
 
 
 def load_inputs(fn: Any, kwargs: dict[str, Any]) -> dict[str, Any]:
-    """Load the pallets passed as fn's arguments as their annotations ask:
-    a dataframe or table type loads the data, mk.Pallet keeps the handle,
-    no annotation loads a dataframe as it was written (other pallets stay
+    """Load the data versions passed as fn's arguments as their annotations ask:
+    a dataframe or table type loads the data, mk.DataVersion keeps the handle,
+    no annotation loads a dataframe as it was written (other data versions stay
     handles)."""
     hints = _codecs.parameter_types(fn)
     out = dict(kwargs)
     for name, v in kwargs.items():
-        if not isinstance(v, _model.Pallet):
+        if not isinstance(v, _model.DataVersion):
             continue
         ann = hints.get(name)
-        if isinstance(ann, type) and issubclass(ann, _model.Pallet):
+        if isinstance(ann, type) and issubclass(ann, _model.DataVersion):
             continue
         if _codecs.for_type(ann) is not None:
             out[name] = v.load(ann)
@@ -69,12 +69,12 @@ def load_inputs(fn: Any, kwargs: dict[str, Any]) -> dict[str, Any]:
 
 
 def datasets() -> dict[str, _model.Keep | None]:
-    """The datasets this build's lifts write, with their retention. Lifts
+    """The datasets this build's steps write, with their retention. Steps
     writing one dataset that declare keep must agree; one without keep
     takes the others'."""
     out: dict[str, _model.Keep | None] = {}
     who: dict[str, str] = {}
-    for name, d in sorted(_model.LIFTS.items()):
+    for name, d in sorted(_model.STEPS.items()):
         if d.output is None:
             continue
         ds = d.output.name
@@ -82,58 +82,58 @@ def datasets() -> dict[str, _model.Keep | None]:
         if out.get(ds) is not None and keep is not None and out[ds] != keep:
             raise SystemExit(f"dataset {ds}: steps {who[ds]} and {name} declare different keep "
                              f"({out[ds]} and {keep}); declare it once, the same everywhere")
-        if out.get(ds) is None:  # a lift without keep defers to one with it
+        if out.get(ds) is None:  # a step without keep defers to one with it
             out[ds], who[ds] = keep, name
     return out
 
 
 def build_id() -> str:
-    """A build is identified by its hauls' and lifts' code versions."""
+    """A build is identified by its runs' and steps' code versions."""
     h = hashlib.sha256()
     for ds, keep in sorted(datasets().items()):
         h.update(f"dataset {ds} {keep!r}\n".encode())
-    for name in sorted(_model.HAULS):
-        d = _model.HAULS[name]
-        h.update(f"haul {name} {d.code_version()} {d.schedule!r} {d.subscribe!r} {d.title!r} {d.description!r}\n".encode())
-    for name in sorted(_model.LIFTS):
-        h.update(f"lift {name} {_model.LIFTS[name].code_version()}\n".encode())
+    for name in sorted(_model.PIPELINES):
+        d = _model.PIPELINES[name]
+        h.update(f"run {name} {d.code_version()} {d.schedule!r} {d.subscribe!r} {d.title!r} {d.description!r}\n".encode())
+    for name in sorted(_model.STEPS):
+        h.update(f"step {name} {_model.STEPS[name].code_version()}\n".encode())
     return "b-" + h.hexdigest()[:12]
 
 
 class Worker:
-    def __init__(self, client: Client, docks: list[str], lifts: int = 4, worker_id: str | None = None,
+    def __init__(self, client: Client, queues: list[str], steps: int = 4, worker_id: str | None = None,
                  poll_wait: str = POLL_WAIT, data: str = "auto"):
         if data not in _data.MODES:
             raise ValueError(f"data: want one of {', '.join(_data.MODES)}, got {data!r}")
         self.client = client
         self.data = data
-        self.docks = docks
-        self.lift_threads = lifts
+        self.queues = queues
+        self.step_threads = steps
         self.id = worker_id or f"{socket.gethostname()}-{os.getpid()}"
         self.poll_wait = poll_wait
         self.build = build_id()
         self.stopping = threading.Event()
         self.exited = threading.Event()  # set once polling threads are done; ends heartbeats
-        self._running: dict[str, threading.Event] = {}  # lift attempt → cancelled
-        self._captures: dict[str, _logs.Capture] = {}  # running lift attempt → its output
+        self._running: dict[str, threading.Event] = {}  # step attempt → cancelled
+        self._captures: dict[str, _logs.Capture] = {}  # running step attempt → its output
         self._lock = threading.Lock()
 
     def register(self) -> None:
         self.client.call("WorkerService", "RegisterBuild", registration(self.build))
-        log.info("registered build %s: %d pipelines, %d steps", self.build, len(_model.HAULS), len(_model.LIFTS))
+        log.info("registered build %s: %d pipelines, %d steps", self.build, len(_model.PIPELINES), len(_model.STEPS))
 
-    # --- hauls ---
+    # --- runs ---
 
-    def run_haul_task(self, task: dict) -> None:
-        d = _model.HAULS.get(task["name"])
+    def handle_run_task(self, task: dict) -> None:
+        d = _model.PIPELINES.get(task["name"])
         body: dict[str, Any] = {"taskId": task["id"], "buildId": self.build}
         if d is None:
-            body["error"] = {"reason": "unknown_haul", "message": f"no pipeline {task['name']!r} in build {self.build}"}
+            body["error"] = {"reason": "unknown_pipeline", "message": f"no pipeline {task['name']!r} in build {self.build}"}
         else:
             params = json.loads(task.get("paramsJson") or "{}")
-            r = _replay.replay(d, task["haulId"], params, task.get("logbook", []))
+            r = _replay.replay(d, task["runId"], params, task.get("eventLog", []))
             if r.nondeterministic:
-                # The server makes the haul stuck; a build with fixed code resumes it.
+                # The server makes the run stuck; a build with fixed code resumes it.
                 body["error"] = {"reason": "nondeterminism", "message": r.mismatch}
             else:
                 body["commands"] = r.commands
@@ -142,19 +142,19 @@ class Worker:
                 if r.outcome:
                     body["outcome"] = r.outcome
             if r.mismatch:
-                log.error("haul %s (%s) is not deterministic: %s", task["haulId"], task["name"], r.mismatch)
-        self.client.call("WorkerService", "CompleteHaulTask", body)
+                log.error("run %s (%s) is not deterministic: %s", task["runId"], task["name"], r.mismatch)
+        self.client.call("WorkerService", "CompleteRunTask", body)
 
-    # --- lifts ---
+    # --- steps ---
 
     def send_logs(self, attempt_id: str, lines: list[dict]) -> None:
         try:
             self.client.call("LogService", "AppendLogs", {"attemptId": attempt_id, "lines": lines})
-        except ConnectError as e:  # logs are best effort: the lift goes on
+        except ConnectError as e:  # logs are best effort: the step goes on
             log.debug("AppendLogs: %s", e)
 
-    def run_lift_task(self, task: dict) -> None:
-        d = _model.LIFTS.get(task["name"])
+    def run_step_task(self, task: dict) -> None:
+        d = _model.STEPS.get(task["name"])
         body: dict[str, Any] = {"attemptId": task["id"]}
         cancelled = threading.Event()
         capture = _logs.Capture(task["name"], lambda lines: self.send_logs(task["id"], lines))
@@ -163,7 +163,7 @@ class Worker:
             self._captures[task["id"]] = capture
         try:
             with capture:
-                self._run_lift(task, d, body, capture)
+                self._run_step(task, d, body, capture)
         finally:
             with self._lock:
                 self._captures.pop(task["id"], None)
@@ -171,30 +171,30 @@ class Worker:
             if remote := body.pop("_remote", None):
                 remote.close()
         if body.get("status") == "STATUS_FAILED":
-            log.warning("lift %s failed: %s: %s", task["name"], body["reason"], body["message"])
+            log.warning("step %s failed: %s: %s", task["name"], body["reason"], body["message"])
         try:
             self.deliver(task, body, cancelled)
         finally:
             with self._lock:
                 self._running.pop(task["id"], None)
 
-    def _run_lift(self, task: dict, d, body: dict, capture: _logs.Capture) -> None:
+    def _run_step(self, task: dict, d, body: dict, capture: _logs.Capture) -> None:
         try:
             if d is None:
                 raise _model.NonRetryable(f"no step {task['name']!r} in build {self.build}")
             remote = None
             if (task.get("staging") or task.get("inputs")) and _data.is_remote(self.data, task):
                 remote = _data.Remote(self.client, task["id"], Path(tempfile.mkdtemp(prefix=f"moksha-{task['id']}-")))
-                body["_remote"] = remote  # its files go once the lift has run
+                body["_remote"] = remote  # its files go once the step has run
 
             def output_dir() -> Path:
                 if not task.get("staging"):
                     raise _model.NonRetryable("returning a dataframe needs a server with a bucket for data versions")
                 return remote.output_dir if remote else _output.local_dir(task["staging"])
 
-            pallets = {i["name"]: _model.Pallet(id=i["pallet"], location=i.get("location", ""), _remote=remote)
+            data_versions = {i["name"]: _model.DataVersion(id=i["dataVersion"], location=i.get("location", ""), _remote=remote)
                        for i in task.get("inputs", [])}
-            kwargs = load_inputs(d.fn, _model.decode(json.loads(task.get("argsJson") or "{}"), pallets))
+            kwargs = load_inputs(d.fn, _model.decode(json.loads(task.get("argsJson") or "{}"), data_versions))
             out = None
             token = None
             if d.output is not None:
@@ -216,13 +216,13 @@ class Worker:
                 body["output"] = _output.describe(out)
                 if remote is not None:
                     remote.upload(body["output"]["files"])
-        except Exception as e:  # noqa: BLE001 - the lift failed
+        except Exception as e:  # noqa: BLE001 - the step failed
             body.update(status="STATUS_FAILED", reason=type(e).__name__, message=str(e),
                         noRetry=isinstance(e, _model.NonRetryable))
-            capture.write("stderr", "".join(traceback.format_exception(e)))  # the lift's own log shows why
+            capture.write("stderr", "".join(traceback.format_exception(e)))  # the step's own log shows why
 
     def deliver(self, task: dict, body: dict, cancelled: threading.Event) -> None:
-        """Report a lift's result, retrying while the server is unavailable.
+        """Report a step's result, retrying while the server is unavailable.
 
         The attempt stays in the heartbeats meanwhile, so a leader that
         restarts keeps it alive and takes the result once it is back.
@@ -230,7 +230,7 @@ class Worker:
         wait = DELIVER_BACKOFF[0]
         while not cancelled.is_set():  # cancelled: the server no longer wants this result
             try:
-                self.client.call("WorkerService", "CompleteLiftTask", body)
+                self.client.call("WorkerService", "CompleteStepTask", body)
                 return
             except ConnectError as e:
                 if e.code == "not_found":  # timed out or cancelled meanwhile
@@ -247,7 +247,7 @@ class Worker:
         while not self.stopping.is_set():
             try:
                 res = self.client.call("WorkerService", method,
-                                       {"workerId": self.id, "buildId": self.build, "docks": self.docks,
+                                       {"workerId": self.id, "buildId": self.build, "queues": self.queues,
                                         "wait": self.poll_wait}, timeout=60)
                 if res.get("task"):
                     run(res["task"])
@@ -264,7 +264,7 @@ class Worker:
                 self.stopping.wait(1)
 
     def _flush_logs(self) -> None:
-        # Sends running lifts' output every LOG_FLUSH_EVERY, so it can be followed live.
+        # Sends running steps' output every LOG_FLUSH_EVERY, so it can be followed live.
         while not self.exited.wait(LOG_FLUSH_EVERY):
             with self._lock:
                 captures = list(self._captures.values())
@@ -272,7 +272,7 @@ class Worker:
                 c.flush()
 
     def _heartbeats(self) -> None:
-        # Runs until the worker exits, not until it stops polling: lifts
+        # Runs until the worker exits, not until it stops polling: steps
         # still running or delivering need their leases.
         while not self.exited.wait(HEARTBEAT_EVERY):
             with self._lock:
@@ -293,9 +293,9 @@ class Worker:
         """Starts polling; returns the polling threads (heartbeats run until `exited`)."""
         threading.Thread(target=self._heartbeats, name="heartbeats", daemon=True).start()
         threading.Thread(target=self._flush_logs, name="logs", daemon=True).start()
-        threads = [threading.Thread(target=self._loop, args=("PollHaulTask", self.run_haul_task), name="hauls", daemon=True)]
-        threads += [threading.Thread(target=self._loop, args=("PollLiftTask", self.run_lift_task), name=f"lifts-{i}", daemon=True)
-                    for i in range(self.lift_threads)]
+        threads = [threading.Thread(target=self._loop, args=("PollRunTask", self.handle_run_task), name="runs", daemon=True)]
+        threads += [threading.Thread(target=self._loop, args=("PollStepTask", self.run_step_task), name=f"steps-{i}", daemon=True)
+                    for i in range(self.step_threads)]
         for t in threads:
             t.start()
         return threads
@@ -312,7 +312,7 @@ class Worker:
 
 def utc_logs() -> None:
     """The worker's log lines carry UTC times, like everything moksha shows
-    (what lifts log is timed in UTC by the capture)."""
+    (what steps log is timed in UTC by the capture)."""
     for h in logging.getLogger().handlers:
         if h.formatter is not None:
             h.formatter.converter = time.gmtime
@@ -344,14 +344,14 @@ def registration(build: str) -> dict[str, Any]:
     """The RegisterBuild request for the pipelines and steps defined so far:
     what a worker registers, and what `moksha deploy` sends with a
     deployment (--build-json)."""
-    versions = {name: d.code_version() for name, d in _model.LIFTS.items()}
-    schedules = [{"haul": name, "cron": d.schedule.cron, "timezone": d.schedule.timezone,
+    versions = {name: d.code_version() for name, d in _model.STEPS.items()}
+    schedules = [{"pipeline": name, "cron": d.schedule.cron, "timezone": d.schedule.timezone,
                   "interval": d.schedule.interval, "catchUp": d.schedule.catch_up}
-                 for name, d in sorted(_model.HAULS.items()) if d.schedule]
+                 for name, d in sorted(_model.PIPELINES.items()) if d.schedule]
     subscriptions = []
-    for name, d in sorted(_model.HAULS.items()):
+    for name, d in sorted(_model.PIPELINES.items()):
         if s := d.subscribe:
-            sub = {"haul": name, "datasets": list(s.datasets), "debounce": _replay._duration(s.debounce),
+            sub = {"pipeline": name, "datasets": list(s.datasets), "debounce": _replay._duration(s.debounce),
                    "maxBatch": s.max_batch}
             if s.max_wait is not None:
                 sub["maxWait"] = _replay._duration(s.max_wait)
@@ -364,41 +364,41 @@ def registration(build: str) -> dict[str, Any]:
         if keep and keep.age:
             r["keepFor"] = _replay._duration(keep.age)
         retention.append(r)
-    return {"buildId": build, "hauls": sorted(_model.HAULS), "liftVersions": versions,
+    return {"buildId": build, "pipelines": sorted(_model.PIPELINES), "stepVersions": versions,
             "schedules": schedules, "subscriptions": subscriptions, "datasets": retention,
-            "haulInfo": [{"haul": n, "title": d.title, "description": d.description}
-                         for n, d in sorted(_model.HAULS.items()) if d.title or d.description]}
+            "pipelineInfo": [{"pipeline": n, "title": d.title, "description": d.description}
+                             for n, d in sorted(_model.PIPELINES.items()) if d.title or d.description]}
 
 
 def print_versions() -> None:
-    """What each code version covers, for finding out why a lift reran."""
+    """What each code version covers, for finding out why a step reran."""
     from . import _codeversion
 
-    out: dict[str, Any] = {"build": build_id(), "hauls": {}, "lifts": {}}
-    for name, h in sorted(_model.HAULS.items()):
-        out["hauls"][name] = {"version": h.code_version(), **_codeversion.parts(h.fn, name=name, haul=True)}
-    for name, d in sorted(_model.LIFTS.items()):
+    out: dict[str, Any] = {"build": build_id(), "pipelines": {}, "steps": {}}
+    for name, h in sorted(_model.PIPELINES.items()):
+        out["pipelines"][name] = {"version": h.code_version(), **_codeversion.parts(h.fn, name=name, pipeline=True)}
+    for name, d in sorted(_model.STEPS.items()):
         entry: dict[str, Any] = {"version": d.code_version()}
         if d.version:
             entry["pinned"] = True
         else:
             entry.update(_codeversion.parts(d.fn, d.deps, name))
-        out["lifts"][name] = entry
+        out["steps"][name] = entry
     print(json.dumps(out, indent=2))
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     """The worker's options. Started by moksha (dev, server, workers), it
-    gets its docks and lifts from $MOKSHA_DOCKS and $MOKSHA_LIFTS, the
+    gets its queues and steps from $MOKSHA_QUEUES and $MOKSHA_STEPS, the
     worker group's in moksha.yaml; flags win."""
     p = argparse.ArgumentParser(prog="python -m moksha.worker", description=__doc__.splitlines()[0])
     p.add_argument("modules", nargs="*",
                    help="modules that define pipelines and steps, e.g. app.pipelines (default: [tool.moksha] modules in ./pyproject.toml)")
     p.add_argument("--server", default=os.environ.get("MOKSHA_SERVER", "http://127.0.0.1:7070"))
-    p.add_argument("--dock", action="append", default=None,
-                   help="dock to poll (repeatable; default: $MOKSHA_DOCKS, comma-separated, else default)")
-    p.add_argument("--lifts", type=int, default=int(os.environ.get("MOKSHA_LIFTS") or 4),
-                   help="lifts to run at the same time (default: $MOKSHA_LIFTS, else 4)")
+    p.add_argument("--queue", action="append", default=None,
+                   help="queue to poll (repeatable; default: $MOKSHA_QUEUES, comma-separated, else default)")
+    p.add_argument("--steps", type=int, default=int(os.environ.get("MOKSHA_STEPS") or 4),
+                   help="steps to run at the same time (default: $MOKSHA_STEPS, else 4)")
     p.add_argument("--poll-wait", default=POLL_WAIT, help="how long one poll waits for work, e.g. 20s")
     p.add_argument("--worker-id", default=os.environ.get("MOKSHA_WORKER_ID"), help="default: <hostname>-<pid>")
     p.add_argument("--data", choices=_data.MODES, default=os.environ.get("MOKSHA_DATA", "auto"),
@@ -411,7 +411,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--versions", action="store_true",
                    help="print the build ID and what each pipeline's and step's code version covers, then exit")
     args = p.parse_args(argv)
-    args.dock = args.dock or [d for d in os.environ.get("MOKSHA_DOCKS", "").split(",") if d] or ["default"]
+    args.queue = args.queue or [d for d in os.environ.get("MOKSHA_QUEUES", "").split(",") if d] or ["default"]
     return args
 
 
@@ -442,7 +442,7 @@ def main(argv: list[str] | None = None) -> None:
     if args.build_json:
         print(json.dumps(registration(build_id()), indent=2))
         return
-    w = Worker(Client(args.server), args.dock, lifts=args.lifts, poll_wait=args.poll_wait,
+    w = Worker(Client(args.server), args.queue, steps=args.steps, poll_wait=args.poll_wait,
                worker_id=args.worker_id, data=args.data)
     w.stopping = stopping
     while not stopping.is_set():
@@ -459,7 +459,7 @@ def main(argv: list[str] | None = None) -> None:
     threads = w.start()
     if os.environ.get("MOKSHA_SUPERVISOR_PID"):
         w.watch_supervisor(int(os.environ["MOKSHA_SUPERVISOR_PID"]))
-    log.info("worker %s polling %s on %s", w.id, ", ".join(w.docks), args.server)
+    log.info("worker %s polling %s on %s", w.id, ", ".join(w.queues), args.server)
     w.stopping.wait()
     log.info("stopping: waiting for running steps")
     deadline = time.monotonic() + 60

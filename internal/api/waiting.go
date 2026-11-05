@@ -13,33 +13,33 @@ import (
 )
 
 // WaitingText tells why a run's work waits, in plain words (pipeline, step,
-// not haul, lift), with what to do about it. It starts lowercase: callers
+// not run, step), with what to do about it. It starts lowercase: callers
 // put "waiting: " or the like in front.
 func WaitingText(w core.Waiting) string {
 	what := "the pipeline's code"
-	if w.Kind == core.TaskLift {
+	if w.Kind == core.TaskStep {
 		what = fmt.Sprintf("step %s", w.Name)
 	}
-	dockFlag, onDock := "", ""
-	if w.Dock != core.DefaultDock {
-		dockFlag, onDock = fmt.Sprintf(" --dock %s", w.Dock), fmt.Sprintf(" on dock %q", w.Dock)
+	queueFlag, onQueue := "", ""
+	if w.Queue != core.DefaultQueue {
+		queueFlag, onQueue = fmt.Sprintf(" --queue %s", w.Queue), fmt.Sprintf(" on queue %q", w.Queue)
 	}
 	switch w.Reason {
 	case core.WaitNoWorker:
 		return fmt.Sprintf("no worker is connected%s to run %s. Start one with `python -m moksha.worker%s <modules>` "+
-			"(or `moksha workers --config moksha.yaml`)", onDock, what, dockFlag)
+			"(or `moksha workers --config moksha.yaml`)", onQueue, what, queueFlag)
 	case core.WaitNoBuild:
 		defines := fmt.Sprintf("pipeline %s", w.Name)
-		if w.Kind == core.TaskLift {
+		if w.Kind == core.TaskStep {
 			defines = fmt.Sprintf("step %s", w.Name)
 		}
 		return fmt.Sprintf("%s connected%s, but %s code doesn't define %s (build %s). "+
-			"Restart a worker with code that has it", workersAre(w.Workers), onDock, theirIts(w.Workers), defines,
+			"Restart a worker with code that has it", workersAre(w.Workers), onQueue, theirIts(w.Workers), defines,
 			strings.Join(shortBuilds(w.Builds), ", "))
 	case core.WaitStarting:
 		return fmt.Sprintf("a worker is starting in pool %s to run %s", w.Pool, what)
-	case core.WaitDockLimit:
-		return fmt.Sprintf("%s waits for a free slot: dock %q runs as many steps at once as it may", what, w.Dock)
+	case core.WaitQueueLimit:
+		return fmt.Sprintf("%s waits for a free slot: queue %q runs as many steps at once as it may", what, w.Queue)
 	default:
 		return fmt.Sprintf("%s waits for a free worker: the workers that can run it are busy", what)
 	}
@@ -76,13 +76,13 @@ func shortBuilds(builds []string) []string {
 
 func waitingMessage(w core.Waiting) *mokshav1.Waiting {
 	return &mokshav1.Waiting{Reason: string(w.Reason), Message: WaitingText(w), Kind: string(w.Kind), Name: w.Name,
-		Seq: int32(w.Seq), Dock: w.Dock, Since: timestamppb.New(w.Since), Workers: int32(w.Workers), Builds: w.Builds, Pool: w.Pool}
+		Seq: int32(w.Seq), Queue: w.Queue, Since: timestamppb.New(w.Since), Workers: int32(w.Workers), Builds: w.Builds, Pool: w.Pool}
 }
 
-// addWaiting sets why the running ones among hauls wait, if they do.
-func (s *HaulServer) addWaiting(ctx context.Context, hauls ...*mokshav1.Haul) error {
+// addWaiting sets why the running ones among runs wait, if they do.
+func (s *RunServer) addWaiting(ctx context.Context, runs ...*mokshav1.Run) error {
 	var ids []string
-	for _, h := range hauls {
+	for _, h := range runs {
 		if h.Status == "running" {
 			ids = append(ids, h.Id)
 		}
@@ -94,7 +94,7 @@ func (s *HaulServer) addWaiting(ctx context.Context, hauls ...*mokshav1.Haul) er
 	if err != nil {
 		return err
 	}
-	for _, h := range hauls {
+	for _, h := range runs {
 		if w, ok := ws[h.Id]; ok {
 			h.Waiting = waitingMessage(w)
 		}
@@ -102,14 +102,14 @@ func (s *HaulServer) addWaiting(ctx context.Context, hauls ...*mokshav1.Haul) er
 	return nil
 }
 
-func (s *HaulServer) ListWorkers(ctx context.Context, _ *connect.Request[mokshav1.ListWorkersRequest]) (*connect.Response[mokshav1.ListWorkersResponse], error) {
+func (s *RunServer) ListWorkers(ctx context.Context, _ *connect.Request[mokshav1.ListWorkersRequest]) (*connect.Response[mokshav1.ListWorkersResponse], error) {
 	ws, err := s.core.Workers(ctx)
 	if err != nil {
 		return nil, connectError(err)
 	}
 	out := &mokshav1.ListWorkersResponse{}
 	for _, w := range ws {
-		m := &mokshav1.Worker{Id: w.ID, BuildId: w.BuildID, Docks: w.Docks, LastSeen: timestamppb.New(w.LastSeen), Polling: w.Polling,
+		m := &mokshav1.Worker{Id: w.ID, BuildId: w.BuildID, Queues: w.Queues, LastSeen: timestamppb.New(w.LastSeen), Polling: w.Polling,
 			Running: int32(w.Running)}
 		for _, k := range w.Kinds {
 			m.Kinds = append(m.Kinds, string(k))
@@ -119,14 +119,14 @@ func (s *HaulServer) ListWorkers(ctx context.Context, _ *connect.Request[mokshav
 	return connect.NewResponse(out), nil
 }
 
-func (s *HaulServer) ListPools(ctx context.Context, _ *connect.Request[mokshav1.ListPoolsRequest]) (*connect.Response[mokshav1.ListPoolsResponse], error) {
+func (s *RunServer) ListPools(ctx context.Context, _ *connect.Request[mokshav1.ListPoolsRequest]) (*connect.Response[mokshav1.ListPoolsResponse], error) {
 	ps, err := s.core.Pools(ctx)
 	if err != nil {
 		return nil, connectError(err)
 	}
 	out := &mokshav1.ListPoolsResponse{}
 	for _, p := range ps {
-		m := &mokshav1.Pool{Name: p.Name, Docks: p.Docks, Min: int32(p.Min), Max: int32(p.Max), Workers: p.Workers,
+		m := &mokshav1.Pool{Name: p.Name, Queues: p.Queues, Min: int32(p.Min), Max: int32(p.Max), Workers: p.Workers,
 			Starting: int32(p.Starting), Decision: p.Decision, Desired: int32(p.Desired), External: p.External}
 		if !p.DecidedAt.IsZero() {
 			m.DecidedAt = timestamppb.New(p.DecidedAt)

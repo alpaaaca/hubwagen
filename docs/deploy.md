@@ -118,12 +118,12 @@ pools:
     image: ghcr.io/acme/revenue:2026-10-30
     min: 0
     max: 5
-    lifts: 2
+    steps: 2
   - name: gpu
     image: ghcr.io/acme/train:2026-10-30
     max: 2
-    docks: [gpu]
-    lifts: 1
+    queues: [gpu]
+    steps: 1
     resources: {limits: {nvidia.com/gpu: 1}}
 ```
 
@@ -149,7 +149,7 @@ What it creates:
 - **A Deployment per pool** whose replicas the server sets between `min`
   and `max`: it is created with `min`, and `helm upgrade` keeps the count
   the server last set (the chart looks it up). Its pods get
-  `MOKSHA_SERVER`, the pool's docks and lifts, and no service account
+  `MOKSHA_SERVER`, the pool's queues and steps, and no service account
   token. Give `terminationGracePeriodSeconds` (default 600) more time than
   your steps take: Kubernetes picks which pod to remove when it scales
   down, and a stopped worker finishes what it runs.

@@ -4,10 +4,10 @@ Throwaway code behind [docs/spikes/s1-python-replay.md](../../docs/spikes/s1-pyt
 Not the SDK; nothing imports it.
 
 ```bash
-python3 bench.py          # replay cost, whole-haul cost, fan-out, call-site capture
+python3 bench.py          # replay cost, whole-run cost, fan-out, call-site capture
 python3 guards_check.py   # patch vs sys.monitoring guards against typical mistakes and libraries
 ```
 
-- `hwproto.py`: replay until blocked, `Ctx` with `lift`, `lift_async`, `gather`, `sleep`
+- `mkproto.py`: replay until blocked, `Ctx` with `step`, `step_async`, `gather`, `sleep`
 - `guards.py`: the two guards
-- `user_hauls.py`: haul code with typical mistakes, and legitimate library use
+- `user_pipelines.py`: pipeline code with typical mistakes, and legitimate library use

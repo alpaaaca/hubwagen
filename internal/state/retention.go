@@ -5,9 +5,9 @@ import (
 	"time"
 )
 
-// Retention keeps, per partition of a dataset, the latest committed pallet
+// Retention keeps, per partition of a dataset, the latest committed data version
 // and those among the newest Versions or committed less than Age ago; the
-// rest of its committed pallets can expire. A zero field is an unset rule.
+// rest of its committed data versions can expire. A zero field is an unset rule.
 type Retention struct {
 	Dataset   string
 	Versions  int
@@ -46,31 +46,31 @@ func (s *Store) ListRetention(ctx context.Context) ([]Retention, error) {
 	}, `SELECT dataset, keep_versions, keep_ns, build_id, updated_at FROM retention ORDER BY dataset`)
 }
 
-// inUse is every pallet something still running may read: pallets built by
-// open hauls, pallets open hauls got as lift results (reused ones too) or
-// from latest_pallet, inputs of unfinished lifts, and pallets waiting to
-// start a subscription's haul.
+// inUse is every data version something still running may read: data versions built by
+// open runs, data versions open runs got as step results (reused ones too) or
+// from latest_version, inputs of unfinished steps, and data versions waiting to
+// start a subscription's run.
 const inUse = `
-	WITH open_hauls AS (SELECT id FROM hauls WHERE status IN ('running', 'stuck')),
+	WITH open_runs AS (SELECT id FROM runs WHERE status IN ('running', 'stuck')),
 	in_use(id) AS (
-		SELECT id FROM pallets WHERE haul_id IN (SELECT id FROM open_hauls)
-		UNION SELECT json_extract(payload, '$.pallet') FROM events
-			WHERE type = 'LiftFinished' AND haul_id IN (SELECT id FROM open_hauls)
-		UNION SELECT json_extract(payload, '$.pallet.id') FROM events
-			WHERE type = 'QueryAnswered' AND haul_id IN (SELECT id FROM open_hauls)
-		UNION SELECT json_extract(j.value, '$.pallet') FROM lifts l, json_each(l.inputs_json) j
+		SELECT id FROM data_versions WHERE run_id IN (SELECT id FROM open_runs)
+		UNION SELECT json_extract(payload, '$.data_version') FROM events
+			WHERE type = 'StepFinished' AND run_id IN (SELECT id FROM open_runs)
+		UNION SELECT json_extract(payload, '$.data_version.id') FROM events
+			WHERE type = 'QueryAnswered' AND run_id IN (SELECT id FROM open_runs)
+		UNION SELECT json_extract(j.value, '$.data_version') FROM steps l, json_each(l.inputs_json) j
 			WHERE l.inputs_json <> '' AND l.status NOT IN ('completed', 'failed', 'cancelled')
-		UNION SELECT pallet_id FROM subscription_pallets)
+		UNION SELECT data_version_id FROM subscription_data_versions)
 `
 
-// ExpiryCandidates returns up to limit committed pallets of r's dataset that
+// ExpiryCandidates returns up to limit committed data versions of r's dataset that
 // its retention no longer keeps and nothing running reads, oldest first.
-func (s *Store) ExpiryCandidates(ctx context.Context, r Retention, now time.Time, limit int) ([]Pallet, error) {
+func (s *Store) ExpiryCandidates(ctx context.Context, r Retention, now time.Time, limit int) ([]DataVersion, error) {
 	cutoff := now.Add(-r.Age)
-	return queryAll(ctx, s.r, scanPallet, inUse+`
-		SELECT `+palletColumns+` FROM (
+	return queryAll(ctx, s.r, scanDataVersion, inUse+`
+		SELECT `+dataVersionColumns+` FROM (
 			SELECT *, ROW_NUMBER() OVER (PARTITION BY tenant, partition ORDER BY committed_at DESC, id DESC) AS rn
-			FROM pallets WHERE dataset = ? AND state = 'committed')
+			FROM data_versions WHERE dataset = ? AND state = 'committed')
 		WHERE rn > 1
 			AND (? = 0 OR rn > ?)
 			AND (? = 0 OR committed_at < ?)

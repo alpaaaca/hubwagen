@@ -1,0 +1,362 @@
+syntax = "proto3";
+
+package moksha.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/alper/moksha/internal/api/gen/moksha/v1;mokshav1";
+
+// RunService is what people and tools call: start runs and follow them.
+// Like WorkerService it is a Connect service, callable as plain HTTP/JSON.
+service RunService {
+  // StartRun starts a run and queues its first replay. A run no
+  // registered build defines fails with FAILED_PRECONDITION.
+  rpc StartRun(StartRunRequest) returns (StartRunResponse);
+  // GetRun returns a run and its steps.
+  rpc GetRun(GetRunRequest) returns (GetRunResponse);
+  // SignalRun sends a signal to an open run. A signal the run isn't
+  // waiting for yet is kept until it waits; each goes to one wait. NOT_FOUND
+  // for an unknown pipeline, FAILED_PRECONDITION for a finished one.
+  rpc SignalRun(SignalRunRequest) returns (SignalRunResponse);
+  // CancelRun cancels an open run: its queued work is withdrawn, the
+  // children it waits for are cancelled. A finished run is left as is.
+  rpc CancelRun(CancelRunRequest) returns (CancelRunResponse);
+  // ResumeRun gives a stuck run a new replay, typically after a fix was
+  // deployed. A run that isn't stuck is left as is.
+  rpc ResumeRun(ResumeRunRequest) returns (ResumeRunResponse);
+  // ListRuns returns runs newest first (without their steps).
+  rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
+  // GetEventLog returns the events a replay of the run reads, for replaying
+  // it against other code (moksha.testing --replay).
+  rpc GetEventLog(GetEventLogRequest) returns (GetEventLogResponse);
+  // GetHistory tells what happened in a run, in plain words: one entry per
+  // event, in order.
+  rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse);
+  // ListSchedules returns the current run schedules and their next runs,
+  // and the dataset subscriptions.
+  rpc ListSchedules(ListSchedulesRequest) returns (ListSchedulesResponse);
+  // ListPipelines returns the runs the registered builds define, with the
+  // title and description of the newest build that defines each.
+  rpc ListPipelines(ListPipelinesRequest) returns (ListPipelinesResponse);
+  // ListWorkers returns the workers that polled lately (the leader's
+  // memory, not state: a new leader learns them from their next polls).
+  rpc ListWorkers(ListWorkersRequest) returns (ListWorkersResponse);
+  // ListPools returns the worker pools the server scales (worker groups
+  // with min below max) and their last scaling decision.
+  rpc ListPools(ListPoolsRequest) returns (ListPoolsResponse);
+  // ListCode returns the code the server runs now: each step's code
+  // version and each pipeline, from the newest build that defines it.
+  // moksha deploy --dry-run compares a project's build with it.
+  rpc ListCode(ListCodeRequest) returns (ListCodeResponse);
+}
+
+message ListCodeRequest {}
+message ListCodeResponse {
+  repeated Code steps = 1;
+  // code_version is empty: builds record which pipelines they define.
+  repeated Code pipelines = 2;
+}
+message Code {
+  string name = 1;
+  string code_version = 2;
+  string build_id = 3;
+  google.protobuf.Timestamp registered_at = 4;
+}
+
+message ListPoolsRequest {}
+message ListPoolsResponse {
+  repeated Pool pools = 1;
+}
+message Pool {
+  string name = 1;
+  repeated string queues = 2;
+  int32 min = 3;
+  int32 max = 4;
+  // The workers it runs, by ID (an external pool: those polling its
+  // queues); starting of them haven't polled yet.
+  repeated string workers = 5;
+  int32 starting = 6;
+  // Its last decision in words ("started py-2: 3 steps wait on default"),
+  // and when; empty before the first.
+  string decision = 7;
+  google.protobuf.Timestamp decided_at = 8;
+  // How many workers it wants: what it runs, or for an external pool, what
+  // its launcher (KEDA, an HPA) should run.
+  int32 desired = 9;
+  // Started by something other than moksha (launcher: external).
+  bool external = 10;
+}
+
+message ListWorkersRequest {}
+message ListWorkersResponse {
+  repeated Worker workers = 1;
+}
+message Worker {
+  string id = 1;
+  // Empty if it polls without one.
+  string build_id = 2;
+  repeated string queues = 3;
+  // run, step.
+  repeated string kinds = 4;
+  // Its last poll or heartbeat.
+  google.protobuf.Timestamp last_seen = 5;
+  // Waiting for work right now; otherwise busy.
+  bool polling = 6;
+  // Tasks it runs: steps and pipeline replays.
+  int32 running = 7;
+}
+
+message ListPipelinesRequest {}
+message ListPipelinesResponse {
+  repeated Pipeline pipelines = 1;
+}
+message Pipeline {
+  // The run's name in code.
+  string name = 1;
+  // Empty if its code gives none.
+  string title = 2;
+  string description = 3;
+}
+
+message ListRunsRequest {
+  // Empty: any.
+  string tenant = 1;
+  string name = 2;
+  repeated string statuses = 3;
+  // Default 50, at most 1000.
+  int32 limit = 4;
+  // Only the children of this run (started by its start_run commands).
+  string parent_id = 5;
+  // Only runs older than this one (paging).
+  string before_id = 6;
+  // Also return each run's steps (name, status, reused, times; no results
+  // or edges): a run history by step. At most 200 runs then.
+  bool with_steps = 7;
+}
+
+message CancelRunRequest {
+  string run_id = 1;
+  // Who asked, for the record.
+  string by = 2;
+}
+
+message CancelRunResponse {}
+
+message ResumeRunRequest {
+  string run_id = 1;
+}
+
+message ResumeRunResponse {}
+
+message ListRunsResponse {
+  repeated Run runs = 1;
+}
+
+message GetEventLogRequest {
+  string run_id = 1;
+}
+
+message GetEventLogResponse {
+  Run run = 1;
+  // As PollRunTask sends them.
+  repeated LoggedEvent event_log = 2;
+}
+
+message LoggedEvent {
+  int64 seq = 1;
+  string type = 2;
+  google.protobuf.Timestamp time = 3;
+  string payload_json = 4;
+}
+
+message GetHistoryRequest {
+  string run_id = 1;
+}
+
+message GetHistoryResponse {
+  repeated HistoryEntry entries = 1;
+}
+
+// HistoryEntry is one event of a run, told for people (internal/history).
+message HistoryEntry {
+  google.protobuf.Timestamp time = 1;
+  // started, finished, stuck, step, reused, problem, retry, wait, run,
+  // data; engine for the engine's own bookkeeping.
+  string kind = 2;
+  // The step it is about, 0 and "" for the run itself.
+  int32 seq = 3;
+  string step = 4;
+  // The sentence, without the step's name.
+  string text = 5;
+  // More, when there is: an error message, arguments.
+  string detail = 6;
+  // A run it refers to: the one a step was reused from, a child.
+  string run_id = 7;
+  // The event it tells.
+  int64 event_seq = 8;
+  string event_type = 9;
+  string payload_json = 10;
+}
+
+message ListSchedulesRequest {}
+
+message ListSchedulesResponse {
+  repeated Schedule schedules = 1;
+  repeated Subscription subscriptions = 2;
+}
+
+message Subscription {
+  string pipeline = 1;
+  repeated string datasets = 2;
+  google.protobuf.Duration debounce = 3;
+  google.protobuf.Duration max_wait = 4;
+  int32 max_batch = 5;
+  string build_id = 6;
+  // Data versions waiting for the run to start.
+  int32 waiting = 7;
+}
+
+message Schedule {
+  string pipeline = 1;
+  string cron = 2;
+  string timezone = 3;
+  string interval = 4;
+  string catch_up = 5;
+  // The build whose code declared it.
+  string build_id = 6;
+  // Everything before this is handled (cron interval: the last tick).
+  google.protobuf.Timestamp cursor = 7;
+  // The next tick.
+  google.protobuf.Timestamp next_run = 8;
+  // The inputs of a run for the latest interval that came due (JSON):
+  // {"interval": {"$interval": {start, end}}}, to start one by hand.
+  string latest_params_json = 9;
+}
+
+message SignalRunRequest {
+  string run_id = 1;
+  // What the run waits for: ctx.wait_signal(name).
+  string name = 2;
+  // JSON; empty means null.
+  string payload_json = 3;
+}
+
+message SignalRunResponse {
+  string signal_id = 1;
+}
+
+message StartRunRequest {
+  string tenant = 1;
+  // The registered pipeline function.
+  string name = 2;
+  // Default: "default".
+  string queue = 3;
+  // A JSON object.
+  string params_json = 4;
+  // Default: "manual".
+  string trigger = 5;
+}
+
+message StartRunResponse {
+  string run_id = 1;
+}
+
+message GetRunRequest {
+  string run_id = 1;
+}
+
+message GetRunResponse {
+  Run run = 1;
+}
+
+message Run {
+  string id = 1;
+  string tenant = 2;
+  string name = 3;
+  // running, stuck, completed, failed, cancelled or continued
+  // (continue_as_new: continued_as carries on).
+  string status = 4;
+  string reason = 5;
+  string message = 6;
+  string params_json = 7;
+  string result_json = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp finished_at = 10;
+  repeated Step steps = 11;
+  // A child run: the run that started it.
+  string parent_id = 12;
+  // Status continued: the run that carries on.
+  string continued_as = 13;
+  // What started it: "schedule", "subscription", "run <id>" (a child),
+  // "continue <id>", or what the caller of StartRun said.
+  string trigger = 14;
+  // How many of its steps are where, so far.
+  StepCounts step_counts = 15;
+  // A run in progress with work queued that no worker took yet: why
+  // (GetRun and ListRuns, from the leader's memory).
+  Waiting waiting = 16;
+}
+
+// Waiting is a run's queued work and why no worker runs it yet.
+message Waiting {
+  // no_worker: no worker polls the queue; no_build: workers poll it, but
+  // none has code that defines the run or step; busy: those that do are
+  // all busy; queue_limit: the queue runs as many steps as it may;
+  // starting: a worker pool is starting a worker for it.
+  string reason = 1;
+  // The same, in plain words, with what to do about it.
+  string message = 2;
+  // run: the run's own replay waits; step: one of its steps.
+  string kind = 3;
+  // The run or step function, and the step's seq.
+  string name = 4;
+  int32 seq = 5;
+  string queue = 6;
+  // When it was queued.
+  google.protobuf.Timestamp since = 7;
+  // The workers that poll the queue for it, and their builds.
+  int32 workers = 8;
+  repeated string builds = 9;
+  // starting: the pool.
+  string pool = 10;
+}
+
+message StepCounts {
+  int32 total = 1;
+  int32 completed = 2;
+  // Of the completed: memoized, nothing ran.
+  int32 reused = 3;
+  int32 failed = 4;
+  int32 cancelled = 5;
+}
+
+message Step {
+  int32 seq = 1;
+  string name = 2;
+  // scheduled, waiting, dispatched, retry_wait, committing, completed,
+  // failed or cancelled.
+  string status = 3;
+  // Why it ran ("code changed (v1 → v2)", "not memoized", ...); empty if it
+  // was reused.
+  string run_reason = 4;
+  // Memoized: an earlier data version stood in, nothing ran.
+  bool reused = 5;
+  int32 attempts = 6;
+  // The data version it produced or reused, if any.
+  string data_version = 7;
+  // Why it failed or was cancelled.
+  string reason = 8;
+  string message = 9;
+  // When the run asked for it, and when it finished.
+  google.protobuf.Timestamp scheduled_at = 10;
+  google.protobuf.Timestamp finished_at = 11;
+  string result_json = 12;
+  // The steps of this run (by seq) whose data versions it reads: the run's DAG.
+  repeated int32 after = 13;
+  // The dataset its data version goes to, if it has an output.
+  string dataset = 14;
+  // Why it ran or was reused, in plain words ("its code changed (v1 →
+  // v2)"); empty when there is nothing to say.
+  string why = 15;
+}

@@ -27,9 +27,9 @@ import (
 // Versions is a build as the worker reports it (python -m moksha.worker
 // --versions): its ID, and the code version of each pipeline and step.
 type Versions struct {
-	Build string            `json:"build"`
-	Hauls map[string]codeOf `json:"hauls"`
-	Lifts map[string]codeOf `json:"lifts"`
+	Build     string            `json:"build"`
+	Pipelines map[string]codeOf `json:"pipelines"`
+	Steps     map[string]codeOf `json:"steps"`
 }
 
 type codeOf struct {
@@ -130,8 +130,8 @@ func Compare(v Versions, server *mokshav1.ListCodeResponse) Diff {
 			d.Newest = c
 		}
 	}
-	d.Steps = compare(v.Lifts, server.GetSteps(), true)
-	d.Pipelines = compare(v.Hauls, server.GetPipelines(), false)
+	d.Steps = compare(v.Steps, server.GetSteps(), true)
+	d.Pipelines = compare(v.Pipelines, server.GetPipelines(), false)
 	return d
 }
 
@@ -234,11 +234,11 @@ func Report(p *config.Project, src Source, d Diff) string {
 		if lo == hi {
 			count = fmt.Sprintf("%d workers", lo)
 		}
-		each := fmt.Sprintf("%d steps", pool.LiftCount())
-		if pool.LiftCount() == 1 {
+		each := fmt.Sprintf("%d steps", pool.StepCount())
+		if pool.StepCount() == 1 {
 			each = "1 step"
 		}
-		fmt.Fprintf(tw, "  %s\t%s, %s at once each, docks %s\n", pool.Name, count, each, strings.Join(pool.DockList(), ", "))
+		fmt.Fprintf(tw, "  %s\t%s, %s at once each, queues %s\n", pool.Name, count, each, strings.Join(pool.QueueList(), ", "))
 	}
 	tw.Flush()
 	return b.String()
@@ -333,8 +333,8 @@ func DeployRequest(p *config.Project, src Source, reg *mokshav1.RegisterBuildReq
 	}
 	for _, pool := range p.Pools {
 		lo, hi := pool.Bounds()
-		req.Pools = append(req.Pools, &mokshav1.DeployedPool{Name: pool.Name, Docks: pool.DockList(), Min: int32(lo), Max: int32(hi),
-			Lifts: int32(pool.LiftCount()), IdleAfter: durationpb.New(pool.Idle())})
+		req.Pools = append(req.Pools, &mokshav1.DeployedPool{Name: pool.Name, Queues: pool.QueueList(), Min: int32(lo), Max: int32(hi),
+			Steps: int32(pool.StepCount()), IdleAfter: durationpb.New(pool.Idle())})
 	}
 	return req, nil
 }

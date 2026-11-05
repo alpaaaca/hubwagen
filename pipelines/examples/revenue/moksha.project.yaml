@@ -16,4 +16,4 @@ pools:
   - name: default
     min: 0
     max: 3
-    lifts: 2
+    steps: 2

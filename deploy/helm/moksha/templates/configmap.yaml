@@ -36,8 +36,8 @@ data:
         deployment: {{ include "moksha.poolName" (dict "root" $ "pool" .) }}
         min: {{ .min | default 0 }}
         max: {{ required (printf "pools[%s].max is required" .name) .max }}
-        lifts: {{ .lifts | default 4 }}
-        docks: {{ .docks | default (list "default") | toJson }}
+        steps: {{ .steps | default 4 }}
+        queues: {{ .queues | default (list "default") | toJson }}
         idle_after: {{ .idleAfter | default "5m" }}
     {{- end }}
     {{- end }}

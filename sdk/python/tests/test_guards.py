@@ -1,5 +1,5 @@
-"""Runtime guards: haul code can't read the clock or randomness; libraries
-and lifts can. The cases follow spike S1's guards_check.py."""
+"""Runtime guards: pipeline code can't read the clock or randomness; libraries
+and steps can. The cases follow spike S1's guards_check.py."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ MISTAKES = {
 }
 
 FINE = {
-    "logging reads the clock": lambda: logging.getLogger("hw-test").warning("hello"),
+    "logging reads the clock": lambda: logging.getLogger("mk-test").warning("hello"),
     "email.utils.formatdate": lambda: email.utils.formatdate(),
     "a seeded Random": lambda: random.Random(1).random(),
     "date arithmetic": lambda: datetime.date(2026, 10, 24) + datetime.timedelta(days=1),
@@ -63,17 +63,17 @@ def test_libraries_and_deterministic_code_run(case):
     run_guarded(FINE[case])
 
 
-def test_outside_a_haul_nothing_is_guarded():
+def test_outside_a_run_nothing_is_guarded():
     time.time()
     random.random()
 
 
 def test_other_threads_are_not_guarded():
-    """Lifts run on other threads while a haul replays."""
+    """Steps run on other threads while a run replays."""
     started, done = threading.Event(), threading.Event()
     errors = []
 
-    def lift_thread():
+    def step_thread():
         started.wait()
         try:
             time.time()
@@ -82,7 +82,7 @@ def test_other_threads_are_not_guarded():
             errors.append(e)
         done.set()
 
-    threading.Thread(target=lift_thread).start()
+    threading.Thread(target=step_thread).start()
     with _guards.guarded():
         started.set()
         done.wait(5)
@@ -92,42 +92,42 @@ def test_other_threads_are_not_guarded():
 
 
 def test_the_error_names_the_line():
-    def haul_code():
+    def pipeline_code():
         x = 1
         return time.time() + x  # this line
 
     with pytest.raises(_guards.NondeterminismError) as e:
-        run_guarded(haul_code)
-    line = haul_code.__code__.co_firstlineno + 2
+        run_guarded(pipeline_code)
+    line = pipeline_code.__code__.co_firstlineno + 2
     assert f"test_guards.py:{line}" in str(e.value)
     assert "use ctx.now(), ctx.random() or a step" in str(e.value)
 
 
-@mk.lift(name="guard_add")
+@mk.step(name="guard_add")
 def guard_add(a: int) -> int:
     return a + 1
 
 
 def test_a_replay_that_reads_the_clock_is_nondeterministic():
-    @mk.haul(name="guard_clock")
+    @mk.pipeline(name="guard_clock")
     def clock(ctx):
         try:
             stamp = time.time()  # `except Exception` can't swallow the guard
         except Exception:  # noqa: BLE001
             stamp = 0
-        return ctx.lift(guard_add, int(stamp))
+        return ctx.step(guard_add, int(stamp))
 
-    r = _replay.replay(clock.__moksha_haul__, "h1", {}, [])
+    r = _replay.replay(clock.__moksha_pipeline__, "h1", {}, [])
     assert r.nondeterministic
     assert r.outcome is None
     assert "time.time() called at" in r.mismatch
 
 
 def test_ctx_now_and_random_are_fine():
-    @mk.haul(name="guard_ctx")
+    @mk.pipeline(name="guard_ctx")
     def ok(ctx):
         return [ctx.random(), str(ctx.now())]
 
-    r = _replay.replay(ok.__moksha_haul__, "h1", {}, [START])
+    r = _replay.replay(ok.__moksha_pipeline__, "h1", {}, [START])
     assert not r.nondeterministic
     assert r.outcome["status"] == "STATUS_COMPLETED"

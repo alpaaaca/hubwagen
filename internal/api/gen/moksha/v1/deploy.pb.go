@@ -141,13 +141,13 @@ func (x *DeployRequest) GetSecrets() map[string]string {
 }
 
 type DeployedPool struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Docks []string               `protobuf:"bytes,2,rep,name=docks,proto3" json:"docks,omitempty"`
-	Min   int32                  `protobuf:"varint,3,opt,name=min,proto3" json:"min,omitempty"`
-	Max   int32                  `protobuf:"varint,4,opt,name=max,proto3" json:"max,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Name   string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Queues []string               `protobuf:"bytes,2,rep,name=queues,proto3" json:"queues,omitempty"`
+	Min    int32                  `protobuf:"varint,3,opt,name=min,proto3" json:"min,omitempty"`
+	Max    int32                  `protobuf:"varint,4,opt,name=max,proto3" json:"max,omitempty"`
 	// Steps one worker runs at once.
-	Lifts         int32                `protobuf:"varint,5,opt,name=lifts,proto3" json:"lifts,omitempty"`
+	Steps         int32                `protobuf:"varint,5,opt,name=steps,proto3" json:"steps,omitempty"`
 	IdleAfter     *durationpb.Duration `protobuf:"bytes,6,opt,name=idle_after,json=idleAfter,proto3" json:"idle_after,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -190,9 +190,9 @@ func (x *DeployedPool) GetName() string {
 	return ""
 }
 
-func (x *DeployedPool) GetDocks() []string {
+func (x *DeployedPool) GetQueues() []string {
 	if x != nil {
-		return x.Docks
+		return x.Queues
 	}
 	return nil
 }
@@ -211,9 +211,9 @@ func (x *DeployedPool) GetMax() int32 {
 	return 0
 }
 
-func (x *DeployedPool) GetLifts() int32 {
+func (x *DeployedPool) GetSteps() int32 {
 	if x != nil {
-		return x.Lifts
+		return x.Steps
 	}
 	return 0
 }
@@ -609,13 +609,13 @@ const file_moksha_v1_deploy_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a:\n" +
 	"\fSecretsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xac\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xae\x01\n" +
 	"\fDeployedPool\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
-	"\x05docks\x18\x02 \x03(\tR\x05docks\x12\x10\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
+	"\x06queues\x18\x02 \x03(\tR\x06queues\x12\x10\n" +
 	"\x03min\x18\x03 \x01(\x05R\x03min\x12\x10\n" +
 	"\x03max\x18\x04 \x01(\x05R\x03max\x12\x14\n" +
-	"\x05lifts\x18\x05 \x01(\x05R\x05lifts\x128\n" +
+	"\x05steps\x18\x05 \x01(\x05R\x05steps\x128\n" +
 	"\n" +
 	"idle_after\x18\x06 \x01(\v2\x19.google.protobuf.DurationR\tidleAfter\"G\n" +
 	"\x0eDeployResponse\x125\n" +

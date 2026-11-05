@@ -17,8 +17,8 @@ kind: Project
 name: revenue
 build: {dockerfile: Dockerfile, image: ghcr.io/acme/revenue}
 pools:
-  - {name: default, min: 1, max: 6, lifts: 2}
-  - {name: gpu, docks: [gpu], max: 2, resources: {gpu: "1"}}
+  - {name: default, min: 1, max: 6, steps: 2}
+  - {name: gpu, queues: [gpu], max: 2, resources: {gpu: "1"}}
 env:
   DB_URL: {secret: revenue-db}
   LOG_LEVEL: info
@@ -28,9 +28,9 @@ env:
 	assert.Equal(t, filepath.Join(dir, "Dockerfile"), p.Build.Dockerfile)
 	assert.Equal(t, dir, p.Build.Context)
 	lo, hi := p.Pools[0].Bounds()
-	assert.Equal(t, []int{1, 6, 2}, []int{lo, hi, p.Pools[0].LiftCount()})
+	assert.Equal(t, []int{1, 6, 2}, []int{lo, hi, p.Pools[0].StepCount()})
 	lo, hi = p.Pools[1].Bounds()
-	assert.Equal(t, []int{0, 2, DefaultLifts}, []int{lo, hi, p.Pools[1].LiftCount()})
+	assert.Equal(t, []int{0, 2, DefaultSteps}, []int{lo, hi, p.Pools[1].StepCount()})
 	assert.Equal(t, ProjectEnv{Secret: "revenue-db"}, p.Env["DB_URL"])
 	assert.Equal(t, ProjectEnv{Value: "info"}, p.Env["LOG_LEVEL"])
 }
@@ -43,7 +43,7 @@ name: Revenue
 build: {dockerfile: Dockerfile, image: "ghcr.io/acme/revenue:1"}
 pools:
   - {name: a, min: 3, max: 2}
-  - {name: a, lifts: 0}
+  - {name: a, steps: 0}
 env:
   MOKSHA_SERVER: x
 `), t.TempDir())
@@ -54,7 +54,7 @@ env:
 		"build.image: \"ghcr.io/acme/revenue:1\": the repository only",
 		"pools[0]: min 3 is more than max 2",
 		`pools[1].name: "a" is used twice`,
-		"pools[1].lifts: must be 1 or more",
+		"pools[1].steps: must be 1 or more",
 		"env.MOKSHA_SERVER: names starting with MOKSHA_ are set by moksha",
 	} {
 		assert.Contains(t, err.Error(), want)

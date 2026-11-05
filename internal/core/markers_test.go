@@ -9,22 +9,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// replayWith completes the next haul task with cmds and markers.
-func (h *harness) replayWith(cmds []Command, markers []Marker, outcome *HaulOutcome) {
+// replayWith completes the next run task with cmds and markers.
+func (h *harness) replayWith(cmds []Command, markers []Marker, outcome *RunOutcome) {
 	h.t.Helper()
-	t := h.poll(TaskHaul)
-	require.NoError(h.t, h.core.CompleteHaulTask(h.ctx, HaulTaskResult{TaskID: t.ID, BuildID: "b", Commands: cmds, Markers: markers, Outcome: outcome}))
+	t := h.poll(TaskRun)
+	require.NoError(h.t, h.core.CompleteRunTask(h.ctx, RunTaskResult{TaskID: t.ID, BuildID: "b", Commands: cmds, Markers: markers, Outcome: outcome}))
 }
 
-// recordedMarkers reads the markers each HaulTaskCompleted recorded.
-func (h *harness) recordedMarkers(haulID string) [][]Marker {
+// recordedMarkers reads the markers each RunTaskCompleted recorded.
+func (h *harness) recordedMarkers(runID string) [][]Marker {
 	h.t.Helper()
-	evs, err := h.store.HaulEvents(h.ctx, haulID)
+	evs, err := h.store.RunEvents(h.ctx, runID)
 	require.NoError(h.t, err)
 	var out [][]Marker
 	for _, e := range evs {
-		if e.Type == state.EventHaulTaskCompleted {
-			var p haulTaskCompletedPayload
+		if e.Type == state.EventRunTaskCompleted {
+			var p runTaskCompletedPayload
 			require.NoError(h.t, json.Unmarshal(e.Payload, &p))
 			out = append(out, p.Markers)
 		}
@@ -34,31 +34,31 @@ func (h *harness) recordedMarkers(haulID string) [][]Marker {
 
 func TestMarkersAreRecordedOnce(t *testing.T) {
 	h := newHarness(t)
-	id := h.startHaul("x")
+	id := h.startRun("x")
 	gate := []Marker{{Name: "quality-gate", Version: 2}}
-	h.replayWith(seqs(lift("a")), gate, nil)
-	h.succeedLift(h.poll(TaskLift))
-	h.replayWith(seqs(lift("a"), lift("b")), append(gate, Marker{Name: "report", Version: 1}), nil)
+	h.replayWith(seqs(stepCmd("a")), gate, nil)
+	h.succeedStep(h.poll(TaskStep))
+	h.replayWith(seqs(stepCmd("a"), stepCmd("b")), append(gate, Marker{Name: "report", Version: 1}), nil)
 	assert.Equal(t, [][]Marker{gate, {{Name: "report", Version: 1}}}, h.recordedMarkers(id), "only new markers are recorded")
-	assert.Equal(t, state.HaulRunning, h.haul(id).Status)
+	assert.Equal(t, state.RunRunning, h.run(id).Status)
 }
 
-func TestAMarkerDecidedDifferentlyMakesTheHaulStuck(t *testing.T) {
+func TestAMarkerDecidedDifferentlyMakesTheRunStuck(t *testing.T) {
 	h := newHarness(t)
-	id := h.startHaul("x")
-	h.replayWith(seqs(lift("a")), []Marker{{Name: "quality-gate", Version: 1}}, nil)
-	h.succeedLift(h.poll(TaskLift))
+	id := h.startRun("x")
+	h.replayWith(seqs(stepCmd("a")), []Marker{{Name: "quality-gate", Version: 1}}, nil)
+	h.succeedStep(h.poll(TaskStep))
 
-	// After a restart, so the recorded marker comes from the logbook.
+	// After a restart, so the recorded marker comes from the event log.
 	h.restart()
-	h.replayWith(seqs(lift("a")), []Marker{{Name: "quality-gate", Version: 2}}, nil)
-	got := h.haul(id)
-	assert.Equal(t, state.HaulStuck, got.Status)
-	assert.Equal(t, `version marker "quality-gate": replay took version 2, the logbook has 1`, got.Message)
+	h.replayWith(seqs(stepCmd("a")), []Marker{{Name: "quality-gate", Version: 2}}, nil)
+	got := h.run(id)
+	assert.Equal(t, state.RunStuck, got.Status)
+	assert.Equal(t, `version marker "quality-gate": replay took version 2, the event log has 1`, got.Message)
 
-	require.NoError(t, h.core.ResumeHaul(h.ctx, id))
-	h.replayWith(seqs(lift("a")), []Marker{{Name: "quality-gate", Version: 1}}, &HaulOutcome{Status: state.HaulCompleted})
-	assert.Equal(t, state.HaulCompleted, h.haul(id).Status)
+	require.NoError(t, h.core.ResumeRun(h.ctx, id))
+	h.replayWith(seqs(stepCmd("a")), []Marker{{Name: "quality-gate", Version: 1}}, &RunOutcome{Status: state.RunCompleted})
+	assert.Equal(t, state.RunCompleted, h.run(id).Status)
 }
 
 func TestMarkerValidation(t *testing.T) {
@@ -67,7 +67,7 @@ func TestMarkerValidation(t *testing.T) {
 		"must not be negative": {{Name: "x", Version: -1}},
 		`"x" decided twice`:    {{Name: "x", Version: 1}, {Name: "x", Version: 2}},
 	} {
-		assert.ErrorContains(t, validateHaulTaskResult(HaulTaskResult{Markers: markers}), want)
+		assert.ErrorContains(t, validateRunTaskResult(RunTaskResult{Markers: markers}), want)
 	}
-	assert.NoError(t, validateHaulTaskResult(HaulTaskResult{Markers: []Marker{{Name: "x", Version: 1}, {Name: "x", Version: 1}}}))
+	assert.NoError(t, validateRunTaskResult(RunTaskResult{Markers: []Marker{{Name: "x", Version: 1}, {Name: "x", Version: 1}}}))
 }

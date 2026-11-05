@@ -26,8 +26,8 @@ import (
 	"github.com/alper/moksha/internal/blob"
 	"github.com/alper/moksha/internal/clock"
 	"github.com/alper/moksha/internal/core"
+	"github.com/alper/moksha/internal/dataversion"
 	"github.com/alper/moksha/internal/layout"
-	"github.com/alper/moksha/internal/pallet"
 	"github.com/alper/moksha/internal/runlog"
 	"github.com/alper/moksha/internal/state"
 )
@@ -41,7 +41,7 @@ type server struct {
 	url    string
 	client mokshav1connect.WorkerServiceClient
 	logs   mokshav1connect.LogServiceClient
-	// viaURLs: work moves lift data with GetUploadURLs and GetDownloadURLs,
+	// viaURLs: work moves step data with GetUploadURLs and GetDownloadURLs,
 	// like a worker on another machine.
 	viaURLs bool
 }
@@ -65,7 +65,7 @@ func startWith(t *testing.T, b blob.Bucket, serve bool) *server {
 	term, err := st.StartTerm(ctx, 0)
 	require.NoError(t, err)
 	lay := layout.New(b.Base())
-	c := core.New(core.Config{Store: st, Term: term, Clock: clock.Real{}, Layout: lay, Pallets: pallet.NewStore(b, lay)})
+	c := core.New(core.Config{Store: st, Term: term, Clock: clock.Real{}, Layout: lay, DataVersions: dataversion.NewStore(b, lay)})
 	runCtx, cancel := context.WithCancel(ctx)
 	done := make(chan error, 1)
 	go func() { done <- c.Run(runCtx) }()
@@ -74,7 +74,7 @@ func startWith(t *testing.T, b blob.Bucket, serve bool) *server {
 	logs, err := runlog.Open(filepath.Join(dir, "logs"))
 	require.NoError(t, err)
 	mux := http.NewServeMux()
-	data := NewData(b, "bucket-id", pallet.NewStore(b, lay), serve, slog.Default())
+	data := NewData(b, "bucket-id", dataversion.NewStore(b, lay), serve, slog.Default())
 	path, h := NewWorkerHandler(c, 2*time.Second, data)
 	mux.Handle(path, h)
 	mux.Handle(DataPath, data.Handler())
@@ -92,57 +92,57 @@ func startWith(t *testing.T, b blob.Bucket, serve bool) *server {
 		logs:   mokshav1connect.NewLogServiceClient(srv.Client(), srv.URL)}
 }
 
-// The test worker's haul: extract (memoized, writes raw), then build
-// (memoized, reads extract's pallet, writes mart).
-func (s *server) replay(logbook []*mokshav1.Event) ([]*mokshav1.Command, *mokshav1.HaulOutcome) {
-	pallets := map[int32]string{}
-	for _, e := range logbook {
-		if e.Type == string(state.EventLiftFinished) {
+// The test worker's run: extract (memoized, writes raw), then build
+// (memoized, reads extract's data version, writes mart).
+func (s *server) replay(eventLog []*mokshav1.Event) ([]*mokshav1.Command, *mokshav1.RunOutcome) {
+	dataVersions := map[int32]string{}
+	for _, e := range eventLog {
+		if e.Type == string(state.EventStepFinished) {
 			var p struct {
-				Seq    int32  `json:"seq"`
-				Pallet string `json:"pallet"`
+				Seq         int32  `json:"seq"`
+				DataVersion string `json:"data_version"`
 			}
 			if err := json.Unmarshal([]byte(e.PayloadJson), &p); err != nil {
 				panic(err)
 			}
-			pallets[p.Seq] = p.Pallet
+			dataVersions[p.Seq] = p.DataVersion
 		}
 	}
-	extract := &mokshav1.Command{Seq: 1, Source: "app.py:3", Kind: &mokshav1.Command_Lift{Lift: &mokshav1.LiftCommand{
+	extract := &mokshav1.Command{Seq: 1, Source: "app.py:3", Kind: &mokshav1.Command_Step{Step: &mokshav1.StepCommand{
 		Name: "extract", ArgsJson: `{"day":"2026-10-24"}`, Memo: "fingerprint",
 		Output: &mokshav1.Output{Dataset: "raw.orders"}, Timeout: durationpb.New(time.Minute)}}}
 	cmds := []*mokshav1.Command{extract}
-	if pallets[1] == "" {
+	if dataVersions[1] == "" {
 		return cmds, nil
 	}
-	cmds = append(cmds, &mokshav1.Command{Seq: 2, Source: "app.py:4", Kind: &mokshav1.Command_Lift{Lift: &mokshav1.LiftCommand{
+	cmds = append(cmds, &mokshav1.Command{Seq: 2, Source: "app.py:4", Kind: &mokshav1.Command_Step{Step: &mokshav1.StepCommand{
 		Name: "build", Memo: "fingerprint", Output: &mokshav1.Output{Dataset: "mart.revenue"},
-		Inputs: []*mokshav1.InputRef{{Name: "orders", Pallet: pallets[1]}}}}})
-	if pallets[2] == "" {
+		Inputs: []*mokshav1.InputRef{{Name: "orders", DataVersion: dataVersions[1]}}}}})
+	if dataVersions[2] == "" {
 		return cmds, nil
 	}
-	return cmds, &mokshav1.HaulOutcome{Status: mokshav1.HaulOutcome_STATUS_COMPLETED, ResultJson: `{"pallet":"` + pallets[2] + `"}`}
+	return cmds, &mokshav1.RunOutcome{Status: mokshav1.RunOutcome_STATUS_COMPLETED, ResultJson: `{"data_version":"` + dataVersions[2] + `"}`}
 }
 
-// work runs haul tasks and lifts over the API until the haul ends, and
-// returns the lifts it ran.
-func (s *server) work(t *testing.T, haulID string) []string {
+// work executes run tasks and steps over the API until the run ends, and
+// returns the steps it ran.
+func (s *server) work(t *testing.T, runID string) []string {
 	t.Helper()
 	var ran []string
 	deadline := time.Now().Add(10 * time.Second)
 	for time.Now().Before(deadline) {
-		hr, err := s.client.PollHaulTask(ctx, connect.NewRequest(&mokshav1.PollHaulTaskRequest{
-			WorkerId: "w1", Docks: []string{core.DefaultDock}, Wait: durationpb.New(50 * time.Millisecond)}))
+		hr, err := s.client.PollRunTask(ctx, connect.NewRequest(&mokshav1.PollRunTaskRequest{
+			WorkerId: "w1", Queues: []string{core.DefaultQueue}, Wait: durationpb.New(50 * time.Millisecond)}))
 		require.NoError(t, err)
 		if task := hr.Msg.Task; task != nil {
 			assert.JSONEq(t, `{"day":"2026-10-24"}`, task.ParamsJson)
-			cmds, outcome := s.replay(task.Logbook)
-			_, err := s.client.CompleteHaulTask(ctx, connect.NewRequest(&mokshav1.CompleteHaulTaskRequest{
+			cmds, outcome := s.replay(task.EventLog)
+			_, err := s.client.CompleteRunTask(ctx, connect.NewRequest(&mokshav1.CompleteRunTaskRequest{
 				TaskId: task.Id, BuildId: "b1", Commands: cmds, Outcome: outcome}))
 			require.NoError(t, err)
 		}
-		lr, err := s.client.PollLiftTask(ctx, connect.NewRequest(&mokshav1.PollLiftTaskRequest{
-			WorkerId: "w1", Docks: []string{core.DefaultDock}, Wait: durationpb.New(50 * time.Millisecond)}))
+		lr, err := s.client.PollStepTask(ctx, connect.NewRequest(&mokshav1.PollStepTaskRequest{
+			WorkerId: "w1", Queues: []string{core.DefaultQueue}, Wait: durationpb.New(50 * time.Millisecond)}))
 		require.NoError(t, err)
 		if task := lr.Msg.Task; task != nil {
 			ran = append(ran, task.Name)
@@ -163,90 +163,90 @@ func (s *server) work(t *testing.T, haulID string) []string {
 			} else {
 				require.NoError(t, s.bucket.Put(ctx, task.Staging+"part-0.csv", content))
 			}
-			_, err = s.client.CompleteLiftTask(ctx, connect.NewRequest(&mokshav1.CompleteLiftTaskRequest{
-				AttemptId: task.Id, Status: mokshav1.CompleteLiftTaskRequest_STATUS_SUCCEEDED,
+			_, err = s.client.CompleteStepTask(ctx, connect.NewRequest(&mokshav1.CompleteStepTaskRequest{
+				AttemptId: task.Id, Status: mokshav1.CompleteStepTaskRequest_STATUS_SUCCEEDED,
 				ResultJson: `{"rows":1}`,
-				Output: &mokshav1.LiftOutput{
+				Output: &mokshav1.StepOutput{
 					Files:     []*mokshav1.File{{Path: "part-0.csv", Size: int64(len(content)), Sha256: hex.EncodeToString(sum[:])}},
 					StatsJson: `{"rows":1}`, MetaJson: `{"max_ts":"2026-10-24T23:00:00Z"}`,
 				}}))
 			require.NoError(t, err)
 		}
-		h, err := s.store.GetHaul(ctx, haulID)
+		h, err := s.store.GetRun(ctx, runID)
 		require.NoError(t, err)
-		if !state.HaulOpen(h.Status) {
+		if !state.RunOpen(h.Status) {
 			return ran
 		}
 	}
-	t.Fatalf("haul %s didn't finish", haulID)
+	t.Fatalf("run %s didn't finish", runID)
 	return nil
 }
 
-func TestHaulRunsEndToEndOverTheAPI(t *testing.T) {
+func TestRunRunsEndToEndOverTheAPI(t *testing.T) {
 	s := start(t)
 	_, err := s.client.RegisterBuild(ctx, connect.NewRequest(&mokshav1.RegisterBuildRequest{
-		BuildId: "b1", Hauls: []string{"daily_revenue"}, LiftVersions: map[string]string{"extract": "v1", "build": "v1"}}))
+		BuildId: "b1", Pipelines: []string{"daily_revenue"}, StepVersions: map[string]string{"extract": "v1", "build": "v1"}}))
 	require.NoError(t, err)
 
 	start := func() string {
-		res, err := s.core.StartHaul(ctx, core.StartHaulRequest{Tenant: "t", Name: "daily_revenue", Params: map[string]any{"day": "2026-10-24"}})
+		res, err := s.core.StartRun(ctx, core.StartRunRequest{Tenant: "t", Name: "daily_revenue", Params: map[string]any{"day": "2026-10-24"}})
 		require.NoError(t, err)
-		return res.HaulID
+		return res.RunID
 	}
 	first := start()
 	assert.Equal(t, []string{"extract", "build"}, s.work(t, first))
-	h, err := s.store.GetHaul(ctx, first)
+	h, err := s.store.GetRun(ctx, first)
 	require.NoError(t, err)
-	assert.Equal(t, state.HaulCompleted, h.Status)
+	assert.Equal(t, state.RunCompleted, h.Status)
 
-	// What the lifts printed and logged, by lift.
-	got, err := s.logs.GetLogs(ctx, connect.NewRequest(&mokshav1.GetLogsRequest{HaulId: first}))
+	// What the steps printed and logged, by step.
+	got, err := s.logs.GetLogs(ctx, connect.NewRequest(&mokshav1.GetLogsRequest{RunId: first}))
 	require.NoError(t, err)
 	var lines []string
 	for _, l := range got.Msg.Lines {
-		lines = append(lines, fmt.Sprintf("%d %s #%d %s %s %s", l.Seq, l.Lift, l.Attempt, l.Line.Stream, l.Line.Level, l.Line.Text))
+		lines = append(lines, fmt.Sprintf("%d %s #%d %s %s %s", l.Seq, l.Step, l.Attempt, l.Line.Stream, l.Line.Level, l.Line.Text))
 	}
 	assert.Equal(t, []string{"1 extract #1 stdout  extract starts", "1 extract #1 log INFO extract done",
 		"2 build #1 stdout  build starts", "2 build #1 log INFO build done"}, lines)
-	one, err := s.logs.GetLogs(ctx, connect.NewRequest(&mokshav1.GetLogsRequest{HaulId: first, Seq: 2, Limit: 1}))
+	one, err := s.logs.GetLogs(ctx, connect.NewRequest(&mokshav1.GetLogsRequest{RunId: first, Seq: 2, Limit: 1}))
 	require.NoError(t, err)
 	require.Len(t, one.Msg.Lines, 1)
 	assert.Equal(t, "build done", one.Msg.Lines[0].Line.Text)
 	assert.Equal(t, int32(1), one.Msg.Skipped)
 	_, err = s.logs.AppendLogs(ctx, connect.NewRequest(&mokshav1.AppendLogsRequest{AttemptId: "nope"}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
-	_, err = s.logs.GetLogs(ctx, connect.NewRequest(&mokshav1.GetLogsRequest{HaulId: "nope"}))
+	_, err = s.logs.GetLogs(ctx, connect.NewRequest(&mokshav1.GetLogsRequest{RunId: "nope"}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 
-	mart, err := s.store.LatestPallet(ctx, "t", "mart.revenue", "")
+	mart, err := s.store.LatestDataVersion(ctx, "t", "mart.revenue", "")
 	require.NoError(t, err)
-	assert.JSONEq(t, `{"pallet":"`+mart.ID+`"}`, string(h.Result))
+	assert.JSONEq(t, `{"data_version":"`+mart.ID+`"}`, string(h.Result))
 	up, err := s.store.Upstream(ctx, mart.ID)
 	require.NoError(t, err)
-	assert.Len(t, up.Pallets, 2, "mart was built from raw.orders")
+	assert.Len(t, up.DataVersions, 2, "mart was built from raw.orders")
 
-	// The same haul again: both lifts are reused, nothing runs.
+	// The same run again: both steps are reused, nothing runs.
 	second := start()
 	assert.Empty(t, s.work(t, second))
-	h, err = s.store.GetHaul(ctx, second)
+	h, err = s.store.GetRun(ctx, second)
 	require.NoError(t, err)
-	assert.Equal(t, state.HaulCompleted, h.Status)
-	assert.JSONEq(t, `{"pallet":"`+mart.ID+`"}`, string(h.Result))
+	assert.Equal(t, state.RunCompleted, h.Status)
+	assert.JSONEq(t, `{"data_version":"`+mart.ID+`"}`, string(h.Result))
 }
 
 func TestPollWaitsAndReturnsNothing(t *testing.T) {
 	s := start(t)
 	began := time.Now()
-	res, err := s.client.PollLiftTask(ctx, connect.NewRequest(&mokshav1.PollLiftTaskRequest{
-		WorkerId: "w1", Docks: []string{"default"}, Wait: durationpb.New(300 * time.Millisecond)}))
+	res, err := s.client.PollStepTask(ctx, connect.NewRequest(&mokshav1.PollStepTaskRequest{
+		WorkerId: "w1", Queues: []string{"default"}, Wait: durationpb.New(300 * time.Millisecond)}))
 	require.NoError(t, err)
 	assert.Nil(t, res.Msg.Task)
 	assert.GreaterOrEqual(t, time.Since(began), 300*time.Millisecond)
 
 	// The server caps the wait (2s in these tests).
 	began = time.Now()
-	_, err = s.client.PollHaulTask(ctx, connect.NewRequest(&mokshav1.PollHaulTaskRequest{
-		WorkerId: "w1", Docks: []string{"default"}, Wait: durationpb.New(time.Hour)}))
+	_, err = s.client.PollRunTask(ctx, connect.NewRequest(&mokshav1.PollRunTaskRequest{
+		WorkerId: "w1", Queues: []string{"default"}, Wait: durationpb.New(time.Hour)}))
 	require.NoError(t, err)
 	assert.Less(t, time.Since(began), 5*time.Second)
 }
@@ -262,7 +262,7 @@ func TestPlainHTTPJSON(t *testing.T) {
 		return resp.StatusCode, string(b)
 	}
 
-	code, body := post("RegisterBuild", `{"buildId":"b1","liftVersions":{"extract":"v1"}}`)
+	code, body := post("RegisterBuild", `{"buildId":"b1","stepVersions":{"extract":"v1"}}`)
 	assert.Equal(t, http.StatusOK, code)
 	assert.JSONEq(t, `{}`, body)
 
@@ -270,33 +270,33 @@ func TestPlainHTTPJSON(t *testing.T) {
 	assert.Equal(t, http.StatusOK, code)
 	assert.JSONEq(t, `{"stop":["nope"]}`, body)
 
-	code, body = post("PollLiftTask", `{"workerId":"w1","docks":["default"],"wait":"0.1s"}`)
+	code, body = post("PollStepTask", `{"workerId":"w1","queues":["default"],"wait":"0.1s"}`)
 	assert.Equal(t, http.StatusOK, code)
 	assert.JSONEq(t, `{}`, body)
 
-	code, body = post("RegisterBuild", `{"buildId":"b1","liftVersions":{"extract":"v2"}}`)
+	code, body = post("RegisterBuild", `{"buildId":"b1","stepVersions":{"extract":"v2"}}`)
 	assert.Equal(t, http.StatusBadRequest, code)
 	assert.Contains(t, body, `"code":"invalid_argument"`)
 }
 
 func TestErrorsMapToConnectCodes(t *testing.T) {
 	s := start(t)
-	_, err := s.client.CompleteLiftTask(ctx, connect.NewRequest(&mokshav1.CompleteLiftTaskRequest{
-		AttemptId: "nope", Status: mokshav1.CompleteLiftTaskRequest_STATUS_SUCCEEDED}))
+	_, err := s.client.CompleteStepTask(ctx, connect.NewRequest(&mokshav1.CompleteStepTaskRequest{
+		AttemptId: "nope", Status: mokshav1.CompleteStepTaskRequest_STATUS_SUCCEEDED}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 
-	_, err = s.client.CompleteLiftTask(ctx, connect.NewRequest(&mokshav1.CompleteLiftTaskRequest{AttemptId: "nope"}))
+	_, err = s.client.CompleteStepTask(ctx, connect.NewRequest(&mokshav1.CompleteStepTaskRequest{AttemptId: "nope"}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "status unset")
 
-	_, err = s.client.CompleteLiftTask(ctx, connect.NewRequest(&mokshav1.CompleteLiftTaskRequest{
-		AttemptId: "nope", Status: mokshav1.CompleteLiftTaskRequest_STATUS_SUCCEEDED, ResultJson: "{not json"}))
+	_, err = s.client.CompleteStepTask(ctx, connect.NewRequest(&mokshav1.CompleteStepTaskRequest{
+		AttemptId: "nope", Status: mokshav1.CompleteStepTaskRequest_STATUS_SUCCEEDED, ResultJson: "{not json"}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 
-	_, err = s.client.CompleteHaulTask(ctx, connect.NewRequest(&mokshav1.CompleteHaulTaskRequest{
+	_, err = s.client.CompleteRunTask(ctx, connect.NewRequest(&mokshav1.CompleteRunTaskRequest{
 		TaskId: "t", Commands: []*mokshav1.Command{{Seq: 1}}}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "a command without a kind")
 
-	_, err = s.client.PollHaulTask(ctx, connect.NewRequest(&mokshav1.PollHaulTaskRequest{Docks: []string{"default"}}))
+	_, err = s.client.PollRunTask(ctx, connect.NewRequest(&mokshav1.PollRunTaskRequest{Queues: []string{"default"}}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "no worker ID")
 }
 
@@ -309,36 +309,36 @@ func httptestServer(t *testing.T, h http.Handler) string {
 
 func TestSignalWaitOverTheAPI(t *testing.T) {
 	s := start(t)
-	require.NoError(t, s.core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Hauls: []string{"gate"}}))
-	res, err := s.core.StartHaul(ctx, core.StartHaulRequest{Tenant: "t", Name: "gate"})
+	require.NoError(t, s.core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Pipelines: []string{"gate"}}))
+	res, err := s.core.StartRun(ctx, core.StartRunRequest{Tenant: "t", Name: "gate"})
 	require.NoError(t, err)
-	poll := func() *mokshav1.HaulTask {
-		hr, err := s.client.PollHaulTask(ctx, connect.NewRequest(&mokshav1.PollHaulTaskRequest{
-			WorkerId: "w1", Docks: []string{core.DefaultDock}, Wait: durationpb.New(time.Second)}))
+	poll := func() *mokshav1.RunTask {
+		hr, err := s.client.PollRunTask(ctx, connect.NewRequest(&mokshav1.PollRunTaskRequest{
+			WorkerId: "w1", Queues: []string{core.DefaultQueue}, Wait: durationpb.New(time.Second)}))
 		require.NoError(t, err)
 		require.NotNil(t, hr.Msg.Task)
 		return hr.Msg.Task
 	}
 	wait := []*mokshav1.Command{{Seq: 1, Kind: &mokshav1.Command_WaitSignal{WaitSignal: &mokshav1.WaitSignalCommand{
 		Name: "approve", Timeout: durationpb.New(time.Hour)}}}}
-	_, err = s.client.CompleteHaulTask(ctx, connect.NewRequest(&mokshav1.CompleteHaulTaskRequest{
+	_, err = s.client.CompleteRunTask(ctx, connect.NewRequest(&mokshav1.CompleteRunTaskRequest{
 		TaskId: poll().Id, BuildId: "b1", Commands: wait}))
 	require.NoError(t, err)
 
-	_, err = s.core.SignalHaul(ctx, core.SignalRequest{HaulID: res.HaulID, Name: "approve", Payload: json.RawMessage(`{"ok":true}`)})
+	_, err = s.core.SignalRun(ctx, core.SignalRequest{RunID: res.RunID, Name: "approve", Payload: json.RawMessage(`{"ok":true}`)})
 	require.NoError(t, err)
 	var got *mokshav1.Event
-	for _, e := range poll().Logbook {
+	for _, e := range poll().EventLog {
 		if e.Type == string(state.EventSignalDelivered) {
 			got = e
 		}
 	}
 	require.NotNil(t, got, "the replay gets the delivery")
-	assert.JSONEq(t, `{"seq":1,"name":"approve","signal":"`+signalID(t, s, res.HaulID)+`","payload":{"ok":true}}`, got.PayloadJson)
+	assert.JSONEq(t, `{"seq":1,"name":"approve","signal":"`+signalID(t, s, res.RunID)+`","payload":{"ok":true}}`, got.PayloadJson)
 }
 
-func signalID(t *testing.T, s *server, haulID string) string {
-	evs, err := s.store.HaulEvents(ctx, haulID)
+func signalID(t *testing.T, s *server, runID string) string {
+	evs, err := s.store.RunEvents(ctx, runID)
 	require.NoError(t, err)
 	for _, e := range evs {
 		if e.Type == state.EventSignalReceived {

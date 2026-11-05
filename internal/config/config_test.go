@@ -23,7 +23,7 @@ server:
   listen: 0.0.0.0:7171
 workers:
   - name: py
-    command: [python3, -m, moksha.worker, app.hauls]
+    command: [python3, -m, moksha.worker, app.pipelines]
     replicas: 3
     dir: app
     env: {PYTHONPATH: src}
@@ -188,8 +188,8 @@ workers:
     command: [w]
     min: 0
     max: 3
-    docks: [gpu, default]
-    lifts: 1
+    queues: [gpu, default]
+    steps: 1
     idle_after: 90s
   - name: atleast
     command: [w]
@@ -205,10 +205,10 @@ workers:
 	assert.Equal(t, bounds{0, 3, true}, b(1))
 	assert.Equal(t, bounds{2, 2, false}, b(2), "max defaults to min")
 	assert.Equal(t, 3, c.Workers[1].Count(), "moksha workers runs max")
-	assert.Equal(t, []string{"gpu", "default"}, c.Workers[1].DockList())
-	assert.Equal(t, []string{"default"}, c.Workers[0].DockList())
-	assert.Equal(t, 1, c.Workers[1].LiftCount())
-	assert.Equal(t, DefaultLifts, c.Workers[0].LiftCount())
+	assert.Equal(t, []string{"gpu", "default"}, c.Workers[1].QueueList())
+	assert.Equal(t, []string{"default"}, c.Workers[0].QueueList())
+	assert.Equal(t, 1, c.Workers[1].StepCount())
+	assert.Equal(t, DefaultSteps, c.Workers[0].StepCount())
 	assert.Equal(t, 90*time.Second, c.Workers[1].Idle())
 	assert.Equal(t, DefaultIdleAfter, c.Workers[0].Idle())
 
@@ -218,16 +218,16 @@ kind: Config
 workers:
   - {name: a, command: [w], replicas: 1, max: 2}
   - {name: b, command: [w], min: 3, max: 2}
-  - {name: c, command: [w], lifts: 0, docks: [""]}
-  - {name: d, command: [w], env: {MOKSHA_DOCKS: x}}
+  - {name: c, command: [w], steps: 0, queues: [""]}
+  - {name: d, command: [w], env: {MOKSHA_QUEUES: x}}
 `), dir)
 	require.Error(t, err)
 	for _, want := range []string{
 		"workers[0]: give replicas (a fixed count) or min and max, not both",
 		"workers[1]: min 3 is more than max 2",
-		"workers[2].lifts: must be 1 or more",
-		"workers[2].docks[0]: empty",
-		"workers[3].env.MOKSHA_DOCKS: set by moksha",
+		"workers[2].steps: must be 1 or more",
+		"workers[2].queues[0]: empty",
+		"workers[3].env.MOKSHA_QUEUES: set by moksha",
 	} {
 		assert.Contains(t, err.Error(), want)
 	}
@@ -237,7 +237,7 @@ workers:
 }
 
 func TestExternalPools(t *testing.T) {
-	c, err := Parse([]byte("apiVersion: moksha.dev/v1alpha1\nkind: Config\nworkers:\n  - {name: k8s, launcher: external, min: 0, max: 5, docks: [gpu]}\n"), t.TempDir())
+	c, err := Parse([]byte("apiVersion: moksha.dev/v1alpha1\nkind: Config\nworkers:\n  - {name: k8s, launcher: external, min: 0, max: 5, queues: [gpu]}\n"), t.TempDir())
 	require.NoError(t, err)
 	assert.True(t, c.Workers[0].External())
 	assert.True(t, c.Workers[0].Scaled())

@@ -11,21 +11,21 @@ import (
 	"github.com/alper/moksha/internal/state"
 )
 
-// Schedules. A build declares schedules for the hauls it defines; the newest
-// build that defines a haul decides its schedule (or, declaring none,
+// Schedules. A build declares schedules for the pipelines it defines; the newest
+// build that defines a pipeline decides its schedule (or, declaring none,
 // removes it). The leader keeps a cursor per schedule (internal/schedule:
 // the end of the last interval handled, or the last tick for interval
-// "cron") and a timer for the next tick. When a tick comes, it starts a haul
+// "cron") and a timer for the next tick. When a tick comes, it starts a run
 // per due interval with the param {"interval": {"$interval": {start, end}}}
 // and moves the cursor, in the same batch.
 //
 // After downtime (no leader, or a long one), catch_up decides what happens
 // to the intervals that came due meanwhile: all starts every one, oldest
 // first; latest (default) starts the newest only; skip starts none of them.
-// Scheduled hauls start in ScheduleTenant, on the default dock. Runs of one
+// Scheduled runs start in ScheduleTenant, on the default queue. Runs of one
 // schedule may overlap.
 
-// ScheduleTenant is the tenant scheduled hauls start in.
+// ScheduleTenant is the tenant scheduled runs start in.
 const ScheduleTenant = "default"
 
 // Catch-up policies.
@@ -35,16 +35,16 @@ const (
 	CatchUpAll    = "all"
 )
 
-// maxFiresPerRound bounds the hauls one evaluation starts (catch_up: all);
+// maxFiresPerRound bounds the runs one evaluation starts (catch_up: all);
 // the next round follows at once.
 const maxFiresPerRound = 100
 
 // skipGrace: with catch_up skip, a tick this late still counts as on time.
 const skipGrace = time.Minute
 
-// ScheduleSpec is a schedule a build declares for one of its hauls.
+// ScheduleSpec is a schedule a build declares for one of its runs.
 type ScheduleSpec struct {
-	Haul     string
+	Pipeline string
 	Cron     string
 	Timezone string // IANA; "" is UTC
 	Interval string // hourly|daily|weekly|monthly|cron; "" is cron
@@ -77,26 +77,26 @@ type scheduleState struct {
 }
 
 func (s *scheduleState) spec() ScheduleSpec {
-	return ScheduleSpec{Haul: s.rec.Haul, Cron: s.rec.Cron, Timezone: s.rec.Timezone, Interval: s.rec.Interval, CatchUp: s.rec.CatchUp}
+	return ScheduleSpec{Pipeline: s.rec.Pipeline, Cron: s.rec.Cron, Timezone: s.rec.Timezone, Interval: s.rec.Interval, CatchUp: s.rec.CatchUp}
 }
 
-// validateSchedules checks a build's schedules: each for a haul it defines,
-// one per haul, and well-formed. It reports every problem at once.
-func validateSchedules(hauls []string, specs []ScheduleSpec) ([]ScheduleSpec, error) {
+// validateSchedules checks a build's schedules: each for a pipeline it defines,
+// one per run, and well-formed. It reports every problem at once.
+func validateSchedules(runs []string, specs []ScheduleSpec) ([]ScheduleSpec, error) {
 	var problems []string
 	seen := map[string]bool{}
 	out := make([]ScheduleSpec, 0, len(specs))
 	for i, s := range specs {
 		s = s.normalized()
 		switch {
-		case !slices.Contains(hauls, s.Haul):
-			problems = append(problems, fmt.Sprintf("schedules[%d]: haul %q isn't one of the build's hauls", i, s.Haul))
-		case seen[s.Haul]:
-			problems = append(problems, fmt.Sprintf("schedules[%d]: haul %q has two schedules", i, s.Haul))
+		case !slices.Contains(runs, s.Pipeline):
+			problems = append(problems, fmt.Sprintf("schedules[%d]: pipeline %q isn't one of the build's pipelines", i, s.Pipeline))
+		case seen[s.Pipeline]:
+			problems = append(problems, fmt.Sprintf("schedules[%d]: pipeline %q has two schedules", i, s.Pipeline))
 		}
-		seen[s.Haul] = true
+		seen[s.Pipeline] = true
 		if _, err := s.calendar(); err != nil {
-			problems = append(problems, fmt.Sprintf("schedules[%d] (%s): %v", i, s.Haul, err))
+			problems = append(problems, fmt.Sprintf("schedules[%d] (%s): %v", i, s.Pipeline, err))
 		}
 		out = append(out, s)
 	}
@@ -107,25 +107,25 @@ func validateSchedules(hauls []string, specs []ScheduleSpec) ([]ScheduleSpec, er
 }
 
 // applySchedules makes a newly registered build's schedules the current ones
-// for the hauls it defines.
-func (c *Core) applySchedules(build string, hauls []string, specs []ScheduleSpec) {
-	byHaul := map[string]ScheduleSpec{}
+// for the pipelines it defines.
+func (c *Core) applySchedules(build string, runs []string, specs []ScheduleSpec) {
+	byRun := map[string]ScheduleSpec{}
 	for _, s := range specs {
-		byHaul[s.Haul] = s
+		byRun[s.Pipeline] = s
 	}
-	sorted := slices.Sorted(slices.Values(hauls))
-	for _, haul := range sorted {
-		cur := c.schedules[haul]
-		spec, ok := byHaul[haul]
+	sorted := slices.Sorted(slices.Values(runs))
+	for _, run := range sorted {
+		cur := c.schedules[run]
+		spec, ok := byRun[run]
 		switch {
 		case ok && cur != nil && cur.spec() == spec:
 		case ok:
 			c.setSchedule(build, spec, cur)
 		case cur != nil:
 			cur.timer.stop()
-			delete(c.schedules, haul)
-			c.b.catalog = append(c.b.catalog, func(tx *state.Tx) error { return tx.DeleteSchedule(ScheduleTenant, haul) })
-			c.emit(state.EventScheduleRemoved, ScheduleTenant, scheduleRemovedPayload{Haul: haul, Build: build})
+			delete(c.schedules, run)
+			c.b.catalog = append(c.b.catalog, func(tx *state.Tx) error { return tx.DeleteSchedule(ScheduleTenant, run) })
+			c.emit(state.EventScheduleRemoved, ScheduleTenant, scheduleRemovedPayload{Pipeline: run, Build: build})
 		}
 	}
 }
@@ -134,7 +134,7 @@ func (c *Core) setSchedule(build string, spec ScheduleSpec, cur *scheduleState) 
 	cal, _ := spec.calendar() // validated
 	now := c.now()
 	s := &scheduleState{cal: cal, rec: state.Schedule{
-		Tenant: ScheduleTenant, Haul: spec.Haul, Cron: spec.Cron, Timezone: spec.Timezone, Interval: spec.Interval,
+		Tenant: ScheduleTenant, Pipeline: spec.Pipeline, Cron: spec.Cron, Timezone: spec.Timezone, Interval: spec.Interval,
 		CatchUp: spec.CatchUp, BuildID: build, Cursor: cal.InitialCursor(now), CreatedAt: now, UpdatedAt: now,
 	}}
 	if cur != nil {
@@ -144,10 +144,10 @@ func (c *Core) setSchedule(build string, spec ScheduleSpec, cur *scheduleState) 
 			s.rec.Cursor = cur.rec.Cursor // what was handled stays handled
 		}
 	}
-	c.schedules[spec.Haul] = s
+	c.schedules[spec.Pipeline] = s
 	c.putSchedule(s)
 	c.emit(state.EventScheduleSet, ScheduleTenant, scheduleSetPayload{
-		Haul: spec.Haul, Cron: spec.Cron, Timezone: spec.Timezone, Interval: spec.Interval, CatchUp: spec.CatchUp,
+		Pipeline: spec.Pipeline, Cron: spec.Cron, Timezone: spec.Timezone, Interval: spec.Interval, CatchUp: spec.CatchUp,
 		Build: build, Cursor: s.rec.Cursor})
 	c.armSchedule(s)
 }
@@ -166,27 +166,27 @@ func (c *Core) armSchedule(s *scheduleState) {
 
 // runSchedule starts what is due, moves the cursor and arms the next tick.
 func (c *Core) runSchedule(s *scheduleState) {
-	if c.schedules[s.rec.Haul] != s {
+	if c.schedules[s.rec.Pipeline] != s {
 		return // replaced or removed meanwhile
 	}
 	now := c.now()
 	fires, cursor, more := s.cal.Due(s.rec.Cursor, now, s.rec.CatchUp == CatchUpAll, maxFiresPerRound)
 	for _, f := range fires {
-		p := scheduleFiredPayload{Haul: s.rec.Haul, Tick: f.Tick, Start: f.Interval.Start, End: f.Interval.End}
+		p := scheduleFiredPayload{Pipeline: s.rec.Pipeline, Tick: f.Tick, Start: f.Interval.Start, End: f.Interval.End}
 		switch {
 		case f.Skipped:
 			p.Skipped = f.Reason
 		case s.rec.CatchUp == CatchUpSkip && f.Tick.Before(now.Add(-skipGrace)):
 			p.Skipped = "due while no leader ran (catch_up: skip)"
 		default:
-			res, err := c.startHaul(StartHaulRequest{
-				Tenant: ScheduleTenant, Name: s.rec.Haul, Trigger: "schedule",
+			res, err := c.startRun(StartRunRequest{
+				Tenant: ScheduleTenant, Name: s.rec.Pipeline, Trigger: "schedule",
 				Params: map[string]any{"interval": IntervalParam(f.Interval)},
 			})
 			if err != nil {
 				p.Error = err.Error()
 			}
-			p.HaulID = res.HaulID
+			p.RunID = res.RunID
 		}
 		c.emit(state.EventScheduleFired, ScheduleTenant, p)
 	}
@@ -201,7 +201,7 @@ func (c *Core) runSchedule(s *scheduleState) {
 	c.armSchedule(s)
 }
 
-// IntervalParam is how a haul receives its data interval; the Python SDK
+// IntervalParam is how a run receives its data interval; the Python SDK
 // decodes it as moksha.Interval.
 func IntervalParam(iv schedule.Interval) map[string]any {
 	return map[string]any{"$interval": map[string]any{
@@ -211,7 +211,7 @@ func IntervalParam(iv schedule.Interval) map[string]any {
 // restoreSchedules loads the schedules and catches up on what came due
 // while no leader ran, in the restore batch.
 func (c *Core) restoreSchedules(recs []state.Schedule) {
-	sort.Slice(recs, func(i, j int) bool { return recs[i].Haul < recs[j].Haul })
+	sort.Slice(recs, func(i, j int) bool { return recs[i].Pipeline < recs[j].Pipeline })
 	for _, rec := range recs {
 		if rec.Tenant != ScheduleTenant {
 			continue
@@ -219,11 +219,11 @@ func (c *Core) restoreSchedules(recs []state.Schedule) {
 		s := &scheduleState{rec: rec}
 		cal, err := s.spec().calendar()
 		if err != nil {
-			c.log.Error("schedule can't be restored", "haul", rec.Haul, "err", err)
+			c.log.Error("schedule can't be restored", "run", rec.Pipeline, "err", err)
 			continue
 		}
 		s.cal = cal
-		c.schedules[rec.Haul] = s
+		c.schedules[rec.Pipeline] = s
 		c.runSchedule(s)
 	}
 }

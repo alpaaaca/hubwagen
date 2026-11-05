@@ -4,8 +4,8 @@ A worker on the server's machine reads and writes a file:// bucket
 directly: it knows it shares the bucket when the bucket's .moksha-bucket
 file holds the ID the task names. Any other worker moves files through URLs
 the server hands out for the running attempt (presigned URLs of the object
-store, or the server's own): a lift writes its output to a local directory,
-which is uploaded once the lift returns, and its inputs are downloaded into
+store, or the server's own): a step writes its output to a local directory,
+which is uploaded once the step returns, and its inputs are downloaded into
 a local directory when it first reads them. Both directories go when the
 attempt ends.
 """
@@ -62,12 +62,12 @@ class TransferError(Exception):
 
 
 class Remote:
-    """One running lift attempt's data, moved through transfer URLs into and
+    """One running step attempt's data, moved through transfer URLs into and
     out of workdir."""
 
     def __init__(self, client: Client, attempt_id: str, workdir: Path):
         self.client, self.attempt, self.workdir = client, attempt_id, workdir
-        self._inputs: dict[str, tuple[dict, dict[str, dict]]] = {}  # pallet → manifest, transfers by path
+        self._inputs: dict[str, tuple[dict, dict[str, dict]]] = {}  # data version → manifest, transfers by path
 
     @property
     def output_dir(self) -> Path:
@@ -78,30 +78,30 @@ class Remote:
 
     # --- inputs ---
 
-    def _download_urls(self, pallet: str, fresh: bool = False) -> tuple[dict, dict[str, dict]]:
-        if fresh or pallet not in self._inputs:
-            res = self.client.call("WorkerService", "GetDownloadURLs", {"attemptId": self.attempt, "pallet": pallet})
+    def _download_urls(self, data_version: str, fresh: bool = False) -> tuple[dict, dict[str, dict]]:
+        if fresh or data_version not in self._inputs:
+            res = self.client.call("WorkerService", "GetDownloadURLs", {"attemptId": self.attempt, "data_version": data_version})
             manifest = json.loads(res["manifestJson"])
-            self._inputs[pallet] = manifest, {t["path"]: t for t in res.get("files", [])}
-        return self._inputs[pallet]
+            self._inputs[data_version] = manifest, {t["path"]: t for t in res.get("files", [])}
+        return self._inputs[data_version]
 
-    def manifest(self, pallet: str) -> dict:
-        return self._download_urls(pallet)[0]
+    def manifest(self, data_version: str) -> dict:
+        return self._download_urls(data_version)[0]
 
-    def file(self, pallet: str, name: str) -> Path:
+    def file(self, data_version: str, name: str) -> Path:
         """One file of an input, downloaded on first use and checked
         against its manifest."""
-        manifest, _ = self._download_urls(pallet)
+        manifest, _ = self._download_urls(data_version)
         entry = next((f for f in manifest["files"] if f["path"] == name), None)
         if entry is None:
-            raise FileNotFoundError(f"data version {pallet} has no file {name!r}")
-        dest = self.workdir / "inputs" / pallet / name
+            raise FileNotFoundError(f"data version {data_version} has no file {name!r}")
+        dest = self.workdir / "inputs" / data_version / name
         if dest.exists():
             return dest
         dest.parent.mkdir(parents=True, exist_ok=True)
         part = dest.with_name(dest.name + ".part")
         for attempt in range(TRIES):
-            _, transfers = self._download_urls(pallet, fresh=attempt > 0)
+            _, transfers = self._download_urls(data_version, fresh=attempt > 0)
             t = transfers[name]
             try:
                 req = urllib.request.Request(self._url(t["url"]), headers=t.get("headers", {}))
@@ -118,10 +118,10 @@ class Remote:
             except (OSError, urllib.error.URLError, TransferError) as e:
                 err = e
                 time.sleep(0.5 * (attempt + 1))
-        raise TransferError(f"downloading {name} of data version {pallet}: {_describe(err)}")
+        raise TransferError(f"downloading {name} of data version {data_version}: {_describe(err)}")
 
-    def files(self, pallet: str) -> list[Path]:
-        return [self.file(pallet, f["path"]) for f in self.manifest(pallet)["files"]]
+    def files(self, data_version: str) -> list[Path]:
+        return [self.file(data_version, f["path"]) for f in self.manifest(data_version)["files"]]
 
     # --- output ---
 

@@ -6,7 +6,7 @@
 #   RUN pip install --no-cache-dir -r requirements.txt   # if it has any
 #
 # Build from sdk/python:  docker build -t moksha-worker:dev sdk/python
-# The worker reads MOKSHA_SERVER, MOKSHA_DOCKS and MOKSHA_LIFTS, and
+# The worker reads MOKSHA_SERVER, MOKSHA_QUEUES and MOKSHA_STEPS, and
 # imports the modules listed in /app/pyproject.toml ([tool.moksha]).
 FROM docker.io/library/python:3.12-slim
 COPY . /tmp/sdk

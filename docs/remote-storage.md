@@ -8,27 +8,27 @@ the server's filesystem. Built in the first step; later steps are in
 
 Until now the bucket was always `file://<data_dir>/bucket`, and workers
 read and wrote it directly: the server put the staging prefix and input
-manifests in a lift task as `file://` URIs, and the SDK turned them into
+manifests in a step task as `file://` URIs, and the SDK turned them into
 local paths. So workers had to run on the server's machine, or share its
 filesystem.
 
 What uses the bucket:
 
-- **The server** writes only pallet manifests (the promote: create-if-absent,
+- **The server** writes only data version manifests (the promote: create-if-absent,
   then a byte compare if one is there), lists a staging prefix (promote checks
   the reported files are there), reads manifests (catalog API, retention) and
-  deletes prefixes (discarded attempts, expired pallets).
-- **Workers** write a lift attempt's files to its staging prefix and read the
-  files of its input pallets.
+  deletes prefixes (discarded attempts, expired data versions).
+- **Workers** write a step attempt's files to its staging prefix and read the
+  files of its input data versions.
 
 ## Decision: only the server talks to the bucket
 
 The server is the only bucket client. Workers move bytes with URLs the
-server hands them for one running lift attempt:
+server hands them for one running step attempt:
 
 - `GetUploadURLs(attempt, files)`: one PUT URL per output file, under that
   attempt's staging prefix.
-- `GetDownloadURLs(attempt, pallet)`: an input's manifest and one GET URL
+- `GetDownloadURLs(attempt, data version)`: an input's manifest and one GET URL
   per file. Only the attempt's inputs.
 
 For an `s3://` bucket these are presigned URLs of the store (15 minutes).
@@ -43,7 +43,7 @@ boto3 (or its own request signing), and one client per cloud in every SDK;
 every machine would hold credentials to the whole bucket. With URLs the SDK
 stays standard library only, a new store is one Go implementation in the
 server, and workers hold no storage credentials. The costs: one or two extra
-RPCs per lift, and with `transfers: server` the bytes go through the server.
+RPCs per step, and with `transfers: server` the bytes go through the server.
 
 **Until auth exists** anyone who can reach the API can get URLs for running
 attempts' staging and inputs. They can already start, cancel and complete
@@ -92,7 +92,7 @@ bucket.
 
 ## Workers: local or remote
 
-A lift task names the bucket and, for a `file://` bucket, its ID, which the
+A step task names the bucket and, for a `file://` bucket, its ID, which the
 server keeps in `<bucket>/.moksha-bucket`. The Python worker
 (`--data auto`, the default) reads and writes the bucket directly only when
 it finds that file with that ID, so it is on the server's machine (or shares
@@ -112,9 +112,9 @@ URLs; then the attempt fails, for its retry policy.
   pagination, presigned-URL expiry), and on a real store when
   `MOKSHA_TEST_S3=http://key:secret@host:port/bucket` names one (a local
   MinIO). s3fake doesn't check signatures; the real store does.
-- `internal/api`: a haul runs twice with data only through URLs, on a file
+- `internal/api`: a pipeline runs twice with data only through URLs, on a file
   bucket, an s3 bucket with presigned URLs, and an s3 bucket through the
-  server; the second run reuses both lifts. URLs are scoped and checked.
+  server; the second run reuses both steps. URLs are scoped and checked.
 - SDK (`tests/test_remote.py`): the revenue example with a worker that shares
   no directory with `moksha dev`, against a file bucket and against s3fake;
   the rerun reuses the unchanged steps. Dataframes too.

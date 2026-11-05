@@ -4,6 +4,6 @@ version = "0.1.0"
 requires-python = ">=3.12"
 
 # What the moksha worker imports when started without module names
-# (python -m moksha.worker): the modules that define hauls and lifts.
+# (python -m moksha.worker): the modules that define pipelines and steps.
 [tool.moksha]
-modules = ["revenue.hauls", "revenue.nightly"]
+modules = ["revenue.pipelines", "revenue.nightly"]

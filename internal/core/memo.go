@@ -13,42 +13,42 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alper/moksha/internal/pallet"
+	"github.com/alper/moksha/internal/dataversion"
 	"github.com/alper/moksha/internal/state"
 )
 
-// Memoization. A lift that opts in (Command.Memo) gets a fingerprint: a hash
-// of its name, its code version in the build that replayed the haul, its
-// input pallets' content, its arguments and its output, if any. If what an
+// Memoization. A step that opts in (Command.Memo) gets a fingerprint: a hash
+// of its name, its code version in the build that replayed the run, its
+// input data versions' content, its arguments and its output, if any. If what an
 // earlier run with that fingerprint produced is still there (and young
-// enough, for a TTL), the lift is not run: the haul continues with it. For a
-// lift with an output that is a committed pallet; for one without, the
-// result of a lift that ran and completed, which the store always has.
-// Otherwise the lift runs, and its scheduling records why (RunReason).
+// enough, for a TTL), the step is not run: the run continues with it. For a
+// step with an output that is a committed data version; for one without, the
+// result of a step that ran and completed, which the store always has.
+// Otherwise the step runs, and its scheduling records why (RunReason).
 //
 // Arguments are part of the fingerprint as canonical JSON (keys sorted), so
-// the SDK passes pallets as Inputs, not inside Args: then an identical
+// the SDK passes data versions as Inputs, not inside Args: then an identical
 // rebuild upstream (same content hash) doesn't change the fingerprint.
 
-// BuildRequest registers a worker build: the hauls it defines and the code
-// version of each lift.
+// BuildRequest registers a worker build: the pipelines it defines and the code
+// version of each step.
 type BuildRequest struct {
 	ID            string
-	Hauls         []string
-	Lifts         map[string]string         // lift name → code version
-	Schedules     []ScheduleSpec            // for hauls it defines; see schedules.go
-	Subscriptions []SubscriptionSpec        // for hauls it defines; see subscriptions.go
-	Datasets      []DatasetSpec             // retention of datasets its lifts write; see retention.go
-	Info          map[string]state.HaulInfo // titles and descriptions of hauls it defines
+	Pipelines     []string
+	Steps         map[string]string        // step name → code version
+	Schedules     []ScheduleSpec           // for pipelines it defines; see schedules.go
+	Subscriptions []SubscriptionSpec       // for pipelines it defines; see subscriptions.go
+	Datasets      []DatasetSpec            // retention of datasets its steps write; see retention.go
+	Info          map[string]state.RunInfo // titles and descriptions of pipelines it defines
 }
 
 // RegisterBuild records a build. Registering the same build again is a
-// no-op; reusing a build ID with other hauls or versions is an error, since
-// builds are immutable (a build recorded before hauls were, gets its hauls
-// added). A new build gives stuck hauls a replay: it may carry the fix.
+// no-op; reusing a build ID with other runs or versions is an error, since
+// builds are immutable (a build recorded before runs were, gets its runs
+// added). A new build gives stuck runs a replay: it may carry the fix.
 //
-// Workers that poll with a build ID get only the haul tasks and lifts their
-// build defines, so projects with different code can share docks.
+// Workers that poll with a build ID get only the run tasks and steps their
+// build defines, so projects with different code can share queues.
 func (c *Core) RegisterBuild(ctx context.Context, req BuildRequest) error {
 	_, err := submit(ctx, c, func(c *Core) (struct{}, error) { return struct{}{}, c.registerBuild(req) })
 	return err
@@ -60,28 +60,28 @@ func (c *Core) registerBuild(req BuildRequest) error {
 	if req.ID == "" {
 		return fmt.Errorf("%w: a build needs an ID", ErrInvalid)
 	}
-	hauls := slices.Compact(slices.Sorted(slices.Values(req.Hauls)))
-	if slices.Contains(hauls, "") {
-		return fmt.Errorf("%w: build %s: haul names must not be empty", ErrInvalid, req.ID)
+	runs := slices.Compact(slices.Sorted(slices.Values(req.Pipelines)))
+	if slices.Contains(runs, "") {
+		return fmt.Errorf("%w: build %s: pipeline names must not be empty", ErrInvalid, req.ID)
 	}
 	if old, ok := c.builds[req.ID]; ok {
-		if !mapsEqual(old, req.Lifts) {
+		if !mapsEqual(old, req.Steps) {
 			return fmt.Errorf("%w: build %s is already registered with other code versions", ErrInvalid, req.ID)
 		}
-		known := c.buildHauls[req.ID]
+		known := c.buildPipelines[req.ID]
 		switch {
-		case len(known) == 0 && len(hauls) > 0: // recorded before hauls were
-		case !setEqual(known, hauls):
-			return fmt.Errorf("%w: build %s is already registered with other hauls", ErrInvalid, req.ID)
+		case len(known) == 0 && len(runs) > 0: // recorded before runs were
+		case !setEqual(known, runs):
+			return fmt.Errorf("%w: build %s is already registered with other pipelines", ErrInvalid, req.ID)
 		default:
 			return nil
 		}
 	}
-	schedules, err := validateSchedules(hauls, req.Schedules)
+	schedules, err := validateSchedules(runs, req.Schedules)
 	if err != nil {
 		return fmt.Errorf("build %s: %w", req.ID, err)
 	}
-	subs, err := validateSubscriptions(hauls, req.Subscriptions)
+	subs, err := validateSubscriptions(runs, req.Subscriptions)
 	if err != nil {
 		return fmt.Errorf("build %s: %w", req.ID, err)
 	}
@@ -89,54 +89,54 @@ func (c *Core) registerBuild(req BuildRequest) error {
 		return fmt.Errorf("build %s: %w", req.ID, err)
 	}
 	for name := range req.Info {
-		if !slices.Contains(hauls, name) {
-			return fmt.Errorf("%w: build %s: info for haul %s, which it does not define", ErrInvalid, req.ID, name)
+		if !slices.Contains(runs, name) {
+			return fmt.Errorf("%w: build %s: info for pipeline %s, which it does not define", ErrInvalid, req.ID, name)
 		}
 	}
-	lifts := map[string]string{}
-	for k, v := range req.Lifts {
+	steps := map[string]string{}
+	for k, v := range req.Steps {
 		if k == "" || v == "" {
-			return fmt.Errorf("%w: build %s: lift names and code versions must not be empty", ErrInvalid, req.ID)
+			return fmt.Errorf("%w: build %s: step names and code versions must not be empty", ErrInvalid, req.ID)
 		}
-		lifts[k] = v
+		steps[k] = v
 	}
-	c.addBuild(req.ID, lifts, hauls)
-	info := map[string]state.HaulInfo{}
+	c.addBuild(req.ID, steps, runs)
+	info := map[string]state.RunInfo{}
 	for name, i := range req.Info {
-		if i != (state.HaulInfo{}) {
+		if i != (state.RunInfo{}) {
 			info[name] = i
 		}
 	}
-	b := state.Build{ID: req.ID, Hauls: hauls, Info: info, Lifts: lifts, RegisteredAt: c.now()}
+	b := state.Build{ID: req.ID, Pipelines: runs, Info: info, Steps: steps, RegisteredAt: c.now()}
 	c.b.catalog = append(c.b.catalog, func(tx *state.Tx) error { return tx.PutBuild(b) })
-	c.emit(state.EventBuildRegistered, "", buildRegisteredPayload{ID: req.ID, Hauls: hauls, Info: info, Lifts: lifts})
-	c.applySchedules(req.ID, hauls, schedules)
-	c.applySubscriptions(req.ID, hauls, subs)
+	c.emit(state.EventBuildRegistered, "", buildRegisteredPayload{ID: req.ID, Pipelines: runs, Info: info, Steps: steps})
+	c.applySchedules(req.ID, runs, schedules)
+	c.applySubscriptions(req.ID, runs, subs)
 	c.applyRetention(req.ID, req.Datasets)
-	c.resumeStuckHauls()
+	c.resumeStuckRuns()
 	return nil
 }
 
-func (c *Core) addBuild(id string, lifts map[string]string, hauls []string) {
-	c.builds[id] = lifts
+func (c *Core) addBuild(id string, steps map[string]string, runs []string) {
+	c.builds[id] = steps
 	set := map[string]bool{}
-	for _, h := range hauls {
+	for _, h := range runs {
 		set[h] = true
-		c.haulNames[h] = true
+		c.pipelineNames[h] = true
 	}
-	c.buildHauls[id] = set
+	c.buildPipelines[id] = set
 }
 
 // canRun reports whether a worker of build can take t: its build defines the
-// haul or lift. Pollers without a build ID, and builds recorded without
-// hauls, take any haul task.
+// run or step. Pollers without a build ID, and builds recorded without
+// runs, take any run task.
 func (c *Core) canRun(build string, t Task) bool {
 	if build == "" {
 		return true
 	}
-	if t.Kind == TaskHaul {
-		hauls := c.buildHauls[build]
-		return len(hauls) == 0 || hauls[t.Name]
+	if t.Kind == TaskRun {
+		runs := c.buildPipelines[build]
+		return len(runs) == 0 || runs[t.Name]
 	}
 	_, ok := c.builds[build][t.Name]
 	return ok
@@ -190,9 +190,9 @@ func parseMemo(s string) (memoPolicy, error) {
 }
 
 // fingerprintInputs is everything a fingerprint covers. It is stored on the
-// lift, so a later run can say what changed.
+// step, so a later run can say what changed.
 type fingerprintInputs struct {
-	Lift        string          `json:"lift"`
+	Step        string          `json:"step"`
 	CodeVersion string          `json:"code_version"`
 	Inputs      []inputKey      `json:"inputs,omitempty"`
 	Args        json.RawMessage `json:"args,omitempty"` // canonical
@@ -202,7 +202,7 @@ type fingerprintInputs struct {
 
 type inputKey struct {
 	Name string `json:"name,omitempty"`
-	Key  string `json:"key"` // content hash, else pallet ID
+	Key  string `json:"key"` // content hash, else data version ID
 }
 
 func (f fingerprintInputs) hash() string {
@@ -233,19 +233,19 @@ func canonicalJSON(raw json.RawMessage) (json.RawMessage, error) {
 // be read any more, so it isn't reused.
 var errUnreadable = errors.New("can't be read")
 
-// memoMatch is what a reused lift completes with: the pallet (if it has an
-// output) and result of the lift that ran with the same fingerprint.
+// memoMatch is what a reused step completes with: the data version (if it has an
+// output) and result of the step that ran with the same fingerprint.
 type memoMatch struct {
-	pallet string
-	haulID string
-	seq    int
-	result json.RawMessage
+	dataVersion string
+	runID       string
+	seq         int
+	result      json.RawMessage
 }
 
 // memoize computes l's fingerprint and looks for something to reuse. It sets
-// the lift's fingerprint and, when the lift has to run, its RunReason.
-func (c *Core) memoize(l *liftState, inputs []state.Pallet) *memoMatch {
-	h := l.haul
+// the step's fingerprint and, when the step has to run, its RunReason.
+func (c *Core) memoize(l *stepState, inputs []state.DataVersion) *memoMatch {
+	h := l.run
 	if !l.memo.on {
 		l.rec.RunReason = "not memoized"
 		return nil
@@ -260,7 +260,7 @@ func (c *Core) memoize(l *liftState, inputs []state.Pallet) *memoMatch {
 		l.rec.RunReason = "arguments are not JSON"
 		return nil
 	}
-	fpi := fingerprintInputs{Lift: l.rec.Name, CodeVersion: version, Args: args}
+	fpi := fingerprintInputs{Step: l.rec.Name, CodeVersion: version, Args: args}
 	if l.output != nil {
 		fpi.Dataset, fpi.Partition = l.output.Dataset, l.output.Partition
 	}
@@ -278,7 +278,7 @@ func (c *Core) memoize(l *liftState, inputs []state.Pallet) *memoMatch {
 		return fpi.Inputs[i].Key < fpi.Inputs[j].Key
 	})
 	l.rec.Fingerprint = fpi.hash()
-	l.rec.FPInputs = marshalPayload(state.EventLiftScheduled, fpi)
+	l.rec.FPInputs = marshalPayload(state.EventStepScheduled, fpi)
 
 	var since time.Time
 	if l.memo.ttl > 0 {
@@ -292,13 +292,13 @@ func (c *Core) memoize(l *liftState, inputs []state.Pallet) *memoMatch {
 		l.rec.RunReason = fmt.Sprintf("the earlier run's output %v", err)
 		return nil
 	case !errors.Is(err, state.ErrNotFound):
-		c.log.Warn("memo lookup failed", "haul", h.rec.ID, "seq", l.rec.Seq, "err", err)
+		c.log.Warn("memo lookup failed", "run", h.rec.ID, "seq", l.rec.Seq, "err", err)
 		l.rec.RunReason = "memo lookup failed"
 		return nil
 	}
 	if l.output != nil {
-		if _, err := c.cfg.Store.InvalidatedPallet(c.ctx, h.rec.Tenant, l.rec.Fingerprint); err == nil {
-			l.rec.RunReason = "earlier pallet invalidated"
+		if _, err := c.cfg.Store.InvalidatedDataVersion(c.ctx, h.rec.Tenant, l.rec.Fingerprint); err == nil {
+			l.rec.RunReason = "earlier data version invalidated"
 			return nil
 		}
 	}
@@ -306,26 +306,26 @@ func (c *Core) memoize(l *liftState, inputs []state.Pallet) *memoMatch {
 	return nil
 }
 
-// checkReadableTimeout bounds checking a pallet's files before reuse.
+// checkReadableTimeout bounds checking a data version's files before reuse.
 const checkReadableTimeout = 10 * time.Second
 
 // checkReadable is errUnreadable unless p's manifest and files are still
 // in the bucket: the catalog says committed, but files can be deleted
-// outside moksha, and a reused pallet that can't be read fails every lift
+// outside moksha, and a reused data version that can't be read fails every step
 // that reads it. It reads the bucket from the loop, like the store reads
 // around it; a bucket that can't answer means rerun ("when unsure, rerun").
-func (c *Core) checkReadable(p state.Pallet) error {
-	if c.cfg.Pallets == nil {
+func (c *Core) checkReadable(p state.DataVersion) error {
+	if c.cfg.DataVersions == nil {
 		return nil
 	}
 	ctx, cancel := context.WithTimeout(c.ctx, checkReadableTimeout)
 	defer cancel()
-	err := c.cfg.Pallets.Check(ctx, p.Location)
+	err := c.cfg.DataVersions.Check(ctx, p.Location)
 	if err == nil {
 		return nil
 	}
-	c.log.Info("not reusing a pallet that can't be read", "pallet", p.ID, "err", err)
-	if errors.Is(err, pallet.ErrMissingFiles) {
+	c.log.Info("not reusing a data version that can't be read", "data_version", p.ID, "err", err)
+	if errors.Is(err, dataversion.ErrMissingFiles) {
 		return fmt.Errorf("%w: its files are gone", errUnreadable)
 	}
 	return fmt.Errorf("%w: %v", errUnreadable, err)
@@ -333,56 +333,56 @@ func (c *Core) checkReadable(p state.Pallet) error {
 
 // lookupMemo finds what a run with l's fingerprint produced, completed at or
 // after since.
-func (c *Core) lookupMemo(tenant string, l *liftState, since time.Time) (memoMatch, error) {
+func (c *Core) lookupMemo(tenant string, l *stepState, since time.Time) (memoMatch, error) {
 	if l.output == nil {
 		run, err := c.cfg.Store.MemoResult(c.ctx, tenant, l.rec.Fingerprint, since)
 		if err != nil {
 			return memoMatch{}, err
 		}
-		m := memoMatch{haulID: run.HaulID, seq: run.Seq, result: run.Result}
-		// It may have built a pallet in its implicit dataset (a dataframe):
-		// then that pallet is what gets reused, and it must be readable.
-		switch p, err := c.cfg.Store.LiftPallet(c.ctx, run.HaulID, run.Seq); {
-		case err == nil && p.State == state.PalletCommitted:
+		m := memoMatch{runID: run.RunID, seq: run.Seq, result: run.Result}
+		// It may have built a data version in its implicit dataset (a dataframe):
+		// then that data version is what gets reused, and it must be readable.
+		switch p, err := c.cfg.Store.StepDataVersion(c.ctx, run.RunID, run.Seq); {
+		case err == nil && p.State == state.DataVersionCommitted:
 			if err := c.checkReadable(p); err != nil {
 				return memoMatch{}, err
 			}
-			m.pallet = p.ID
+			m.dataVersion = p.ID
 		case err == nil:
-			return memoMatch{}, fmt.Errorf("%w: pallet %s is %s", errUnreadable, p.ID, p.State)
+			return memoMatch{}, fmt.Errorf("%w: data version %s is %s", errUnreadable, p.ID, p.State)
 		case !errors.Is(err, state.ErrNotFound):
 			return memoMatch{}, err
 		}
 		return m, nil
 	}
-	p, err := c.cfg.Store.MemoPallet(c.ctx, tenant, l.rec.Fingerprint, since)
+	p, err := c.cfg.Store.MemoDataVersion(c.ctx, tenant, l.rec.Fingerprint, since)
 	if err != nil {
 		return memoMatch{}, err
 	}
 	if err := c.checkReadable(p); err != nil {
 		return memoMatch{}, err
 	}
-	m := memoMatch{pallet: p.ID, haulID: p.HaulID, seq: p.LiftSeq}
-	if orig, err := c.cfg.Store.GetLift(c.ctx, p.HaulID, p.LiftSeq); err == nil {
+	m := memoMatch{dataVersion: p.ID, runID: p.RunID, seq: p.StepSeq}
+	if orig, err := c.cfg.Store.GetStep(c.ctx, p.RunID, p.StepSeq); err == nil {
 		m.result = orig.Result
 	}
 	return m, nil
 }
 
-// recentRunsCompared is how many earlier runs of a lift without an output
+// recentRunsCompared is how many earlier runs of a step without an output
 // rerunReason looks through for one with the same arguments.
 const recentRunsCompared = 50
 
-// rerunReason compares a lift that has to run with an earlier run: whatever
-// built the latest pallet of its output partition or, for a lift without an
+// rerunReason compares a step that has to run with an earlier run: whatever
+// built the latest data version of its output partition or, for a step without an
 // output, its latest run with the same arguments.
 func (c *Core) rerunReason(tenant string, fpi fingerprintInputs, ttl time.Duration) string {
 	old, ok := c.previousRun(tenant, fpi)
 	if !ok {
 		return "no previous run"
 	}
-	if old.Lift != fpi.Lift {
-		return fmt.Sprintf("no previous run (the latest pallet is from lift %s)", old.Lift)
+	if old.Step != fpi.Step {
+		return fmt.Sprintf("no previous run (the latest data version is from step %s)", old.Step)
 	}
 	var why []string
 	if old.CodeVersion != fpi.CodeVersion {
@@ -406,25 +406,25 @@ func (c *Core) rerunReason(tenant string, fpi fingerprintInputs, ttl time.Durati
 // previousRun returns what went into the fingerprint of the run fpi is
 // compared with; see rerunReason.
 func (c *Core) previousRun(tenant string, fpi fingerprintInputs) (fingerprintInputs, bool) {
-	var lifts []state.Lift
+	var steps []state.Step
 	if fpi.Dataset == "" {
-		runs, err := c.cfg.Store.RecentLiftRuns(c.ctx, tenant, fpi.Lift, recentRunsCompared)
+		runs, err := c.cfg.Store.RecentStepRuns(c.ctx, tenant, fpi.Step, recentRunsCompared)
 		if err != nil {
 			return fingerprintInputs{}, false
 		}
-		lifts = runs
+		steps = runs
 	} else {
-		prev, err := c.cfg.Store.LatestPallet(c.ctx, tenant, fpi.Dataset, fpi.Partition)
+		prev, err := c.cfg.Store.LatestDataVersion(c.ctx, tenant, fpi.Dataset, fpi.Partition)
 		if err != nil {
 			return fingerprintInputs{}, false
 		}
-		lift, err := c.cfg.Store.GetLift(c.ctx, prev.HaulID, prev.LiftSeq)
+		step, err := c.cfg.Store.GetStep(c.ctx, prev.RunID, prev.StepSeq)
 		if err != nil {
 			return fingerprintInputs{}, false
 		}
-		lifts = []state.Lift{lift}
+		steps = []state.Step{step}
 	}
-	for _, l := range lifts {
+	for _, l := range steps {
 		var old fingerprintInputs
 		if len(l.FPInputs) == 0 || json.Unmarshal(l.FPInputs, &old) != nil {
 			continue // built without a fingerprint

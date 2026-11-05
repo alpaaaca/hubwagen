@@ -12,12 +12,12 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file moksha/v1/catalog.proto.
  */
 export const file_moksha_v1_catalog: GenFile = /*@__PURE__*/
-  fileDesc("Chdtb2tzaGEvdjEvY2F0YWxvZy5wcm90bxIJbW9rc2hhLnYxIicKFEV4cGlyZVBhbGxldHNSZXF1ZXN0Eg8KB2RyeV9ydW4YASABKAgiQgoNRXhwaXJlZFBhbGxldBIhCgZwYWxsZXQYASABKAsyES5tb2tzaGEudjEuUGFsbGV0Eg4KBnJlYXNvbhgCIAEoCSJCChVFeHBpcmVQYWxsZXRzUmVzcG9uc2USKQoHZXhwaXJlZBgBIAMoCzIYLm1va3NoYS52MS5FeHBpcmVkUGFsbGV0IjMKEExpc3RTdGFsZVJlcXVlc3QSDgoGdGVuYW50GAEgASgJEg8KB2RhdGFzZXQYAiABKAkicQoLU3RhbGVQYWxsZXQSIQoGcGFsbGV0GAEgASgLMhEubW9rc2hhLnYxLlBhbGxldBIMCgRsaWZ0GAIgASgJEg8KB3JlYXNvbnMYAyADKAkSIAoEaGF1bBgEIAEoCzISLm1va3NoYS52MS5IYXVsUmVmIjoKEUxpc3RTdGFsZVJlc3BvbnNlEiUKBXN0YWxlGAEgAygLMhYubW9rc2hhLnYxLlN0YWxlUGFsbGV0IlIKF0ludmFsaWRhdGVQYWxsZXRSZXF1ZXN0EgoKAmlkGAEgASgJEg4KBnJlYXNvbhgCIAEoCRIKCgJieRgDIAEoCRIPCgdkcnlfcnVuGAQgASgIIkgKB0hhdWxSZWYSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgtwYXJhbXNfanNvbhgDIAEoCRIOCgZ0ZW5hbnQYBCABKAkiYQoYSW52YWxpZGF0ZVBhbGxldFJlc3BvbnNlEiIKB3BhbGxldHMYASADKAsyES5tb2tzaGEudjEuUGFsbGV0EiEKBWhhdWxzGAIgAygLMhIubW9rc2hhLnYxLkhhdWxSZWYisgEKB0RhdGFzZXQSDgoGdGVuYW50GAEgASgJEgwKBG5hbWUYAiABKAkSFQoNcGFydGl0aW9uX2tleRgDIAEoCRIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIVCg1rZWVwX3ZlcnNpb25zGAUgASgFEisKCGtlZXBfZm9yGAYgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uIoADCgZQYWxsZXQSCgoCaWQYASABKAkSDgoGdGVuYW50GAIgASgJEg8KB2RhdGFzZXQYAyABKAkSEQoJcGFydGl0aW9uGAQgASgJEhAKCGxvY2F0aW9uGAUgASgJEhQKDGNvbnRlbnRfaGFzaBgGIAEoCRITCgtmaW5nZXJwcmludBgHIAEoCRISCgpzdGF0c19qc29uGAggASgJEhEKCW1ldGFfanNvbhgJIAEoCRIPCgdoYXVsX2lkGAogASgJEhAKCGxpZnRfc2VxGAsgASgFEg0KBXN0YXRlGAwgASgJEg4KBnJlYXNvbhgNIAEoCRIuCgpjcmVhdGVkX2F0GA4gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxjb21taXR0ZWRfYXQYDyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnJldGlyZWRfYXQYECABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIiUKE0xpc3REYXRhc2V0c1JlcXVlc3QSDgoGdGVuYW50GAEgASgJIjwKFExpc3REYXRhc2V0c1Jlc3BvbnNlEiQKCGRhdGFzZXRzGAEgAygLMhIubW9rc2hhLnYxLkRhdGFzZXQiVgoVTGlzdFBhcnRpdGlvbnNSZXF1ZXN0Eg4KBnRlbmFudBgBIAEoCRIPCgdkYXRhc2V0GAIgASgJEg0KBWFmdGVyGAMgASgJEg0KBWxpbWl0GAQgASgFIlIKCVBhcnRpdGlvbhIRCglwYXJ0aXRpb24YASABKAkSIQoGbGF0ZXN0GAIgASgLMhEubW9rc2hhLnYxLlBhbGxldBIPCgdwYWxsZXRzGAMgASgFIkIKFkxpc3RQYXJ0aXRpb25zUmVzcG9uc2USKAoKcGFydGl0aW9ucxgBIAMoCzIULm1va3NoYS52MS5QYXJ0aXRpb24ijQEKEkxpc3RQYWxsZXRzUmVxdWVzdBIOCgZ0ZW5hbnQYASABKAkSDwoHZGF0YXNldBgCIAEoCRIWCglwYXJ0aXRpb24YAyABKAlIAIgBARIOCgZzdGF0ZXMYBCADKAkSEQoJYmVmb3JlX2lkGAUgASgJEg0KBWxpbWl0GAYgASgFQgwKCl9wYXJ0aXRpb24iOQoTTGlzdFBhbGxldHNSZXNwb25zZRIiCgdwYWxsZXRzGAEgAygLMhEubW9rc2hhLnYxLlBhbGxldCIeChBHZXRQYWxsZXRSZXF1ZXN0EgoKAmlkGAEgASgJIjoKDE1hbmlmZXN0RmlsZRIMCgRwYXRoGAEgASgJEgwKBHNpemUYAiABKAMSDgoGc2hhMjU2GAMgASgJIlUKCE1hbmlmZXN0EgwKBGRhdGEYASABKAkSJgoFZmlsZXMYAiADKAsyFy5tb2tzaGEudjEuTWFuaWZlc3RGaWxlEhMKC3Jlc3VsdF9qc29uGAMgASgJIkAKC0xpbmVhZ2VFZGdlEhEKCXBhbGxldF9pZBgBIAEoCRIQCghpbnB1dF9pZBgCIAEoCRIMCgRuYW1lGAMgASgJIlQKB0xpbmVhZ2USIgoHcGFsbGV0cxgBIAMoCzIRLm1va3NoYS52MS5QYWxsZXQSJQoFZWRnZXMYAiADKAsyFi5tb2tzaGEudjEuTGluZWFnZUVkZ2Ui0QEKEUdldFBhbGxldFJlc3BvbnNlEiEKBnBhbGxldBgBIAEoCzIRLm1va3NoYS52MS5QYWxsZXQSDAoEbGlmdBgCIAEoCRIlCghtYW5pZmVzdBgDIAEoCzITLm1va3NoYS52MS5NYW5pZmVzdBIWCg5tYW5pZmVzdF9lcnJvchgEIAEoCRIkCgh1cHN0cmVhbRgFIAEoCzISLm1va3NoYS52MS5MaW5lYWdlEiYKCmRvd25zdHJlYW0YBiABKAsyEi5tb2tzaGEudjEuTGluZWFnZTLHBAoOQ2F0YWxvZ1NlcnZpY2USTwoMTGlzdERhdGFzZXRzEh4ubW9rc2hhLnYxLkxpc3REYXRhc2V0c1JlcXVlc3QaHy5tb2tzaGEudjEuTGlzdERhdGFzZXRzUmVzcG9uc2USVQoOTGlzdFBhcnRpdGlvbnMSIC5tb2tzaGEudjEuTGlzdFBhcnRpdGlvbnNSZXF1ZXN0GiEubW9rc2hhLnYxLkxpc3RQYXJ0aXRpb25zUmVzcG9uc2USTAoLTGlzdFBhbGxldHMSHS5tb2tzaGEudjEuTGlzdFBhbGxldHNSZXF1ZXN0Gh4ubW9rc2hhLnYxLkxpc3RQYWxsZXRzUmVzcG9uc2USRgoJR2V0UGFsbGV0EhsubW9rc2hhLnYxLkdldFBhbGxldFJlcXVlc3QaHC5tb2tzaGEudjEuR2V0UGFsbGV0UmVzcG9uc2USWwoQSW52YWxpZGF0ZVBhbGxldBIiLm1va3NoYS52MS5JbnZhbGlkYXRlUGFsbGV0UmVxdWVzdBojLm1va3NoYS52MS5JbnZhbGlkYXRlUGFsbGV0UmVzcG9uc2USRgoJTGlzdFN0YWxlEhsubW9rc2hhLnYxLkxpc3RTdGFsZVJlcXVlc3QaHC5tb2tzaGEudjEuTGlzdFN0YWxlUmVzcG9uc2USUgoNRXhwaXJlUGFsbGV0cxIfLm1va3NoYS52MS5FeHBpcmVQYWxsZXRzUmVxdWVzdBogLm1va3NoYS52MS5FeHBpcmVQYWxsZXRzUmVzcG9uc2VCPVo7Z2l0aHViLmNvbS9hbHBlci9tb2tzaGEvaW50ZXJuYWwvYXBpL2dlbi9tb2tzaGEvdjE7bW9rc2hhdjFiBnByb3RvMw", [file_google_protobuf_duration, file_google_protobuf_timestamp]);
+  fileDesc("Chdtb2tzaGEvdjEvY2F0YWxvZy5wcm90bxIJbW9rc2hhLnYxIiwKGUV4cGlyZURhdGFWZXJzaW9uc1JlcXVlc3QSDwoHZHJ5X3J1bhgBIAEoCCJSChJFeHBpcmVkRGF0YVZlcnNpb24SLAoMZGF0YV92ZXJzaW9uGAEgASgLMhYubW9rc2hhLnYxLkRhdGFWZXJzaW9uEg4KBnJlYXNvbhgCIAEoCSJMChpFeHBpcmVEYXRhVmVyc2lvbnNSZXNwb25zZRIuCgdleHBpcmVkGAEgAygLMh0ubW9rc2hhLnYxLkV4cGlyZWREYXRhVmVyc2lvbiIzChBMaXN0U3RhbGVSZXF1ZXN0Eg4KBnRlbmFudBgBIAEoCRIPCgdkYXRhc2V0GAIgASgJIn8KEFN0YWxlRGF0YVZlcnNpb24SLAoMZGF0YV92ZXJzaW9uGAEgASgLMhYubW9rc2hhLnYxLkRhdGFWZXJzaW9uEgwKBHN0ZXAYAiABKAkSDwoHcmVhc29ucxgDIAMoCRIeCgNydW4YBCABKAsyES5tb2tzaGEudjEuUnVuUmVmIj8KEUxpc3RTdGFsZVJlc3BvbnNlEioKBXN0YWxlGAEgAygLMhsubW9rc2hhLnYxLlN0YWxlRGF0YVZlcnNpb24iVwocSW52YWxpZGF0ZURhdGFWZXJzaW9uUmVxdWVzdBIKCgJpZBgBIAEoCRIOCgZyZWFzb24YAiABKAkSCgoCYnkYAyABKAkSDwoHZHJ5X3J1bhgEIAEoCCJHCgZSdW5SZWYSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgtwYXJhbXNfanNvbhgDIAEoCRIOCgZ0ZW5hbnQYBCABKAkibwodSW52YWxpZGF0ZURhdGFWZXJzaW9uUmVzcG9uc2USLQoNZGF0YV92ZXJzaW9ucxgBIAMoCzIWLm1va3NoYS52MS5EYXRhVmVyc2lvbhIfCgRydW5zGAIgAygLMhEubW9rc2hhLnYxLlJ1blJlZiKyAQoHRGF0YXNldBIOCgZ0ZW5hbnQYASABKAkSDAoEbmFtZRgCIAEoCRIVCg1wYXJ0aXRpb25fa2V5GAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhUKDWtlZXBfdmVyc2lvbnMYBSABKAUSKwoIa2VlcF9mb3IYBiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24ihAMKC0RhdGFWZXJzaW9uEgoKAmlkGAEgASgJEg4KBnRlbmFudBgCIAEoCRIPCgdkYXRhc2V0GAMgASgJEhEKCXBhcnRpdGlvbhgEIAEoCRIQCghsb2NhdGlvbhgFIAEoCRIUCgxjb250ZW50X2hhc2gYBiABKAkSEwoLZmluZ2VycHJpbnQYByABKAkSEgoKc3RhdHNfanNvbhgIIAEoCRIRCgltZXRhX2pzb24YCSABKAkSDgoGcnVuX2lkGAogASgJEhAKCHN0ZXBfc2VxGAsgASgFEg0KBXN0YXRlGAwgASgJEg4KBnJlYXNvbhgNIAEoCRIuCgpjcmVhdGVkX2F0GA4gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxjb21taXR0ZWRfYXQYDyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnJldGlyZWRfYXQYECABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIiUKE0xpc3REYXRhc2V0c1JlcXVlc3QSDgoGdGVuYW50GAEgASgJIjwKFExpc3REYXRhc2V0c1Jlc3BvbnNlEiQKCGRhdGFzZXRzGAEgAygLMhIubW9rc2hhLnYxLkRhdGFzZXQiVgoVTGlzdFBhcnRpdGlvbnNSZXF1ZXN0Eg4KBnRlbmFudBgBIAEoCRIPCgdkYXRhc2V0GAIgASgJEg0KBWFmdGVyGAMgASgJEg0KBWxpbWl0GAQgASgFIl0KCVBhcnRpdGlvbhIRCglwYXJ0aXRpb24YASABKAkSJgoGbGF0ZXN0GAIgASgLMhYubW9rc2hhLnYxLkRhdGFWZXJzaW9uEhUKDWRhdGFfdmVyc2lvbnMYAyABKAUiQgoWTGlzdFBhcnRpdGlvbnNSZXNwb25zZRIoCgpwYXJ0aXRpb25zGAEgAygLMhQubW9rc2hhLnYxLlBhcnRpdGlvbiKSAQoXTGlzdERhdGFWZXJzaW9uc1JlcXVlc3QSDgoGdGVuYW50GAEgASgJEg8KB2RhdGFzZXQYAiABKAkSFgoJcGFydGl0aW9uGAMgASgJSACIAQESDgoGc3RhdGVzGAQgAygJEhEKCWJlZm9yZV9pZBgFIAEoCRINCgVsaW1pdBgGIAEoBUIMCgpfcGFydGl0aW9uIkkKGExpc3REYXRhVmVyc2lvbnNSZXNwb25zZRItCg1kYXRhX3ZlcnNpb25zGAEgAygLMhYubW9rc2hhLnYxLkRhdGFWZXJzaW9uIiMKFUdldERhdGFWZXJzaW9uUmVxdWVzdBIKCgJpZBgBIAEoCSI6CgxNYW5pZmVzdEZpbGUSDAoEcGF0aBgBIAEoCRIMCgRzaXplGAIgASgDEg4KBnNoYTI1NhgDIAEoCSJVCghNYW5pZmVzdBIMCgRkYXRhGAEgASgJEiYKBWZpbGVzGAIgAygLMhcubW9rc2hhLnYxLk1hbmlmZXN0RmlsZRITCgtyZXN1bHRfanNvbhgDIAEoCSJGCgtMaW5lYWdlRWRnZRIXCg9kYXRhX3ZlcnNpb25faWQYASABKAkSEAoIaW5wdXRfaWQYAiABKAkSDAoEbmFtZRgDIAEoCSJfCgdMaW5lYWdlEi0KDWRhdGFfdmVyc2lvbnMYASADKAsyFi5tb2tzaGEudjEuRGF0YVZlcnNpb24SJQoFZWRnZXMYAiADKAsyFi5tb2tzaGEudjEuTGluZWFnZUVkZ2Ui4QEKFkdldERhdGFWZXJzaW9uUmVzcG9uc2USLAoMZGF0YV92ZXJzaW9uGAEgASgLMhYubW9rc2hhLnYxLkRhdGFWZXJzaW9uEgwKBHN0ZXAYAiABKAkSJQoIbWFuaWZlc3QYAyABKAsyEy5tb2tzaGEudjEuTWFuaWZlc3QSFgoObWFuaWZlc3RfZXJyb3IYBCABKAkSJAoIdXBzdHJlYW0YBSABKAsyEi5tb2tzaGEudjEuTGluZWFnZRImCgpkb3duc3RyZWFtGAYgASgLMhIubW9rc2hhLnYxLkxpbmVhZ2UygwUKDkNhdGFsb2dTZXJ2aWNlEk8KDExpc3REYXRhc2V0cxIeLm1va3NoYS52MS5MaXN0RGF0YXNldHNSZXF1ZXN0Gh8ubW9rc2hhLnYxLkxpc3REYXRhc2V0c1Jlc3BvbnNlElUKDkxpc3RQYXJ0aXRpb25zEiAubW9rc2hhLnYxLkxpc3RQYXJ0aXRpb25zUmVxdWVzdBohLm1va3NoYS52MS5MaXN0UGFydGl0aW9uc1Jlc3BvbnNlElsKEExpc3REYXRhVmVyc2lvbnMSIi5tb2tzaGEudjEuTGlzdERhdGFWZXJzaW9uc1JlcXVlc3QaIy5tb2tzaGEudjEuTGlzdERhdGFWZXJzaW9uc1Jlc3BvbnNlElUKDkdldERhdGFWZXJzaW9uEiAubW9rc2hhLnYxLkdldERhdGFWZXJzaW9uUmVxdWVzdBohLm1va3NoYS52MS5HZXREYXRhVmVyc2lvblJlc3BvbnNlEmoKFUludmFsaWRhdGVEYXRhVmVyc2lvbhInLm1va3NoYS52MS5JbnZhbGlkYXRlRGF0YVZlcnNpb25SZXF1ZXN0GigubW9rc2hhLnYxLkludmFsaWRhdGVEYXRhVmVyc2lvblJlc3BvbnNlEkYKCUxpc3RTdGFsZRIbLm1va3NoYS52MS5MaXN0U3RhbGVSZXF1ZXN0GhwubW9rc2hhLnYxLkxpc3RTdGFsZVJlc3BvbnNlEmEKEkV4cGlyZURhdGFWZXJzaW9ucxIkLm1va3NoYS52MS5FeHBpcmVEYXRhVmVyc2lvbnNSZXF1ZXN0GiUubW9rc2hhLnYxLkV4cGlyZURhdGFWZXJzaW9uc1Jlc3BvbnNlQj1aO2dpdGh1Yi5jb20vYWxwZXIvbW9rc2hhL2ludGVybmFsL2FwaS9nZW4vbW9rc2hhL3YxO21va3NoYXYxYgZwcm90bzM", [file_google_protobuf_duration, file_google_protobuf_timestamp]);
 
 /**
- * @generated from message moksha.v1.ExpirePalletsRequest
+ * @generated from message moksha.v1.ExpireDataVersionsRequest
  */
-export type ExpirePalletsRequest = Message<"moksha.v1.ExpirePalletsRequest"> & {
+export type ExpireDataVersionsRequest = Message<"moksha.v1.ExpireDataVersionsRequest"> & {
   /**
    * @generated from field: bool dry_run = 1;
    */
@@ -25,20 +25,20 @@ export type ExpirePalletsRequest = Message<"moksha.v1.ExpirePalletsRequest"> & {
 };
 
 /**
- * Describes the message moksha.v1.ExpirePalletsRequest.
- * Use `create(ExpirePalletsRequestSchema)` to create a new message.
+ * Describes the message moksha.v1.ExpireDataVersionsRequest.
+ * Use `create(ExpireDataVersionsRequestSchema)` to create a new message.
  */
-export const ExpirePalletsRequestSchema: GenMessage<ExpirePalletsRequest> = /*@__PURE__*/
+export const ExpireDataVersionsRequestSchema: GenMessage<ExpireDataVersionsRequest> = /*@__PURE__*/
   messageDesc(file_moksha_v1_catalog, 0);
 
 /**
- * @generated from message moksha.v1.ExpiredPallet
+ * @generated from message moksha.v1.ExpiredDataVersion
  */
-export type ExpiredPallet = Message<"moksha.v1.ExpiredPallet"> & {
+export type ExpiredDataVersion = Message<"moksha.v1.ExpiredDataVersion"> & {
   /**
-   * @generated from field: moksha.v1.Pallet pallet = 1;
+   * @generated from field: moksha.v1.DataVersion data_version = 1;
    */
-  pallet?: Pallet | undefined;
+  dataVersion?: DataVersion | undefined;
 
   /**
    * @generated from field: string reason = 2;
@@ -47,27 +47,27 @@ export type ExpiredPallet = Message<"moksha.v1.ExpiredPallet"> & {
 };
 
 /**
- * Describes the message moksha.v1.ExpiredPallet.
- * Use `create(ExpiredPalletSchema)` to create a new message.
+ * Describes the message moksha.v1.ExpiredDataVersion.
+ * Use `create(ExpiredDataVersionSchema)` to create a new message.
  */
-export const ExpiredPalletSchema: GenMessage<ExpiredPallet> = /*@__PURE__*/
+export const ExpiredDataVersionSchema: GenMessage<ExpiredDataVersion> = /*@__PURE__*/
   messageDesc(file_moksha_v1_catalog, 1);
 
 /**
- * @generated from message moksha.v1.ExpirePalletsResponse
+ * @generated from message moksha.v1.ExpireDataVersionsResponse
  */
-export type ExpirePalletsResponse = Message<"moksha.v1.ExpirePalletsResponse"> & {
+export type ExpireDataVersionsResponse = Message<"moksha.v1.ExpireDataVersionsResponse"> & {
   /**
-   * @generated from field: repeated moksha.v1.ExpiredPallet expired = 1;
+   * @generated from field: repeated moksha.v1.ExpiredDataVersion expired = 1;
    */
-  expired: ExpiredPallet[];
+  expired: ExpiredDataVersion[];
 };
 
 /**
- * Describes the message moksha.v1.ExpirePalletsResponse.
- * Use `create(ExpirePalletsResponseSchema)` to create a new message.
+ * Describes the message moksha.v1.ExpireDataVersionsResponse.
+ * Use `create(ExpireDataVersionsResponseSchema)` to create a new message.
  */
-export const ExpirePalletsResponseSchema: GenMessage<ExpirePalletsResponse> = /*@__PURE__*/
+export const ExpireDataVersionsResponseSchema: GenMessage<ExpireDataVersionsResponse> = /*@__PURE__*/
   messageDesc(file_moksha_v1_catalog, 2);
 
 /**
@@ -97,20 +97,20 @@ export const ListStaleRequestSchema: GenMessage<ListStaleRequest> = /*@__PURE__*
   messageDesc(file_moksha_v1_catalog, 3);
 
 /**
- * @generated from message moksha.v1.StalePallet
+ * @generated from message moksha.v1.StaleDataVersion
  */
-export type StalePallet = Message<"moksha.v1.StalePallet"> & {
+export type StaleDataVersion = Message<"moksha.v1.StaleDataVersion"> & {
   /**
-   * The partition's latest pallet.
+   * The partition's latest data version.
    *
-   * @generated from field: moksha.v1.Pallet pallet = 1;
+   * @generated from field: moksha.v1.DataVersion data_version = 1;
    */
-  pallet?: Pallet | undefined;
+  dataVersion?: DataVersion | undefined;
 
   /**
-   * @generated from field: string lift = 2;
+   * @generated from field: string step = 2;
    */
-  lift: string;
+  step: string;
 
   /**
    * @generated from field: repeated string reasons = 3;
@@ -118,18 +118,18 @@ export type StalePallet = Message<"moksha.v1.StalePallet"> & {
   reasons: string[];
 
   /**
-   * The haul that built it: starting it again with its params refreshes it.
+   * The run that built it: starting it again with its params refreshes it.
    *
-   * @generated from field: moksha.v1.HaulRef haul = 4;
+   * @generated from field: moksha.v1.RunRef run = 4;
    */
-  haul?: HaulRef | undefined;
+  run?: RunRef | undefined;
 };
 
 /**
- * Describes the message moksha.v1.StalePallet.
- * Use `create(StalePalletSchema)` to create a new message.
+ * Describes the message moksha.v1.StaleDataVersion.
+ * Use `create(StaleDataVersionSchema)` to create a new message.
  */
-export const StalePalletSchema: GenMessage<StalePallet> = /*@__PURE__*/
+export const StaleDataVersionSchema: GenMessage<StaleDataVersion> = /*@__PURE__*/
   messageDesc(file_moksha_v1_catalog, 4);
 
 /**
@@ -137,9 +137,9 @@ export const StalePalletSchema: GenMessage<StalePallet> = /*@__PURE__*/
  */
 export type ListStaleResponse = Message<"moksha.v1.ListStaleResponse"> & {
   /**
-   * @generated from field: repeated moksha.v1.StalePallet stale = 1;
+   * @generated from field: repeated moksha.v1.StaleDataVersion stale = 1;
    */
-  stale: StalePallet[];
+  stale: StaleDataVersion[];
 };
 
 /**
@@ -150,16 +150,16 @@ export const ListStaleResponseSchema: GenMessage<ListStaleResponse> = /*@__PURE_
   messageDesc(file_moksha_v1_catalog, 5);
 
 /**
- * @generated from message moksha.v1.InvalidatePalletRequest
+ * @generated from message moksha.v1.InvalidateDataVersionRequest
  */
-export type InvalidatePalletRequest = Message<"moksha.v1.InvalidatePalletRequest"> & {
+export type InvalidateDataVersionRequest = Message<"moksha.v1.InvalidateDataVersionRequest"> & {
   /**
    * @generated from field: string id = 1;
    */
   id: string;
 
   /**
-   * Required; recorded with every pallet marked.
+   * Required; recorded with every data version marked.
    *
    * @generated from field: string reason = 2;
    */
@@ -179,19 +179,19 @@ export type InvalidatePalletRequest = Message<"moksha.v1.InvalidatePalletRequest
 };
 
 /**
- * Describes the message moksha.v1.InvalidatePalletRequest.
- * Use `create(InvalidatePalletRequestSchema)` to create a new message.
+ * Describes the message moksha.v1.InvalidateDataVersionRequest.
+ * Use `create(InvalidateDataVersionRequestSchema)` to create a new message.
  */
-export const InvalidatePalletRequestSchema: GenMessage<InvalidatePalletRequest> = /*@__PURE__*/
+export const InvalidateDataVersionRequestSchema: GenMessage<InvalidateDataVersionRequest> = /*@__PURE__*/
   messageDesc(file_moksha_v1_catalog, 6);
 
 /**
- * HaulRef is a haul that built an invalidated pallet: replaying it with the
+ * RunRef is a run that built an invalidated data version: replaying it with the
  * same params recomputes what was invalidated.
  *
- * @generated from message moksha.v1.HaulRef
+ * @generated from message moksha.v1.RunRef
  */
-export type HaulRef = Message<"moksha.v1.HaulRef"> & {
+export type RunRef = Message<"moksha.v1.RunRef"> & {
   /**
    * @generated from field: string id = 1;
    */
@@ -214,34 +214,34 @@ export type HaulRef = Message<"moksha.v1.HaulRef"> & {
 };
 
 /**
- * Describes the message moksha.v1.HaulRef.
- * Use `create(HaulRefSchema)` to create a new message.
+ * Describes the message moksha.v1.RunRef.
+ * Use `create(RunRefSchema)` to create a new message.
  */
-export const HaulRefSchema: GenMessage<HaulRef> = /*@__PURE__*/
+export const RunRefSchema: GenMessage<RunRef> = /*@__PURE__*/
   messageDesc(file_moksha_v1_catalog, 7);
 
 /**
- * @generated from message moksha.v1.InvalidatePalletResponse
+ * @generated from message moksha.v1.InvalidateDataVersionResponse
  */
-export type InvalidatePalletResponse = Message<"moksha.v1.InvalidatePalletResponse"> & {
+export type InvalidateDataVersionResponse = Message<"moksha.v1.InvalidateDataVersionResponse"> & {
   /**
-   * The pallet itself first.
+   * The data version itself first.
    *
-   * @generated from field: repeated moksha.v1.Pallet pallets = 1;
+   * @generated from field: repeated moksha.v1.DataVersion data_versions = 1;
    */
-  pallets: Pallet[];
+  dataVersions: DataVersion[];
 
   /**
-   * @generated from field: repeated moksha.v1.HaulRef hauls = 2;
+   * @generated from field: repeated moksha.v1.RunRef runs = 2;
    */
-  hauls: HaulRef[];
+  runs: RunRef[];
 };
 
 /**
- * Describes the message moksha.v1.InvalidatePalletResponse.
- * Use `create(InvalidatePalletResponseSchema)` to create a new message.
+ * Describes the message moksha.v1.InvalidateDataVersionResponse.
+ * Use `create(InvalidateDataVersionResponseSchema)` to create a new message.
  */
-export const InvalidatePalletResponseSchema: GenMessage<InvalidatePalletResponse> = /*@__PURE__*/
+export const InvalidateDataVersionResponseSchema: GenMessage<InvalidateDataVersionResponse> = /*@__PURE__*/
   messageDesc(file_moksha_v1_catalog, 8);
 
 /**
@@ -292,9 +292,9 @@ export const DatasetSchema: GenMessage<Dataset> = /*@__PURE__*/
   messageDesc(file_moksha_v1_catalog, 9);
 
 /**
- * @generated from message moksha.v1.Pallet
+ * @generated from message moksha.v1.DataVersion
  */
-export type Pallet = Message<"moksha.v1.Pallet"> & {
+export type DataVersion = Message<"moksha.v1.DataVersion"> & {
   /**
    * @generated from field: string id = 1;
    */
@@ -343,16 +343,16 @@ export type Pallet = Message<"moksha.v1.Pallet"> & {
   metaJson: string;
 
   /**
-   * Who built it: a haul and its lift command.
+   * Who built it: a run and its step command.
    *
-   * @generated from field: string haul_id = 10;
+   * @generated from field: string run_id = 10;
    */
-  haulId: string;
+  runId: string;
 
   /**
-   * @generated from field: int32 lift_seq = 11;
+   * @generated from field: int32 step_seq = 11;
    */
-  liftSeq: number;
+  stepSeq: number;
 
   /**
    * pending, committed, invalid or expired.
@@ -385,10 +385,10 @@ export type Pallet = Message<"moksha.v1.Pallet"> & {
 };
 
 /**
- * Describes the message moksha.v1.Pallet.
- * Use `create(PalletSchema)` to create a new message.
+ * Describes the message moksha.v1.DataVersion.
+ * Use `create(DataVersionSchema)` to create a new message.
  */
-export const PalletSchema: GenMessage<Pallet> = /*@__PURE__*/
+export const DataVersionSchema: GenMessage<DataVersion> = /*@__PURE__*/
   messageDesc(file_moksha_v1_catalog, 10);
 
 /**
@@ -475,16 +475,16 @@ export type Partition = Message<"moksha.v1.Partition"> & {
   partition: string;
 
   /**
-   * @generated from field: moksha.v1.Pallet latest = 2;
+   * @generated from field: moksha.v1.DataVersion latest = 2;
    */
-  latest?: Pallet | undefined;
+  latest?: DataVersion | undefined;
 
   /**
-   * Committed pallets of the partition.
+   * Committed data versions of the partition.
    *
-   * @generated from field: int32 pallets = 3;
+   * @generated from field: int32 data_versions = 3;
    */
-  pallets: number;
+  dataVersions: number;
 };
 
 /**
@@ -512,9 +512,9 @@ export const ListPartitionsResponseSchema: GenMessage<ListPartitionsResponse> = 
   messageDesc(file_moksha_v1_catalog, 15);
 
 /**
- * @generated from message moksha.v1.ListPalletsRequest
+ * @generated from message moksha.v1.ListDataVersionsRequest
  */
-export type ListPalletsRequest = Message<"moksha.v1.ListPalletsRequest"> & {
+export type ListDataVersionsRequest = Message<"moksha.v1.ListDataVersionsRequest"> & {
   /**
    * Default: "default".
    *
@@ -542,7 +542,7 @@ export type ListPalletsRequest = Message<"moksha.v1.ListPalletsRequest"> & {
   states: string[];
 
   /**
-   * Only pallets older than this one (paging).
+   * Only data versions older than this one (paging).
    *
    * @generated from field: string before_id = 5;
    */
@@ -557,33 +557,33 @@ export type ListPalletsRequest = Message<"moksha.v1.ListPalletsRequest"> & {
 };
 
 /**
- * Describes the message moksha.v1.ListPalletsRequest.
- * Use `create(ListPalletsRequestSchema)` to create a new message.
+ * Describes the message moksha.v1.ListDataVersionsRequest.
+ * Use `create(ListDataVersionsRequestSchema)` to create a new message.
  */
-export const ListPalletsRequestSchema: GenMessage<ListPalletsRequest> = /*@__PURE__*/
+export const ListDataVersionsRequestSchema: GenMessage<ListDataVersionsRequest> = /*@__PURE__*/
   messageDesc(file_moksha_v1_catalog, 16);
 
 /**
- * @generated from message moksha.v1.ListPalletsResponse
+ * @generated from message moksha.v1.ListDataVersionsResponse
  */
-export type ListPalletsResponse = Message<"moksha.v1.ListPalletsResponse"> & {
+export type ListDataVersionsResponse = Message<"moksha.v1.ListDataVersionsResponse"> & {
   /**
-   * @generated from field: repeated moksha.v1.Pallet pallets = 1;
+   * @generated from field: repeated moksha.v1.DataVersion data_versions = 1;
    */
-  pallets: Pallet[];
+  dataVersions: DataVersion[];
 };
 
 /**
- * Describes the message moksha.v1.ListPalletsResponse.
- * Use `create(ListPalletsResponseSchema)` to create a new message.
+ * Describes the message moksha.v1.ListDataVersionsResponse.
+ * Use `create(ListDataVersionsResponseSchema)` to create a new message.
  */
-export const ListPalletsResponseSchema: GenMessage<ListPalletsResponse> = /*@__PURE__*/
+export const ListDataVersionsResponseSchema: GenMessage<ListDataVersionsResponse> = /*@__PURE__*/
   messageDesc(file_moksha_v1_catalog, 17);
 
 /**
- * @generated from message moksha.v1.GetPalletRequest
+ * @generated from message moksha.v1.GetDataVersionRequest
  */
-export type GetPalletRequest = Message<"moksha.v1.GetPalletRequest"> & {
+export type GetDataVersionRequest = Message<"moksha.v1.GetDataVersionRequest"> & {
   /**
    * @generated from field: string id = 1;
    */
@@ -591,10 +591,10 @@ export type GetPalletRequest = Message<"moksha.v1.GetPalletRequest"> & {
 };
 
 /**
- * Describes the message moksha.v1.GetPalletRequest.
- * Use `create(GetPalletRequestSchema)` to create a new message.
+ * Describes the message moksha.v1.GetDataVersionRequest.
+ * Use `create(GetDataVersionRequestSchema)` to create a new message.
  */
-export const GetPalletRequestSchema: GenMessage<GetPalletRequest> = /*@__PURE__*/
+export const GetDataVersionRequestSchema: GenMessage<GetDataVersionRequest> = /*@__PURE__*/
   messageDesc(file_moksha_v1_catalog, 18);
 
 /**
@@ -641,7 +641,7 @@ export type Manifest = Message<"moksha.v1.Manifest"> & {
   files: ManifestFile[];
 
   /**
-   * What the lift returned, if not null.
+   * What the step returned, if not null.
    *
    * @generated from field: string result_json = 3;
    */
@@ -656,15 +656,15 @@ export const ManifestSchema: GenMessage<Manifest> = /*@__PURE__*/
   messageDesc(file_moksha_v1_catalog, 20);
 
 /**
- * LineageEdge: pallet_id was built from input_id, passed as name.
+ * LineageEdge: data_version_id was built from input_id, passed as name.
  *
  * @generated from message moksha.v1.LineageEdge
  */
 export type LineageEdge = Message<"moksha.v1.LineageEdge"> & {
   /**
-   * @generated from field: string pallet_id = 1;
+   * @generated from field: string data_version_id = 1;
    */
-  palletId: string;
+  dataVersionId: string;
 
   /**
    * @generated from field: string input_id = 2;
@@ -689,11 +689,11 @@ export const LineageEdgeSchema: GenMessage<LineageEdge> = /*@__PURE__*/
  */
 export type Lineage = Message<"moksha.v1.Lineage"> & {
   /**
-   * Including the pallet itself.
+   * Including the data version itself.
    *
-   * @generated from field: repeated moksha.v1.Pallet pallets = 1;
+   * @generated from field: repeated moksha.v1.DataVersion data_versions = 1;
    */
-  pallets: Pallet[];
+  dataVersions: DataVersion[];
 
   /**
    * @generated from field: repeated moksha.v1.LineageEdge edges = 2;
@@ -709,20 +709,20 @@ export const LineageSchema: GenMessage<Lineage> = /*@__PURE__*/
   messageDesc(file_moksha_v1_catalog, 22);
 
 /**
- * @generated from message moksha.v1.GetPalletResponse
+ * @generated from message moksha.v1.GetDataVersionResponse
  */
-export type GetPalletResponse = Message<"moksha.v1.GetPalletResponse"> & {
+export type GetDataVersionResponse = Message<"moksha.v1.GetDataVersionResponse"> & {
   /**
-   * @generated from field: moksha.v1.Pallet pallet = 1;
+   * @generated from field: moksha.v1.DataVersion data_version = 1;
    */
-  pallet?: Pallet | undefined;
+  dataVersion?: DataVersion | undefined;
 
   /**
-   * The lift that built it.
+   * The step that built it.
    *
-   * @generated from field: string lift = 2;
+   * @generated from field: string step = 2;
    */
-  lift: string;
+  step: string;
 
   /**
    * Unset when it can't be read (expired, or the bucket isn't reachable).
@@ -748,16 +748,16 @@ export type GetPalletResponse = Message<"moksha.v1.GetPalletResponse"> & {
 };
 
 /**
- * Describes the message moksha.v1.GetPalletResponse.
- * Use `create(GetPalletResponseSchema)` to create a new message.
+ * Describes the message moksha.v1.GetDataVersionResponse.
+ * Use `create(GetDataVersionResponseSchema)` to create a new message.
  */
-export const GetPalletResponseSchema: GenMessage<GetPalletResponse> = /*@__PURE__*/
+export const GetDataVersionResponseSchema: GenMessage<GetDataVersionResponse> = /*@__PURE__*/
   messageDesc(file_moksha_v1_catalog, 23);
 
 /**
- * CatalogService reads the catalog: datasets, their partitions and pallets,
- * and what each pallet was built from and into. It is a projection of the
- * logbooks; the one write is marking bad data invalid.
+ * CatalogService reads the catalog: datasets, their partitions and data versions,
+ * and what each data version was built from and into. It is a projection of the
+ * event logs; the one write is marking bad data invalid.
  *
  * @generated from service moksha.v1.CatalogService
  */
@@ -771,7 +771,7 @@ export const CatalogService: GenService<{
     output: typeof ListDatasetsResponseSchema;
   },
   /**
-   * ListPartitions returns a dataset's partitions with a committed pallet,
+   * ListPartitions returns a dataset's partitions with a committed data version,
    * each with its newest one, in partition order.
    *
    * @generated from rpc moksha.v1.CatalogService.ListPartitions
@@ -782,44 +782,44 @@ export const CatalogService: GenService<{
     output: typeof ListPartitionsResponseSchema;
   },
   /**
-   * ListPallets returns pallets newest first.
+   * ListDataVersions returns data versions newest first.
    *
-   * @generated from rpc moksha.v1.CatalogService.ListPallets
+   * @generated from rpc moksha.v1.CatalogService.ListDataVersions
    */
-  listPallets: {
+  listDataVersions: {
     methodKind: "unary";
-    input: typeof ListPalletsRequestSchema;
-    output: typeof ListPalletsResponseSchema;
+    input: typeof ListDataVersionsRequestSchema;
+    output: typeof ListDataVersionsResponseSchema;
   },
   /**
-   * GetPallet returns a pallet, its manifest if it can be read, and its
+   * GetDataVersion returns a data version, its manifest if it can be read, and its
    * lineage: everything it was built from (upstream) and everything built
    * from it (downstream), transitively.
    *
-   * @generated from rpc moksha.v1.CatalogService.GetPallet
+   * @generated from rpc moksha.v1.CatalogService.GetDataVersion
    */
-  getPallet: {
+  getDataVersion: {
     methodKind: "unary";
-    input: typeof GetPalletRequestSchema;
-    output: typeof GetPalletResponseSchema;
+    input: typeof GetDataVersionRequestSchema;
+    output: typeof GetDataVersionResponseSchema;
   },
   /**
-   * InvalidatePallet marks a pallet and everything built from it,
+   * InvalidateDataVersion marks a data version and everything built from it,
    * transitively, invalid: never reused, never a dataset's latest. It
-   * returns what it marked (or, dry_run, would mark) and the hauls that
-   * built those pallets, whose replay recomputes them.
+   * returns what it marked (or, dry_run, would mark) and the runs that
+   * built those data versions, whose replay recomputes them.
    *
-   * @generated from rpc moksha.v1.CatalogService.InvalidatePallet
+   * @generated from rpc moksha.v1.CatalogService.InvalidateDataVersion
    */
-  invalidatePallet: {
+  invalidateDataVersion: {
     methodKind: "unary";
-    input: typeof InvalidatePalletRequestSchema;
-    output: typeof InvalidatePalletResponseSchema;
+    input: typeof InvalidateDataVersionRequestSchema;
+    output: typeof InvalidateDataVersionResponseSchema;
   },
   /**
-   * ListStale returns the partitions whose latest pallet is out of date:
-   * an input's partition has a newer pallet with other content, or the
-   * newest build has another code version of the lift that built it.
+   * ListStale returns the partitions whose latest data version is out of date:
+   * an input's partition has a newer data version with other content, or the
+   * newest build has another code version of the step that built it.
    *
    * @generated from rpc moksha.v1.CatalogService.ListStale
    */
@@ -829,16 +829,16 @@ export const CatalogService: GenService<{
     output: typeof ListStaleResponseSchema;
   },
   /**
-   * ExpirePallets expires now what retention no longer keeps (the leader
-   * also does on a timer): the pallets are recorded as expired, then their
+   * ExpireDataVersions expires now what retention no longer keeps (the leader
+   * also does on a timer): the data versions are recorded as expired, then their
    * data is deleted; manifests and lineage stay.
    *
-   * @generated from rpc moksha.v1.CatalogService.ExpirePallets
+   * @generated from rpc moksha.v1.CatalogService.ExpireDataVersions
    */
-  expirePallets: {
+  expireDataVersions: {
     methodKind: "unary";
-    input: typeof ExpirePalletsRequestSchema;
-    output: typeof ExpirePalletsResponseSchema;
+    input: typeof ExpireDataVersionsRequestSchema;
+    output: typeof ExpireDataVersionsResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_moksha_v1_catalog, 0);

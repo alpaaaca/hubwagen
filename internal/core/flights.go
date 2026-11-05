@@ -6,28 +6,28 @@ import (
 	"github.com/alper/moksha/internal/state"
 )
 
-// Single-flight. Two hauls that need the same memoized lift at the same time
+// Single-flight. Two runs that need the same memoized step at the same time
 // (a backfill and the daily schedule, say) would both miss the memo lookup,
 // since neither has finished. So the first one to run a fingerprint owns the
-// flight; a later lift with the same fingerprint waits for it instead of
-// running. When the owner completes (with its pallet committed, if it has an
+// flight; a later step with the same fingerprint waits for it instead of
+// running. When the owner completes (with its data version committed, if it has an
 // output), every waiter reuses what it produced. When
 // the owner fails or is cancelled, the first waiter runs itself, under its
 // own retry policy, and the rest wait on it.
 //
-// Flights live in memory; a new leader rebuilds them from the lifts it
+// Flights live in memory; a new leader rebuilds them from the steps it
 // restores.
 
 type flight struct {
-	owner   *liftState
-	waiters []*liftState
+	owner   *stepState
+	waiters []*stepState
 }
 
-func flightKey(l *liftState) string { return l.haul.rec.Tenant + "\x00" + l.rec.Fingerprint }
+func flightKey(l *stepState) string { return l.run.rec.Tenant + "\x00" + l.rec.Fingerprint }
 
-// runOrWait runs a lift that missed the memo lookup, unless its fingerprint
+// runOrWait runs a step that missed the memo lookup, unless its fingerprint
 // is already running.
-func (c *Core) runOrWait(l *liftState) {
+func (c *Core) runOrWait(l *stepState) {
 	if l.rec.Fingerprint == "" {
 		c.startAttempt(l)
 		return
@@ -40,27 +40,27 @@ func (c *Core) runOrWait(l *liftState) {
 	c.startAttempt(l)
 }
 
-func (c *Core) waitOn(l *liftState, f *flight) {
-	l.rec.Status = state.LiftWaiting
+func (c *Core) waitOn(l *stepState, f *flight) {
+	l.rec.Status = state.StepWaiting
 	l.flight = f
 	f.waiters = append(f.waiters, l)
-	c.dirtyLift(l)
-	c.emitH(state.EventLiftWaiting, l.haul, "", liftWaitingPayload{
-		Seq: l.rec.Seq, Fingerprint: l.rec.Fingerprint, Haul: f.owner.haul.rec.ID, OnSeq: f.owner.rec.Seq})
+	c.dirtyStep(l)
+	c.emitH(state.EventStepWaiting, l.run, "", stepWaitingPayload{
+		Seq: l.rec.Seq, Fingerprint: l.rec.Fingerprint, Run: f.owner.run.rec.ID, OnSeq: f.owner.rec.Seq})
 }
 
 // landFlight settles the flight l owns, once l has finished.
-func (c *Core) landFlight(l *liftState) {
+func (c *Core) landFlight(l *stepState) {
 	key := flightKey(l)
 	f := c.flights[key]
 	if f == nil || f.owner != l {
 		return
 	}
 	delete(c.flights, key)
-	if l.rec.Status == state.LiftCompleted && (l.pallet != "" || l.output == nil) {
+	if l.rec.Status == state.StepCompleted && (l.dataVersion != "" || l.output == nil) {
 		for _, w := range f.waiters {
 			w.flight = nil
-			c.reuseLift(w, memoMatch{pallet: l.pallet, haulID: l.rec.HaulID, seq: l.rec.Seq, result: l.rec.Result})
+			c.reuseStep(w, memoMatch{dataVersion: l.dataVersion, runID: l.rec.RunID, seq: l.rec.Seq, result: l.rec.Result})
 		}
 		return
 	}
@@ -69,9 +69,9 @@ func (c *Core) landFlight(l *liftState) {
 	}
 	next := f.waiters[0]
 	next.flight = nil
-	next.rec.Status = state.LiftScheduled
-	next.rec.RunReason = fmt.Sprintf("the run it waited for (haul %s, lift %d) %s", l.rec.HaulID, l.rec.Seq, l.rec.Status)
-	c.dirtyLift(next)
+	next.rec.Status = state.StepScheduled
+	next.rec.RunReason = fmt.Sprintf("the run it waited for (run %s, step %d) %s", l.rec.RunID, l.rec.Seq, l.rec.Status)
+	c.dirtyStep(next)
 	nf := &flight{owner: next}
 	c.flights[key] = nf
 	for _, w := range f.waiters[1:] {
@@ -81,8 +81,8 @@ func (c *Core) landFlight(l *liftState) {
 	c.startAttempt(next)
 }
 
-// leaveFlight takes a waiting lift out of its flight (it was cancelled).
-func (c *Core) leaveFlight(l *liftState) {
+// leaveFlight takes a waiting step out of its flight (it was cancelled).
+func (c *Core) leaveFlight(l *stepState) {
 	f := l.flight
 	if f == nil {
 		return
@@ -96,26 +96,26 @@ func (c *Core) leaveFlight(l *liftState) {
 	}
 }
 
-// reuseLift completes l with what a lift with the same fingerprint produced,
+// reuseStep completes l with what a step with the same fingerprint produced,
 // earlier or in the flight it waited on, without running anything.
-func (c *Core) reuseLift(l *liftState, m memoMatch) {
-	l.pallet, l.rec.Reused = m.pallet, true
+func (c *Core) reuseStep(l *stepState, m memoMatch) {
+	l.dataVersion, l.rec.Reused = m.dataVersion, true
 	l.rec.RunReason = ""
-	c.emitH(state.EventLiftReused, l.haul, "", liftReusedPayload{
-		Seq: l.rec.Seq, Pallet: m.pallet, Haul: m.haulID, OnSeq: m.seq, Fingerprint: l.rec.Fingerprint})
-	c.finishLift(l, state.LiftCompleted, m.result, "", "")
-	c.wake(l.haul)
+	c.emitH(state.EventStepReused, l.run, "", stepReusedPayload{
+		Seq: l.rec.Seq, DataVersion: m.dataVersion, Run: m.runID, OnSeq: m.seq, Fingerprint: l.rec.Fingerprint})
+	c.finishStep(l, state.StepCompleted, m.result, "", "")
+	c.wake(l.run)
 }
 
-// restoreFlights rebuilds flights from restored lifts: every unfinished lift
-// with a fingerprint owns one (the first per fingerprint), waiting lifts
-// rejoin it, and a waiting lift whose owner is gone runs itself.
-func (c *Core) restoreFlights(lifts []*liftState) {
-	var waiting []*liftState
-	for _, l := range lifts {
+// restoreFlights rebuilds flights from restored steps: every unfinished step
+// with a fingerprint owns one (the first per fingerprint), waiting steps
+// rejoin it, and a waiting step whose owner is gone runs itself.
+func (c *Core) restoreFlights(steps []*stepState) {
+	var waiting []*stepState
+	for _, l := range steps {
 		switch {
 		case l.rec.Fingerprint == "":
-		case l.rec.Status == state.LiftWaiting:
+		case l.rec.Status == state.StepWaiting:
 			waiting = append(waiting, l)
 		case c.flights[flightKey(l)] == nil:
 			c.flights[flightKey(l)] = &flight{owner: l}
@@ -127,8 +127,8 @@ func (c *Core) restoreFlights(lifts []*liftState) {
 			f.waiters = append(f.waiters, l)
 			continue
 		}
-		l.rec.Status = state.LiftScheduled
-		c.dirtyLift(l)
+		l.rec.Status = state.StepScheduled
+		c.dirtyStep(l)
 		c.runOrWait(l)
 	}
 }

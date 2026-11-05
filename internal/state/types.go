@@ -18,29 +18,29 @@ type EventType string
 const (
 	EventLeaderTermStarted EventType = "LeaderTermStarted"
 
-	// Hauls and lifts. Every one carries HaulID.
-	EventHaulStarted           EventType = "HaulStarted"
-	EventHaulTaskQueued        EventType = "HaulTaskQueued"
-	EventHaulTaskDispatched    EventType = "HaulTaskDispatched"
-	EventHaulTaskCompleted     EventType = "HaulTaskCompleted" // carries the commands
-	EventHaulTaskFailed        EventType = "HaulTaskFailed"    // worker error or lost
-	EventHaulStuck             EventType = "HaulStuck"
-	EventHaulFinished          EventType = "HaulFinished"
-	EventLiftScheduled         EventType = "LiftScheduled"
-	EventLiftAttemptDispatched EventType = "LiftAttemptDispatched"
-	EventLiftAttemptStarted    EventType = "LiftAttemptStarted"
-	EventLiftAttemptFinished   EventType = "LiftAttemptFinished"
-	EventLiftRetryScheduled    EventType = "LiftRetryScheduled"
-	EventLiftFinished          EventType = "LiftFinished"  // carries the result
-	EventLiftReused            EventType = "LiftReused"    // memoized: an earlier pallet stands in
-	EventLiftWaiting           EventType = "LiftWaiting"   // single-flight: waits for another lift
-	EventQueryAnswered         EventType = "QueryAnswered" // a haul's catalog query and its answer
+	// Pipelines and steps. Every one carries RunID.
+	EventRunStarted            EventType = "RunStarted"
+	EventRunTaskQueued         EventType = "RunTaskQueued"
+	EventRunTaskDispatched     EventType = "RunTaskDispatched"
+	EventRunTaskCompleted      EventType = "RunTaskCompleted" // carries the commands
+	EventRunTaskFailed         EventType = "RunTaskFailed"    // worker error or lost
+	EventRunStuck              EventType = "RunStuck"
+	EventRunFinished           EventType = "RunFinished"
+	EventStepScheduled         EventType = "StepScheduled"
+	EventStepAttemptDispatched EventType = "StepAttemptDispatched"
+	EventStepAttemptStarted    EventType = "StepAttemptStarted"
+	EventStepAttemptFinished   EventType = "StepAttemptFinished"
+	EventStepRetryScheduled    EventType = "StepRetryScheduled"
+	EventStepFinished          EventType = "StepFinished"  // carries the result
+	EventStepReused            EventType = "StepReused"    // memoized: an earlier data version stands in
+	EventStepWaiting           EventType = "StepWaiting"   // single-flight: waits for another step
+	EventQueryAnswered         EventType = "QueryAnswered" // a run's catalog query and its answer
 	EventTimerStarted          EventType = "TimerStarted"
 	EventTimerFired            EventType = "TimerFired"
 	EventTimerCancelled        EventType = "TimerCancelled"
-	EventSignalReceived        EventType = "SignalReceived"  // a signal sent to the haul
+	EventSignalReceived        EventType = "SignalReceived"  // a signal sent to the run
 	EventSignalDelivered       EventType = "SignalDelivered" // a wait_signal got a signal or timed out
-	EventChildStarted          EventType = "ChildStarted"    // a start_haul started its child
+	EventChildStarted          EventType = "ChildStarted"    // a start_run started its child
 	EventChildFinished         EventType = "ChildFinished"   // a waited-for child ended, or couldn't start
 )
 
@@ -52,12 +52,12 @@ type Event struct {
 	Time      time.Time
 	Tenant    string
 	Type      EventType
-	AttemptID string          // a haul task or lift attempt, if the event is about one
-	HaulID    string          // a haul's logbook is its events in seq order
+	AttemptID string          // a run task or step attempt, if the event is about one
+	RunID     string          // a run's event log is its events in seq order
 	Payload   json.RawMessage // JSON object; nil is stored as {}
 }
 
-// Attempt statuses, for lift attempts.
+// Attempt statuses, for step attempts.
 const (
 	AttemptDispatched = "dispatched"
 	AttemptRunning    = "running"

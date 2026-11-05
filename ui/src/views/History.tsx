@@ -3,16 +3,16 @@ import { useState } from "react";
 import { useApi } from "../api";
 import { clock } from "../format";
 import { POLL_MS, usePoll } from "../hooks";
-import type { HistoryEntry } from "../gen/moksha/v1/haul_pb";
+import type { HistoryEntry } from "../gen/moksha/v1/run_pb";
 import { Link } from "../router";
 import { Hint } from "../words";
 
 // History tells what happened in a run, in sentences the server writes
 // (internal/history). The engine's bookkeeping is left out unless asked
 // for, with the raw events.
-export function History({ haulId, open, onSelect }: { haulId: string; open: boolean; onSelect: (seq: number) => void }) {
+export function History({ runId, open, onSelect }: { runId: string; open: boolean; onSelect: (seq: number) => void }) {
   const api = useApi();
-  const res = usePoll(() => api.hauls.getHistory({ haulId }), [haulId, open], open ? POLL_MS : 0);
+  const res = usePoll(() => api.runs.getHistory({ runId }), [runId, open], open ? POLL_MS : 0);
   const [engine, setEngine] = useState(false);
   const entries = (res.data?.entries ?? []).filter((e) => engine || e.kind !== "engine");
 
@@ -48,10 +48,10 @@ function Line({ e, engine, onSelect }: { e: HistoryEntry; engine: boolean; onSel
           </button>
         )}{" "}
         {e.text}
-        {e.haulId && (
+        {e.runId && (
           <>
             {" "}
-            <Link to={{ name: "haul", id: e.haulId }} label="open that run">
+            <Link to={{ name: "run", id: e.runId }} label="open that run">
               ↗
             </Link>
           </>

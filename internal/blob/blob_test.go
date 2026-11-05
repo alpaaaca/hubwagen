@@ -36,8 +36,8 @@ func open(t *testing.T) (Bucket, string) {
 // openFake opens an s3:// bucket on s3fake.
 func openFake(t *testing.T) (Bucket, *s3fake.Server) {
 	t.Helper()
-	srv, endpoint := s3fake.Start(t, "hwb")
-	b, err := OpenS3(ctx, S3Config{URL: "s3://hwb/some/prefix", Endpoint: endpoint, PathStyle: true,
+	srv, endpoint := s3fake.Start(t, "mkb")
+	b, err := OpenS3(ctx, S3Config{URL: "s3://mkb/some/prefix", Endpoint: endpoint, PathStyle: true,
 		AccessKeyID: "key", SecretAccessKey: "secret"})
 	require.NoError(t, err)
 	return b, srv
@@ -154,7 +154,7 @@ func TestEscapedSegmentsMapConsistently(t *testing.T) {
 
 	s, srv := openFake(t)
 	require.NoError(t, s.Put(ctx, s.Base()+"/data/t/p/a/o/t%2Fp%2Fkey:1/a+b c/_COMMITTED", []byte("x")))
-	assert.Equal(t, []string{"some/prefix/data/t/p/a/o/t/p/key:1/a+b c/_COMMITTED"}, srv.Keys("hwb"))
+	assert.Equal(t, []string{"some/prefix/data/t/p/a/o/t/p/key:1/a+b c/_COMMITTED"}, srv.Keys("mkb"))
 
 	each(t, func(t *testing.T, b Bucket) {
 		uri := b.Base() + "/data/t%2Fp/a+b c/f.json"
@@ -225,11 +225,11 @@ func TestPutIfAbsentHasExactlyOneWinner(t *testing.T) {
 }
 
 func TestStoresWithoutConditionalWritesAreRefused(t *testing.T) {
-	srv, endpoint := s3fake.Start(t, "hwb")
+	srv, endpoint := s3fake.Start(t, "mkb")
 	srv.NoConditionalWrites = true
-	_, err := OpenS3(ctx, S3Config{URL: "s3://hwb", Endpoint: endpoint, PathStyle: true, AccessKeyID: "k", SecretAccessKey: "s"})
+	_, err := OpenS3(ctx, S3Config{URL: "s3://mkb", Endpoint: endpoint, PathStyle: true, AccessKeyID: "k", SecretAccessKey: "s"})
 	assert.ErrorContains(t, err, "ignores conditional writes")
-	assert.Empty(t, srv.Keys("hwb"), "the probe cleans up")
+	assert.Empty(t, srv.Keys("mkb"), "the probe cleans up")
 
 	_, err = OpenS3(ctx, S3Config{URL: "s3://nope", Endpoint: endpoint, PathStyle: true, AccessKeyID: "k", SecretAccessKey: "s"})
 	assert.Error(t, err, "a bucket that doesn't exist")
@@ -238,18 +238,18 @@ func TestStoresWithoutConditionalWritesAreRefused(t *testing.T) {
 func TestDeletePrefix(t *testing.T) {
 	each(t, func(t *testing.T, b Bucket) {
 		base := b.Base()
-		require.NoError(t, b.Put(ctx, base+"/lifts/t/h1/1/a1/part-0.csv", []byte("x")))
-		require.NoError(t, b.Put(ctx, base+"/lifts/t/h1/1/a1/sub/part-1.csv", []byte("y")))
-		require.NoError(t, b.Put(ctx, base+"/lifts/t/h1/1/a2/part-0.csv", []byte("z")))
-		require.NoError(t, b.Put(ctx, base+"/lifts/t/h1/1/a10/part-0.csv", []byte("z")))
+		require.NoError(t, b.Put(ctx, base+"/steps/t/h1/1/a1/part-0.csv", []byte("x")))
+		require.NoError(t, b.Put(ctx, base+"/steps/t/h1/1/a1/sub/part-1.csv", []byte("y")))
+		require.NoError(t, b.Put(ctx, base+"/steps/t/h1/1/a2/part-0.csv", []byte("z")))
+		require.NoError(t, b.Put(ctx, base+"/steps/t/h1/1/a10/part-0.csv", []byte("z")))
 
-		require.NoError(t, b.DeletePrefix(ctx, base+"/lifts/t/h1/1/a1/"))
-		left, err := b.List(ctx, base+"/lifts/")
+		require.NoError(t, b.DeletePrefix(ctx, base+"/steps/t/h1/1/a1/"))
+		left, err := b.List(ctx, base+"/steps/")
 		require.NoError(t, err)
-		assert.Equal(t, []string{base + "/lifts/t/h1/1/a10/part-0.csv", base + "/lifts/t/h1/1/a2/part-0.csv"}, left)
+		assert.Equal(t, []string{base + "/steps/t/h1/1/a10/part-0.csv", base + "/steps/t/h1/1/a2/part-0.csv"}, left)
 
 		require.NoError(t, b.DeletePrefix(ctx, base+"/nothing/"), "removing nothing is fine")
-		assert.Error(t, b.DeletePrefix(ctx, base+"/lifts"), "needs a directory URI")
+		assert.Error(t, b.DeletePrefix(ctx, base+"/steps"), "needs a directory URI")
 		assert.Error(t, b.DeletePrefix(ctx, base+"/"), "never the whole bucket")
 		assert.Error(t, b.DeletePrefix(ctx, "file:///elsewhere/"), "never outside the bucket")
 	})
@@ -299,13 +299,13 @@ func TestPresignedURLs(t *testing.T) {
 }
 
 func TestPublicEndpoint(t *testing.T) {
-	_, endpoint := s3fake.Start(t, "hwb")
-	b, err := OpenS3(ctx, S3Config{URL: "s3://hwb", Endpoint: endpoint, PublicEndpoint: "https://s3.example.com",
+	_, endpoint := s3fake.Start(t, "mkb")
+	b, err := OpenS3(ctx, S3Config{URL: "s3://mkb", Endpoint: endpoint, PublicEndpoint: "https://s3.example.com",
 		PathStyle: true, AccessKeyID: "k", SecretAccessKey: "s"})
 	require.NoError(t, err)
 	tr, err := b.(Presigner).PresignGet(ctx, b.Base()+"/x", time.Minute)
 	require.NoError(t, err)
-	assert.True(t, strings.HasPrefix(tr.URL, "https://s3.example.com/hwb/x?"), tr.URL)
+	assert.True(t, strings.HasPrefix(tr.URL, "https://s3.example.com/mkb/x?"), tr.URL)
 }
 
 func sha256Hex(data []byte) string {

@@ -17,7 +17,7 @@ const PoolsPath = "/v1/pools"
 type poolJSON struct {
 	Name     string   `json:"name"`
 	Launcher string   `json:"launcher"` // process or external
-	Docks    []string `json:"docks"`
+	Queues   []string `json:"queues"`
 	Min      int      `json:"min"`
 	Max      int      `json:"max"`
 	Desired  int      `json:"desired"`
@@ -38,7 +38,7 @@ func PoolsHandler(c *core.Core) http.Handler {
 		}
 		out := []poolJSON{}
 		for _, p := range ps {
-			j := poolJSON{Name: p.Name, Launcher: "process", Docks: p.Docks, Min: p.Min, Max: p.Max, Desired: p.Desired,
+			j := poolJSON{Name: p.Name, Launcher: "process", Queues: p.Queues, Min: p.Min, Max: p.Max, Desired: p.Desired,
 				Workers: len(p.Workers), Decision: p.Decision}
 			if p.External {
 				j.Launcher = "external"

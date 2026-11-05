@@ -12,9 +12,9 @@ from typing import Any
 
 @dataclass
 class Output:
-    """The running lift's output: write files under `path`; anything in
-    `meta` (a cursor, a watermark) is recorded on the pallet and readable
-    with ctx.latest_pallet(...).meta; `stats` likewise."""
+    """The running step's output: write files under `path`; anything in
+    `meta` (a cursor, a watermark) is recorded on the data version and readable
+    with ctx.latest_version(...).meta; `stats` likewise."""
 
     path: Path
     meta: dict[str, Any] = field(default_factory=dict)
@@ -25,7 +25,7 @@ _current: contextvars.ContextVar[Output | None] = contextvars.ContextVar("moksha
 
 
 def output() -> Output:
-    """The running lift's output. Only inside a lift declared with output=."""
+    """The running step's output. Only inside a step declared with output=."""
     o = _current.get()
     if o is None:
         raise RuntimeError("moksha.output() is only available inside a step declared with output=")
@@ -38,7 +38,7 @@ def local_dir(staging: str) -> Path:
 
 
 def describe(o: Output) -> dict:
-    """The LiftOutput message for what the lift wrote."""
+    """The StepOutput message for what the step wrote."""
     files = []
     for root, _, names in os.walk(o.path):
         for n in sorted(names):

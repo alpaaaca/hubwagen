@@ -26,7 +26,7 @@ service:
   type: ClusterIP         # the API has no authentication yet: keep it inside the cluster
 
 # Worker pools: a Deployment each, whose replicas the server sets between
-# min and max from the work waiting on the pool's docks (launcher:
+# min and max from the work waiting on the pool's queues (launcher:
 # kubernetes). The image is a project's: FROM ghcr.io/alpaaaca/moksha-worker
 # plus its code.
 pools: []
@@ -34,8 +34,8 @@ pools: []
 #    image: ghcr.io/acme/revenue:2026-10-30
 #    min: 0
 #    max: 5
-#    lifts: 2              # steps one worker runs at once
-#    docks: [default]
+#    steps: 2              # steps one worker runs at once
+#    queues: [default]
 #    idleAfter: 5m         # a worker with nothing to run this long goes
 #    command: []           # default: the image's
 #    env: {}

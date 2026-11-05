@@ -1,15 +1,15 @@
-"""What a lift's code prints and logs, captured per lift attempt.
+"""What a step's code prints and logs, captured per step attempt.
 
-Lifts run on threads of one worker process, so capture goes by thread: while
-a lift runs, its thread has a Capture, and sys.stdout, sys.stderr and the
+Steps run on threads of one worker process, so capture goes by thread: while
+a step runs, its thread has a Capture, and sys.stdout, sys.stderr and the
 logging module hand that thread's output to it. Output of other threads (the
-worker's own, threads the lift starts) passes through as before; so does
+worker's own, threads the step starts) passes through as before; so does
 output that doesn't go through Python (a subprocess, a C library writing to
 the file descriptor), which isn't captured.
 
 The worker sends a Capture's lines to the server as they come (LogService
 AppendLogs), so they can be followed live. With echo (the default), captured
-output still reaches the terminal, marked with the lift's name; `moksha
+output still reaches the terminal, marked with the step's name; `moksha
 dev` turns echo off (MOKSHA_ECHO_LOGS=0) and prints the lines it receives.
 """
 
@@ -34,7 +34,7 @@ def _now() -> str:
 
 
 class Capture:
-    """One lift attempt's output: lines waiting to be sent."""
+    """One step attempt's output: lines waiting to be sent."""
 
     def __init__(self, name: str, send: Callable[[list[dict]], None], echo: bool = ECHO):
         self.name = name
@@ -134,7 +134,7 @@ def _not_captured(r: logging.LogRecord) -> bool:
 
 def install() -> None:
     """Route sys.stdout, sys.stderr and logging through captures. Called as
-    each lift starts: whoever replaced sys.stdout since gets wrapped too."""
+    each step starts: whoever replaced sys.stdout since gets wrapped too."""
     global _installed
     with _install_lock:
         for stream in ("stdout", "stderr"):

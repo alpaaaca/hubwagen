@@ -12,6 +12,6 @@ server:
 workers:
   - name: py
     replicas: 3
-    command: [python3, -m, moksha.worker, --lifts, "2"]   # modules: pyproject.toml
+    command: [python3, -m, moksha.worker, --steps, "2"]   # modules: pyproject.toml
     env:
       PYTHONPATH: ../../../sdk/python/src   # an installed SDK needs none

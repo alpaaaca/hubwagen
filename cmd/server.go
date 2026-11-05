@@ -51,7 +51,7 @@ Only one process can use a data directory at a time.`,
 }
 
 func init() {
-	serverCmd.Flags().StringVar(&dataDir, "data-dir", config.DefaultDataDir, "directory for the server's state, logbooks and pallets (default: from the config)")
+	serverCmd.Flags().StringVar(&dataDir, "data-dir", config.DefaultDataDir, "directory for the server's state, event logs and data versions (default: from the config)")
 	serverCmd.Flags().StringVar(&listenAddr, "listen", config.DefaultListen, "address to serve the API on (default: from the config)")
 	serverCmd.Flags().BoolVar(&noWorkers, "no-workers", false, "don't start the workers from the config (they run elsewhere)")
 	addConfigFlag(serverCmd)

@@ -8,30 +8,30 @@ Not run on 3.12.
 
 ## Questions and answers
 
-### How slow is full replay-until-blocked for a 1,000-event logbook?
+### How slow is full replay-until-blocked for a 1,000-event event log?
 
-Fast. Decoding the logbook dominates; running the haul function is cheap.
+Fast. Decoding the event log dominates; running the pipeline function is cheap.
 
-| Logbook | Size | Decode | Decode + replay |
+| Event log | Size | Decode | Decode + replay |
 |---|---|---|---|
-| 143 lifts, 1,002 events | 0.18 MB | 0.7 ms | 0.8 ms |
-| 1,000 lifts, 7,001 events | 1.25 MB | 5.3 ms | 5.8 ms |
-| 5,000 lifts, 35,001 events | 6.4 MB | 29 ms | 33 ms |
-| fan-out: `gather` over 10,000 `lift_async` | | | 50 ms |
+| 143 steps, 1,002 events | 0.18 MB | 0.7 ms | 0.8 ms |
+| 1,000 steps, 7,001 events | 1.25 MB | 5.3 ms | 5.8 ms |
+| 5,000 steps, 35,001 events | 6.4 MB | 29 ms | 33 ms |
+| fan-out: `gather` over 10,000 `step_async` | | | 50 ms |
 
-The catch is the haul's **lifetime**: a sequential haul replays once per
-result, each time over the whole logbook so far, so total work is O(n²).
+The catch is the run's **lifetime**: a sequential run replays once per
+result, each time over the whole event log so far, so total work is O(n²).
 
-| Sequential haul | Worker CPU over its life | Logbook bytes sent |
+| Sequential run | Worker CPU over its life | Event log bytes sent |
 |---|---|---|
-| 143 lifts (~1,000 events) | 58 ms | 13 MB |
-| 500 lifts | 0.7 s | — |
-| 1,000 lifts | 2.9 s | 627 MB |
+| 143 steps (~1,000 events) | 58 ms | 13 MB |
+| 500 steps | 0.7 s | — |
+| 1,000 steps | 2.9 s | 627 MB |
 
-Sending only the events a replay reads (`HaulStarted`, `LiftFinished`,
+Sending only the events a replay reads (`RunStarted`, `StepFinished`,
 `TimerFired`, later signals and markers) instead of every event cuts a
-1,000-lift logbook from 1.25 MB to 0.24 MB and the replay from 5.8 to
-2.2 ms; the 1,000-lift haul would send ~118 MB instead of 627 MB.
+1,000-step event log from 1.25 MB to 0.24 MB and the replay from 5.8 to
+2.2 ms; the 1,000-step run would send ~118 MB instead of 627 MB.
 
 ### Does patching `time.time`, `datetime.now`, `random.*` and `uuid.uuid4` catch typical mistakes without breaking libraries?
 
@@ -40,21 +40,21 @@ runs 13 typical mistakes and 6 legitimate uses (stdlib code that reads the
 clock or randomness internally, seeded `Random`, date arithmetic, `uuid5`)
 under two guards:
 
-| | Mistakes caught (of 13) | Legitimate uses broken (of 6) | Overhead, 1,000-lift replay |
+| | Mistakes caught (of 13) | Legitimate uses broken (of 6) | Overhead, 1,000-step replay |
 |---|---|---|---|
-| A. Patch module attributes while haul code runs | 8 | 2 (`logging`, `email.utils.make_msgid`) | none |
+| A. Patch module attributes while pipeline code runs | 8 | 2 (`logging`, `email.utils.make_msgid`) | none |
 | B. `sys.monitoring` CALL events, raise only when the caller is user code | **13** | **0** | +1.2–1.5 ms (~20%) |
 
 Patching misses everything bound before the patch (`from time import
 time`, `from datetime import datetime`, `from random import randint`) and
-can't tell user code from library code, so `logging.warning()` in a haul
+can't tell user code from library code, so `logging.warning()` in a run
 raises (a `LogRecord` reads `time.time_ns()`).
 
 `sys.monitoring` (Python ≥ 3.12) sees the callable itself, however it was
 imported, and the calling code object, so it only flags calls made *from*
 user code; library locations are `DISABLE`d after their first event and cost
 nothing afterwards. Errors name the call site:
-`datetime.now() called at app/hauls.py:24; use ctx.now()/ctx.random() or a lift`.
+`datetime.now() called at app/pipelines.py:24; use ctx.now()/ctx.random() or a step`.
 
 Two portability details the spike hit:
 
@@ -73,13 +73,13 @@ don't use either.
 
 ## Found along the way
 
-- **`Blocked` must be a `BaseException`.** Haul code with
-  `try: ctx.lift(…) except Exception: …` swallows an `Exception`-based
+- **`Blocked` must be a `BaseException`.** Pipeline code with
+  `try: ctx.step(…) except Exception: …` swallows an `Exception`-based
   blocked signal and carries on with a fallback value, silently diverging
-  from the logbook. With `BaseException` the replay blocks as it should.
+  from the event log. With `BaseException` the replay blocks as it should.
 - **Set iteration order changes between processes.** Iterating a set of
   strings gave 6 different orders in 6 runs by default and 1 with
-  `PYTHONHASHSEED=0`. A haul that iterates a set to issue lifts replays in
+  `PYTHONHASHSEED=0`. A run that iterates a set to issue steps replays in
   another order in another worker process. The guards can't see this; a
   fixed hash seed fixes it.
 - Not covered by any runtime guard: environment variables, files, network.
@@ -89,12 +89,12 @@ don't use either.
 ## Recommendations for the SDK (#24, #25)
 
 1. **Keep full replay, no sticky caching** in v1: a replay of a
-   realistic logbook costs about a millisecond.
-2. **Bound the O(n²):** have `PollHaulTask` return only replay-relevant
-   events (a server change with the SDK work), and document that hauls with
+   realistic event log costs about a millisecond.
+2. **Bound the O(n²):** have `PollRunTask` return only replay-relevant
+   events (a server change with the SDK work), and document that runs with
    more than ~1,000 sequential commands should use `continue_as_new` or
-   fan-out (`lift_async` + `gather`, one replay for all). Incremental
-   logbooks for sticky workers only if real hauls need them.
+   fan-out (`step_async` + `gather`, one replay for all). Incremental
+   event logs for sticky workers only if real runs need them.
 3. **Guard with `sys.monitoring`, not patching.** Forbid `time.time`,
    `time.time_ns`, `datetime.now/utcnow/today`, `date.today`, the
    module-level `random` functions, `uuid.uuid1/uuid4`, `os.urandom`; only

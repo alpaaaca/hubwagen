@@ -13,11 +13,11 @@ import (
 // t0 is 2026-10-21 02:00 UTC. A daily schedule at 03:00 starts with the
 // interval that begins at the next midnight: its first run is 2026-10-22
 // 03:00, for 2026-10-21.
-var daily = ScheduleSpec{Haul: "daily_revenue", Cron: "0 3 * * *", Interval: "daily"}
+var daily = ScheduleSpec{Pipeline: "daily_revenue", Cron: "0 3 * * *", Interval: "daily"}
 
 func (h *harness) scheduleBuild(id string, specs ...ScheduleSpec) {
 	h.t.Helper()
-	require.NoError(h.t, h.core.RegisterBuild(h.ctx, BuildRequest{ID: id, Hauls: []string{"daily_revenue", "x"}, Schedules: specs}))
+	require.NoError(h.t, h.core.RegisterBuild(h.ctx, BuildRequest{ID: id, Pipelines: []string{"daily_revenue", "x"}, Schedules: specs}))
 }
 
 // scheduled returns the ScheduleFired payloads so far.
@@ -38,7 +38,7 @@ func (h *harness) scheduled() []scheduleFiredPayload {
 
 func day(d int) time.Time { return time.Date(2026, 10, d, 0, 0, 0, 0, time.UTC) }
 
-func TestScheduleStartsAHaulPerInterval(t *testing.T) {
+func TestScheduleStartsARunPerInterval(t *testing.T) {
 	h := newHarness(t)
 	h.scheduleBuild("b1", daily)
 	h.advance(25 * time.Hour) // 2026-10-22 03:00
@@ -47,7 +47,7 @@ func TestScheduleStartsAHaulPerInterval(t *testing.T) {
 	f := fired[0]
 	assert.Equal(t, day(21), f.Start.UTC())
 	assert.Equal(t, day(22), f.End.UTC())
-	got := h.haul(f.HaulID)
+	got := h.run(f.RunID)
 	assert.Equal(t, "daily_revenue", got.Name)
 	assert.Equal(t, "schedule", got.Trigger)
 	assert.Equal(t, ScheduleTenant, got.Tenant)
@@ -86,7 +86,7 @@ func TestNewestBuildDecidesTheSchedule(t *testing.T) {
 	}
 	assert.Len(t, h.scheduled(), 3, "hourly now")
 
-	h.scheduleBuild("b3") // defines the haul without a schedule: removed
+	h.scheduleBuild("b3") // defines the run without a schedule: removed
 	h.advance(48 * time.Hour)
 	assert.Len(t, h.scheduled(), 3)
 	scheds, err := h.store.ListSchedules(h.ctx)
@@ -113,7 +113,7 @@ func TestCatchUpAfterDowntime(t *testing.T) {
 			fired := h.scheduled()
 			started := 0
 			for _, f := range fired {
-				if f.HaulID != "" {
+				if f.RunID != "" {
 					started++
 				}
 			}
@@ -138,14 +138,14 @@ func TestCatchUpAfterDowntime(t *testing.T) {
 
 func TestScheduleValidation(t *testing.T) {
 	h := newHarness(t)
-	err := h.core.RegisterBuild(h.ctx, BuildRequest{ID: "bad", Hauls: []string{"x"}, Schedules: []ScheduleSpec{
-		{Haul: "nope", Cron: "0 3 * * *"},
-		{Haul: "x", Cron: "every day"},
-		{Haul: "x", Cron: "0 3 * * *", CatchUp: "some"},
+	err := h.core.RegisterBuild(h.ctx, BuildRequest{ID: "bad", Pipelines: []string{"x"}, Schedules: []ScheduleSpec{
+		{Pipeline: "nope", Cron: "0 3 * * *"},
+		{Pipeline: "x", Cron: "every day"},
+		{Pipeline: "x", Cron: "0 3 * * *", CatchUp: "some"},
 	}})
 	require.ErrorIs(t, err, ErrInvalid)
-	for _, want := range []string{`schedules[0]: haul "nope" isn't one of the build's hauls`, `schedules[1] (x): cron "every day"`,
-		`schedules[2]: haul "x" has two schedules`, `catch_up "some" must be skip, latest or all`} {
+	for _, want := range []string{`schedules[0]: pipeline "nope" isn't one of the build's pipelines`, `schedules[1] (x): cron "every day"`,
+		`schedules[2]: pipeline "x" has two schedules`, `catch_up "some" must be skip, latest or all`} {
 		assert.ErrorContains(t, err, want)
 	}
 }

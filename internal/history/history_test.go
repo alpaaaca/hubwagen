@@ -14,39 +14,39 @@ var t0 = time.Date(2026, 10, 29, 3, 0, 0, 0, time.UTC)
 
 func ev(at time.Duration, typ state.EventType, payload map[string]any) state.Event {
 	b, _ := json.Marshal(payload)
-	return state.Event{Time: t0.Add(at), Type: typ, HaulID: "run2", Payload: b}
+	return state.Event{Time: t0.Add(at), Type: typ, RunID: "run2", Payload: b}
 }
 
 func TestARunInPlainWords(t *testing.T) {
 	evs := []state.Event{
-		ev(0, state.EventHaulStarted, map[string]any{"name": "daily", "trigger": "schedule",
+		ev(0, state.EventRunStarted, map[string]any{"name": "daily", "trigger": "schedule",
 			"params": map[string]any{"interval": map[string]any{"$interval": map[string]any{
 				"start": "2026-10-28T00:00:00Z", "end": "2026-10-29T00:00:00Z"}}}}),
-		ev(10*time.Millisecond, state.EventHaulTaskQueued, map[string]any{"number": 1}),
-		ev(20*time.Millisecond, state.EventLiftScheduled, map[string]any{"seq": 1, "name": "extract_orders", "run_reason": "no previous run"}),
-		ev(30*time.Millisecond, state.EventLiftAttemptDispatched, map[string]any{"seq": 1, "number": 1, "worker": "worker-1"}),
-		ev(830*time.Millisecond, state.EventLiftAttemptFinished, map[string]any{"seq": 1, "number": 1, "status": "succeeded"}),
-		ev(830*time.Millisecond, state.EventLiftFinished, map[string]any{"seq": 1, "status": "completed", "pallet": "p1"}),
-		ev(time.Second, state.EventLiftScheduled, map[string]any{"seq": 2, "name": "daily_revenue"}),
-		ev(time.Second, state.EventLiftReused, map[string]any{"seq": 2, "pallet": "p0"}),
-		ev(time.Second, state.EventLiftFinished, map[string]any{"seq": 2, "status": "completed", "pallet": "p0", "reused": true}),
-		ev(time.Second, state.EventLiftScheduled, map[string]any{"seq": 3, "name": "revenue_report", "run_reason": "code changed (a1 → b2), input changed"}),
-		ev(time.Second, state.EventLiftAttemptDispatched, map[string]any{"seq": 3, "number": 1, "worker": "worker-2"}),
-		ev(2*time.Second, state.EventLiftAttemptFinished, map[string]any{"seq": 3, "number": 1, "status": "failed", "reason": "KeyError", "message": "'region'"}),
-		ev(2*time.Second, state.EventLiftRetryScheduled, map[string]any{"seq": 3, "next_attempt": 2, "retry_at": t0.Add(12 * time.Second)}),
-		ev(12*time.Second, state.EventLiftAttemptDispatched, map[string]any{"seq": 3, "number": 2, "worker": "worker-2"}),
-		ev(14*time.Second, state.EventLiftFinished, map[string]any{"seq": 3, "status": "failed", "reason": "KeyError", "message": "'region'"}),
-		ev(14*time.Second, state.EventHaulFinished, map[string]any{"status": "failed", "reason": "LiftFailed", "message": "revenue_report failed"}),
+		ev(10*time.Millisecond, state.EventRunTaskQueued, map[string]any{"number": 1}),
+		ev(20*time.Millisecond, state.EventStepScheduled, map[string]any{"seq": 1, "name": "extract_orders", "run_reason": "no previous run"}),
+		ev(30*time.Millisecond, state.EventStepAttemptDispatched, map[string]any{"seq": 1, "number": 1, "worker": "worker-1"}),
+		ev(830*time.Millisecond, state.EventStepAttemptFinished, map[string]any{"seq": 1, "number": 1, "status": "succeeded"}),
+		ev(830*time.Millisecond, state.EventStepFinished, map[string]any{"seq": 1, "status": "completed", "data_version": "p1"}),
+		ev(time.Second, state.EventStepScheduled, map[string]any{"seq": 2, "name": "daily_revenue"}),
+		ev(time.Second, state.EventStepReused, map[string]any{"seq": 2, "data_version": "p0"}),
+		ev(time.Second, state.EventStepFinished, map[string]any{"seq": 2, "status": "completed", "data_version": "p0", "reused": true}),
+		ev(time.Second, state.EventStepScheduled, map[string]any{"seq": 3, "name": "revenue_report", "run_reason": "code changed (a1 → b2), input changed"}),
+		ev(time.Second, state.EventStepAttemptDispatched, map[string]any{"seq": 3, "number": 1, "worker": "worker-2"}),
+		ev(2*time.Second, state.EventStepAttemptFinished, map[string]any{"seq": 3, "number": 1, "status": "failed", "reason": "KeyError", "message": "'region'"}),
+		ev(2*time.Second, state.EventStepRetryScheduled, map[string]any{"seq": 3, "next_attempt": 2, "retry_at": t0.Add(12 * time.Second)}),
+		ev(12*time.Second, state.EventStepAttemptDispatched, map[string]any{"seq": 3, "number": 2, "worker": "worker-2"}),
+		ev(14*time.Second, state.EventStepFinished, map[string]any{"seq": 3, "status": "failed", "reason": "KeyError", "message": "'region'"}),
+		ev(14*time.Second, state.EventRunFinished, map[string]any{"status": "failed", "reason": "StepFailed", "message": "revenue_report failed"}),
 	}
 	look := Lookup{
-		Pallet: func(id string) (state.Pallet, bool) {
-			return map[string]state.Pallet{
-				"p1": {Dataset: "raw.orders", Partition: "2026-10-28", HaulID: "run2"},
-				"p0": {Dataset: "mart.revenue", Partition: "2026-10-28", HaulID: "run1"},
+		DataVersion: func(id string) (state.DataVersion, bool) {
+			return map[string]state.DataVersion{
+				"p1": {Dataset: "raw.orders", Partition: "2026-10-28", RunID: "run2"},
+				"p0": {Dataset: "mart.revenue", Partition: "2026-10-28", RunID: "run1"},
 			}[id], true
 		},
-		Haul: func(id string) (state.Haul, bool) {
-			return state.Haul{Name: "daily", Params: map[string]any{"day": "2026-10-28"}}, id == "run1"
+		Run: func(id string) (state.Run, bool) {
+			return state.Run{Name: "daily", Params: map[string]any{"day": "2026-10-28"}}, id == "run1"
 		},
 	}
 	type line struct{ Kind, Step, Text, Detail, Run string }
@@ -70,18 +70,18 @@ func TestARunInPlainWords(t *testing.T) {
 		{KindRetry, "revenue_report", "tries again in 10 s (attempt 2)", "", ""},
 		{KindStep, "revenue_report", "attempt 2 started on worker-2", "", ""},
 		{KindProblem, "revenue_report", "failed in 2.0 s", "KeyError: 'region'", ""},
-		{KindFinished, "", "Failed in 14 s", "LiftFailed: revenue_report failed", ""},
+		{KindFinished, "", "Failed in 14 s", "StepFailed: revenue_report failed", ""},
 	}, got)
 }
 
 func TestReusedFromARunWithTheSameInputs(t *testing.T) {
 	evs := []state.Event{
-		ev(0, state.EventHaulStarted, map[string]any{"name": "daily", "params": map[string]any{"day": "2026-10-28"}}),
-		ev(time.Second, state.EventLiftScheduled, map[string]any{"seq": 1, "name": "build"}),
-		ev(time.Second, state.EventLiftReused, map[string]any{"seq": 1, "haul": "run1", "on_seq": 1}),
+		ev(0, state.EventRunStarted, map[string]any{"name": "daily", "params": map[string]any{"day": "2026-10-28"}}),
+		ev(time.Second, state.EventStepScheduled, map[string]any{"seq": 1, "name": "build"}),
+		ev(time.Second, state.EventStepReused, map[string]any{"seq": 1, "run": "run1", "on_seq": 1}),
 	}
-	look := Lookup{Haul: func(id string) (state.Haul, bool) {
-		return state.Haul{Name: "daily", Params: map[string]any{"day": "2026-10-28"}}, true
+	look := Lookup{Run: func(id string) (state.Run, bool) {
+		return state.Run{Name: "daily", Params: map[string]any{"day": "2026-10-28"}}, true
 	}}
 	e := Tell(evs, look)[2]
 	assert.Equal(t, "reused: same inputs and same code as before, so it didn't run again (from an earlier run with the same inputs)", e.Text)

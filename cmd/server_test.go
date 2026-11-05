@@ -47,7 +47,7 @@ func runServerCmd(t *testing.T, out string, args ...string) (string, <-chan erro
 func runServerCmdWith(t *testing.T, out, group string, args ...string) (string, <-chan error) {
 	t.Helper()
 	listen := freeListen(t)
-	script := fmt.Sprintf(`trap 'echo stopped >> %[1]s; exit 0' TERM; echo "$MOKSHA_SERVER $MOKSHA_WORKER_ID $MOKSHA_DOCKS $MOKSHA_LIFTS" >> %[1]s; echo hello; while :; do sleep 0.05; done`, out)
+	script := fmt.Sprintf(`trap 'echo stopped >> %[1]s; exit 0' TERM; echo "$MOKSHA_SERVER $MOKSHA_WORKER_ID $MOKSHA_QUEUES $MOKSHA_STEPS" >> %[1]s; echo hello; while :; do sleep 0.05; done`, out)
 	return listen, runServerConfig(t, listen, fmt.Sprintf("workers:\n  - name: sh\n    command: [/bin/sh, -c, %q]\n%s", script, group), args...)
 }
 
@@ -107,7 +107,7 @@ func TestServerWithoutWorkers(t *testing.T) {
 
 func TestServerStartsAScaledPoolAtItsMin(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "worker.txt")
-	listen, done := runServerCmdWith(t, out, "    min: 1\n    max: 3\n    docks: [gpu, default]\n    lifts: 2\n")
+	listen, done := runServerCmdWith(t, out, "    min: 1\n    max: 3\n    queues: [gpu, default]\n    steps: 2\n")
 	read := func() string { b, _ := os.ReadFile(out); return string(b) }
 	require.Eventually(t, func() bool { return read() != "" }, 10*time.Second, 20*time.Millisecond)
 	time.Sleep(3 * time.Second) // a scaler pass: nothing waits, so no more start
@@ -159,7 +159,7 @@ esac
 func TestServerRunsDeployedProjects(t *testing.T) {
 	bin, logf, dir := t.TempDir(), filepath.Join(t.TempDir(), "workers.log"), t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(bin, "python3"), []byte(`#!/bin/sh
-echo "start $MOKSHA_WORKER_ID $MOKSHA_DOCKS $MOKSHA_LIFTS $GREETING $(pwd)" >> `+logf+`
+echo "start $MOKSHA_WORKER_ID $MOKSHA_QUEUES $MOKSHA_STEPS $GREETING $(pwd)" >> `+logf+`
 trap 'echo "stop $MOKSHA_WORKER_ID" >> `+logf+`; exit 0' TERM
 while :; do sleep 0.05; done
 `), 0o755))
@@ -170,8 +170,8 @@ while :; do sleep 0.05; done
 		t.Helper()
 		_, err := c.Deploy(context.Background(), connect.NewRequest(&mokshav1.DeployRequest{
 			Project: "revenue", Dir: dir, Python: filepath.Join(bin, "python3"), Env: map[string]string{"GREETING": "hi"},
-			Build: &mokshav1.RegisterBuildRequest{BuildId: build, Hauls: []string{"daily"}},
-			Pools: []*mokshav1.DeployedPool{{Name: "default", Docks: []string{"default"}, Min: 1, Max: 2, Lifts: 3, IdleAfter: durationpb.New(time.Minute)}}}))
+			Build: &mokshav1.RegisterBuildRequest{BuildId: build, Pipelines: []string{"daily"}},
+			Pools: []*mokshav1.DeployedPool{{Name: "default", Queues: []string{"default"}, Min: 1, Max: 2, Steps: 3, IdleAfter: durationpb.New(time.Minute)}}}))
 		require.NoError(t, err)
 	}
 	read := func() string { b, _ := os.ReadFile(logf); return string(b) }
@@ -207,8 +207,8 @@ while :; do sleep 0.05; done
 	c := mokshav1connect.NewDeployServiceClient(http.DefaultClient, "http://"+listen)
 	req := &mokshav1.DeployRequest{Project: "revenue", Dir: dir, Python: filepath.Join(bin, "python3"),
 		Secrets: map[string]string{"DB_PASSWORD": "revenue-db"},
-		Build:   &mokshav1.RegisterBuildRequest{BuildId: "b1", Hauls: []string{"daily"}},
-		Pools:   []*mokshav1.DeployedPool{{Name: "default", Docks: []string{"default"}, Min: 1, Max: 1, Lifts: 1, IdleAfter: durationpb.New(time.Minute)}}}
+		Build:   &mokshav1.RegisterBuildRequest{BuildId: "b1", Pipelines: []string{"daily"}},
+		Pools:   []*mokshav1.DeployedPool{{Name: "default", Queues: []string{"default"}, Min: 1, Max: 1, Steps: 1, IdleAfter: durationpb.New(time.Minute)}}}
 	_, err := c.Deploy(context.Background(), connect.NewRequest(req))
 	require.NoError(t, err)
 	read := func() string { b, _ := os.ReadFile(logf); return string(b) }

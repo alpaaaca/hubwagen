@@ -1,6 +1,5 @@
 // What moksha's ideas mean, in a sentence each, for the hints next to
-// the words people meet in the UI. The engine's own names (haul, lift,
-// pallet) stay out of sight: a pipeline, a run, a step, a version.
+// the words people meet in the UI.
 export const WORDS = {
   pipeline: "Your code that describes the work: which steps run, in what order, with which inputs.",
   run: "One execution of a pipeline, for some inputs (such as a day).",

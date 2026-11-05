@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file moksha/v1/log.proto.
  */
 export const file_moksha_v1_log: GenFile = /*@__PURE__*/
-  fileDesc("ChNtb2tzaGEvdjEvbG9nLnByb3RvEgltb2tzaGEudjEicAoHTG9nTGluZRIoCgR0aW1lGAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIOCgZzdHJlYW0YAiABKAkSDQoFbGV2ZWwYAyABKAkSDgoGbG9nZ2VyGAQgASgJEgwKBHRleHQYBSABKAkiSgoRQXBwZW5kTG9nc1JlcXVlc3QSEgoKYXR0ZW1wdF9pZBgBIAEoCRIhCgVsaW5lcxgCIAMoCzISLm1va3NoYS52MS5Mb2dMaW5lIhQKEkFwcGVuZExvZ3NSZXNwb25zZSI9Cg5HZXRMb2dzUmVxdWVzdBIPCgdoYXVsX2lkGAEgASgJEgsKA3NlcRgCIAEoBRINCgVsaW1pdBgDIAEoBSJICg9HZXRMb2dzUmVzcG9uc2USJAoFbGluZXMYASADKAsyFS5tb2tzaGEudjEuUnVuTG9nTGluZRIPCgdza2lwcGVkGAIgASgFIloKClJ1bkxvZ0xpbmUSCwoDc2VxGAEgASgFEgwKBGxpZnQYAiABKAkSDwoHYXR0ZW1wdBgDIAEoBRIgCgRsaW5lGAQgASgLMhIubW9rc2hhLnYxLkxvZ0xpbmUymQEKCkxvZ1NlcnZpY2USSQoKQXBwZW5kTG9ncxIcLm1va3NoYS52MS5BcHBlbmRMb2dzUmVxdWVzdBodLm1va3NoYS52MS5BcHBlbmRMb2dzUmVzcG9uc2USQAoHR2V0TG9ncxIZLm1va3NoYS52MS5HZXRMb2dzUmVxdWVzdBoaLm1va3NoYS52MS5HZXRMb2dzUmVzcG9uc2VCPVo7Z2l0aHViLmNvbS9hbHBlci9tb2tzaGEvaW50ZXJuYWwvYXBpL2dlbi9tb2tzaGEvdjE7bW9rc2hhdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("ChNtb2tzaGEvdjEvbG9nLnByb3RvEgltb2tzaGEudjEicAoHTG9nTGluZRIoCgR0aW1lGAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIOCgZzdHJlYW0YAiABKAkSDQoFbGV2ZWwYAyABKAkSDgoGbG9nZ2VyGAQgASgJEgwKBHRleHQYBSABKAkiSgoRQXBwZW5kTG9nc1JlcXVlc3QSEgoKYXR0ZW1wdF9pZBgBIAEoCRIhCgVsaW5lcxgCIAMoCzISLm1va3NoYS52MS5Mb2dMaW5lIhQKEkFwcGVuZExvZ3NSZXNwb25zZSI8Cg5HZXRMb2dzUmVxdWVzdBIOCgZydW5faWQYASABKAkSCwoDc2VxGAIgASgFEg0KBWxpbWl0GAMgASgFIkgKD0dldExvZ3NSZXNwb25zZRIkCgVsaW5lcxgBIAMoCzIVLm1va3NoYS52MS5SdW5Mb2dMaW5lEg8KB3NraXBwZWQYAiABKAUiWgoKUnVuTG9nTGluZRILCgNzZXEYASABKAUSDAoEc3RlcBgCIAEoCRIPCgdhdHRlbXB0GAMgASgFEiAKBGxpbmUYBCABKAsyEi5tb2tzaGEudjEuTG9nTGluZTKZAQoKTG9nU2VydmljZRJJCgpBcHBlbmRMb2dzEhwubW9rc2hhLnYxLkFwcGVuZExvZ3NSZXF1ZXN0Gh0ubW9rc2hhLnYxLkFwcGVuZExvZ3NSZXNwb25zZRJACgdHZXRMb2dzEhkubW9rc2hhLnYxLkdldExvZ3NSZXF1ZXN0GhoubW9rc2hhLnYxLkdldExvZ3NSZXNwb25zZUI9WjtnaXRodWIuY29tL2FscGVyL21va3NoYS9pbnRlcm5hbC9hcGkvZ2VuL21va3NoYS92MTttb2tzaGF2MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message moksha.v1.LogLine
@@ -97,12 +97,12 @@ export const AppendLogsResponseSchema: GenMessage<AppendLogsResponse> = /*@__PUR
  */
 export type GetLogsRequest = Message<"moksha.v1.GetLogsRequest"> & {
   /**
-   * @generated from field: string haul_id = 1;
+   * @generated from field: string run_id = 1;
    */
-  haulId: string;
+  runId: string;
 
   /**
-   * Only this lift's lines; 0: all of the haul's.
+   * Only this step's lines; 0: all of the run's.
    *
    * @generated from field: int32 seq = 2;
    */
@@ -148,7 +148,7 @@ export const GetLogsResponseSchema: GenMessage<GetLogsResponse> = /*@__PURE__*/
   messageDesc(file_moksha_v1_log, 4);
 
 /**
- * RunLogLine is a log line with the lift and attempt it came from.
+ * RunLogLine is a log line with the step and attempt it came from.
  *
  * @generated from message moksha.v1.RunLogLine
  */
@@ -159,9 +159,9 @@ export type RunLogLine = Message<"moksha.v1.RunLogLine"> & {
   seq: number;
 
   /**
-   * @generated from field: string lift = 2;
+   * @generated from field: string step = 2;
    */
-  lift: string;
+  step: string;
 
   /**
    * @generated from field: int32 attempt = 3;
@@ -182,7 +182,7 @@ export const RunLogLineSchema: GenMessage<RunLogLine> = /*@__PURE__*/
   messageDesc(file_moksha_v1_log, 5);
 
 /**
- * LogService keeps what user code printed and logged while its lifts ran:
+ * LogService keeps what user code printed and logged while its steps ran:
  * workers append it, people read it (the web UI, `moksha dev`). Logs are
  * not state; they don't go through the event log.
  *
@@ -190,7 +190,7 @@ export const RunLogLineSchema: GenMessage<RunLogLine> = /*@__PURE__*/
  */
 export const LogService: GenService<{
   /**
-   * AppendLogs adds lines to a lift attempt's log. An attempt keeps at most
+   * AppendLogs adds lines to a step attempt's log. An attempt keeps at most
    * 1 MiB; after that its log says it was cut.
    *
    * @generated from rpc moksha.v1.LogService.AppendLogs
@@ -201,8 +201,8 @@ export const LogService: GenService<{
     output: typeof AppendLogsResponseSchema;
   },
   /**
-   * GetLogs returns a haul's log lines (of one lift, with seq), oldest
-   * first, lifts interleaved by time.
+   * GetLogs returns a run's log lines (of one step, with seq), oldest
+   * first, steps interleaved by time.
    *
    * @generated from rpc moksha.v1.LogService.GetLogs
    */

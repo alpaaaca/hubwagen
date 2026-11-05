@@ -29,9 +29,9 @@ import (
 	"github.com/alper/moksha/internal/blob"
 	"github.com/alper/moksha/internal/clock"
 	"github.com/alper/moksha/internal/core"
+	"github.com/alper/moksha/internal/dataversion"
 	"github.com/alper/moksha/internal/launch"
 	"github.com/alper/moksha/internal/layout"
-	"github.com/alper/moksha/internal/pallet"
 	"github.com/alper/moksha/internal/runlog"
 	"github.com/alper/moksha/internal/state"
 	"github.com/alper/moksha/internal/webui"
@@ -44,7 +44,7 @@ type Config struct {
 	// ServeData sends workers' data through the server even when the bucket
 	// could give them presigned URLs.
 	ServeData bool
-	// Listen, if set, is the address the API (worker and haul services) is
+	// Listen, if set, is the address the API (worker and run services) is
 	// served on, e.g. 127.0.0.1:7070. Port 0 picks a free port (see
 	// Engine.APIAddr).
 	Listen string
@@ -62,7 +62,7 @@ type Engine struct {
 	// BucketID is a file:// bucket's ID, in its .moksha-bucket file:
 	// workers that find it there share the bucket's filesystem.
 	BucketID string
-	Logs     *runlog.Store // what lifts printed and logged
+	Logs     *runlog.Store // what steps printed and logged
 	Core     *core.Core
 	DataDir  string
 	// APIAddr is the API's address, if it is served.
@@ -141,7 +141,7 @@ func Start(ctx context.Context, cfg Config) (*Engine, error) {
 	lay := layout.New(e.Bucket.Base())
 	e.Core = core.New(core.Config{
 		Store: e.Store, Term: term, Clock: clock.Real{}, Layout: lay,
-		Pallets: pallet.NewStore(e.Bucket, lay), HeartbeatTimeout: HeartbeatTimeout,
+		DataVersions: dataversion.NewStore(e.Bucket, lay), HeartbeatTimeout: HeartbeatTimeout,
 		Logger: cfg.Logger,
 	})
 
@@ -187,12 +187,12 @@ func (e *Engine) serveAPI(addr string, log *slog.Logger) error {
 		return fmt.Errorf("API: %w", err)
 	}
 	mux := http.NewServeMux()
-	manifests := pallet.NewStore(e.Bucket, layout.New(e.Bucket.Base()))
+	manifests := dataversion.NewStore(e.Bucket, layout.New(e.Bucket.Base()))
 	data := api.NewData(e.Bucket, e.BucketID, manifests, e.serveData, log)
 	path, h := api.NewWorkerHandler(e.Core, 0, data)
 	mux.Handle(path, h)
 	mux.Handle(api.DataPath, data.Handler())
-	path, h = api.NewHaulHandler(e.Core, e.Store)
+	path, h = api.NewRunHandler(e.Core, e.Store)
 	mux.Handle(path, h)
 	path, h = api.NewLogHandler(e.Store, e.Logs)
 	mux.Handle(path, h)
