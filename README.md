@@ -33,8 +33,8 @@ They ask you to run and babysit a scheduler, a webserver, a metadata
 database, a broker and a fleet of executors, and to bend your code into
 their DAGs and operators, and they still don't know what your pipelines
 wrote, rerun whole backfills and lose work in a crash. moksha (*release*,
-in Sanskrit) frees you from all that: you write plain Python, and moksha
-takes care of the rest (durable runs, versioned data, nothing computed
+in Sanskrit) frees you from all that: you write your own pipelines on
+your own terms, and moksha takes care of the rest (durable runs, versioned data, nothing computed
 twice, scheduling, and workers that scale with the work, from one laptop
 to a Kubernetes cluster), all from one small binary.
 
