@@ -1,8 +1,8 @@
-# moksha
+# Moksha
 
-**Data pipelines as plain Python, without the orchestrator.**
+**Plain data orchestrator, that lets you do your thing.**
 
-moksha is a durable execution engine for data. You write pipelines as
+moksha(_liberation_ in _sanskrit_) is a durable execution engine for data. You write pipelines as
 ordinary Python functions; moksha runs them to completion through crashes,
 deploys and long waits, and keeps every output as an immutable, versioned
 dataset. Because it knows which versions of data went into and came out of
@@ -26,17 +26,11 @@ def daily(ctx, day: str):
     return ctx.step(daily_revenue, orders, day).id   # reused if its code and inputs are unchanged
 ```
 
-## Why moksha
+## Why Moksha
 
-moksha started out of frustration with bloated orchestrators like Airflow.
-They ask you to run and babysit a scheduler, a webserver, a metadata
-database, a broker and a fleet of executors, and to bend your code into
-their DAGs and operators, and they still don't know what your pipelines
-wrote, rerun whole backfills and lose work in a crash. moksha (*release*,
-in Sanskrit) frees you from all that: you write your own pipelines on
-your own terms, and moksha takes care of the rest (durable runs, versioned data, nothing computed
-twice, scheduling, and workers that scale with the work, from one laptop
-to a Kubernetes cluster), all from one small binary.
+Moksha started out of frustration with bloated orchestrators like Airflow and Dagster. They often bring high management costs, complicated architectures, and fuzzy concepts. You’re asked to run and babysit a scheduler, web server, metadata database, broker, and fleet of executors—and reshape your code around DAGs and operators. Yet they may not know what your pipelines actually wrote, rerun entire backfills, or lose work in a crash.
+
+Moksha _liberates_ you from that overhead. Write pipelines on your own terms; Moksha handles durable runs, versioned data, avoiding duplicate computation, scheduling, and workers that scale with the work, from a laptop to a Kubernetes cluster. All from one small binary.
 
 ## What you get
 
