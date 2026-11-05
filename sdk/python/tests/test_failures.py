@@ -10,7 +10,7 @@ import sys
 import time
 from pathlib import Path
 
-import moksha as hw
+import moksha as mk
 from conftest import SDK, _free_port, start_dev, start_worker, stop, wait
 
 
@@ -28,7 +28,7 @@ def test_a_result_waits_for_the_leader_to_come_back(moksha_bin, tmp_path):
     log = tmp_path / "worker.log"
     worker = start_worker(url, "example_hauls", SDK / "tests", log)
     try:
-        client = hw.Client(url)
+        client = mk.Client(url)
         started, release = tmp_path / "started", tmp_path / "release"
         haul_id = client.start_haul("wait_for_release", {"started": str(started), "release": str(release)})
         until(started.exists, 20, "the lift to start")

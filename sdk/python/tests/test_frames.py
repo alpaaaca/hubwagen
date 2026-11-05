@@ -10,14 +10,14 @@ pl = pytest.importorskip("polars")
 pa = pytest.importorskip("pyarrow")
 pq = pytest.importorskip("pyarrow.parquet")
 
-import moksha as hw  # noqa: E402
+import moksha as mk  # noqa: E402
 from moksha import _codecs, _model  # noqa: E402
 from moksha.worker import load_inputs  # noqa: E402
 
 from conftest import SDK, start_worker, stop, wait  # noqa: E402
 
 
-def pallet_of(tmp_path, value, name="p1") -> hw.Pallet:
+def pallet_of(tmp_path, value, name="p1") -> mk.Pallet:
     """A pallet as the server would commit it after a lift returned value."""
     data = tmp_path / name / "data"
     result = _codecs.write(value, data)
@@ -25,7 +25,7 @@ def pallet_of(tmp_path, value, name="p1") -> hw.Pallet:
              for p in sorted(data.iterdir())]
     manifest = tmp_path / name / "manifest.json"
     manifest.write_text(json.dumps({"data": data.as_uri() + "/", "files": files, "result": result}))
-    return hw.Pallet(id=name, location=manifest.as_uri())
+    return mk.Pallet(id=name, location=manifest.as_uri())
 
 
 def test_write_records_the_shape():
@@ -65,13 +65,13 @@ def test_inputs_load_by_annotation(tmp_path):
     (other / "x.csv").write_text("a\n1\n")
     m = tmp_path / "other.json"
     m.write_text(json.dumps({"data": other.as_uri() + "/", "files": [{"path": "x.csv"}]}))
-    files = hw.Pallet(id="o", location=m.as_uri())
+    files = mk.Pallet(id="o", location=m.as_uri())
 
-    def fn(lazy: pl.LazyFrame, handle: hw.Pallet, plain, csv, n: int): ...
+    def fn(lazy: pl.LazyFrame, handle: mk.Pallet, plain, csv, n: int): ...
 
     got = load_inputs(fn, {"lazy": frame, "handle": frame, "plain": frame, "csv": files, "n": 1})
     assert isinstance(got["lazy"], pl.LazyFrame)
-    assert got["handle"] is frame, "hw.Pallet keeps the handle"
+    assert got["handle"] is frame, "mk.Pallet keeps the handle"
     assert isinstance(got["plain"], pl.DataFrame), "no annotation: as written"
     assert got["csv"] is files, "a pallet without a frame stays a handle"
     assert got["n"] == 1
@@ -86,7 +86,7 @@ def test_custom_codec(tmp_path):
     class Matrix(list):
         pass
 
-    hw.register_codec("matrix", [Matrix],
+    mk.register_codec("matrix", [Matrix],
                       write=lambda v, f: pq.write_table(pa.table({"v": list(v)}), f),
                       read=lambda f, cls: Matrix(pq.read_table(f)["v"].to_pylist()),
                       describe=lambda v: {"rows": len(v)})
@@ -102,7 +102,7 @@ def test_custom_codec(tmp_path):
 @pytest.fixture(scope="module")
 def frames_worker(server, tmp_path_factory):
     proc = start_worker(server, "frame_hauls", SDK / "tests", tmp_path_factory.mktemp("frames") / "worker.log")
-    yield hw.Client(server)
+    yield mk.Client(server)
     stop(proc)
 
 

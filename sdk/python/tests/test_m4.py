@@ -7,7 +7,7 @@ import json
 import subprocess
 import sys
 
-import moksha as hw
+import moksha as mk
 
 from conftest import SDK, wait
 
@@ -17,7 +17,7 @@ def test_daily_haul_end_to_end(client, server):
     assert scheds["m4_daily"]["interval"] == "daily"
 
     berlin = dt.timezone(dt.timedelta(hours=2))
-    interval = hw.Interval(dt.datetime(2026, 10, 24, tzinfo=berlin), dt.datetime(2026, 10, 25, tzinfo=berlin))
+    interval = mk.Interval(dt.datetime(2026, 10, 24, tzinfo=berlin), dt.datetime(2026, 10, 25, tzinfo=berlin))
     hid = client.start_haul("m4_daily", {"interval": interval})  # what the schedule starts at 03:00
     client.signal_haul(hid, "approve", {"by": "ana"})
     h = wait(client, hid, timeout=30)

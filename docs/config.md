@@ -462,7 +462,7 @@ Sketched for later milestones, not implemented:
 - **Sections**: `server.auth` (tokens for workers and users), `replication`
   (Litestream), `secrets`, `log`, and limits the server enforces (maximum lift
   timeout). Retention is declared per dataset in code
-  (`hw.Dataset(keep=...)`); the expiry interval is the core's
+  (`mk.Dataset(keep=...)`); the expiry interval is the core's
   `RetentionEvery` (an hour), a config field later.
 - **Environment variables** as overrides without touching the file: an
   explicit list (`MOKSHA_DATA_DIR`, `MOKSHA_LOG_LEVEL`, …), not a

@@ -37,14 +37,14 @@ objects** instead:
 
 Each piece of code is hashed as its AST, without docstrings, so comments
 and formatting don't count. For the lift itself, the decorator is dropped
-too: `@hw.lift(timeout=30)` isn't code. "Project" means any file outside
+too: `@mk.lift(timeout=30)` isn't code. "Project" means any file outside
 the standard library, `site-packages` and the SDK itself, compared by real
 path, as in S1.
 
 | Change (in a small project) | Version changes for | Expected |
 |---|---|---|
 | Nothing; the same project in another directory | none | ✓ |
-| Comments, docstrings, line breaks, `@hw.lift(...)` arguments | none | ✓ |
+| Comments, docstrings, line breaks, `@mk.lift(...)` arguments | none | ✓ |
 | The lift's body | that lift | ✓ |
 | A helper in the same module | lifts (and hauls) calling it | ✓ |
 | An unused function in the same or another module | none | ✓ |

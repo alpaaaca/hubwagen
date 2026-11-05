@@ -50,7 +50,7 @@ SUPERVISOR_CHECK_EVERY = 1.0  # seconds
 
 def load_inputs(fn: Any, kwargs: dict[str, Any]) -> dict[str, Any]:
     """Load the pallets passed as fn's arguments as their annotations ask:
-    a dataframe or table type loads the data, hw.Pallet keeps the handle,
+    a dataframe or table type loads the data, mk.Pallet keeps the handle,
     no annotation loads a dataframe as it was written (other pallets stay
     handles)."""
     hints = _codecs.parameter_types(fn)

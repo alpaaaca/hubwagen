@@ -7,20 +7,20 @@ import time
 
 import pytest
 
-import moksha as hw
+import moksha as mk
 from conftest import SDK, start_dev, start_worker, stop, wait
 from moksha.worker import project_modules
 
 OTHER_PROJECT = '''
-import moksha as hw
+import moksha as mk
 
 
-@hw.lift
+@mk.lift
 def shout(word: str) -> str:
     return word.upper()
 
 
-@hw.haul
+@mk.haul
 def loud(ctx, word: str):
     return ctx.lift(shout, word)
 '''
@@ -37,7 +37,7 @@ def test_two_projects_share_a_server(moksha_bin, tmp_path):
     workers = [start_worker(url, "example_hauls", SDK / "tests", tmp_path / "tests.log"),
                start_worker(url, None, other, tmp_path / "other.log")]
     try:
-        client = hw.Client(url)
+        client = mk.Client(url)
         ids = []
         for i in range(6):  # both workers poll the default dock; each must get only its own hauls
             ids.append(("arithmetic", client.start_haul("arithmetic", {"x": i})))
@@ -47,7 +47,7 @@ def test_two_projects_share_a_server(moksha_bin, tmp_path):
             assert h["status"] == "completed", h
         assert json.loads(wait(client, ids[1][1])["resultJson"]) == "W0"
 
-        with pytest.raises(hw.ConnectError) as e:
+        with pytest.raises(mk.ConnectError) as e:
             client.start_haul("nowhere")
         assert e.value.code == "failed_precondition"
         assert 'no registered build defines haul "nowhere"' in str(e.value)
@@ -66,12 +66,12 @@ def test_a_worker_registers_again_with_a_leader_that_lost_its_build(moksha_bin, 
     try:
         stop(dev, signal.SIGINT)
         _, dev = start_dev(moksha_bin, tmp_path / "second", url)  # empty state: no builds
-        client = hw.Client(url)
+        client = mk.Client(url)
         for _ in range(100):
             try:
                 haul_id = client.start_haul("arithmetic", {"x": 1})
                 break
-            except hw.ConnectError as e:
+            except mk.ConnectError as e:
                 assert e.code == "failed_precondition", e
                 time.sleep(0.1)
         else:

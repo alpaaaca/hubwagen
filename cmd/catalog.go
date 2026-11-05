@@ -96,7 +96,7 @@ var gcCmd = &cobra.Command{
 	Use:   "gc",
 	Short: "Expire data versions that retention no longer keeps",
 	Long: `GC expires, now, what the leader otherwise expires every hour: per dataset with
-a retention (hw.Dataset(keep=...)), the versions beyond what it keeps, never a
+a retention (mk.Dataset(keep=...)), the versions beyond what it keeps, never a
 partition's latest or anything an open run may read. They are recorded as
 expired, then their data is deleted; their manifests and lineage stay.`,
 	Args:         cobra.NoArgs,

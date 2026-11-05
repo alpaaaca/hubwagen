@@ -12,7 +12,7 @@ import (
 )
 
 // Retention. A build declares, for the datasets its lifts write, how many
-// versions to keep (hw.Dataset(keep=...)); the newest build that declares a
+// versions to keep (mk.Dataset(keep=...)); the newest build that declares a
 // dataset decides, and one that declares it without keep removes its
 // retention (everything stays). Per partition, the latest committed pallet
 // always stays, and so do those among the newest Versions or committed less

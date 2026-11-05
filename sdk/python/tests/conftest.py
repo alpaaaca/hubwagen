@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-import moksha as hw
+import moksha as mk
 
 REPO = Path(__file__).resolve().parents[3]
 SDK = Path(__file__).resolve().parents[1]
@@ -50,12 +50,12 @@ def start_dev(moksha_bin: str, tmp: Path, url: str | None = None,
                              "--listen", url.removeprefix("http://"),
                              *(["--config", str(config), "--no-workers"] if config else [])],
                             cwd=tmp, stdout=log, stderr=subprocess.STDOUT)
-    client = hw.Client(url)
+    client = mk.Client(url)
     for _ in range(100):
         try:
             client.call("WorkerService", "Heartbeat", {"workerId": "probe"})
             return url, proc
-        except hw.ConnectError:
+        except mk.ConnectError:
             if proc.poll() is not None:
                 break
             time.sleep(0.1)
@@ -121,11 +121,11 @@ def worker(server, tmp_path_factory) -> None:
 
 
 @pytest.fixture
-def client(server, worker) -> hw.Client:
-    return hw.Client(server)
+def client(server, worker) -> mk.Client:
+    return mk.Client(server)
 
 
-def wait(client: hw.Client, haul_id: str, timeout: float = 20) -> dict:
+def wait(client: mk.Client, haul_id: str, timeout: float = 20) -> dict:
     deadline = time.time() + timeout
     while time.time() < deadline:
         h = client.get_haul(haul_id)

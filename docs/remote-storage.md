@@ -98,7 +98,7 @@ server keeps in `<bucket>/.moksha-bucket`. The Python worker
 it finds that file with that ID, so it is on the server's machine (or shares
 its filesystem); otherwise it is remote. `--data local|remote` forces one.
 
-Remote, the step's code doesn't change: `hw.output().path` is a local
+Remote, the step's code doesn't change: `mk.output().path` is a local
 directory, uploaded once the step returns; a `DataVersion`'s `files()`,
 `path()` and `load()` download what they need into a local directory first,
 checking size and sha256 against the manifest. Both directories are per

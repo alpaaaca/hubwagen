@@ -127,13 +127,13 @@ def test_dataframes_through_the_server(moksha_bin, tmp_path):
     pytest.importorskip("pandas")
     import json
 
-    import moksha as hw
+    import moksha as mk
     from conftest import SDK, wait
 
     url, dev = start_dev(moksha_bin, tmp_path)
     worker = start_worker(url, "frame_hauls", SDK / "tests", tmp_path / "worker.log", "--data", "remote")
     try:
-        client = hw.Client(url)
+        client = mk.Client(url)
         h = wait(client, client.start_haul("frames", {"day": "2026-10-24"}))
         assert h["status"] == "completed", (h, (tmp_path / "worker.log").read_text())
         r = json.loads(h["resultJson"])
