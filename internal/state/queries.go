@@ -23,7 +23,7 @@ func decodeObject(s string) (map[string]any, error) {
 	return m, err
 }
 
-const eventColumns = `seq, term, ts, tenant, type, attempt_id, haul_id, payload`
+const eventColumns = `seq, term, ts, tenant, type, attempt_id, run_id, payload`
 
 func scanEvent(sc interface{ Scan(...any) error }) (Event, error) {
 	var (
@@ -31,7 +31,7 @@ func scanEvent(sc interface{ Scan(...any) error }) (Event, error) {
 		ts, typ string
 		payload string
 	)
-	if err := sc.Scan(&v.Seq, &v.Term, &ts, &v.Tenant, &typ, &v.AttemptID, &v.HaulID, &payload); err != nil {
+	if err := sc.Scan(&v.Seq, &v.Term, &ts, &v.Tenant, &typ, &v.AttemptID, &v.RunID, &payload); err != nil {
 		return v, err
 	}
 	v.Type = EventType(typ)

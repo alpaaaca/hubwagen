@@ -7,25 +7,25 @@ import (
 )
 
 // restore rebuilds the in-memory model from the store and settles what the
-// previous leader left in flight (see hauls_restore.go), in one committed
+// previous leader left in flight (see runs_restore.go), in one committed
 // batch.
 func (c *Core) restore(ctx context.Context) error {
-	hauls, err := c.loadHauls(ctx)
+	runs, err := c.loadRuns(ctx)
 	if err != nil {
 		return err
 	}
 	lost := 0
-	for _, t := range hauls.HaulTasks {
-		if t.Status == state.HaulTaskDispatched {
+	for _, t := range runs.RunTasks {
+		if t.Status == state.RunTaskDispatched {
 			lost++
 		}
 	}
 
 	c.b = newBatch()
 	c.emit(state.EventLeaderTermStarted, "", leaderTermStartedPayload{
-		Term: c.cfg.Term, ActiveHauls: len(hauls.Hauls), LostHaulTasks: lost,
+		Term: c.cfg.Term, ActiveRuns: len(runs.Runs), LostRunTasks: lost,
 	})
-	if err := c.settleHauls(hauls); err != nil {
+	if err := c.settleRuns(runs); err != nil {
 		return err
 	}
 	scheds, err := c.cfg.Store.ListSchedules(ctx)
@@ -40,7 +40,7 @@ func (c *Core) restore(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	waiting, err := c.cfg.Store.ListSubscriptionPallets(ctx)
+	waiting, err := c.cfg.Store.ListSubscriptionDataVersions(ctx)
 	if err != nil {
 		return err
 	}

@@ -48,13 +48,13 @@ type ProjectBuild struct {
 }
 
 // ProjectPool is a pool of the project's workers: min always run, up to
-// max when work waits on its docks.
+// max when work waits on its queues.
 type ProjectPool struct {
 	Name      string            `yaml:"name"`
-	Docks     []string          `yaml:"docks"` // default [default]
-	Min       *int              `yaml:"min"`   // default 0
-	Max       *int              `yaml:"max"`   // default max(min, 1)
-	Lifts     *int              `yaml:"lifts"` // default 4
+	Queues    []string          `yaml:"queues"` // default [default]
+	Min       *int              `yaml:"min"`    // default 0
+	Max       *int              `yaml:"max"`    // default max(min, 1)
+	Steps     *int              `yaml:"steps"`  // default 4
 	IdleAfter Duration          `yaml:"idle_after"`
 	Resources map[string]string `yaml:"resources"` // with pod steps (worker-pools step 5)
 }
@@ -79,20 +79,20 @@ func (p ProjectPool) Idle() time.Duration {
 	return time.Duration(p.IdleAfter)
 }
 
-// DockList is the docks the pool's workers poll.
-func (p ProjectPool) DockList() []string {
-	if len(p.Docks) == 0 {
+// QueueList is the queues the pool's workers poll.
+func (p ProjectPool) QueueList() []string {
+	if len(p.Queues) == 0 {
 		return []string{"default"}
 	}
-	return p.Docks
+	return p.Queues
 }
 
-// LiftCount is how many steps one worker runs at once.
-func (p ProjectPool) LiftCount() int {
-	if p.Lifts == nil {
-		return DefaultLifts
+// StepCount is how many steps one worker runs at once.
+func (p ProjectPool) StepCount() int {
+	if p.Steps == nil {
+		return DefaultSteps
 	}
-	return *p.Lifts
+	return *p.Steps
 }
 
 // ProjectEnv is a variable for the project's workers: a plain value, or
@@ -218,12 +218,12 @@ func ParseProject(data []byte, dir string) (*Project, error) {
 		case lo > hi:
 			add("%s: min %d is more than max %d", at, lo, hi)
 		}
-		if pool.LiftCount() < 1 {
-			add("%s.lifts: must be 1 or more", at)
+		if pool.StepCount() < 1 {
+			add("%s.steps: must be 1 or more", at)
 		}
-		for j, d := range pool.Docks {
+		for j, d := range pool.Queues {
 			if d == "" {
-				add("%s.docks[%d]: empty", at, j)
+				add("%s.queues[%d]: empty", at, j)
 			}
 		}
 	}

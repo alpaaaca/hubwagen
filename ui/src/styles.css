@@ -32,7 +32,7 @@ button { cursor: pointer; }
 table { border-collapse: collapse; width: 100%; }
 th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { color: var(--dim); font-weight: 500; }
-.logbook code { font-size: 12px; word-break: break-all; }
+.event_log code { font-size: 12px; word-break: break-all; }
 .mono, code, pre { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
 pre { margin: 0; white-space: pre-wrap; }
 .dim { color: var(--dim); }

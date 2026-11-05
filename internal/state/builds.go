@@ -5,17 +5,17 @@ import (
 	"time"
 )
 
-// EventBuildRegistered: a worker build announced its hauls and its lifts'
+// EventBuildRegistered: a worker build announced its runs and its steps'
 // code versions.
 const EventBuildRegistered EventType = "BuildRegistered"
 
-// Build is a worker build: the hauls it can replay and the code version of
-// each lift it can run.
+// Build is a worker build: the runs it can replay and the code version of
+// each step it can run.
 type Build struct {
 	ID           string
-	Hauls        []string            // empty for builds registered before hauls were recorded
-	Info         map[string]HaulInfo // by haul name; only hauls that have any
-	Lifts        map[string]string   // lift name → code version
+	Pipelines    []string           // empty for builds registered before runs were recorded
+	Info         map[string]RunInfo // by run name; only runs that have any
+	Steps        map[string]string  // step name → code version
 	RegisteredAt time.Time
 }
 
@@ -26,53 +26,53 @@ func (t *Tx) PutBuild(v Build) error {
 		v.ID, formatTime(v.RegisteredAt)); err != nil {
 		return err
 	}
-	for _, haul := range v.Hauls {
-		info := v.Info[haul]
-		if err := t.exec(`INSERT INTO build_hauls (build_id, haul, title, description) VALUES (?, ?, ?, ?)
-			ON CONFLICT (build_id, haul) DO NOTHING`, v.ID, haul, info.Title, info.Description); err != nil {
+	for _, run := range v.Pipelines {
+		info := v.Info[run]
+		if err := t.exec(`INSERT INTO build_pipelines (build_id, run, title, description) VALUES (?, ?, ?, ?)
+			ON CONFLICT (build_id, run) DO NOTHING`, v.ID, run, info.Title, info.Description); err != nil {
 			return err
 		}
 	}
-	for lift, version := range v.Lifts {
+	for step, version := range v.Steps {
 		if err := t.exec(`
-			INSERT INTO build_lifts (build_id, lift, code_version) VALUES (?, ?, ?)
-			ON CONFLICT (build_id, lift) DO NOTHING`, v.ID, lift, version); err != nil {
+			INSERT INTO build_steps (build_id, step, code_version) VALUES (?, ?, ?)
+			ON CONFLICT (build_id, step) DO NOTHING`, v.ID, step, version); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// HaulInfo describes a haul for people.
-type HaulInfo struct {
+// RunInfo describes a run for people.
+type RunInfo struct {
 	Title       string `json:"title,omitempty"`
 	Description string `json:"description,omitempty"`
 }
 
-// Pipeline is a haul some build defines, as the newest such build describes it.
+// Pipeline is a pipeline as the newest build that defines it describes it.
 type Pipeline struct {
 	Name string
-	HaulInfo
+	RunInfo
 }
 
-// ListPipelines returns every haul a build defines, by name.
+// ListPipelines returns every pipeline a build defines, by name.
 func (s *Store) ListPipelines(ctx context.Context) ([]Pipeline, error) {
 	return queryAll(ctx, s.r, func(sc interface{ Scan(...any) error }) (Pipeline, error) {
 		var p Pipeline
 		err := sc.Scan(&p.Name, &p.Title, &p.Description)
 		return p, err
-	}, `SELECT bh.haul, bh.title, bh.description FROM build_hauls bh JOIN builds b ON b.id = bh.build_id
+	}, `SELECT bh.run, bh.title, bh.description FROM build_pipelines bh JOIN builds b ON b.id = bh.build_id
 		WHERE (b.registered_at, b.id) = (
-			SELECT b2.registered_at, b2.id FROM build_hauls bh2 JOIN builds b2 ON b2.id = bh2.build_id
-			WHERE bh2.haul = bh.haul ORDER BY b2.registered_at DESC, b2.id DESC LIMIT 1)
-		ORDER BY bh.haul`)
+			SELECT b2.registered_at, b2.id FROM build_pipelines bh2 JOIN builds b2 ON b2.id = bh2.build_id
+			WHERE bh2.run = bh.run ORDER BY b2.registered_at DESC, b2.id DESC LIMIT 1)
+		ORDER BY bh.run`)
 }
 
 // LoadBuilds reads every build, for a new leader.
 func (s *Store) LoadBuilds(ctx context.Context) (map[string]Build, error) {
 	rows, err := s.r.QueryContext(ctx, `
-		SELECT b.id, b.registered_at, l.lift, l.code_version
-		FROM builds b LEFT JOIN build_lifts l ON l.build_id = b.id ORDER BY b.id, l.lift`)
+		SELECT b.id, b.registered_at, l.step, l.code_version
+		FROM builds b LEFT JOIN build_steps l ON l.build_id = b.id ORDER BY b.id, l.step`)
 	if err != nil {
 		return nil, err
 	}
@@ -81,9 +81,9 @@ func (s *Store) LoadBuilds(ctx context.Context) (map[string]Build, error) {
 	for rows.Next() {
 		var (
 			id, registered string
-			lift, version  *string
+			step, version  *string
 		)
-		if err := rows.Scan(&id, &registered, &lift, &version); err != nil {
+		if err := rows.Scan(&id, &registered, &step, &version); err != nil {
 			return nil, err
 		}
 		b, ok := out[id]
@@ -92,32 +92,32 @@ func (s *Store) LoadBuilds(ctx context.Context) (map[string]Build, error) {
 			if err != nil {
 				return nil, err
 			}
-			b = Build{ID: id, Lifts: map[string]string{}, RegisteredAt: at}
+			b = Build{ID: id, Steps: map[string]string{}, RegisteredAt: at}
 		}
-		if lift != nil {
-			b.Lifts[*lift] = *version
+		if step != nil {
+			b.Steps[*step] = *version
 		}
 		out[id] = b
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	hauls, err := s.r.QueryContext(ctx, `SELECT build_id, haul FROM build_hauls ORDER BY build_id, haul`)
+	runs, err := s.r.QueryContext(ctx, `SELECT build_id, run FROM build_pipelines ORDER BY build_id, run`)
 	if err != nil {
 		return nil, err
 	}
-	defer hauls.Close()
-	for hauls.Next() {
-		var id, haul string
-		if err := hauls.Scan(&id, &haul); err != nil {
+	defer runs.Close()
+	for runs.Next() {
+		var id, run string
+		if err := runs.Scan(&id, &run); err != nil {
 			return nil, err
 		}
 		if b, ok := out[id]; ok {
-			b.Hauls = append(b.Hauls, haul)
+			b.Pipelines = append(b.Pipelines, run)
 			out[id] = b
 		}
 	}
-	return out, hauls.Err()
+	return out, runs.Err()
 }
 
 // Code is a pipeline or step as the newest build that defines it has it:
@@ -143,19 +143,19 @@ func (s *Store) CurrentCode(ctx context.Context) (steps, pipelines []Code, err e
 		return c, err
 	}
 	steps, err = queryAll(ctx, s.r, scan, `
-		SELECT bl.lift, bl.code_version, b.id, b.registered_at FROM build_lifts bl JOIN builds b ON b.id = bl.build_id
+		SELECT bl.step, bl.code_version, b.id, b.registered_at FROM build_steps bl JOIN builds b ON b.id = bl.build_id
 		WHERE (b.registered_at, b.id) = (
-			SELECT b2.registered_at, b2.id FROM build_lifts bl2 JOIN builds b2 ON b2.id = bl2.build_id
-			WHERE bl2.lift = bl.lift ORDER BY b2.registered_at DESC, b2.id DESC LIMIT 1)
-		ORDER BY bl.lift`)
+			SELECT b2.registered_at, b2.id FROM build_steps bl2 JOIN builds b2 ON b2.id = bl2.build_id
+			WHERE bl2.step = bl.step ORDER BY b2.registered_at DESC, b2.id DESC LIMIT 1)
+		ORDER BY bl.step`)
 	if err != nil {
 		return nil, nil, err
 	}
 	pipelines, err = queryAll(ctx, s.r, scan, `
-		SELECT bh.haul, '', b.id, b.registered_at FROM build_hauls bh JOIN builds b ON b.id = bh.build_id
+		SELECT bh.run, '', b.id, b.registered_at FROM build_pipelines bh JOIN builds b ON b.id = bh.build_id
 		WHERE (b.registered_at, b.id) = (
-			SELECT b2.registered_at, b2.id FROM build_hauls bh2 JOIN builds b2 ON b2.id = bh2.build_id
-			WHERE bh2.haul = bh.haul ORDER BY b2.registered_at DESC, b2.id DESC LIMIT 1)
-		ORDER BY bh.haul`)
+			SELECT b2.registered_at, b2.id FROM build_pipelines bh2 JOIN builds b2 ON b2.id = bh2.build_id
+			WHERE bh2.run = bh.run ORDER BY b2.registered_at DESC, b2.id DESC LIMIT 1)
+		ORDER BY bh.run`)
 	return steps, pipelines, err
 }

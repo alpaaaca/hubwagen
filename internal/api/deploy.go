@@ -38,8 +38,8 @@ func (s *DeployServer) Deploy(ctx context.Context, req *connect.Request[mokshav1
 	r := core.DeployRequest{Project: m.Project, Build: buildRequest(m.Build), Image: m.Image, Dir: m.Dir, Python: m.Python,
 		Env: m.Env, Secrets: m.Secrets, By: m.By}
 	for _, p := range m.Pools {
-		r.Pools = append(r.Pools, state.DeployedPool{Name: p.Name, Docks: p.Docks, Min: int(p.Min), Max: int(p.Max),
-			Lifts: int(p.Lifts), IdleAfter: p.IdleAfter.AsDuration()})
+		r.Pools = append(r.Pools, state.DeployedPool{Name: p.Name, Queues: p.Queues, Min: int(p.Min), Max: int(p.Max),
+			Steps: int(p.Steps), IdleAfter: p.IdleAfter.AsDuration()})
 	}
 	d, err := s.core.Deploy(ctx, r)
 	if err != nil {
@@ -77,10 +77,10 @@ func (s *DeployServer) DeleteProject(ctx context.Context, req *connect.Request[m
 
 func deploymentMessage(p state.Project) *mokshav1.Deployment {
 	m := &mokshav1.Deployment{Project: p.Project, Version: int32(p.Version), BuildId: p.BuildID, Image: p.Image, Dir: p.Dir,
-		Pipelines: p.Hauls, By: p.By, DeployedAt: timestamppb.New(p.DeployedAt), Secrets: p.Secrets}
+		Pipelines: p.Pipelines, By: p.By, DeployedAt: timestamppb.New(p.DeployedAt), Secrets: p.Secrets}
 	for _, pool := range p.Pools {
-		m.Pools = append(m.Pools, &mokshav1.DeployedPool{Name: pool.Name, Docks: pool.Docks, Min: int32(pool.Min),
-			Max: int32(pool.Max), Lifts: int32(pool.Lifts), IdleAfter: durationpb.New(pool.IdleAfter)})
+		m.Pools = append(m.Pools, &mokshav1.DeployedPool{Name: pool.Name, Queues: pool.Queues, Min: int32(pool.Min),
+			Max: int32(pool.Max), Steps: int32(pool.Steps), IdleAfter: durationpb.New(pool.IdleAfter)})
 	}
 	if p.DeletedAt != nil {
 		m.DeletedAt = timestamppb.New(*p.DeletedAt)

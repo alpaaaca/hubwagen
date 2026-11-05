@@ -3,10 +3,10 @@
 // version of raw.orders for 2026-10-07"). The web UI shows them as the
 // run's history.
 //
-// The words are the ones people read, not the engine's: a haul is a run of
-// a pipeline, a lift is a step, a pallet is a version of a dataset (a
-// step's output), a memoized lift is reused. Events that are only the
-// engine's bookkeeping (haul tasks, an attempt that succeeded) are kept as
+// The words are the ones people read, not the engine's: a run is a run of
+// a pipeline, a step is a step, a data version is a version of a dataset (a
+// step's output), a memoized step is reused. Events that are only the
+// engine's bookkeeping (run tasks, an attempt that succeeded) are kept as
 // Engine entries, for debugging moksha itself.
 package history
 
@@ -56,8 +56,8 @@ type Entry struct {
 
 // Lookup finds what the events only refer to by ID. Either may be nil.
 type Lookup struct {
-	Pallet func(id string) (state.Pallet, bool)
-	Haul   func(id string) (state.Haul, bool)
+	DataVersion func(id string) (state.DataVersion, bool)
+	Run         func(id string) (state.Run, bool)
 }
 
 // Tell turns a run's events (in order) into its history, one entry per
@@ -65,7 +65,7 @@ type Lookup struct {
 func Tell(evs []state.Event, look Lookup) []Entry {
 	t := teller{look: look, names: map[int]string{}, started: map[int]time.Time{}, reused: map[int]bool{}}
 	for _, ev := range evs {
-		if ev.Type == state.EventLiftReused || ev.Type == state.EventLiftWaiting {
+		if ev.Type == state.EventStepReused || ev.Type == state.EventStepWaiting {
 			var p struct {
 				Seq int `json:"seq"`
 			}
@@ -113,9 +113,9 @@ type payload struct {
 	Status      string          `json:"status"`
 	Reason      string          `json:"reason"`
 	Message     string          `json:"message"`
-	Pallet      json.RawMessage `json:"pallet"`
+	DataVersion json.RawMessage `json:"data_version"`
 	Reused      bool            `json:"reused"`
-	Haul        string          `json:"haul"`
+	Run         string          `json:"run"`
 	OnSeq       int             `json:"on_seq"`
 	RunReason   string          `json:"run_reason"`
 	Memo        string          `json:"memo"`
@@ -133,45 +133,45 @@ func (t *teller) tell(ev state.Event) Entry {
 	why := strings.TrimSpace(p.Reason + ": " + p.Message)
 	why = strings.Trim(why, ": ")
 	switch ev.Type {
-	case state.EventHaulStarted:
+	case state.EventRunStarted:
 		t.begin, t.name, t.inputs = ev.Time, p.Name, Inputs(p.Params)
 		text := "Started " + Trigger(p.Trigger)
 		if in := Inputs(p.Params); in != "" {
 			text += ", for " + in
 		}
 		e := Entry{Kind: KindStarted, Text: text}
-		if id, ok := strings.CutPrefix(p.Trigger, "haul "); ok {
+		if id, ok := strings.CutPrefix(p.Trigger, "run "); ok {
 			e.Run = id
 		} else if id, ok := strings.CutPrefix(p.Trigger, "continue "); ok {
 			e.Run = id
 		}
 		return e
-	case state.EventHaulFinished:
+	case state.EventRunFinished:
 		took := ""
 		if !t.begin.IsZero() {
 			took = " in " + Took(ev.Time.Sub(t.begin))
 		}
 		switch p.Status {
-		case state.HaulCompleted:
+		case state.RunCompleted:
 			return Entry{Kind: KindFinished, Text: "Finished" + took}
-		case state.HaulFailed:
+		case state.RunFailed:
 			return Entry{Kind: KindFinished, Text: "Failed" + took, Detail: why}
-		case state.HaulCancelled:
+		case state.RunCancelled:
 			return Entry{Kind: KindFinished, Text: "Cancelled", Detail: why}
-		case state.HaulContinued:
+		case state.RunContinued:
 			return Entry{Kind: KindFinished, Text: "Continued as a new run" + took}
 		}
 		return Entry{Kind: KindFinished, Text: "Ended: " + p.Status, Detail: why}
-	case state.EventHaulStuck:
+	case state.EventRunStuck:
 		text := "Stuck: the pipeline's code no longer matches what this run already did; it waits until code that matches is deployed, or it is cancelled"
 		if p.Reason != "nondeterminism" {
 			text = "Stuck"
 		}
 		return Entry{Kind: KindStuck, Text: text, Detail: p.Message, Seq: p.Seq}
-	case state.EventHaulTaskFailed:
+	case state.EventRunTaskFailed:
 		return Entry{Kind: KindProblem, Text: "The pipeline's code couldn't run on a worker; it runs again", Detail: why}
 
-	case state.EventLiftScheduled:
+	case state.EventStepScheduled:
 		t.names[p.Seq] = p.Name
 		if t.reused[p.Seq] {
 			return Entry{Seq: p.Seq, Text: "queued"} // the reuse says what happened
@@ -181,30 +181,30 @@ func (t *teller) tell(ev state.Event) Entry {
 			text += "; it runs because " + r
 		}
 		return Entry{Kind: KindStep, Seq: p.Seq, Text: text, Detail: args(p.Args)}
-	case state.EventLiftReused:
+	case state.EventStepReused:
 		e := Entry{Kind: KindReused, Seq: p.Seq,
 			Text: "reused: same inputs and same code as before, so it didn't run again"}
-		run := p.Haul
-		if id := str(p.Pallet); id != "" && t.look.Pallet != nil {
-			if pl, ok := t.look.Pallet(id); ok {
-				run = pl.HaulID
+		run := p.Run
+		if id := str(p.DataVersion); id != "" && t.look.DataVersion != nil {
+			if pl, ok := t.look.DataVersion(id); ok {
+				run = pl.RunID
 				e.Text = "reused the existing " + version(pl) + ": same inputs and same code, so it didn't run again"
 			}
 		}
-		if run != "" && run != ev.HaulID {
+		if run != "" && run != ev.RunID {
 			e.Run = run
 			e.Text += " (from " + t.runName(run) + ")"
 		}
 		return e
-	case state.EventLiftWaiting:
+	case state.EventStepWaiting:
 		e := Entry{Kind: KindWait, Seq: p.Seq,
 			Text: "waits for the same step with the same inputs, already running elsewhere, to reuse its result"}
-		if p.Haul != "" && p.Haul != ev.HaulID {
-			e.Run = p.Haul
-			e.Text = "waits for the same step with the same inputs, already running in " + t.runName(p.Haul) + ", to reuse its result"
+		if p.Run != "" && p.Run != ev.RunID {
+			e.Run = p.Run
+			e.Text = "waits for the same step with the same inputs, already running in " + t.runName(p.Run) + ", to reuse its result"
 		}
 		return e
-	case state.EventLiftAttemptDispatched:
+	case state.EventStepAttemptDispatched:
 		t.started[p.Seq] = ev.Time
 		text := "started"
 		if p.Number > 1 {
@@ -214,7 +214,7 @@ func (t *teller) tell(ev state.Event) Entry {
 			text += " on " + p.Worker
 		}
 		return Entry{Kind: KindStep, Seq: p.Seq, Text: text}
-	case state.EventLiftAttemptFinished:
+	case state.EventStepAttemptFinished:
 		switch p.Status {
 		case state.AttemptSucceeded:
 			return Entry{Seq: p.Seq, Text: fmt.Sprintf("attempt %d succeeded", p.Number)}
@@ -224,13 +224,13 @@ func (t *teller) tell(ev state.Event) Entry {
 			return Entry{Seq: p.Seq, Text: fmt.Sprintf("attempt %d cancelled", p.Number), Detail: why}
 		}
 		return Entry{Kind: KindProblem, Seq: p.Seq, Text: fmt.Sprintf("attempt %d failed", p.Number), Detail: why}
-	case state.EventLiftRetryScheduled:
+	case state.EventStepRetryScheduled:
 		text := fmt.Sprintf("tries again (attempt %d)", p.NextAttempt)
 		if wait := p.RetryAt.Sub(ev.Time); wait > 0 {
 			text = fmt.Sprintf("tries again in %s (attempt %d)", Took(wait), p.NextAttempt)
 		}
 		return Entry{Kind: KindRetry, Seq: p.Seq, Text: text}
-	case state.EventLiftFinished:
+	case state.EventStepFinished:
 		if p.Reused {
 			return Entry{Seq: p.Seq, Text: "done (reused)"}
 		}
@@ -239,15 +239,15 @@ func (t *teller) tell(ev state.Event) Entry {
 			took = " in " + Took(ev.Time.Sub(at))
 		}
 		switch p.Status {
-		case state.LiftCompleted:
+		case state.StepCompleted:
 			text := "done" + took
-			if id := str(p.Pallet); id != "" && t.look.Pallet != nil {
-				if pl, ok := t.look.Pallet(id); ok {
+			if id := str(p.DataVersion); id != "" && t.look.DataVersion != nil {
+				if pl, ok := t.look.DataVersion(id); ok {
 					text += ", wrote a new " + version(pl)
 				}
 			}
 			return Entry{Kind: KindStep, Seq: p.Seq, Text: text}
-		case state.LiftCancelled:
+		case state.StepCancelled:
 			return Entry{Kind: KindStep, Seq: p.Seq, Text: "cancelled", Detail: why}
 		}
 		return Entry{Kind: KindProblem, Seq: p.Seq, Text: "failed" + took, Detail: why}
@@ -270,32 +270,32 @@ func (t *teller) tell(ev state.Event) Entry {
 		}
 		return Entry{Kind: KindWait, Text: fmt.Sprintf("Went on with the signal “%s”", p.Name)}
 	case state.EventChildStarted:
-		return Entry{Kind: KindRun, Text: "Started a run of " + p.Name, Run: p.Haul}
+		return Entry{Kind: KindRun, Text: "Started a run of " + p.Name, Run: p.Run}
 	case state.EventChildFinished:
-		if p.Haul == "" {
+		if p.Run == "" {
 			return Entry{Kind: KindProblem, Text: "Couldn't start a run of " + p.Name, Detail: p.Message}
 		}
-		return Entry{Kind: KindRun, Text: fmt.Sprintf("The run of %s it started %s", p.Name, p.Status), Run: p.Haul, Detail: why}
+		return Entry{Kind: KindRun, Text: fmt.Sprintf("The run of %s it started %s", p.Name, p.Status), Run: p.Run, Detail: why}
 	case state.EventQueryAnswered:
 		var a struct {
-			Pallet *struct {
+			DataVersion *struct {
 				Dataset   string `json:"dataset"`
 				Partition string `json:"partition"`
-			} `json:"pallet"`
+			} `json:"data_version"`
 		}
 		_ = json.Unmarshal(ev.Payload, &a)
-		if a.Pallet == nil {
+		if a.DataVersion == nil {
 			return Entry{Kind: KindData, Text: "Looked up the latest version of a dataset: there is none yet"}
 		}
-		return Entry{Kind: KindData, Text: "Looked up the latest " + version(state.Pallet{Dataset: a.Pallet.Dataset, Partition: a.Pallet.Partition})}
-	case state.EventPalletInvalidated:
+		return Entry{Kind: KindData, Text: "Looked up the latest " + version(state.DataVersion{Dataset: a.DataVersion.Dataset, Partition: a.DataVersion.Partition})}
+	case state.EventDataVersionInvalidated:
 		return Entry{Kind: KindProblem, Text: "A step's output couldn't be saved", Detail: why}
 
-	case state.EventHaulTaskQueued:
+	case state.EventRunTaskQueued:
 		return Entry{Text: "Waits for a worker to run the pipeline's code"}
-	case state.EventHaulTaskDispatched:
+	case state.EventRunTaskDispatched:
 		return Entry{Text: "The pipeline's code runs on " + orElse(p.Worker, "a worker")}
-	case state.EventHaulTaskCompleted:
+	case state.EventRunTaskCompleted:
 		return Entry{Text: "The pipeline's code ran up to where it waits"}
 	}
 	return Entry{}
@@ -303,8 +303,8 @@ func (t *teller) tell(ev state.Event) Entry {
 
 // runName names another run by its pipeline and inputs.
 func (t *teller) runName(id string) string {
-	if t.look.Haul != nil {
-		if h, ok := t.look.Haul(id); ok {
+	if t.look.Run != nil {
+		if h, ok := t.look.Run(id); ok {
 			if h.Name == t.name && Inputs(h.Params) == t.inputs {
 				return "an earlier run with the same inputs"
 			}
@@ -317,8 +317,8 @@ func (t *teller) runName(id string) string {
 	return "an earlier run"
 }
 
-// version names a pallet as people do: a version of its dataset.
-func version(p state.Pallet) string {
+// version names a data version as people do: a version of its dataset.
+func version(p state.DataVersion) string {
 	s := "version of " + p.Dataset
 	if p.Partition != "" {
 		s += " for " + p.Partition
@@ -335,7 +335,7 @@ func Trigger(t string) string {
 		return "by its schedule"
 	case t == "subscription":
 		return "by new data"
-	case strings.HasPrefix(t, "haul "):
+	case strings.HasPrefix(t, "run "):
 		return "by another run"
 	case strings.HasPrefix(t, "continue "):
 		return "as the continuation of an earlier run"
@@ -356,7 +356,7 @@ func WhyItRan(r string) string {
 		return "its code version is unknown, so it can't be compared"
 	case r == "arguments are not JSON":
 		return "its arguments can't be compared"
-	case r == "earlier pallet invalidated":
+	case r == "earlier data version invalidated":
 		return "its earlier output was marked invalid"
 	case strings.HasPrefix(r, "expired"):
 		return "its earlier output is too old " + strings.TrimPrefix(r, "expired ")

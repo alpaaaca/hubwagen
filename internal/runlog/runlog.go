@@ -1,4 +1,4 @@
-// Package runlog keeps what user code printed and logged while a lift ran,
+// Package runlog keeps what user code printed and logged while a step ran,
 // per attempt: the output people read in the web UI and `moksha dev`.
 //
 // Logs are not state. They don't go through the event log or the core: an
@@ -34,10 +34,10 @@ type Line struct {
 	Text   string    `json:"m"`
 }
 
-// Attempt names whose output a line is: a lift attempt of a haul.
+// Attempt names whose output a line is: a step attempt of a run.
 type Attempt struct {
-	HaulID string
-	Seq    int // the lift
+	RunID  string
+	Seq    int // the step
 	Number int // the attempt, from 1
 }
 
@@ -48,7 +48,7 @@ type Entry struct {
 }
 
 // Store keeps logs as files of JSON lines under a directory:
-// <haul>/<seq>-<attempt>.jsonl.
+// <run>/<seq>-<attempt>.jsonl.
 type Store struct {
 	dir    string
 	mu     sync.Mutex
@@ -72,10 +72,10 @@ func (s *Store) OnAppend(fn func([]Entry)) {
 }
 
 func (s *Store) path(a Attempt) (string, error) {
-	if a.HaulID == "" || strings.ContainsAny(a.HaulID, `/\.`) || a.Seq < 1 || a.Number < 1 {
+	if a.RunID == "" || strings.ContainsAny(a.RunID, `/\.`) || a.Seq < 1 || a.Number < 1 {
 		return "", fmt.Errorf("runlog: bad attempt %+v", a)
 	}
-	return filepath.Join(s.dir, a.HaulID, fmt.Sprintf("%d-%d.jsonl", a.Seq, a.Number)), nil
+	return filepath.Join(s.dir, a.RunID, fmt.Sprintf("%d-%d.jsonl", a.Seq, a.Number)), nil
 }
 
 const cut = "… the rest of this output was cut: an attempt keeps at most 1 MiB"
@@ -136,15 +136,15 @@ func (s *Store) Append(a Attempt, lines []Line) error {
 	return nil
 }
 
-// Read returns a haul's log lines, of one lift if seq > 0, oldest first
+// Read returns a run's log lines, of one step if seq > 0, oldest first
 // (attempts in order, each attempt's lines in the order they came). With
 // more than limit lines (limit > 0) it returns the last limit, and how many
 // it left out.
-func (s *Store) Read(haulID string, seq, limit int) (entries []Entry, skipped int, err error) {
-	if haulID == "" || strings.ContainsAny(haulID, `/\.`) {
-		return nil, 0, fmt.Errorf("runlog: bad haul ID %q", haulID)
+func (s *Store) Read(runID string, seq, limit int) (entries []Entry, skipped int, err error) {
+	if runID == "" || strings.ContainsAny(runID, `/\.`) {
+		return nil, 0, fmt.Errorf("runlog: bad run ID %q", runID)
 	}
-	files, err := os.ReadDir(filepath.Join(s.dir, haulID))
+	files, err := os.ReadDir(filepath.Join(s.dir, runID))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, 0, nil
 	}
@@ -154,10 +154,10 @@ func (s *Store) Read(haulID string, seq, limit int) (entries []Entry, skipped in
 	var attempts []Attempt
 	for _, f := range files {
 		name, ok := strings.CutSuffix(f.Name(), ".jsonl")
-		lift, number, ok2 := strings.Cut(name, "-")
-		a := Attempt{HaulID: haulID}
+		step, number, ok2 := strings.Cut(name, "-")
+		a := Attempt{RunID: runID}
 		var e1, e2 error
-		a.Seq, e1 = strconv.Atoi(lift)
+		a.Seq, e1 = strconv.Atoi(step)
 		a.Number, e2 = strconv.Atoi(number)
 		if !ok || !ok2 || e1 != nil || e2 != nil || (seq > 0 && a.Seq != seq) {
 			continue
@@ -173,7 +173,7 @@ func (s *Store) Read(haulID string, seq, limit int) (entries []Entry, skipped in
 			return nil, 0, err
 		}
 	}
-	// Lifts run side by side: interleave them by time. The sort is stable,
+	// Steps run side by side: interleave them by time. The sort is stable,
 	// so one attempt's lines keep their order.
 	slices.SortStableFunc(entries, func(x, y Entry) int { return x.Time.Compare(y.Time) })
 	if limit > 0 && len(entries) > limit {

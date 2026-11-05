@@ -14,14 +14,14 @@ import (
 	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
 	"github.com/alper/moksha/internal/api/gen/moksha/v1/mokshav1connect"
 	"github.com/alper/moksha/internal/core"
-	"github.com/alper/moksha/internal/pallet"
+	"github.com/alper/moksha/internal/dataversion"
 	"github.com/alper/moksha/internal/state"
 )
 
-// ManifestReader reads a pallet's manifest from where it lives;
-// *pallet.Store implements it.
+// ManifestReader reads a data version's manifest from where it lives;
+// *dataversion.Store implements it.
 type ManifestReader interface {
-	Read(ctx context.Context, uri string) (pallet.Manifest, error)
+	Read(ctx context.Context, uri string) (dataversion.Manifest, error)
 }
 
 // CatalogServer implements CatalogService from the store's projections.
@@ -32,26 +32,26 @@ type CatalogServer struct {
 }
 
 // NewCatalogHandler returns the path and handler to mount CatalogService
-// at. Without a core, InvalidatePallet is unavailable.
+// at. Without a core, InvalidateDataVersion is unavailable.
 func NewCatalogHandler(c *core.Core, st *state.Store, manifests ManifestReader) (string, http.Handler) {
 	return mokshav1connect.NewCatalogServiceHandler(&CatalogServer{core: c, store: st, manifests: manifests})
 }
 
-func (s *CatalogServer) InvalidatePallet(ctx context.Context, req *connect.Request[mokshav1.InvalidatePalletRequest]) (*connect.Response[mokshav1.InvalidatePalletResponse], error) {
+func (s *CatalogServer) InvalidateDataVersion(ctx context.Context, req *connect.Request[mokshav1.InvalidateDataVersionRequest]) (*connect.Response[mokshav1.InvalidateDataVersionResponse], error) {
 	if s.core == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("this server only reads the catalog"))
 	}
 	m := req.Msg
-	res, err := s.core.InvalidatePallet(ctx, core.InvalidateRequest{PalletID: m.Id, Reason: m.Reason, By: m.By, DryRun: m.DryRun})
+	res, err := s.core.InvalidateDataVersion(ctx, core.InvalidateRequest{DataVersionID: m.Id, Reason: m.Reason, By: m.By, DryRun: m.DryRun})
 	if err != nil {
 		return nil, connectError(err)
 	}
-	out := &mokshav1.InvalidatePalletResponse{}
-	for _, p := range res.Pallets {
-		out.Pallets = append(out.Pallets, palletMessage(p))
+	out := &mokshav1.InvalidateDataVersionResponse{}
+	for _, p := range res.DataVersions {
+		out.DataVersions = append(out.DataVersions, dataVersionMessage(p))
 	}
-	for _, h := range res.Hauls {
-		out.Hauls = append(out.Hauls, haulRef(h))
+	for _, h := range res.Runs {
+		out.Runs = append(out.Runs, runRef(h))
 	}
 	return connect.NewResponse(out), nil
 }
@@ -113,44 +113,44 @@ func (s *CatalogServer) ListPartitions(ctx context.Context, req *connect.Request
 	out := &mokshav1.ListPartitionsResponse{}
 	for _, p := range parts {
 		out.Partitions = append(out.Partitions, &mokshav1.Partition{
-			Partition: p.Partition, Latest: palletMessage(p.Latest), Pallets: int32(p.Pallets)})
+			Partition: p.Partition, Latest: dataVersionMessage(p.Latest), DataVersions: int32(p.DataVersions)})
 	}
 	return connect.NewResponse(out), nil
 }
 
-func (s *CatalogServer) ListPallets(ctx context.Context, req *connect.Request[mokshav1.ListPalletsRequest]) (*connect.Response[mokshav1.ListPalletsResponse], error) {
+func (s *CatalogServer) ListDataVersions(ctx context.Context, req *connect.Request[mokshav1.ListDataVersionsRequest]) (*connect.Response[mokshav1.ListDataVersionsResponse], error) {
 	m := req.Msg
 	if err := checkLimit(m.Limit); err != nil {
 		return nil, err
 	}
-	ps, err := s.store.ListPallets(ctx, state.PalletFilter{Tenant: tenantOr(m.Tenant), Dataset: m.Dataset,
+	ps, err := s.store.ListDataVersions(ctx, state.DataVersionFilter{Tenant: tenantOr(m.Tenant), Dataset: m.Dataset,
 		Partition: m.Partition, States: m.States, BeforeID: m.BeforeId, Limit: int(m.Limit)})
 	if err != nil {
 		return nil, connectError(err)
 	}
-	out := &mokshav1.ListPalletsResponse{}
+	out := &mokshav1.ListDataVersionsResponse{}
 	for _, p := range ps {
-		out.Pallets = append(out.Pallets, palletMessage(p))
+		out.DataVersions = append(out.DataVersions, dataVersionMessage(p))
 	}
 	return connect.NewResponse(out), nil
 }
 
-func (s *CatalogServer) GetPallet(ctx context.Context, req *connect.Request[mokshav1.GetPalletRequest]) (*connect.Response[mokshav1.GetPalletResponse], error) {
-	p, err := s.store.GetPallet(ctx, req.Msg.Id)
+func (s *CatalogServer) GetDataVersion(ctx context.Context, req *connect.Request[mokshav1.GetDataVersionRequest]) (*connect.Response[mokshav1.GetDataVersionResponse], error) {
+	p, err := s.store.GetDataVersion(ctx, req.Msg.Id)
 	if errors.Is(err, state.ErrNotFound) {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("pallet %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("data version %s not found", req.Msg.Id))
 	}
 	if err != nil {
 		return nil, connectError(err)
 	}
-	out := &mokshav1.GetPalletResponse{Pallet: palletMessage(p)}
-	if l, err := s.store.GetLift(ctx, p.HaulID, p.LiftSeq); err == nil {
-		out.Lift = l.Name
+	out := &mokshav1.GetDataVersionResponse{DataVersion: dataVersionMessage(p)}
+	if l, err := s.store.GetStep(ctx, p.RunID, p.StepSeq); err == nil {
+		out.Step = l.Name
 	}
 	switch {
 	case s.manifests == nil:
 		out.ManifestError = "this server doesn't read manifests"
-	case p.State == state.PalletExpired:
+	case p.State == state.DataVersionExpired:
 		out.ManifestError = "expired: its data was removed"
 	default:
 		if m, err := s.manifests.Read(ctx, p.Location); err != nil {
@@ -175,7 +175,7 @@ func (s *CatalogServer) GetPallet(ctx context.Context, req *connect.Request[moks
 	return connect.NewResponse(out), nil
 }
 
-func (s *CatalogServer) ExpirePallets(ctx context.Context, req *connect.Request[mokshav1.ExpirePalletsRequest]) (*connect.Response[mokshav1.ExpirePalletsResponse], error) {
+func (s *CatalogServer) ExpireDataVersions(ctx context.Context, req *connect.Request[mokshav1.ExpireDataVersionsRequest]) (*connect.Response[mokshav1.ExpireDataVersionsResponse], error) {
 	if s.core == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("this server only reads the catalog"))
 	}
@@ -183,9 +183,9 @@ func (s *CatalogServer) ExpirePallets(ctx context.Context, req *connect.Request[
 	if err != nil {
 		return nil, connectError(err)
 	}
-	out := &mokshav1.ExpirePalletsResponse{}
+	out := &mokshav1.ExpireDataVersionsResponse{}
 	for _, e := range expired {
-		out.Expired = append(out.Expired, &mokshav1.ExpiredPallet{Pallet: palletMessage(e.Pallet), Reason: e.Reason})
+		out.Expired = append(out.Expired, &mokshav1.ExpiredDataVersion{DataVersion: dataVersionMessage(e.DataVersion), Reason: e.Reason})
 	}
 	return connect.NewResponse(out), nil
 }
@@ -197,23 +197,23 @@ func (s *CatalogServer) ListStale(ctx context.Context, req *connect.Request[moks
 	}
 	out := &mokshav1.ListStaleResponse{}
 	for _, st := range stale {
-		v := &mokshav1.StalePallet{Pallet: palletMessage(st.Pallet), Lift: st.Lift, Reasons: st.Reasons}
-		if h, err := s.store.GetHaul(ctx, st.Pallet.HaulID); err == nil {
-			v.Haul = haulRef(h)
+		v := &mokshav1.StaleDataVersion{DataVersion: dataVersionMessage(st.DataVersion), Step: st.Step, Reasons: st.Reasons}
+		if h, err := s.store.GetRun(ctx, st.DataVersion.RunID); err == nil {
+			v.Run = runRef(h)
 		}
 		out.Stale = append(out.Stale, v)
 	}
 	return connect.NewResponse(out), nil
 }
 
-func haulRef(h state.Haul) *mokshav1.HaulRef {
-	return &mokshav1.HaulRef{Id: h.ID, Name: h.Name, ParamsJson: haulMessage(h).ParamsJson, Tenant: h.Tenant}
+func runRef(h state.Run) *mokshav1.RunRef {
+	return &mokshav1.RunRef{Id: h.ID, Name: h.Name, ParamsJson: runMessage(h).ParamsJson, Tenant: h.Tenant}
 }
 
-func palletMessage(p state.Pallet) *mokshav1.Pallet {
-	out := &mokshav1.Pallet{
+func dataVersionMessage(p state.DataVersion) *mokshav1.DataVersion {
+	out := &mokshav1.DataVersion{
 		Id: p.ID, Tenant: p.Tenant, Dataset: p.Dataset, Partition: p.Partition, Location: p.Location,
-		ContentHash: p.ContentHash, Fingerprint: p.Fingerprint, HaulId: p.HaulID, LiftSeq: int32(p.LiftSeq),
+		ContentHash: p.ContentHash, Fingerprint: p.Fingerprint, RunId: p.RunID, StepSeq: int32(p.StepSeq),
 		State: p.State, Reason: p.Reason, CreatedAt: timestamppb.New(p.CreatedAt),
 	}
 	if len(p.Stats) > 0 {
@@ -235,11 +235,11 @@ func palletMessage(p state.Pallet) *mokshav1.Pallet {
 
 func lineageMessage(l state.Lineage) *mokshav1.Lineage {
 	out := &mokshav1.Lineage{}
-	for _, p := range l.Pallets {
-		out.Pallets = append(out.Pallets, palletMessage(p))
+	for _, p := range l.DataVersions {
+		out.DataVersions = append(out.DataVersions, dataVersionMessage(p))
 	}
 	for _, e := range l.Edges {
-		out.Edges = append(out.Edges, &mokshav1.LineageEdge{PalletId: e.PalletID, InputId: e.InputID, Name: e.Name})
+		out.Edges = append(out.Edges, &mokshav1.LineageEdge{DataVersionId: e.DataVersionID, InputId: e.InputID, Name: e.Name})
 	}
 	return out
 }

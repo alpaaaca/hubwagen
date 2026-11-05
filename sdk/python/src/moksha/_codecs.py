@@ -1,15 +1,15 @@
-"""Codecs: how a dataframe or table a lift returns is stored, and how a
-lift's arguments are loaded from pallets by their annotations.
+"""Codecs: how a dataframe or table a step returns is stored, and how a
+step's arguments are loaded from data versions by their annotations.
 
-A lift that returns a pandas or Polars DataFrame, a Polars LazyFrame or an
+A step that returns a pandas or Polars DataFrame, a Polars LazyFrame or an
 Arrow Table doesn't return JSON: the worker writes it as Parquet into the
-attempt's staging prefix, which makes it a pallet (in the lift's output, or
+attempt's staging prefix, which makes it a data version (in the step's output, or
 in its implicit dataset), and the result records what was written:
-{"$frame": "polars", "rows": 3, "columns": [...]}. The haul gets a handle,
-never the data. A lift that takes the handle gets the data, loaded as its
+{"$frame": "polars", "rows": 3, "columns": [...]}. The run gets a handle,
+never the data. A step that takes the handle gets the data, loaded as its
 parameter's annotation asks (pl.DataFrame, pl.LazyFrame, pd.DataFrame,
 pa.Table), or as it was written when the parameter has none; annotate
-mk.Pallet to get the files instead.
+mk.DataVersion to get the files instead.
 
 The built-in codecs import pandas, Polars and pyarrow only when they meet
 one of their types, so the SDK itself needs none of them.
@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-FILE = "data.parquet"  # the one file a codec writes into a pallet
+FILE = "data.parquet"  # the one file a codec writes into a data version
 
 
 def _key(cls: type) -> tuple[str, str]:
@@ -46,7 +46,7 @@ _CODECS: list[Codec] = []
 
 def register_codec(name: str, types: list[type | tuple[str, str]], write: Callable[[Any, Path], None],
                    read: Callable[[Path, type | None], Any], describe: Callable[[Any], dict] | None = None) -> None:
-    """Teach the SDK to store another type as a pallet: write(value, file)
+    """Teach the SDK to store another type as a data version: write(value, file)
     writes it to file, read(file, cls) loads it back (cls is the annotated
     type, or None). Later registrations win over earlier ones."""
     keys = tuple(t if isinstance(t, tuple) else _key(t) for t in types)

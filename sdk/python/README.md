@@ -42,12 +42,6 @@ The words:
   arguments is **reused**: what it produced before stands in, and it
   doesn't run again.
 
-The engine (the server, its API and docs/architecture.md) calls a pipeline
-a *haul*, a step a *lift* and a data version a *pallet*. Those names still
-work in the SDK: `mk.haul`, `mk.lift`, `mk.Pallet`, `mk.LiftFailed`,
-`mk.ChildFailed`, `ctx.lift`, `ctx.lift_async`, `ctx.haul`,
-`ctx.start_haul` and `ctx.latest_pallet` are the same as the names below.
-
 ## Pipelines
 
 A run is replayed from the top of the pipeline function whenever it has
@@ -68,7 +62,7 @@ pipeline code must make the same calls in the same order every time:
 - `python -m moksha.lint` checks pipeline code for all of this before it
   runs (the clock, randomness, set iteration, I/O, `except:`, steps called
   directly), from the source, for the modules in `pyproject.toml` or the
-  paths given. `# noqa: HW003` silences one line.
+  paths given. `# noqa: MK003` silences one line.
 - **Don't swallow `moksha.Blocked`.** It is a `BaseException`, so
   `except Exception:` is safe; a bare `except:` is not.
 - `ctx.state` is a dict rebuilt by every replay; it holds what the run
@@ -118,7 +112,7 @@ def daily(ctx, day: str):
 ```
 
 ```bash
-moksha signal <run-id> approve --data '{"by": "ana"}'   # or Client.signal_haul(run_id, "approve", {...})
+moksha signal <run-id> approve --data '{"by": "ana"}'   # or Client.signal_run(run_id, "approve", {...})
 ```
 
 A signal sent before the run waits for it is kept; each signal answers one
@@ -161,8 +155,7 @@ New versions in the datasets start the pipeline, a batch at a time: once
 none came for `debounce` seconds (default: at once), once `max_batch` wait,
 or once the first has waited `max_wait` (default: ten debounces). What a
 pipeline's own runs write doesn't start it. `moksha schedules` lists
-subscriptions too, with how many new versions wait. (A pipeline that names
-its input `pallets` gets them under that name.)
+subscriptions too, with how many new versions wait.
 
 ### Changing pipeline code while runs are going on
 
@@ -191,7 +184,7 @@ data version, or for a step without an output, its result),
 (`keep`: retention; per partition the latest and those kept by either rule
 stay, the rest expire; without it every version stays), `version=` (pin the
 code version), `timeout=` (seconds), `retry=mk.Retry(limit, backoff,
-initial, max)` or an int, `dock=`. Pass data versions as arguments: they
+initial, max)` or an int, `queue=`. Pass data versions as arguments: they
 travel as inputs (lineage, and content hashes in the fingerprint), not
 inside the arguments. Raise `moksha.NonRetryable` for failures retrying
 won't fix.
@@ -225,7 +218,7 @@ A step can return a pandas or Polars DataFrame, a Polars LazyFrame or an
 Arrow Table. The worker writes it as Parquet (`data.parquet`) into the
 attempt's staging prefix, so it becomes a data version: in the step's
 `output=` dataset if it has one, else in its implicit dataset
-`lift:<name>`. The pipeline gets a handle (a `DataVersion` whose `.result`
+`step:<name>`. The pipeline gets a handle (a `DataVersion` whose `.result`
 is `{"$frame": "polars", "rows": …, "columns": […]}`), never the data; pass
 it to the next step, which gets the data loaded by its parameter's
 annotation:
@@ -265,8 +258,8 @@ def daily(ctx, day: str):
 ## Worker
 
 `python -m moksha.worker [app.pipelines more.modules] [--server URL]
-[--dock NAME] [--lifts N] [--worker-id ID]` imports the modules, registers
-the build, replays runs and runs steps (`--lifts`: how many at once), and
+[--queue NAME] [--steps N] [--worker-id ID]` imports the modules, registers
+the build, replays runs and runs steps (`--steps`: how many at once), and
 sends heartbeats for running steps. The build is the pipelines the modules
 define and each step's code version (`version=` or a hash of its source).
 It re-executes itself with `PYTHONHASHSEED=0` so set iteration order is the
@@ -283,22 +276,22 @@ modules = ["app.pipelines", "app.backfills"]
 
 The worker polls with its build, and the server hands it only the pipelines
 and steps that build defines. Projects with different code can therefore
-share a server and its docks. The server refuses to start a pipeline that
+share a server and its queues. The server refuses to start a pipeline that
 no registered build defines, so start a worker for it first. If the server
 doesn't know the worker's build (a leader that lost it), the worker
 registers again.
 
 A run whose work no worker takes says why, in the web UI and in
 `moksha start --wait`, `replay` and `dev`: no worker is connected to
-its dock, the connected workers' code doesn't define the pipeline or step
+its queue, the connected workers' code doesn't define the pipeline or step
 (restart them with the new code), or they are all busy.
 
 If the server is down when a step finishes, the worker keeps the result,
 and keeps the attempt's heartbeats going, until the server takes it. A
 restarted leader therefore doesn't rerun the step. Ctrl-C stops polling and
 lets running steps finish. Started by `moksha dev`, `server` or `workers`,
-the worker takes its docks and lifts from the worker group in
-`moksha.yaml` (`$MOKSHA_DOCKS`, `$MOKSHA_LIFTS`; flags win), and also
+the worker takes its queues and steps from the worker group in
+`moksha.yaml` (`$MOKSHA_QUEUES`, `$MOKSHA_STEPS`; flags win), and also
 stops that way when that process is gone (`$MOKSHA_SUPERVISOR_PID`). `--worker-id` (or `$MOKSHA_WORKER_ID`) names
 the worker in a run's history; the default is `<hostname>-<pid>`. `--build-json` prints what
 the worker registers (its pipelines, steps' code versions, schedules), as

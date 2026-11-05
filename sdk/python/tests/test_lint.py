@@ -28,69 +28,69 @@ def test_each_rule():
         import moksha as mk
 
 
-        @mk.lift
+        @mk.step
         def fetch(day): ...
 
 
-        @mk.haul
+        @mk.pipeline
         def daily(ctx, day):
-            a = time.time()                       # 20 HW001
-            b = now()                             # 21 HW001
-            c = dt.datetime.now()                 # 22 HW001
-            d = random.choice([1, 2])             # 23 HW002
-            e = uuid4()                           # 24 HW002
-            for x in {"a", "b"}:                  # 25 HW003
+            a = time.time()                       # 20 MK001
+            b = now()                             # 21 MK001
+            c = dt.datetime.now()                 # 22 MK001
+            d = random.choice([1, 2])             # 23 MK002
+            e = uuid4()                           # 24 MK002
+            for x in {"a", "b"}:                  # 25 MK003
                 pass
             names = set(day)
-            ys = [y for y in names]               # 28 HW003
+            ys = [y for y in names]               # 28 MK003
             ok = [y for y in sorted(names)]
-            r = requests.get("https://x")         # 30 HW004
-            t = Path("f").read_text()             # 31 HW004
-            env = os.environ["HOME"]              # 32 HW004
+            r = requests.get("https://x")         # 30 MK004
+            t = Path("f").read_text()             # 31 MK004
+            env = os.environ["HOME"]              # 32 MK004
             try:
-                ctx.lift(fetch, day)
-            except:                               # 35 HW005
+                ctx.step(fetch, day)
+            except:                               # 35 MK005
                 pass
-            fetch(day)                            # 37 HW006
-            return ctx.lift(fetch, day)
+            fetch(day)                            # 37 MK006
+            return ctx.step(fetch, day)
     '''
-    assert codes(src) == [(20, "HW001"), (21, "HW001"), (22, "HW001"), (23, "HW002"), (24, "HW002"),
-                          (25, "HW003"), (28, "HW003"), (30, "HW004"), (31, "HW004"), (32, "HW004"),
-                          (35, "HW005"), (37, "HW006")]
+    assert codes(src) == [(20, "MK001"), (21, "MK001"), (22, "MK001"), (23, "MK002"), (24, "MK002"),
+                          (25, "MK003"), (28, "MK003"), (30, "MK004"), (31, "MK004"), (32, "MK004"),
+                          (35, "MK005"), (37, "MK006")]
 
 
-def test_only_haul_code_and_noqa():
+def test_only_run_code_and_noqa():
     src = '''
         import time
-        from moksha import haul, lift
+        from moksha import pipeline, step
 
-        @lift
+        @step
         def stamp():
-            return time.time()                    # a lift may
+            return time.time()                    # a step may
 
         def helper():
-            return time.time()                    # not haul code
+            return time.time()                    # not pipeline code
 
-        @haul(dock="etl")
+        @pipeline(queue="etl")
         def h(ctx):
-            ctx.lift(stamp)
-            started = time.time()  # noqa: HW001
-            other = time.time()  # noqa: HW002
+            ctx.step(stamp)
+            started = time.time()  # noqa: MK001
+            other = time.time()  # noqa: MK002
             try:
                 pass
             except Exception:
                 pass
             def nested():
-                return open("x")                  # 22: nested functions are haul code
+                return open("x")                  # 22: nested functions are pipeline code
             return nested
     '''
-    assert codes(src) == [(16, "HW001"), (22, "HW004")]
+    assert codes(src) == [(16, "MK001"), (22, "MK004")]
 
 
 def test_messages_name_the_place():
-    f = lint_source("import moksha as mk\n@mk.haul\ndef h(ctx):\n    return mk.x(open('f'))\n", "app/hauls.py")[0]
-    assert str(f) == "app/hauls.py:4:17: HW004 pipeline h: open() does I/O; do it in a step"
-    assert lint_source("def broken(:\n", "bad.py")[0].code == "HW000"
+    f = lint_source("import moksha as mk\n@mk.pipeline\ndef h(ctx):\n    return mk.x(open('f'))\n", "app/pipelines.py")[0]
+    assert str(f) == "app/pipelines.py:4:17: MK004 pipeline h: open() does I/O; do it in a step"
+    assert lint_source("def broken(:\n", "bad.py")[0].code == "MK000"
 
 
 def test_example_project_is_clean(monkeypatch, capsys):
@@ -99,14 +99,14 @@ def test_example_project_is_clean(monkeypatch, capsys):
 
 
 def test_command_line(tmp_path):
-    (tmp_path / "pyproject.toml").write_text('[tool.moksha]\nmodules = ["app.hauls"]\n')
+    (tmp_path / "pyproject.toml").write_text('[tool.moksha]\nmodules = ["app.pipelines"]\n')
     (tmp_path / "app").mkdir()
     (tmp_path / "app" / "__init__.py").write_text("")
-    (tmp_path / "app" / "hauls.py").write_text("import random\nimport moksha as mk\n\n@mk.haul\ndef h(ctx):\n    return random.random()\n")
+    (tmp_path / "app" / "pipelines.py").write_text("import random\nimport moksha as mk\n\n@mk.pipeline\ndef h(ctx):\n    return random.random()\n")
     run = subprocess.run([sys.executable, "-m", "moksha.lint"], cwd=tmp_path, capture_output=True, text=True,
                          env={"PYTHONPATH": str(SDK / "src")})
     assert run.returncode == 1
-    assert run.stdout == "app/hauls.py:6:12: HW002 pipeline h: random.random() is random; use ctx.random() or a step\n"
+    assert run.stdout == "app/pipelines.py:6:12: MK002 pipeline h: random.random() is random; use ctx.random() or a step\n"
     assert run.stderr == "1 problem\n"
     ok = subprocess.run([sys.executable, "-m", "moksha.lint", "app/__init__.py"], cwd=tmp_path,
                         capture_output=True, text=True, env={"PYTHONPATH": str(SDK / "src")})
@@ -116,7 +116,7 @@ def test_command_line(tmp_path):
     assert bad.returncode != 0 and "nope.mod: no such file" in bad.stderr
 
 
-def test_sdk_test_hauls_are_known(tmp_path):
-    """The SDK's own test hauls break the rules on purpose; lint finds them."""
-    found = {f.code for f in lint_source((Path(__file__).parent / "example_hauls.py").read_text(), "example_hauls.py")}
-    assert {"HW001"} <= found, "reads_clock reads the clock"
+def test_sdk_test_runs_are_known(tmp_path):
+    """The SDK's own test runs break the rules on purpose; lint finds them."""
+    found = {f.code for f in lint_source((Path(__file__).parent / "example_pipelines.py").read_text(), "example_pipelines.py")}
+    assert {"MK001"} <= found, "reads_clock reads the clock"

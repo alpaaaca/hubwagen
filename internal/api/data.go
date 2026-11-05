@@ -21,7 +21,7 @@ import (
 
 	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
 	"github.com/alper/moksha/internal/blob"
-	"github.com/alper/moksha/internal/pallet"
+	"github.com/alper/moksha/internal/dataversion"
 )
 
 // DataPath is where the server serves bucket objects to workers, with URLs
@@ -31,26 +31,26 @@ const DataPath = "/v1/data/"
 // TransferExpiry is how long a transfer URL works.
 const TransferExpiry = 15 * time.Minute
 
-// Data hands workers URLs for a running lift attempt's files: presigned
+// Data hands workers URLs for a running step attempt's files: presigned
 // URLs of the bucket when it has them, else URLs of the server's own data
 // endpoint (Handler), which streams to and from the bucket. Either way, a
 // URL reaches one object: an output file of an attempt that runs, or a file
 // of one of its inputs.
 type Data struct {
-	bucket  blob.Bucket
-	presign blob.Presigner // nil: the server moves the bytes
-	id      string
-	key     []byte // signs the server's own URLs; new on every start
-	now     func() time.Time
-	pallets *pallet.Store
-	log     *slog.Logger
+	bucket       blob.Bucket
+	presign      blob.Presigner // nil: the server moves the bytes
+	id           string
+	key          []byte // signs the server's own URLs; new on every start
+	now          func() time.Time
+	dataVersions *dataversion.Store
+	log          *slog.Logger
 }
 
 // NewData serves bucket's data to workers. bucketID is the file:// bucket's
-// ID (LiftTask.bucket_id). serve sends the bytes through the server even
+// ID (StepTask.bucket_id). serve sends the bytes through the server even
 // when the bucket can presign URLs.
-func NewData(bucket blob.Bucket, bucketID string, pallets *pallet.Store, serve bool, log *slog.Logger) *Data {
-	d := &Data{bucket: bucket, id: bucketID, now: time.Now, pallets: pallets, log: log}
+func NewData(bucket blob.Bucket, bucketID string, dataVersions *dataversion.Store, serve bool, log *slog.Logger) *Data {
+	d := &Data{bucket: bucket, id: bucketID, now: time.Now, dataVersions: dataVersions, log: log}
 	if p, ok := bucket.(blob.Presigner); ok && !serve {
 		d.presign = p
 	}
@@ -59,7 +59,7 @@ func NewData(bucket blob.Bucket, bucketID string, pallets *pallet.Store, serve b
 	return d
 }
 
-// relPath checks a file path relative to a pallet's or attempt's prefix.
+// relPath checks a file path relative to a data version's or attempt's prefix.
 func relPath(p string) error {
 	if p == "" || strings.HasPrefix(p, "/") || strings.Contains("/"+p+"/", "/../") || strings.Contains("/"+p+"/", "/./") || strings.Contains(p, "\\") {
 		return fmt.Errorf("path %q must be relative and inside the prefix", p)
@@ -109,18 +109,18 @@ func (s *WorkerServer) GetDownloadURLs(ctx context.Context, req *connect.Request
 	}
 	location := ""
 	for _, in := range aio.Inputs {
-		if in.Pallet == req.Msg.Pallet {
+		if in.DataVersion == req.Msg.DataVersion {
 			location = in.Location
 		}
 	}
 	if location == "" {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("data version %s is not an input of lift attempt %s", req.Msg.Pallet, req.Msg.AttemptId))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("data version %s is not an input of step attempt %s", req.Msg.DataVersion, req.Msg.AttemptId))
 	}
 	raw, err := d.bucket.Get(ctx, location)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("data version %s: manifest %s: %w", req.Msg.Pallet, location, err))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("data version %s: manifest %s: %w", req.Msg.DataVersion, location, err))
 	}
-	m, err := d.pallets.Read(ctx, location)
+	m, err := d.dataVersions.Read(ctx, location)
 	if err != nil {
 		return nil, connectError(err)
 	}

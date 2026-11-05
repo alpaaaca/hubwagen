@@ -39,48 +39,48 @@ const (
 	// CatalogServiceListPartitionsProcedure is the fully-qualified name of the CatalogService's
 	// ListPartitions RPC.
 	CatalogServiceListPartitionsProcedure = "/moksha.v1.CatalogService/ListPartitions"
-	// CatalogServiceListPalletsProcedure is the fully-qualified name of the CatalogService's
-	// ListPallets RPC.
-	CatalogServiceListPalletsProcedure = "/moksha.v1.CatalogService/ListPallets"
-	// CatalogServiceGetPalletProcedure is the fully-qualified name of the CatalogService's GetPallet
-	// RPC.
-	CatalogServiceGetPalletProcedure = "/moksha.v1.CatalogService/GetPallet"
-	// CatalogServiceInvalidatePalletProcedure is the fully-qualified name of the CatalogService's
-	// InvalidatePallet RPC.
-	CatalogServiceInvalidatePalletProcedure = "/moksha.v1.CatalogService/InvalidatePallet"
+	// CatalogServiceListDataVersionsProcedure is the fully-qualified name of the CatalogService's
+	// ListDataVersions RPC.
+	CatalogServiceListDataVersionsProcedure = "/moksha.v1.CatalogService/ListDataVersions"
+	// CatalogServiceGetDataVersionProcedure is the fully-qualified name of the CatalogService's
+	// GetDataVersion RPC.
+	CatalogServiceGetDataVersionProcedure = "/moksha.v1.CatalogService/GetDataVersion"
+	// CatalogServiceInvalidateDataVersionProcedure is the fully-qualified name of the CatalogService's
+	// InvalidateDataVersion RPC.
+	CatalogServiceInvalidateDataVersionProcedure = "/moksha.v1.CatalogService/InvalidateDataVersion"
 	// CatalogServiceListStaleProcedure is the fully-qualified name of the CatalogService's ListStale
 	// RPC.
 	CatalogServiceListStaleProcedure = "/moksha.v1.CatalogService/ListStale"
-	// CatalogServiceExpirePalletsProcedure is the fully-qualified name of the CatalogService's
-	// ExpirePallets RPC.
-	CatalogServiceExpirePalletsProcedure = "/moksha.v1.CatalogService/ExpirePallets"
+	// CatalogServiceExpireDataVersionsProcedure is the fully-qualified name of the CatalogService's
+	// ExpireDataVersions RPC.
+	CatalogServiceExpireDataVersionsProcedure = "/moksha.v1.CatalogService/ExpireDataVersions"
 )
 
 // CatalogServiceClient is a client for the moksha.v1.CatalogService service.
 type CatalogServiceClient interface {
 	ListDatasets(context.Context, *connect.Request[v1.ListDatasetsRequest]) (*connect.Response[v1.ListDatasetsResponse], error)
-	// ListPartitions returns a dataset's partitions with a committed pallet,
+	// ListPartitions returns a dataset's partitions with a committed data version,
 	// each with its newest one, in partition order.
 	ListPartitions(context.Context, *connect.Request[v1.ListPartitionsRequest]) (*connect.Response[v1.ListPartitionsResponse], error)
-	// ListPallets returns pallets newest first.
-	ListPallets(context.Context, *connect.Request[v1.ListPalletsRequest]) (*connect.Response[v1.ListPalletsResponse], error)
-	// GetPallet returns a pallet, its manifest if it can be read, and its
+	// ListDataVersions returns data versions newest first.
+	ListDataVersions(context.Context, *connect.Request[v1.ListDataVersionsRequest]) (*connect.Response[v1.ListDataVersionsResponse], error)
+	// GetDataVersion returns a data version, its manifest if it can be read, and its
 	// lineage: everything it was built from (upstream) and everything built
 	// from it (downstream), transitively.
-	GetPallet(context.Context, *connect.Request[v1.GetPalletRequest]) (*connect.Response[v1.GetPalletResponse], error)
-	// InvalidatePallet marks a pallet and everything built from it,
+	GetDataVersion(context.Context, *connect.Request[v1.GetDataVersionRequest]) (*connect.Response[v1.GetDataVersionResponse], error)
+	// InvalidateDataVersion marks a data version and everything built from it,
 	// transitively, invalid: never reused, never a dataset's latest. It
-	// returns what it marked (or, dry_run, would mark) and the hauls that
-	// built those pallets, whose replay recomputes them.
-	InvalidatePallet(context.Context, *connect.Request[v1.InvalidatePalletRequest]) (*connect.Response[v1.InvalidatePalletResponse], error)
-	// ListStale returns the partitions whose latest pallet is out of date:
-	// an input's partition has a newer pallet with other content, or the
-	// newest build has another code version of the lift that built it.
+	// returns what it marked (or, dry_run, would mark) and the runs that
+	// built those data versions, whose replay recomputes them.
+	InvalidateDataVersion(context.Context, *connect.Request[v1.InvalidateDataVersionRequest]) (*connect.Response[v1.InvalidateDataVersionResponse], error)
+	// ListStale returns the partitions whose latest data version is out of date:
+	// an input's partition has a newer data version with other content, or the
+	// newest build has another code version of the step that built it.
 	ListStale(context.Context, *connect.Request[v1.ListStaleRequest]) (*connect.Response[v1.ListStaleResponse], error)
-	// ExpirePallets expires now what retention no longer keeps (the leader
-	// also does on a timer): the pallets are recorded as expired, then their
+	// ExpireDataVersions expires now what retention no longer keeps (the leader
+	// also does on a timer): the data versions are recorded as expired, then their
 	// data is deleted; manifests and lineage stay.
-	ExpirePallets(context.Context, *connect.Request[v1.ExpirePalletsRequest]) (*connect.Response[v1.ExpirePalletsResponse], error)
+	ExpireDataVersions(context.Context, *connect.Request[v1.ExpireDataVersionsRequest]) (*connect.Response[v1.ExpireDataVersionsResponse], error)
 }
 
 // NewCatalogServiceClient constructs a client for the moksha.v1.CatalogService service. By default,
@@ -106,22 +106,22 @@ func NewCatalogServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(catalogServiceMethods.ByName("ListPartitions")),
 			connect.WithClientOptions(opts...),
 		),
-		listPallets: connect.NewClient[v1.ListPalletsRequest, v1.ListPalletsResponse](
+		listDataVersions: connect.NewClient[v1.ListDataVersionsRequest, v1.ListDataVersionsResponse](
 			httpClient,
-			baseURL+CatalogServiceListPalletsProcedure,
-			connect.WithSchema(catalogServiceMethods.ByName("ListPallets")),
+			baseURL+CatalogServiceListDataVersionsProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("ListDataVersions")),
 			connect.WithClientOptions(opts...),
 		),
-		getPallet: connect.NewClient[v1.GetPalletRequest, v1.GetPalletResponse](
+		getDataVersion: connect.NewClient[v1.GetDataVersionRequest, v1.GetDataVersionResponse](
 			httpClient,
-			baseURL+CatalogServiceGetPalletProcedure,
-			connect.WithSchema(catalogServiceMethods.ByName("GetPallet")),
+			baseURL+CatalogServiceGetDataVersionProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("GetDataVersion")),
 			connect.WithClientOptions(opts...),
 		),
-		invalidatePallet: connect.NewClient[v1.InvalidatePalletRequest, v1.InvalidatePalletResponse](
+		invalidateDataVersion: connect.NewClient[v1.InvalidateDataVersionRequest, v1.InvalidateDataVersionResponse](
 			httpClient,
-			baseURL+CatalogServiceInvalidatePalletProcedure,
-			connect.WithSchema(catalogServiceMethods.ByName("InvalidatePallet")),
+			baseURL+CatalogServiceInvalidateDataVersionProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("InvalidateDataVersion")),
 			connect.WithClientOptions(opts...),
 		),
 		listStale: connect.NewClient[v1.ListStaleRequest, v1.ListStaleResponse](
@@ -130,10 +130,10 @@ func NewCatalogServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(catalogServiceMethods.ByName("ListStale")),
 			connect.WithClientOptions(opts...),
 		),
-		expirePallets: connect.NewClient[v1.ExpirePalletsRequest, v1.ExpirePalletsResponse](
+		expireDataVersions: connect.NewClient[v1.ExpireDataVersionsRequest, v1.ExpireDataVersionsResponse](
 			httpClient,
-			baseURL+CatalogServiceExpirePalletsProcedure,
-			connect.WithSchema(catalogServiceMethods.ByName("ExpirePallets")),
+			baseURL+CatalogServiceExpireDataVersionsProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("ExpireDataVersions")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -141,13 +141,13 @@ func NewCatalogServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 
 // catalogServiceClient implements CatalogServiceClient.
 type catalogServiceClient struct {
-	listDatasets     *connect.Client[v1.ListDatasetsRequest, v1.ListDatasetsResponse]
-	listPartitions   *connect.Client[v1.ListPartitionsRequest, v1.ListPartitionsResponse]
-	listPallets      *connect.Client[v1.ListPalletsRequest, v1.ListPalletsResponse]
-	getPallet        *connect.Client[v1.GetPalletRequest, v1.GetPalletResponse]
-	invalidatePallet *connect.Client[v1.InvalidatePalletRequest, v1.InvalidatePalletResponse]
-	listStale        *connect.Client[v1.ListStaleRequest, v1.ListStaleResponse]
-	expirePallets    *connect.Client[v1.ExpirePalletsRequest, v1.ExpirePalletsResponse]
+	listDatasets          *connect.Client[v1.ListDatasetsRequest, v1.ListDatasetsResponse]
+	listPartitions        *connect.Client[v1.ListPartitionsRequest, v1.ListPartitionsResponse]
+	listDataVersions      *connect.Client[v1.ListDataVersionsRequest, v1.ListDataVersionsResponse]
+	getDataVersion        *connect.Client[v1.GetDataVersionRequest, v1.GetDataVersionResponse]
+	invalidateDataVersion *connect.Client[v1.InvalidateDataVersionRequest, v1.InvalidateDataVersionResponse]
+	listStale             *connect.Client[v1.ListStaleRequest, v1.ListStaleResponse]
+	expireDataVersions    *connect.Client[v1.ExpireDataVersionsRequest, v1.ExpireDataVersionsResponse]
 }
 
 // ListDatasets calls moksha.v1.CatalogService.ListDatasets.
@@ -160,19 +160,19 @@ func (c *catalogServiceClient) ListPartitions(ctx context.Context, req *connect.
 	return c.listPartitions.CallUnary(ctx, req)
 }
 
-// ListPallets calls moksha.v1.CatalogService.ListPallets.
-func (c *catalogServiceClient) ListPallets(ctx context.Context, req *connect.Request[v1.ListPalletsRequest]) (*connect.Response[v1.ListPalletsResponse], error) {
-	return c.listPallets.CallUnary(ctx, req)
+// ListDataVersions calls moksha.v1.CatalogService.ListDataVersions.
+func (c *catalogServiceClient) ListDataVersions(ctx context.Context, req *connect.Request[v1.ListDataVersionsRequest]) (*connect.Response[v1.ListDataVersionsResponse], error) {
+	return c.listDataVersions.CallUnary(ctx, req)
 }
 
-// GetPallet calls moksha.v1.CatalogService.GetPallet.
-func (c *catalogServiceClient) GetPallet(ctx context.Context, req *connect.Request[v1.GetPalletRequest]) (*connect.Response[v1.GetPalletResponse], error) {
-	return c.getPallet.CallUnary(ctx, req)
+// GetDataVersion calls moksha.v1.CatalogService.GetDataVersion.
+func (c *catalogServiceClient) GetDataVersion(ctx context.Context, req *connect.Request[v1.GetDataVersionRequest]) (*connect.Response[v1.GetDataVersionResponse], error) {
+	return c.getDataVersion.CallUnary(ctx, req)
 }
 
-// InvalidatePallet calls moksha.v1.CatalogService.InvalidatePallet.
-func (c *catalogServiceClient) InvalidatePallet(ctx context.Context, req *connect.Request[v1.InvalidatePalletRequest]) (*connect.Response[v1.InvalidatePalletResponse], error) {
-	return c.invalidatePallet.CallUnary(ctx, req)
+// InvalidateDataVersion calls moksha.v1.CatalogService.InvalidateDataVersion.
+func (c *catalogServiceClient) InvalidateDataVersion(ctx context.Context, req *connect.Request[v1.InvalidateDataVersionRequest]) (*connect.Response[v1.InvalidateDataVersionResponse], error) {
+	return c.invalidateDataVersion.CallUnary(ctx, req)
 }
 
 // ListStale calls moksha.v1.CatalogService.ListStale.
@@ -180,36 +180,36 @@ func (c *catalogServiceClient) ListStale(ctx context.Context, req *connect.Reque
 	return c.listStale.CallUnary(ctx, req)
 }
 
-// ExpirePallets calls moksha.v1.CatalogService.ExpirePallets.
-func (c *catalogServiceClient) ExpirePallets(ctx context.Context, req *connect.Request[v1.ExpirePalletsRequest]) (*connect.Response[v1.ExpirePalletsResponse], error) {
-	return c.expirePallets.CallUnary(ctx, req)
+// ExpireDataVersions calls moksha.v1.CatalogService.ExpireDataVersions.
+func (c *catalogServiceClient) ExpireDataVersions(ctx context.Context, req *connect.Request[v1.ExpireDataVersionsRequest]) (*connect.Response[v1.ExpireDataVersionsResponse], error) {
+	return c.expireDataVersions.CallUnary(ctx, req)
 }
 
 // CatalogServiceHandler is an implementation of the moksha.v1.CatalogService service.
 type CatalogServiceHandler interface {
 	ListDatasets(context.Context, *connect.Request[v1.ListDatasetsRequest]) (*connect.Response[v1.ListDatasetsResponse], error)
-	// ListPartitions returns a dataset's partitions with a committed pallet,
+	// ListPartitions returns a dataset's partitions with a committed data version,
 	// each with its newest one, in partition order.
 	ListPartitions(context.Context, *connect.Request[v1.ListPartitionsRequest]) (*connect.Response[v1.ListPartitionsResponse], error)
-	// ListPallets returns pallets newest first.
-	ListPallets(context.Context, *connect.Request[v1.ListPalletsRequest]) (*connect.Response[v1.ListPalletsResponse], error)
-	// GetPallet returns a pallet, its manifest if it can be read, and its
+	// ListDataVersions returns data versions newest first.
+	ListDataVersions(context.Context, *connect.Request[v1.ListDataVersionsRequest]) (*connect.Response[v1.ListDataVersionsResponse], error)
+	// GetDataVersion returns a data version, its manifest if it can be read, and its
 	// lineage: everything it was built from (upstream) and everything built
 	// from it (downstream), transitively.
-	GetPallet(context.Context, *connect.Request[v1.GetPalletRequest]) (*connect.Response[v1.GetPalletResponse], error)
-	// InvalidatePallet marks a pallet and everything built from it,
+	GetDataVersion(context.Context, *connect.Request[v1.GetDataVersionRequest]) (*connect.Response[v1.GetDataVersionResponse], error)
+	// InvalidateDataVersion marks a data version and everything built from it,
 	// transitively, invalid: never reused, never a dataset's latest. It
-	// returns what it marked (or, dry_run, would mark) and the hauls that
-	// built those pallets, whose replay recomputes them.
-	InvalidatePallet(context.Context, *connect.Request[v1.InvalidatePalletRequest]) (*connect.Response[v1.InvalidatePalletResponse], error)
-	// ListStale returns the partitions whose latest pallet is out of date:
-	// an input's partition has a newer pallet with other content, or the
-	// newest build has another code version of the lift that built it.
+	// returns what it marked (or, dry_run, would mark) and the runs that
+	// built those data versions, whose replay recomputes them.
+	InvalidateDataVersion(context.Context, *connect.Request[v1.InvalidateDataVersionRequest]) (*connect.Response[v1.InvalidateDataVersionResponse], error)
+	// ListStale returns the partitions whose latest data version is out of date:
+	// an input's partition has a newer data version with other content, or the
+	// newest build has another code version of the step that built it.
 	ListStale(context.Context, *connect.Request[v1.ListStaleRequest]) (*connect.Response[v1.ListStaleResponse], error)
-	// ExpirePallets expires now what retention no longer keeps (the leader
-	// also does on a timer): the pallets are recorded as expired, then their
+	// ExpireDataVersions expires now what retention no longer keeps (the leader
+	// also does on a timer): the data versions are recorded as expired, then their
 	// data is deleted; manifests and lineage stay.
-	ExpirePallets(context.Context, *connect.Request[v1.ExpirePalletsRequest]) (*connect.Response[v1.ExpirePalletsResponse], error)
+	ExpireDataVersions(context.Context, *connect.Request[v1.ExpireDataVersionsRequest]) (*connect.Response[v1.ExpireDataVersionsResponse], error)
 }
 
 // NewCatalogServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -231,22 +231,22 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 		connect.WithSchema(catalogServiceMethods.ByName("ListPartitions")),
 		connect.WithHandlerOptions(opts...),
 	)
-	catalogServiceListPalletsHandler := connect.NewUnaryHandler(
-		CatalogServiceListPalletsProcedure,
-		svc.ListPallets,
-		connect.WithSchema(catalogServiceMethods.ByName("ListPallets")),
+	catalogServiceListDataVersionsHandler := connect.NewUnaryHandler(
+		CatalogServiceListDataVersionsProcedure,
+		svc.ListDataVersions,
+		connect.WithSchema(catalogServiceMethods.ByName("ListDataVersions")),
 		connect.WithHandlerOptions(opts...),
 	)
-	catalogServiceGetPalletHandler := connect.NewUnaryHandler(
-		CatalogServiceGetPalletProcedure,
-		svc.GetPallet,
-		connect.WithSchema(catalogServiceMethods.ByName("GetPallet")),
+	catalogServiceGetDataVersionHandler := connect.NewUnaryHandler(
+		CatalogServiceGetDataVersionProcedure,
+		svc.GetDataVersion,
+		connect.WithSchema(catalogServiceMethods.ByName("GetDataVersion")),
 		connect.WithHandlerOptions(opts...),
 	)
-	catalogServiceInvalidatePalletHandler := connect.NewUnaryHandler(
-		CatalogServiceInvalidatePalletProcedure,
-		svc.InvalidatePallet,
-		connect.WithSchema(catalogServiceMethods.ByName("InvalidatePallet")),
+	catalogServiceInvalidateDataVersionHandler := connect.NewUnaryHandler(
+		CatalogServiceInvalidateDataVersionProcedure,
+		svc.InvalidateDataVersion,
+		connect.WithSchema(catalogServiceMethods.ByName("InvalidateDataVersion")),
 		connect.WithHandlerOptions(opts...),
 	)
 	catalogServiceListStaleHandler := connect.NewUnaryHandler(
@@ -255,10 +255,10 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 		connect.WithSchema(catalogServiceMethods.ByName("ListStale")),
 		connect.WithHandlerOptions(opts...),
 	)
-	catalogServiceExpirePalletsHandler := connect.NewUnaryHandler(
-		CatalogServiceExpirePalletsProcedure,
-		svc.ExpirePallets,
-		connect.WithSchema(catalogServiceMethods.ByName("ExpirePallets")),
+	catalogServiceExpireDataVersionsHandler := connect.NewUnaryHandler(
+		CatalogServiceExpireDataVersionsProcedure,
+		svc.ExpireDataVersions,
+		connect.WithSchema(catalogServiceMethods.ByName("ExpireDataVersions")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/moksha.v1.CatalogService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -267,16 +267,16 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 			catalogServiceListDatasetsHandler.ServeHTTP(w, r)
 		case CatalogServiceListPartitionsProcedure:
 			catalogServiceListPartitionsHandler.ServeHTTP(w, r)
-		case CatalogServiceListPalletsProcedure:
-			catalogServiceListPalletsHandler.ServeHTTP(w, r)
-		case CatalogServiceGetPalletProcedure:
-			catalogServiceGetPalletHandler.ServeHTTP(w, r)
-		case CatalogServiceInvalidatePalletProcedure:
-			catalogServiceInvalidatePalletHandler.ServeHTTP(w, r)
+		case CatalogServiceListDataVersionsProcedure:
+			catalogServiceListDataVersionsHandler.ServeHTTP(w, r)
+		case CatalogServiceGetDataVersionProcedure:
+			catalogServiceGetDataVersionHandler.ServeHTTP(w, r)
+		case CatalogServiceInvalidateDataVersionProcedure:
+			catalogServiceInvalidateDataVersionHandler.ServeHTTP(w, r)
 		case CatalogServiceListStaleProcedure:
 			catalogServiceListStaleHandler.ServeHTTP(w, r)
-		case CatalogServiceExpirePalletsProcedure:
-			catalogServiceExpirePalletsHandler.ServeHTTP(w, r)
+		case CatalogServiceExpireDataVersionsProcedure:
+			catalogServiceExpireDataVersionsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -294,22 +294,22 @@ func (UnimplementedCatalogServiceHandler) ListPartitions(context.Context, *conne
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("moksha.v1.CatalogService.ListPartitions is not implemented"))
 }
 
-func (UnimplementedCatalogServiceHandler) ListPallets(context.Context, *connect.Request[v1.ListPalletsRequest]) (*connect.Response[v1.ListPalletsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("moksha.v1.CatalogService.ListPallets is not implemented"))
+func (UnimplementedCatalogServiceHandler) ListDataVersions(context.Context, *connect.Request[v1.ListDataVersionsRequest]) (*connect.Response[v1.ListDataVersionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("moksha.v1.CatalogService.ListDataVersions is not implemented"))
 }
 
-func (UnimplementedCatalogServiceHandler) GetPallet(context.Context, *connect.Request[v1.GetPalletRequest]) (*connect.Response[v1.GetPalletResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("moksha.v1.CatalogService.GetPallet is not implemented"))
+func (UnimplementedCatalogServiceHandler) GetDataVersion(context.Context, *connect.Request[v1.GetDataVersionRequest]) (*connect.Response[v1.GetDataVersionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("moksha.v1.CatalogService.GetDataVersion is not implemented"))
 }
 
-func (UnimplementedCatalogServiceHandler) InvalidatePallet(context.Context, *connect.Request[v1.InvalidatePalletRequest]) (*connect.Response[v1.InvalidatePalletResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("moksha.v1.CatalogService.InvalidatePallet is not implemented"))
+func (UnimplementedCatalogServiceHandler) InvalidateDataVersion(context.Context, *connect.Request[v1.InvalidateDataVersionRequest]) (*connect.Response[v1.InvalidateDataVersionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("moksha.v1.CatalogService.InvalidateDataVersion is not implemented"))
 }
 
 func (UnimplementedCatalogServiceHandler) ListStale(context.Context, *connect.Request[v1.ListStaleRequest]) (*connect.Response[v1.ListStaleResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("moksha.v1.CatalogService.ListStale is not implemented"))
 }
 
-func (UnimplementedCatalogServiceHandler) ExpirePallets(context.Context, *connect.Request[v1.ExpirePalletsRequest]) (*connect.Response[v1.ExpirePalletsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("moksha.v1.CatalogService.ExpirePallets is not implemented"))
+func (UnimplementedCatalogServiceHandler) ExpireDataVersions(context.Context, *connect.Request[v1.ExpireDataVersionsRequest]) (*connect.Response[v1.ExpireDataVersionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("moksha.v1.CatalogService.ExpireDataVersions is not implemented"))
 }

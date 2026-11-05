@@ -92,7 +92,7 @@ func runDeploy(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	server := strings.TrimSuffix(deployServer, "/")
-	code, err := mokshav1connect.NewHaulServiceClient(http.DefaultClient, server).ListCode(ctx, connect.NewRequest(&mokshav1.ListCodeRequest{}))
+	code, err := mokshav1connect.NewRunServiceClient(http.DefaultClient, server).ListCode(ctx, connect.NewRequest(&mokshav1.ListCodeRequest{}))
 	if err != nil {
 		return serverError(err)
 	}
@@ -176,7 +176,7 @@ var projectsCmd = &cobra.Command{
 		if err != nil {
 			return serverError(err)
 		}
-		pools, err := mokshav1connect.NewHaulServiceClient(http.DefaultClient, server).ListPools(cmd.Context(),
+		pools, err := mokshav1connect.NewRunServiceClient(http.DefaultClient, server).ListPools(cmd.Context(),
 			connect.NewRequest(&mokshav1.ListPoolsRequest{}))
 		if err != nil {
 			return serverError(err)

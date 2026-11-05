@@ -190,9 +190,9 @@ func (*AppendLogsResponse) Descriptor() ([]byte, []int) {
 }
 
 type GetLogsRequest struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	HaulId string                 `protobuf:"bytes,1,opt,name=haul_id,json=haulId,proto3" json:"haul_id,omitempty"`
-	// Only this lift's lines; 0: all of the haul's.
+	state protoimpl.MessageState `protogen:"open.v1"`
+	RunId string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	// Only this step's lines; 0: all of the run's.
 	Seq int32 `protobuf:"varint,2,opt,name=seq,proto3" json:"seq,omitempty"`
 	// The last this many lines; default 2000, at most 10000.
 	Limit         int32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
@@ -230,9 +230,9 @@ func (*GetLogsRequest) Descriptor() ([]byte, []int) {
 	return file_moksha_v1_log_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GetLogsRequest) GetHaulId() string {
+func (x *GetLogsRequest) GetRunId() string {
 	if x != nil {
-		return x.HaulId
+		return x.RunId
 	}
 	return ""
 }
@@ -304,11 +304,11 @@ func (x *GetLogsResponse) GetSkipped() int32 {
 	return 0
 }
 
-// RunLogLine is a log line with the lift and attempt it came from.
+// RunLogLine is a log line with the step and attempt it came from.
 type RunLogLine struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Seq           int32                  `protobuf:"varint,1,opt,name=seq,proto3" json:"seq,omitempty"`
-	Lift          string                 `protobuf:"bytes,2,opt,name=lift,proto3" json:"lift,omitempty"`
+	Step          string                 `protobuf:"bytes,2,opt,name=step,proto3" json:"step,omitempty"`
 	Attempt       int32                  `protobuf:"varint,3,opt,name=attempt,proto3" json:"attempt,omitempty"`
 	Line          *LogLine               `protobuf:"bytes,4,opt,name=line,proto3" json:"line,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -352,9 +352,9 @@ func (x *RunLogLine) GetSeq() int32 {
 	return 0
 }
 
-func (x *RunLogLine) GetLift() string {
+func (x *RunLogLine) GetStep() string {
 	if x != nil {
-		return x.Lift
+		return x.Step
 	}
 	return ""
 }
@@ -388,9 +388,9 @@ const file_moksha_v1_log_proto_rawDesc = "" +
 	"\n" +
 	"attempt_id\x18\x01 \x01(\tR\tattemptId\x12(\n" +
 	"\x05lines\x18\x02 \x03(\v2\x12.moksha.v1.LogLineR\x05lines\"\x14\n" +
-	"\x12AppendLogsResponse\"Q\n" +
-	"\x0eGetLogsRequest\x12\x17\n" +
-	"\ahaul_id\x18\x01 \x01(\tR\x06haulId\x12\x10\n" +
+	"\x12AppendLogsResponse\"O\n" +
+	"\x0eGetLogsRequest\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x10\n" +
 	"\x03seq\x18\x02 \x01(\x05R\x03seq\x12\x14\n" +
 	"\x05limit\x18\x03 \x01(\x05R\x05limit\"X\n" +
 	"\x0fGetLogsResponse\x12+\n" +
@@ -399,7 +399,7 @@ const file_moksha_v1_log_proto_rawDesc = "" +
 	"\n" +
 	"RunLogLine\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x05R\x03seq\x12\x12\n" +
-	"\x04lift\x18\x02 \x01(\tR\x04lift\x12\x18\n" +
+	"\x04step\x18\x02 \x01(\tR\x04step\x12\x18\n" +
 	"\aattempt\x18\x03 \x01(\x05R\aattempt\x12&\n" +
 	"\x04line\x18\x04 \x01(\v2\x12.moksha.v1.LogLineR\x04line2\x99\x01\n" +
 	"\n" +

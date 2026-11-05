@@ -7,7 +7,7 @@ flags on top. Code: `internal/config`.
 
 The config file describes the **instance**: where the server keeps its data,
 what it listens on and, in dev, which worker processes to start next to it.
-It never describes what a haul does; that is code, versioned by builds.
+It never describes what a pipeline does; that is code, versioned by builds.
 
 ## Today
 
@@ -27,15 +27,15 @@ workers:                         # started by moksha dev, server and workers
   - name: py                     # IDs are <name>-<n>: py-1, py-2, py-3
     replicas: 3                  # default 1; 0 turns the group off
     command: [python3, -m, moksha.worker]   # modules: pyproject.toml
-    lifts: 2                     # steps one worker runs at once; default 4
+    steps: 2                     # steps one worker runs at once; default 4
     dir: .                       # working directory; default the file's
     env:                         # added to moksha's own environment
       PYTHONPATH: src
-  - name: gpu                    # a pool: scaled by the work waiting on its docks
+  - name: gpu                    # a pool: scaled by the work waiting on its queues
     min: 0                       # none while nothing waits
     max: 2
-    docks: [gpu]                 # default [default]
-    lifts: 1
+    queues: [gpu]                 # default [default]
+    steps: 1
     idle_after: 10m              # stop one with nothing to run this long; default 5m
     command: [python3, -m, moksha.worker]
 ```
@@ -92,9 +92,9 @@ workers:
 
 A worker is any process that speaks the worker API; moksha doesn't care
 what language it is in. The config describes processes, not pipelines.
-Which hauls a worker runs is up to its code: the Python worker imports the
+Which pipelines a worker runs is up to its code: the Python worker imports the
 modules its project lists under `[tool.moksha]` in `pyproject.toml`. It
-registers the hauls they define, and the server sends it only those. One
+registers the pipelines they define, and the server sends it only those. One
 group per project (its own `dir` and virtualenv) is enough for any number
 of pipelines in it, and several projects can share the server. Every process gets these variables, which its `env`
 can't set:
@@ -102,22 +102,22 @@ can't set:
 | Variable | Value |
 |---|---|
 | `MOKSHA_SERVER` | the API's URL, e.g. `http://127.0.0.1:7070` (an unspecified listen host such as `0.0.0.0` becomes `127.0.0.1`) |
-| `MOKSHA_WORKER_ID` | `<name>-<n>`; the logbook records it on every dispatch |
+| `MOKSHA_WORKER_ID` | `<name>-<n>`; the event log records it on every dispatch |
 | `MOKSHA_SUPERVISOR_PID` | the moksha process that started it; a worker stops once its parent is no longer this process |
-| `MOKSHA_DOCKS` | the group's `docks`, comma-separated: the Python worker's default for `--dock` |
-| `MOKSHA_LIFTS` | the group's `lifts`: the Python worker's default for `--lifts` |
+| `MOKSHA_QUEUES` | the group's `queues`, comma-separated: the Python worker's default for `--queue` |
+| `MOKSHA_STEPS` | the group's `steps`: the Python worker's default for `--steps` |
 
 The Python worker (`python -m moksha.worker`) reads all three. The last
 one covers a supervisor that dies without stopping its workers (`kill -9`, a
 crash). The workers run in their own process groups, so nothing else would
 stop them, and the next `moksha dev` would start a second set. The Python
-worker checks every second and then stops as on Ctrl-C: running lifts
+worker checks every second and then stops as on Ctrl-C: running steps
 finish and report.
 
 `moksha dev` starts the workers after the API is up. It prefixes their
 output with their ID (`py-2 | …`) and restarts one that exits, with backoff
 from 1s doubling to 30s. On Ctrl-C it sends the workers SIGTERM and waits:
-running lifts finish, and a poll in flight ends within its wait (20s by
+running steps finish, and a poll in flight ends within its wait (20s by
 default). Then it stops the server. A second Ctrl-C kills the workers at
 once. Each worker runs in its own process group, so the terminal's Ctrl-C
 reaches only moksha.
@@ -134,10 +134,10 @@ reaches only moksha.
 
 A group with `min` and `max` instead of `replicas` is a **pool**: `moksha
 server` and `moksha dev` scale it between the two from the work queued
-on its `docks`. Every two seconds:
+on its `queues`. Every two seconds:
 
-- **Up**: when runs or steps on its docks wait because no worker polls
-  them or all are busy, it starts workers, one per `lifts` waiting steps
+- **Up**: when runs or steps on its queues wait because no worker polls
+  them or all are busy, it starts workers, one per `steps` waiting steps
   (one for a waiting run), up to `max`. It starts no more until those
   have polled (or a minute passed), so a burst of work doesn't start
   `max` at once. Meanwhile a waiting run says "a worker is starting in
@@ -145,9 +145,9 @@ on its `docks`. Every two seconds:
 - **Down**: a worker above `min` that waited for work, with nothing to
   run, for `idle_after` is stopped (SIGTERM: like any stop, it finishes
   what it runs), highest number first.
-- **Not**: for work no worker's code defines, or held by a dock's limit:
+- **Not**: for work no worker's code defines, or held by a queue's limit:
   more workers wouldn't run it.
-- **Pools sharing a dock**: the first in the file with room takes its
+- **Pools sharing a queue**: the first in the file with room takes its
   work.
 
 `min: 0` runs nothing while nothing waits, after one worker at server
@@ -210,22 +210,22 @@ workers:
     launcher: external       # no command or env: they live with the workers
     min: 0
     max: 10
-    docks: [default]
-    lifts: 2
+    queues: [default]
+    steps: 2
     idle_after: 5m
 ```
 
 ```json
-{"name": "revenue", "launcher": "external", "docks": ["default"], "min": 0, "max": 10,
+{"name": "revenue", "launcher": "external", "queues": ["default"], "min": 0, "max": 10,
  "desired": 3, "workers": 1, "decision": "wants 3 workers (was 1): 5 steps wait on default",
  "decided_at": "2026-10-30T17:20:04Z"}
 ```
 
-`desired` is the workers polling its docks that ran something within
-`idle_after`, plus one per `lifts` steps (or one for a run) waiting there
+`desired` is the workers polling its queues that ran something within
+`idle_after`, plus one per `steps` steps (or one for a run) waiting there
 for a worker, between `min` and `max`. Workers that a process pool started
 don't count, and each worker counts for the first external pool whose
-docks it polls. `GET /v1/pools` lists every pool.
+queues it polls. `GET /v1/pools` lists every pool.
 
 KEDA reads it with its `metrics-api` trigger. With a target of 1 per pod,
 the Deployment runs `desired` replicas, from zero:
@@ -251,8 +251,8 @@ spec:
         activationTargetValue: "0"
 ```
 
-The workers' Deployment sets `MOKSHA_SERVER`, and `--dock`/`--lifts` (or
-`MOKSHA_DOCKS`/`MOKSHA_LIFTS`) to match the group. Kubernetes picks
+The workers' Deployment sets `MOKSHA_SERVER`, and `--queue`/`--steps` (or
+`MOKSHA_QUEUES`/`MOKSHA_STEPS`) to match the group. Kubernetes picks
 which pod to remove when it scales down, maybe a busy one: give the pods a
 `terminationGracePeriodSeconds` longer than your steps, so a stopped
 worker finishes them (it stops polling on SIGTERM).
@@ -271,7 +271,7 @@ workers:
     runtime: podman                          # default: docker if on PATH, else podman
     min: 0
     max: 4
-    lifts: 2
+    steps: 2
     env: {LOG_LEVEL: info}
 ```
 
@@ -294,7 +294,7 @@ workers:
 - **Data goes through the server** (`MOKSHA_DATA=remote`): containers
   share no files with it and need no bucket credentials.
 - **Variables** (`env`, `MOKSHA_SERVER`, `MOKSHA_WORKER_ID`,
-  `MOKSHA_DOCKS`, `MOKSHA_LIFTS`) go in with `-e NAME`, so their values
+  `MOKSHA_QUEUES`, `MOKSHA_STEPS`) go in with `-e NAME`, so their values
   aren't on the command line.
 
 #### Kubernetes pools: a Deployment's replicas
@@ -314,7 +314,7 @@ workers:
     deployment: revenue-workers      # runs python -m moksha.worker
     min: 0
     max: 10
-    lifts: 2
+    steps: 2
 ```
 
 - **It patches** `deployments/<name>/scale` when the count changes (and
@@ -332,7 +332,7 @@ workers:
   ```
 
 - **The Deployment** sets `MOKSHA_SERVER` (the server's Service) and the
-  group's docks and lifts (`MOKSHA_DOCKS`, `MOKSHA_LIFTS`). As with KEDA,
+  group's queues and steps (`MOKSHA_QUEUES`, `MOKSHA_STEPS`). As with KEDA,
   Kubernetes picks the pod it removes: give the pods a
   `terminationGracePeriodSeconds` longer than your steps.
 - **No client library**: plain HTTP to the API server, so the binary stays
@@ -441,11 +441,11 @@ TimeoutStopSec=10min
 With one leader and three workers from one file:
 
 - **A worker dies**: `kill -9` one (dev prints PIDs). It is restarted.
-  After the heartbeat timeout (a minute in dev), its running lift attempt is
-  `lost` and retried elsewhere if the lift has a retry policy.
+  After the heartbeat timeout (a minute in dev), its running step attempt is
+  `lost` and retried elsewhere if the step has a retry policy.
 - **The leader restarts**: run `moksha dev --no-workers` and
   `moksha workers` in two terminals, then Ctrl-C and restart dev. Workers
-  retry until it's back. A lift that finishes while the leader is down keeps
+  retry until it's back. A step that finishes while the leader is down keeps
   its result, and its attempt keeps sending heartbeats, until the new leader
   takes the result. It isn't rerun.
 
@@ -460,7 +460,7 @@ Sketched for later milestones, not implemented:
 - **`bucket`**: `gs://` natively; today Google Cloud Storage works through
   its S3-compatible XML API.
 - **Sections**: `server.auth` (tokens for workers and users), `replication`
-  (Litestream), `secrets`, `log`, and limits the server enforces (maximum lift
+  (Litestream), `secrets`, `log`, and limits the server enforces (maximum step
   timeout). Retention is declared per dataset in code
   (`mk.Dataset(keep=...)`); the expiry interval is the core's
   `RetentionEvery` (an hour), a config field later.

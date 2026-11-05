@@ -63,8 +63,8 @@ spec:
           {{- end }}
           env:
             - {name: MOKSHA_SERVER, value: {{ include "moksha.serverURL" $ | quote }}}
-            - {name: MOKSHA_DOCKS, value: {{ join "," (.docks | default (list "default")) | quote }}}
-            - {name: MOKSHA_LIFTS, value: {{ .lifts | default 4 | quote }}}
+            - {name: MOKSHA_QUEUES, value: {{ join "," (.queues | default (list "default")) | quote }}}
+            - {name: MOKSHA_STEPS, value: {{ .steps | default 4 | quote }}}
             - {name: MOKSHA_DATA, value: remote}
             {{- range $k, $v := .env }}
             - {name: {{ $k }}, value: {{ $v | quote }}}

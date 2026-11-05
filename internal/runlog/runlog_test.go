@@ -21,18 +21,18 @@ func texts(es []Entry) []string {
 	return out
 }
 
-func TestAppendAndReadInterleavesLiftsByTime(t *testing.T) {
+func TestAppendAndReadInterleavesStepsByTime(t *testing.T) {
 	s, err := Open(t.TempDir())
 	require.NoError(t, err)
 	var seen []Entry
 	s.OnAppend(func(es []Entry) { seen = append(seen, es...) })
 
-	a1 := Attempt{HaulID: "h1", Seq: 1, Number: 1}
-	a2 := Attempt{HaulID: "h1", Seq: 2, Number: 1}
+	a1 := Attempt{RunID: "h1", Seq: 1, Number: 1}
+	a2 := Attempt{RunID: "h1", Seq: 2, Number: 1}
 	require.NoError(t, s.Append(a1, []Line{{Time: at(0), Stream: "stdout", Text: "one"}, {Time: at(20), Stream: "stdout", Text: "three"}}))
 	require.NoError(t, s.Append(a2, []Line{{Time: at(10), Stream: "log", Level: "INFO", Logger: "app", Text: "two"}}))
 	require.NoError(t, s.Append(a1, []Line{{Time: at(20), Stream: "stderr", Text: "four"}})) // same time: stays after three
-	require.NoError(t, s.Append(Attempt{HaulID: "h2", Seq: 1, Number: 1}, []Line{{Time: at(5), Text: "other haul"}}))
+	require.NoError(t, s.Append(Attempt{RunID: "h2", Seq: 1, Number: 1}, []Line{{Time: at(5), Text: "other run"}}))
 
 	all, skipped, err := s.Read("h1", 0, 0)
 	require.NoError(t, err)
@@ -59,7 +59,7 @@ func TestAppendAndReadInterleavesLiftsByTime(t *testing.T) {
 func TestAnAttemptKeepsAtMostMaxBytes(t *testing.T) {
 	s, err := Open(t.TempDir())
 	require.NoError(t, err)
-	a := Attempt{HaulID: "h1", Seq: 1, Number: 1}
+	a := Attempt{RunID: "h1", Seq: 1, Number: 1}
 	big := strings.Repeat("x", 100_000)
 	for i := 0; i < 15; i++ {
 		require.NoError(t, s.Append(a, []Line{{Time: at(i), Stream: "stdout", Text: big}}))
@@ -76,8 +76,8 @@ func TestAnAttemptKeepsAtMostMaxBytes(t *testing.T) {
 func TestBadNamesAreRefused(t *testing.T) {
 	s, err := Open(t.TempDir())
 	require.NoError(t, err)
-	assert.Error(t, s.Append(Attempt{HaulID: "../x", Seq: 1, Number: 1}, []Line{{Text: "x"}}))
-	assert.Error(t, s.Append(Attempt{HaulID: "h", Seq: 0, Number: 1}, []Line{{Text: "x"}}))
+	assert.Error(t, s.Append(Attempt{RunID: "../x", Seq: 1, Number: 1}, []Line{{Text: "x"}}))
+	assert.Error(t, s.Append(Attempt{RunID: "h", Seq: 0, Number: 1}, []Line{{Text: "x"}}))
 	_, _, err = s.Read("../x", 0, 0)
 	assert.Error(t, err)
 }

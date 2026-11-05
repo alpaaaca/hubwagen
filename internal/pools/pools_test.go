@@ -70,7 +70,7 @@ func newEnv(t *testing.T) *env {
 	done := make(chan error, 1)
 	go func() { done <- e.core.Run(runCtx) }()
 	t.Cleanup(func() { cancel(); require.NoError(t, <-done) })
-	require.NoError(t, e.core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Hauls: []string{"daily"}, Lifts: map[string]string{"load": "v1"}}))
+	require.NoError(t, e.core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Pipelines: []string{"daily"}, Steps: map[string]string{"load": "v1"}}))
 	return e
 }
 
@@ -96,14 +96,14 @@ func (e *env) tick(s *Scaler) (started, stopped []string) {
 
 func (e *env) startRun() {
 	e.t.Helper()
-	_, err := e.core.StartHaul(ctx, core.StartHaulRequest{Tenant: "t", Name: "daily"})
+	_, err := e.core.StartRun(ctx, core.StartRunRequest{Tenant: "t", Name: "daily"})
 	require.NoError(e.t, err)
 }
 
 // take has worker id take a task without waiting; the task stays running.
 func (e *env) take(id string) core.Task {
 	e.t.Helper()
-	task, ok, err := e.core.Poll(ctx, core.PollRequest{WorkerID: id, BuildID: "b1", Docks: []string{core.DefaultDock}})
+	task, ok, err := e.core.Poll(ctx, core.PollRequest{WorkerID: id, BuildID: "b1", Queues: []string{core.DefaultQueue}})
 	require.NoError(e.t, err)
 	require.True(e.t, ok, "%s got no task", id)
 	return task
@@ -116,7 +116,7 @@ func (e *env) idle(id string) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		_, _, _ = e.core.Poll(pctx, core.PollRequest{WorkerID: id, BuildID: "b1", Docks: []string{core.DefaultDock}, Wait: 24 * time.Hour})
+		_, _, _ = e.core.Poll(pctx, core.PollRequest{WorkerID: id, BuildID: "b1", Queues: []string{core.DefaultQueue}, Wait: 24 * time.Hour})
 	}()
 	e.t.Cleanup(func() { cancel(); <-done })
 	require.Eventually(e.t, func() bool {
@@ -144,7 +144,7 @@ func (e *env) pool(name string) core.PoolStatus {
 	return core.PoolStatus{}
 }
 
-var py = Pool{Name: "py", Docks: []string{core.DefaultDock}, Lifts: 2, Min: 0, Max: 3, IdleAfter: 5 * time.Minute}
+var py = Pool{Name: "py", Queues: []string{core.DefaultQueue}, Steps: 2, Min: 0, Max: 3, IdleAfter: 5 * time.Minute}
 
 func TestScalesFromZeroForAWaitingRun(t *testing.T) {
 	e := newEnv(t)
@@ -160,10 +160,10 @@ func TestScalesFromZeroForAWaitingRun(t *testing.T) {
 	assert.Empty(t, started, "py-1 is still starting")
 
 	// Meanwhile the run says so.
-	hauls, err := e.core.Waiting(ctx, []string{"id0001"})
+	runs, err := e.core.Waiting(ctx, []string{"id0001"})
 	require.NoError(t, err)
-	assert.Equal(t, core.WaitStarting, hauls["id0001"].Reason)
-	assert.Equal(t, "py", hauls["id0001"].Pool)
+	assert.Equal(t, core.WaitStarting, runs["id0001"].Reason)
+	assert.Equal(t, "py", runs["id0001"].Pool)
 
 	e.take("py-1")
 	started, _ = e.tick(s)
@@ -179,9 +179,9 @@ func TestScalesUpForQueuedStepsUpToMax(t *testing.T) {
 	task := e.take("py-1")
 	var cmds []core.Command
 	for i := 1; i <= 7; i++ {
-		cmds = append(cmds, core.Command{Seq: i, Kind: core.CommandLift, Name: "load", Args: json.RawMessage(fmt.Sprint(i))})
+		cmds = append(cmds, core.Command{Seq: i, Kind: core.CommandStep, Name: "load", Args: json.RawMessage(fmt.Sprint(i))})
 	}
-	require.NoError(t, e.core.CompleteHaulTask(ctx, core.HaulTaskResult{TaskID: task.ID, BuildID: "b1", Commands: cmds}))
+	require.NoError(t, e.core.CompleteRunTask(ctx, core.RunTaskResult{TaskID: task.ID, BuildID: "b1", Commands: cmds}))
 
 	// 7 steps wait, py-1 isn't polling: 4 workers' worth, but max is 3.
 	started, _ := e.tick(s)
@@ -208,8 +208,8 @@ func TestStopsIdleWorkersDownToMin(t *testing.T) {
 
 	// Both finish their runs and wait for work.
 	for _, task := range []core.Task{t1, t2} {
-		require.NoError(t, e.core.CompleteHaulTask(ctx, core.HaulTaskResult{TaskID: task.ID, BuildID: "b1",
-			Outcome: &core.HaulOutcome{Status: state.HaulCompleted}}))
+		require.NoError(t, e.core.CompleteRunTask(ctx, core.RunTaskResult{TaskID: task.ID, BuildID: "b1",
+			Outcome: &core.RunOutcome{Status: state.RunCompleted}}))
 	}
 	e.idle("py-1")
 	e.idle("py-2")
@@ -226,7 +226,7 @@ func TestStopsIdleWorkersDownToMin(t *testing.T) {
 
 func TestTheFirstPoolOnADockTakesItsWork(t *testing.T) {
 	e := newEnv(t)
-	other := Pool{Name: "other", Docks: []string{core.DefaultDock, "gpu"}, Lifts: 1, Max: 1, IdleAfter: time.Minute}
+	other := Pool{Name: "other", Queues: []string{core.DefaultQueue, "gpu"}, Steps: 1, Max: 1, IdleAfter: time.Minute}
 	s := e.registered(py, other)
 	e.startRun()
 	started, _ := e.tick(s)
@@ -235,7 +235,7 @@ func TestTheFirstPoolOnADockTakesItsWork(t *testing.T) {
 
 func TestAnExternalPoolPublishesHowManyWorkersItWants(t *testing.T) {
 	e := newEnv(t)
-	k8s := Pool{Name: "k8s", Docks: []string{core.DefaultDock}, Lifts: 2, Max: 5, IdleAfter: 5 * time.Minute, External: true}
+	k8s := Pool{Name: "k8s", Queues: []string{core.DefaultQueue}, Steps: 2, Max: 5, IdleAfter: 5 * time.Minute, External: true}
 	s := e.registered(k8s)
 	e.tick(s)
 	assert.Equal(t, 0, e.pool("k8s").Desired)
@@ -254,8 +254,8 @@ func TestAnExternalPoolPublishesHowManyWorkersItWants(t *testing.T) {
 	assert.Equal(t, []string{"pod-a"}, e.pool("k8s").Workers)
 
 	// It finishes and waits for work: wanted until idle for IdleAfter.
-	require.NoError(t, e.core.CompleteHaulTask(ctx, core.HaulTaskResult{TaskID: task.ID, BuildID: "b1",
-		Outcome: &core.HaulOutcome{Status: state.HaulCompleted}}))
+	require.NoError(t, e.core.CompleteRunTask(ctx, core.RunTaskResult{TaskID: task.ID, BuildID: "b1",
+		Outcome: &core.RunOutcome{Status: state.RunCompleted}}))
 	e.idle("pod-a")
 	e.tick(s)
 	e.clock.Advance(4 * time.Minute)
@@ -269,7 +269,7 @@ func TestAnExternalPoolPublishesHowManyWorkersItWants(t *testing.T) {
 
 func TestAnExternalPoolDoesntCountAProcessPoolsWorkers(t *testing.T) {
 	e := newEnv(t)
-	k8s := Pool{Name: "k8s", Docks: []string{core.DefaultDock}, Lifts: 1, Max: 5, IdleAfter: time.Minute, External: true}
+	k8s := Pool{Name: "k8s", Queues: []string{core.DefaultQueue}, Steps: 1, Max: 5, IdleAfter: time.Minute, External: true}
 	p := py
 	p.Min = 1
 	s := e.scaler(p, k8s)
@@ -284,7 +284,7 @@ func TestAKubernetesPoolAppliesItsDesiredCount(t *testing.T) {
 	e := newEnv(t)
 	var applied []int
 	fail := true
-	k8s := Pool{Name: "k8s", Docks: []string{core.DefaultDock}, Lifts: 1, Min: 1, Max: 5, IdleAfter: time.Minute, External: true,
+	k8s := Pool{Name: "k8s", Queues: []string{core.DefaultQueue}, Steps: 1, Min: 1, Max: 5, IdleAfter: time.Minute, External: true,
 		Apply: func(_ context.Context, n int) error {
 			applied = append(applied, n)
 			if fail {
@@ -300,10 +300,10 @@ func TestAKubernetesPoolAppliesItsDesiredCount(t *testing.T) {
 	// A pod takes a run, which asks for 3 steps: it and 3 more.
 	e.startRun()
 	task := e.take("pod-a")
-	require.NoError(t, e.core.CompleteHaulTask(ctx, core.HaulTaskResult{TaskID: task.ID, BuildID: "b1", Commands: []core.Command{
-		{Seq: 1, Kind: core.CommandLift, Name: "load", Args: json.RawMessage(`1`)},
-		{Seq: 2, Kind: core.CommandLift, Name: "load", Args: json.RawMessage(`2`)},
-		{Seq: 3, Kind: core.CommandLift, Name: "load", Args: json.RawMessage(`3`)},
+	require.NoError(t, e.core.CompleteRunTask(ctx, core.RunTaskResult{TaskID: task.ID, BuildID: "b1", Commands: []core.Command{
+		{Seq: 1, Kind: core.CommandStep, Name: "load", Args: json.RawMessage(`1`)},
+		{Seq: 2, Kind: core.CommandStep, Name: "load", Args: json.RawMessage(`2`)},
+		{Seq: 3, Kind: core.CommandStep, Name: "load", Args: json.RawMessage(`3`)},
 	}}))
 	e.tick(s)
 	assert.Equal(t, []int{1, 1, 4}, applied, "min, its retry, then pod-a and one per waiting step")
@@ -312,7 +312,7 @@ func TestAKubernetesPoolAppliesItsDesiredCount(t *testing.T) {
 
 func TestSetPoolsRollsOut(t *testing.T) {
 	e := newEnv(t)
-	v1 := Pool{Name: "revenue-default-v1", Docks: []string{core.DefaultDock}, Lifts: 2, Min: 1, Max: 3, IdleAfter: time.Minute}
+	v1 := Pool{Name: "revenue-default-v1", Queues: []string{core.DefaultQueue}, Steps: 2, Min: 1, Max: 3, IdleAfter: time.Minute}
 	s := e.scaler(v1)
 	started, _ := e.tick(s)
 	assert.Equal(t, []string{"revenue-default-v1-1"}, started)
@@ -395,8 +395,8 @@ func TestAWorkerStartedToRegisterKeepsTheWorkThatWaits(t *testing.T) {
 	assert.Empty(t, stopped, "it runs something")
 
 	// Done: from now on the pool scales as usual, idle for IdleAfter.
-	require.NoError(t, e.core.CompleteHaulTask(ctx, core.HaulTaskResult{TaskID: task.ID, BuildID: "b1",
-		Outcome: &core.HaulOutcome{Status: state.HaulCompleted}}))
+	require.NoError(t, e.core.CompleteRunTask(ctx, core.RunTaskResult{TaskID: task.ID, BuildID: "b1",
+		Outcome: &core.RunOutcome{Status: state.RunCompleted}}))
 	e.idle("py-1")
 	_, stopped = e.tick(s)
 	assert.Empty(t, stopped)
@@ -409,7 +409,7 @@ func TestAWorkerStartedToRegisterKeepsTheWorkThatWaits(t *testing.T) {
 func TestAnExternalPoolWithMinZeroWantsAWorkerToRegisterItsCode(t *testing.T) {
 	e := newEnv(t)
 	var applied []int
-	k8s := Pool{Name: "k8s", Docks: []string{core.DefaultDock}, Lifts: 2, Max: 5, IdleAfter: 5 * time.Minute, External: true,
+	k8s := Pool{Name: "k8s", Queues: []string{core.DefaultQueue}, Steps: 2, Max: 5, IdleAfter: 5 * time.Minute, External: true,
 		Apply: func(_ context.Context, n int) error { applied = append(applied, n); return nil }}
 	s := e.scaler(k8s)
 	e.tick(s)

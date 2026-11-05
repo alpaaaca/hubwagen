@@ -36,18 +36,18 @@ const (
 	// WorkerServiceRegisterBuildProcedure is the fully-qualified name of the WorkerService's
 	// RegisterBuild RPC.
 	WorkerServiceRegisterBuildProcedure = "/moksha.v1.WorkerService/RegisterBuild"
-	// WorkerServicePollHaulTaskProcedure is the fully-qualified name of the WorkerService's
-	// PollHaulTask RPC.
-	WorkerServicePollHaulTaskProcedure = "/moksha.v1.WorkerService/PollHaulTask"
-	// WorkerServiceCompleteHaulTaskProcedure is the fully-qualified name of the WorkerService's
-	// CompleteHaulTask RPC.
-	WorkerServiceCompleteHaulTaskProcedure = "/moksha.v1.WorkerService/CompleteHaulTask"
-	// WorkerServicePollLiftTaskProcedure is the fully-qualified name of the WorkerService's
-	// PollLiftTask RPC.
-	WorkerServicePollLiftTaskProcedure = "/moksha.v1.WorkerService/PollLiftTask"
-	// WorkerServiceCompleteLiftTaskProcedure is the fully-qualified name of the WorkerService's
-	// CompleteLiftTask RPC.
-	WorkerServiceCompleteLiftTaskProcedure = "/moksha.v1.WorkerService/CompleteLiftTask"
+	// WorkerServicePollRunTaskProcedure is the fully-qualified name of the WorkerService's PollRunTask
+	// RPC.
+	WorkerServicePollRunTaskProcedure = "/moksha.v1.WorkerService/PollRunTask"
+	// WorkerServiceCompleteRunTaskProcedure is the fully-qualified name of the WorkerService's
+	// CompleteRunTask RPC.
+	WorkerServiceCompleteRunTaskProcedure = "/moksha.v1.WorkerService/CompleteRunTask"
+	// WorkerServicePollStepTaskProcedure is the fully-qualified name of the WorkerService's
+	// PollStepTask RPC.
+	WorkerServicePollStepTaskProcedure = "/moksha.v1.WorkerService/PollStepTask"
+	// WorkerServiceCompleteStepTaskProcedure is the fully-qualified name of the WorkerService's
+	// CompleteStepTask RPC.
+	WorkerServiceCompleteStepTaskProcedure = "/moksha.v1.WorkerService/CompleteStepTask"
 	// WorkerServiceHeartbeatProcedure is the fully-qualified name of the WorkerService's Heartbeat RPC.
 	WorkerServiceHeartbeatProcedure = "/moksha.v1.WorkerService/Heartbeat"
 	// WorkerServiceGetUploadURLsProcedure is the fully-qualified name of the WorkerService's
@@ -60,24 +60,24 @@ const (
 
 // WorkerServiceClient is a client for the moksha.v1.WorkerService service.
 type WorkerServiceClient interface {
-	// RegisterBuild announces a worker build: the hauls it defines and the
-	// code version of each of its lifts. Builds are immutable. A new build
-	// gives stuck hauls another replay.
+	// RegisterBuild announces a worker build: the pipelines it defines and the
+	// code version of each of its steps. Builds are immutable. A new build
+	// gives stuck runs another replay.
 	RegisterBuild(context.Context, *connect.Request[v1.RegisterBuildRequest]) (*connect.Response[v1.RegisterBuildResponse], error)
-	// PollHaulTask waits up to `wait` for a haul to replay.
-	PollHaulTask(context.Context, *connect.Request[v1.PollHaulTaskRequest]) (*connect.Response[v1.PollHaulTaskResponse], error)
-	// CompleteHaulTask reports every command a replay issued, and how the haul
+	// PollRunTask waits up to `wait` for a run to replay.
+	PollRunTask(context.Context, *connect.Request[v1.PollRunTaskRequest]) (*connect.Response[v1.PollRunTaskResponse], error)
+	// CompleteRunTask reports every command a replay issued, and how the run
 	// function ended if it did.
-	CompleteHaulTask(context.Context, *connect.Request[v1.CompleteHaulTaskRequest]) (*connect.Response[v1.CompleteHaulTaskResponse], error)
-	// PollLiftTask waits up to `wait` for a lift attempt to run.
-	PollLiftTask(context.Context, *connect.Request[v1.PollLiftTaskRequest]) (*connect.Response[v1.PollLiftTaskResponse], error)
-	// CompleteLiftTask reports a lift attempt's result.
-	CompleteLiftTask(context.Context, *connect.Request[v1.CompleteLiftTaskRequest]) (*connect.Response[v1.CompleteLiftTaskResponse], error)
+	CompleteRunTask(context.Context, *connect.Request[v1.CompleteRunTaskRequest]) (*connect.Response[v1.CompleteRunTaskResponse], error)
+	// PollStepTask waits up to `wait` for a step attempt to run.
+	PollStepTask(context.Context, *connect.Request[v1.PollStepTaskRequest]) (*connect.Response[v1.PollStepTaskResponse], error)
+	// CompleteStepTask reports a step attempt's result.
+	CompleteStepTask(context.Context, *connect.Request[v1.CompleteStepTaskRequest]) (*connect.Response[v1.CompleteStepTaskResponse], error)
 	// Heartbeat keeps the leases of a worker's running tasks alive and tells it
 	// which ones to stop.
 	Heartbeat(context.Context, *connect.Request[v1.HeartbeatRequest]) (*connect.Response[v1.HeartbeatResponse], error)
 	// GetUploadURLs and GetDownloadURLs are for workers that can't reach the
-	// bucket as a local directory (see LiftTask.bucket_id): URLs to PUT a
+	// bucket as a local directory (see StepTask.bucket_id): URLs to PUT a
 	// running attempt's output files to its staging prefix, and to GET the
 	// files of its inputs. They are presigned URLs of the object store, or
 	// paths on this server (relative URLs, resolved against the server's).
@@ -103,28 +103,28 @@ func NewWorkerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(workerServiceMethods.ByName("RegisterBuild")),
 			connect.WithClientOptions(opts...),
 		),
-		pollHaulTask: connect.NewClient[v1.PollHaulTaskRequest, v1.PollHaulTaskResponse](
+		pollRunTask: connect.NewClient[v1.PollRunTaskRequest, v1.PollRunTaskResponse](
 			httpClient,
-			baseURL+WorkerServicePollHaulTaskProcedure,
-			connect.WithSchema(workerServiceMethods.ByName("PollHaulTask")),
+			baseURL+WorkerServicePollRunTaskProcedure,
+			connect.WithSchema(workerServiceMethods.ByName("PollRunTask")),
 			connect.WithClientOptions(opts...),
 		),
-		completeHaulTask: connect.NewClient[v1.CompleteHaulTaskRequest, v1.CompleteHaulTaskResponse](
+		completeRunTask: connect.NewClient[v1.CompleteRunTaskRequest, v1.CompleteRunTaskResponse](
 			httpClient,
-			baseURL+WorkerServiceCompleteHaulTaskProcedure,
-			connect.WithSchema(workerServiceMethods.ByName("CompleteHaulTask")),
+			baseURL+WorkerServiceCompleteRunTaskProcedure,
+			connect.WithSchema(workerServiceMethods.ByName("CompleteRunTask")),
 			connect.WithClientOptions(opts...),
 		),
-		pollLiftTask: connect.NewClient[v1.PollLiftTaskRequest, v1.PollLiftTaskResponse](
+		pollStepTask: connect.NewClient[v1.PollStepTaskRequest, v1.PollStepTaskResponse](
 			httpClient,
-			baseURL+WorkerServicePollLiftTaskProcedure,
-			connect.WithSchema(workerServiceMethods.ByName("PollLiftTask")),
+			baseURL+WorkerServicePollStepTaskProcedure,
+			connect.WithSchema(workerServiceMethods.ByName("PollStepTask")),
 			connect.WithClientOptions(opts...),
 		),
-		completeLiftTask: connect.NewClient[v1.CompleteLiftTaskRequest, v1.CompleteLiftTaskResponse](
+		completeStepTask: connect.NewClient[v1.CompleteStepTaskRequest, v1.CompleteStepTaskResponse](
 			httpClient,
-			baseURL+WorkerServiceCompleteLiftTaskProcedure,
-			connect.WithSchema(workerServiceMethods.ByName("CompleteLiftTask")),
+			baseURL+WorkerServiceCompleteStepTaskProcedure,
+			connect.WithSchema(workerServiceMethods.ByName("CompleteStepTask")),
 			connect.WithClientOptions(opts...),
 		),
 		heartbeat: connect.NewClient[v1.HeartbeatRequest, v1.HeartbeatResponse](
@@ -151,10 +151,10 @@ func NewWorkerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 // workerServiceClient implements WorkerServiceClient.
 type workerServiceClient struct {
 	registerBuild    *connect.Client[v1.RegisterBuildRequest, v1.RegisterBuildResponse]
-	pollHaulTask     *connect.Client[v1.PollHaulTaskRequest, v1.PollHaulTaskResponse]
-	completeHaulTask *connect.Client[v1.CompleteHaulTaskRequest, v1.CompleteHaulTaskResponse]
-	pollLiftTask     *connect.Client[v1.PollLiftTaskRequest, v1.PollLiftTaskResponse]
-	completeLiftTask *connect.Client[v1.CompleteLiftTaskRequest, v1.CompleteLiftTaskResponse]
+	pollRunTask      *connect.Client[v1.PollRunTaskRequest, v1.PollRunTaskResponse]
+	completeRunTask  *connect.Client[v1.CompleteRunTaskRequest, v1.CompleteRunTaskResponse]
+	pollStepTask     *connect.Client[v1.PollStepTaskRequest, v1.PollStepTaskResponse]
+	completeStepTask *connect.Client[v1.CompleteStepTaskRequest, v1.CompleteStepTaskResponse]
 	heartbeat        *connect.Client[v1.HeartbeatRequest, v1.HeartbeatResponse]
 	getUploadURLs    *connect.Client[v1.GetUploadURLsRequest, v1.GetUploadURLsResponse]
 	getDownloadURLs  *connect.Client[v1.GetDownloadURLsRequest, v1.GetDownloadURLsResponse]
@@ -165,24 +165,24 @@ func (c *workerServiceClient) RegisterBuild(ctx context.Context, req *connect.Re
 	return c.registerBuild.CallUnary(ctx, req)
 }
 
-// PollHaulTask calls moksha.v1.WorkerService.PollHaulTask.
-func (c *workerServiceClient) PollHaulTask(ctx context.Context, req *connect.Request[v1.PollHaulTaskRequest]) (*connect.Response[v1.PollHaulTaskResponse], error) {
-	return c.pollHaulTask.CallUnary(ctx, req)
+// PollRunTask calls moksha.v1.WorkerService.PollRunTask.
+func (c *workerServiceClient) PollRunTask(ctx context.Context, req *connect.Request[v1.PollRunTaskRequest]) (*connect.Response[v1.PollRunTaskResponse], error) {
+	return c.pollRunTask.CallUnary(ctx, req)
 }
 
-// CompleteHaulTask calls moksha.v1.WorkerService.CompleteHaulTask.
-func (c *workerServiceClient) CompleteHaulTask(ctx context.Context, req *connect.Request[v1.CompleteHaulTaskRequest]) (*connect.Response[v1.CompleteHaulTaskResponse], error) {
-	return c.completeHaulTask.CallUnary(ctx, req)
+// CompleteRunTask calls moksha.v1.WorkerService.CompleteRunTask.
+func (c *workerServiceClient) CompleteRunTask(ctx context.Context, req *connect.Request[v1.CompleteRunTaskRequest]) (*connect.Response[v1.CompleteRunTaskResponse], error) {
+	return c.completeRunTask.CallUnary(ctx, req)
 }
 
-// PollLiftTask calls moksha.v1.WorkerService.PollLiftTask.
-func (c *workerServiceClient) PollLiftTask(ctx context.Context, req *connect.Request[v1.PollLiftTaskRequest]) (*connect.Response[v1.PollLiftTaskResponse], error) {
-	return c.pollLiftTask.CallUnary(ctx, req)
+// PollStepTask calls moksha.v1.WorkerService.PollStepTask.
+func (c *workerServiceClient) PollStepTask(ctx context.Context, req *connect.Request[v1.PollStepTaskRequest]) (*connect.Response[v1.PollStepTaskResponse], error) {
+	return c.pollStepTask.CallUnary(ctx, req)
 }
 
-// CompleteLiftTask calls moksha.v1.WorkerService.CompleteLiftTask.
-func (c *workerServiceClient) CompleteLiftTask(ctx context.Context, req *connect.Request[v1.CompleteLiftTaskRequest]) (*connect.Response[v1.CompleteLiftTaskResponse], error) {
-	return c.completeLiftTask.CallUnary(ctx, req)
+// CompleteStepTask calls moksha.v1.WorkerService.CompleteStepTask.
+func (c *workerServiceClient) CompleteStepTask(ctx context.Context, req *connect.Request[v1.CompleteStepTaskRequest]) (*connect.Response[v1.CompleteStepTaskResponse], error) {
+	return c.completeStepTask.CallUnary(ctx, req)
 }
 
 // Heartbeat calls moksha.v1.WorkerService.Heartbeat.
@@ -202,24 +202,24 @@ func (c *workerServiceClient) GetDownloadURLs(ctx context.Context, req *connect.
 
 // WorkerServiceHandler is an implementation of the moksha.v1.WorkerService service.
 type WorkerServiceHandler interface {
-	// RegisterBuild announces a worker build: the hauls it defines and the
-	// code version of each of its lifts. Builds are immutable. A new build
-	// gives stuck hauls another replay.
+	// RegisterBuild announces a worker build: the pipelines it defines and the
+	// code version of each of its steps. Builds are immutable. A new build
+	// gives stuck runs another replay.
 	RegisterBuild(context.Context, *connect.Request[v1.RegisterBuildRequest]) (*connect.Response[v1.RegisterBuildResponse], error)
-	// PollHaulTask waits up to `wait` for a haul to replay.
-	PollHaulTask(context.Context, *connect.Request[v1.PollHaulTaskRequest]) (*connect.Response[v1.PollHaulTaskResponse], error)
-	// CompleteHaulTask reports every command a replay issued, and how the haul
+	// PollRunTask waits up to `wait` for a run to replay.
+	PollRunTask(context.Context, *connect.Request[v1.PollRunTaskRequest]) (*connect.Response[v1.PollRunTaskResponse], error)
+	// CompleteRunTask reports every command a replay issued, and how the run
 	// function ended if it did.
-	CompleteHaulTask(context.Context, *connect.Request[v1.CompleteHaulTaskRequest]) (*connect.Response[v1.CompleteHaulTaskResponse], error)
-	// PollLiftTask waits up to `wait` for a lift attempt to run.
-	PollLiftTask(context.Context, *connect.Request[v1.PollLiftTaskRequest]) (*connect.Response[v1.PollLiftTaskResponse], error)
-	// CompleteLiftTask reports a lift attempt's result.
-	CompleteLiftTask(context.Context, *connect.Request[v1.CompleteLiftTaskRequest]) (*connect.Response[v1.CompleteLiftTaskResponse], error)
+	CompleteRunTask(context.Context, *connect.Request[v1.CompleteRunTaskRequest]) (*connect.Response[v1.CompleteRunTaskResponse], error)
+	// PollStepTask waits up to `wait` for a step attempt to run.
+	PollStepTask(context.Context, *connect.Request[v1.PollStepTaskRequest]) (*connect.Response[v1.PollStepTaskResponse], error)
+	// CompleteStepTask reports a step attempt's result.
+	CompleteStepTask(context.Context, *connect.Request[v1.CompleteStepTaskRequest]) (*connect.Response[v1.CompleteStepTaskResponse], error)
 	// Heartbeat keeps the leases of a worker's running tasks alive and tells it
 	// which ones to stop.
 	Heartbeat(context.Context, *connect.Request[v1.HeartbeatRequest]) (*connect.Response[v1.HeartbeatResponse], error)
 	// GetUploadURLs and GetDownloadURLs are for workers that can't reach the
-	// bucket as a local directory (see LiftTask.bucket_id): URLs to PUT a
+	// bucket as a local directory (see StepTask.bucket_id): URLs to PUT a
 	// running attempt's output files to its staging prefix, and to GET the
 	// files of its inputs. They are presigned URLs of the object store, or
 	// paths on this server (relative URLs, resolved against the server's).
@@ -241,28 +241,28 @@ func NewWorkerServiceHandler(svc WorkerServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(workerServiceMethods.ByName("RegisterBuild")),
 		connect.WithHandlerOptions(opts...),
 	)
-	workerServicePollHaulTaskHandler := connect.NewUnaryHandler(
-		WorkerServicePollHaulTaskProcedure,
-		svc.PollHaulTask,
-		connect.WithSchema(workerServiceMethods.ByName("PollHaulTask")),
+	workerServicePollRunTaskHandler := connect.NewUnaryHandler(
+		WorkerServicePollRunTaskProcedure,
+		svc.PollRunTask,
+		connect.WithSchema(workerServiceMethods.ByName("PollRunTask")),
 		connect.WithHandlerOptions(opts...),
 	)
-	workerServiceCompleteHaulTaskHandler := connect.NewUnaryHandler(
-		WorkerServiceCompleteHaulTaskProcedure,
-		svc.CompleteHaulTask,
-		connect.WithSchema(workerServiceMethods.ByName("CompleteHaulTask")),
+	workerServiceCompleteRunTaskHandler := connect.NewUnaryHandler(
+		WorkerServiceCompleteRunTaskProcedure,
+		svc.CompleteRunTask,
+		connect.WithSchema(workerServiceMethods.ByName("CompleteRunTask")),
 		connect.WithHandlerOptions(opts...),
 	)
-	workerServicePollLiftTaskHandler := connect.NewUnaryHandler(
-		WorkerServicePollLiftTaskProcedure,
-		svc.PollLiftTask,
-		connect.WithSchema(workerServiceMethods.ByName("PollLiftTask")),
+	workerServicePollStepTaskHandler := connect.NewUnaryHandler(
+		WorkerServicePollStepTaskProcedure,
+		svc.PollStepTask,
+		connect.WithSchema(workerServiceMethods.ByName("PollStepTask")),
 		connect.WithHandlerOptions(opts...),
 	)
-	workerServiceCompleteLiftTaskHandler := connect.NewUnaryHandler(
-		WorkerServiceCompleteLiftTaskProcedure,
-		svc.CompleteLiftTask,
-		connect.WithSchema(workerServiceMethods.ByName("CompleteLiftTask")),
+	workerServiceCompleteStepTaskHandler := connect.NewUnaryHandler(
+		WorkerServiceCompleteStepTaskProcedure,
+		svc.CompleteStepTask,
+		connect.WithSchema(workerServiceMethods.ByName("CompleteStepTask")),
 		connect.WithHandlerOptions(opts...),
 	)
 	workerServiceHeartbeatHandler := connect.NewUnaryHandler(
@@ -287,14 +287,14 @@ func NewWorkerServiceHandler(svc WorkerServiceHandler, opts ...connect.HandlerOp
 		switch r.URL.Path {
 		case WorkerServiceRegisterBuildProcedure:
 			workerServiceRegisterBuildHandler.ServeHTTP(w, r)
-		case WorkerServicePollHaulTaskProcedure:
-			workerServicePollHaulTaskHandler.ServeHTTP(w, r)
-		case WorkerServiceCompleteHaulTaskProcedure:
-			workerServiceCompleteHaulTaskHandler.ServeHTTP(w, r)
-		case WorkerServicePollLiftTaskProcedure:
-			workerServicePollLiftTaskHandler.ServeHTTP(w, r)
-		case WorkerServiceCompleteLiftTaskProcedure:
-			workerServiceCompleteLiftTaskHandler.ServeHTTP(w, r)
+		case WorkerServicePollRunTaskProcedure:
+			workerServicePollRunTaskHandler.ServeHTTP(w, r)
+		case WorkerServiceCompleteRunTaskProcedure:
+			workerServiceCompleteRunTaskHandler.ServeHTTP(w, r)
+		case WorkerServicePollStepTaskProcedure:
+			workerServicePollStepTaskHandler.ServeHTTP(w, r)
+		case WorkerServiceCompleteStepTaskProcedure:
+			workerServiceCompleteStepTaskHandler.ServeHTTP(w, r)
 		case WorkerServiceHeartbeatProcedure:
 			workerServiceHeartbeatHandler.ServeHTTP(w, r)
 		case WorkerServiceGetUploadURLsProcedure:
@@ -314,20 +314,20 @@ func (UnimplementedWorkerServiceHandler) RegisterBuild(context.Context, *connect
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("moksha.v1.WorkerService.RegisterBuild is not implemented"))
 }
 
-func (UnimplementedWorkerServiceHandler) PollHaulTask(context.Context, *connect.Request[v1.PollHaulTaskRequest]) (*connect.Response[v1.PollHaulTaskResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("moksha.v1.WorkerService.PollHaulTask is not implemented"))
+func (UnimplementedWorkerServiceHandler) PollRunTask(context.Context, *connect.Request[v1.PollRunTaskRequest]) (*connect.Response[v1.PollRunTaskResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("moksha.v1.WorkerService.PollRunTask is not implemented"))
 }
 
-func (UnimplementedWorkerServiceHandler) CompleteHaulTask(context.Context, *connect.Request[v1.CompleteHaulTaskRequest]) (*connect.Response[v1.CompleteHaulTaskResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("moksha.v1.WorkerService.CompleteHaulTask is not implemented"))
+func (UnimplementedWorkerServiceHandler) CompleteRunTask(context.Context, *connect.Request[v1.CompleteRunTaskRequest]) (*connect.Response[v1.CompleteRunTaskResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("moksha.v1.WorkerService.CompleteRunTask is not implemented"))
 }
 
-func (UnimplementedWorkerServiceHandler) PollLiftTask(context.Context, *connect.Request[v1.PollLiftTaskRequest]) (*connect.Response[v1.PollLiftTaskResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("moksha.v1.WorkerService.PollLiftTask is not implemented"))
+func (UnimplementedWorkerServiceHandler) PollStepTask(context.Context, *connect.Request[v1.PollStepTaskRequest]) (*connect.Response[v1.PollStepTaskResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("moksha.v1.WorkerService.PollStepTask is not implemented"))
 }
 
-func (UnimplementedWorkerServiceHandler) CompleteLiftTask(context.Context, *connect.Request[v1.CompleteLiftTaskRequest]) (*connect.Response[v1.CompleteLiftTaskResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("moksha.v1.WorkerService.CompleteLiftTask is not implemented"))
+func (UnimplementedWorkerServiceHandler) CompleteStepTask(context.Context, *connect.Request[v1.CompleteStepTaskRequest]) (*connect.Response[v1.CompleteStepTaskResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("moksha.v1.WorkerService.CompleteStepTask is not implemented"))
 }
 
 func (UnimplementedWorkerServiceHandler) Heartbeat(context.Context, *connect.Request[v1.HeartbeatRequest]) (*connect.Response[v1.HeartbeatResponse], error) {

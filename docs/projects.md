@@ -61,15 +61,15 @@ build:
   args: {WORKER_IMAGE: moksha-worker:dev}   # --build-arg, optional
 
 pools:
-  - name: default                    # the project's default dock
+  - name: default                    # the project's default queue
     min: 1                           # always running: a fixed baseline
     max: 6                           # scaled up from what waits, down after idle_after
-    lifts: 2
+    steps: 2
   - name: gpu
-    docks: [gpu]
+    queues: [gpu]
     min: 0
     max: 2
-    lifts: 1
+    steps: 1
     resources: {gpu: 1, memory: 16Gi}   # with pod steps (worker-pools step 5)
 
 env:                                 # names and where values come from, never values
@@ -215,7 +215,7 @@ come from its deployment.
 
 ## Open questions
 
-- **Several projects on one server**: docks per project (`revenue/default`)
+- **Several projects on one server**: queues per project (`revenue/default`)
   or shared, pipeline names that clash, tenants. Later; until then, one
   project per server is the supported shape, and the server refuses a
   second project whose pipeline names clash.

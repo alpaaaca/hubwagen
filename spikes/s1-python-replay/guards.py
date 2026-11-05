@@ -1,8 +1,8 @@
-"""Two ways to stop haul code from reading the clock or randomness.
+"""Two ways to stop pipeline code from reading the clock or randomness.
 
 A. patch: replace module attributes (time.time, random.random, uuid.uuid4,
-   datetime.datetime, ...) while haul code runs.
-B. monitor: sys.monitoring CALL events while haul code runs; a call to a
+   datetime.datetime, ...) while pipeline code runs.
+B. monitor: sys.monitoring CALL events while pipeline code runs; a call to a
    forbidden callable raises if the calling frame is user code (not the
    standard library or site-packages). Library code locations are
    DISABLEd after their first event, so they cost one callback each.
@@ -29,7 +29,7 @@ class NondeterminismError(Exception):
 
 def _forbidden(name):
     def f(*a, **k):
-        raise NondeterminismError(f"{name} called in haul code; use ctx.now()/ctx.random() or a lift")
+        raise NondeterminismError(f"{name} called in pipeline code; use ctx.now()/ctx.random() or a step")
     return f
 
 
@@ -51,16 +51,16 @@ def patch_guard():
     class GuardedDatetime(datetime.datetime):
         @classmethod
         def now(cls, tz=None):
-            raise NondeterminismError("datetime.now called in haul code")
+            raise NondeterminismError("datetime.now called in pipeline code")
 
         @classmethod
         def utcnow(cls):
-            raise NondeterminismError("datetime.utcnow called in haul code")
+            raise NondeterminismError("datetime.utcnow called in pipeline code")
 
     class GuardedDate(datetime.date):
         @classmethod
         def today(cls):
-            raise NondeterminismError("date.today called in haul code")
+            raise NondeterminismError("date.today called in pipeline code")
 
     saved.append((datetime, "datetime", datetime.datetime))
     saved.append((datetime, "date", datetime.date))
@@ -122,7 +122,7 @@ def monitor_guard(is_user_file=None):
             return mon.DISABLE  # library code: never look at this location again
         what = _forbidden_callable(callable_, arg0)
         if what:
-            raise NondeterminismError(f"{what}() called at {fn}:{code.co_firstlineno}; use ctx.now()/ctx.random() or a lift")
+            raise NondeterminismError(f"{what}() called at {fn}:{code.co_firstlineno}; use ctx.now()/ctx.random() or a step")
         return None
 
     mon.use_tool_id(_TOOL, "moksha-guard")

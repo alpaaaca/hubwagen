@@ -7,103 +7,103 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Two projects with different code share the default dock: revenue defines
-// haul "rev" and lift "extract", marketing haul "mkt" and lift "load".
+// Two projects with different code share the default queue: revenue defines
+// run "rev" and step "extract", marketing run "mkt" and step "load".
 func newProjectsHarness(t *testing.T) *harness {
 	h := newHarness(t)
-	require.NoError(t, h.core.RegisterBuild(h.ctx, BuildRequest{ID: "revenue", Hauls: []string{"rev"}, Lifts: map[string]string{"extract": "v1"}}))
-	require.NoError(t, h.core.RegisterBuild(h.ctx, BuildRequest{ID: "marketing", Hauls: []string{"mkt"}, Lifts: map[string]string{"load": "v1"}}))
+	require.NoError(t, h.core.RegisterBuild(h.ctx, BuildRequest{ID: "revenue", Pipelines: []string{"rev"}, Steps: map[string]string{"extract": "v1"}}))
+	require.NoError(t, h.core.RegisterBuild(h.ctx, BuildRequest{ID: "marketing", Pipelines: []string{"mkt"}, Steps: map[string]string{"load": "v1"}}))
 	return h
 }
 
 func (h *harness) pollAs(build string, kind TaskKind) (Task, bool) {
 	h.t.Helper()
-	t, ok, err := h.core.Poll(h.ctx, PollRequest{WorkerID: build + "-1", BuildID: build, Docks: []string{DefaultDock}, Kinds: []TaskKind{kind}})
+	t, ok, err := h.core.Poll(h.ctx, PollRequest{WorkerID: build + "-1", BuildID: build, Queues: []string{DefaultQueue}, Kinds: []TaskKind{kind}})
 	require.NoError(h.t, err)
 	return t, ok
 }
 
-func TestHaulTasksGoToWorkersWhoseBuildDefinesThem(t *testing.T) {
+func TestRunTasksGoToWorkersWhoseBuildDefinesThem(t *testing.T) {
 	h := newProjectsHarness(t)
-	mkt := h.startHaul("mkt")
-	rev := h.startHaul("rev")
+	mkt := h.startRun("mkt")
+	rev := h.startRun("rev")
 
-	task, ok := h.pollAs("revenue", TaskHaul)
+	task, ok := h.pollAs("revenue", TaskRun)
 	require.True(t, ok)
-	assert.Equal(t, rev, task.HaulID, "the older mkt task is skipped, not handed to the wrong code")
-	_, ok = h.pollAs("revenue", TaskHaul)
+	assert.Equal(t, rev, task.RunID, "the older mkt task is skipped, not handed to the wrong code")
+	_, ok = h.pollAs("revenue", TaskRun)
 	assert.False(t, ok, "mkt stays queued for its own workers")
 
-	task, ok = h.pollAs("marketing", TaskHaul)
+	task, ok = h.pollAs("marketing", TaskRun)
 	require.True(t, ok)
-	assert.Equal(t, mkt, task.HaulID)
+	assert.Equal(t, mkt, task.RunID)
 }
 
-func TestLiftsGoToWorkersWhoseBuildDefinesThem(t *testing.T) {
+func TestStepsGoToWorkersWhoseBuildDefinesThem(t *testing.T) {
 	h := newProjectsHarness(t)
-	h.startHaul("rev")
-	task, _ := h.pollAs("revenue", TaskHaul)
-	require.NoError(t, h.core.CompleteHaulTask(h.ctx, HaulTaskResult{TaskID: task.ID, BuildID: "revenue", Commands: seqs(lift("extract"))}))
+	h.startRun("rev")
+	task, _ := h.pollAs("revenue", TaskRun)
+	require.NoError(t, h.core.CompleteRunTask(h.ctx, RunTaskResult{TaskID: task.ID, BuildID: "revenue", Commands: seqs(stepCmd("extract"))}))
 
-	_, ok := h.pollAs("marketing", TaskLift)
+	_, ok := h.pollAs("marketing", TaskStep)
 	assert.False(t, ok)
-	a, ok := h.pollAs("revenue", TaskLift)
+	a, ok := h.pollAs("revenue", TaskStep)
 	require.True(t, ok)
 	assert.Equal(t, "extract", a.Name)
 }
 
 func TestPollersWithoutABuildTakeAnything(t *testing.T) {
 	h := newProjectsHarness(t)
-	id := h.startHaul("mkt")
-	assert.Equal(t, id, h.poll(TaskHaul).HaulID)
+	id := h.startRun("mkt")
+	assert.Equal(t, id, h.poll(TaskRun).RunID)
 }
 
 func TestPollingWithAnUnknownBuildFails(t *testing.T) {
 	h := newHarness(t)
-	_, _, err := h.core.Poll(h.ctx, PollRequest{WorkerID: "w1", BuildID: "nope", Docks: []string{DefaultDock}})
+	_, _, err := h.core.Poll(h.ctx, PollRequest{WorkerID: "w1", BuildID: "nope", Queues: []string{DefaultQueue}})
 	assert.ErrorIs(t, err, ErrUnknownBuild)
 }
 
-func TestStartHaulNeedsABuildThatDefinesIt(t *testing.T) {
+func TestStartRunNeedsABuildThatDefinesIt(t *testing.T) {
 	h := newHarness(t)
-	_, err := h.core.StartHaul(h.ctx, StartHaulRequest{Tenant: "t", Name: "nowhere"})
-	assert.ErrorIs(t, err, ErrUnknownHaul)
-	assert.ErrorContains(t, err, `no registered build defines haul "nowhere"`)
+	_, err := h.core.StartRun(h.ctx, StartRunRequest{Tenant: "t", Name: "nowhere"})
+	assert.ErrorIs(t, err, ErrUnknownPipeline)
+	assert.ErrorContains(t, err, `no registered build defines run "nowhere"`)
 }
 
-func TestBuildHaulsAreImmutable(t *testing.T) {
+func TestBuildRunsAreImmutable(t *testing.T) {
 	h := newHarness(t)
-	lifts := map[string]string{"extract": "v1"}
-	require.NoError(t, h.core.RegisterBuild(h.ctx, BuildRequest{ID: "b1", Hauls: []string{"rev", "rev"}, Lifts: lifts}))
-	require.NoError(t, h.core.RegisterBuild(h.ctx, BuildRequest{ID: "b1", Hauls: []string{"rev"}, Lifts: lifts}), "the same build again")
-	err := h.core.RegisterBuild(h.ctx, BuildRequest{ID: "b1", Hauls: []string{"rev", "other"}, Lifts: lifts})
-	assert.ErrorContains(t, err, "already registered with other hauls")
-	assert.ErrorIs(t, h.core.RegisterBuild(h.ctx, BuildRequest{ID: "b2", Hauls: []string{""}}), ErrInvalid)
+	steps := map[string]string{"extract": "v1"}
+	require.NoError(t, h.core.RegisterBuild(h.ctx, BuildRequest{ID: "b1", Pipelines: []string{"rev", "rev"}, Steps: steps}))
+	require.NoError(t, h.core.RegisterBuild(h.ctx, BuildRequest{ID: "b1", Pipelines: []string{"rev"}, Steps: steps}), "the same build again")
+	err := h.core.RegisterBuild(h.ctx, BuildRequest{ID: "b1", Pipelines: []string{"rev", "other"}, Steps: steps})
+	assert.ErrorContains(t, err, "already registered with other pipelines")
+	assert.ErrorIs(t, h.core.RegisterBuild(h.ctx, BuildRequest{ID: "b2", Pipelines: []string{""}}), ErrInvalid)
 }
 
-func TestABuildRecordedWithoutHaulsGetsThem(t *testing.T) {
+func TestABuildRecordedWithoutRunsGetsThem(t *testing.T) {
 	h := newHarness(t)
-	lifts := map[string]string{"extract": "v1"}
-	require.NoError(t, h.core.RegisterBuild(h.ctx, BuildRequest{ID: "old", Lifts: lifts}))
-	h.startHaul("x")
-	task, ok := h.pollAs("old", TaskHaul)
-	require.True(t, ok, "a build without recorded hauls takes any haul task")
-	require.NoError(t, h.core.CompleteHaulTask(h.ctx, HaulTaskResult{TaskID: task.ID, BuildID: "old", Commands: seqs(lift("extract"))}))
+	steps := map[string]string{"extract": "v1"}
+	require.NoError(t, h.core.RegisterBuild(h.ctx, BuildRequest{ID: "old", Steps: steps}))
+	h.startRun("x")
+	task, ok := h.pollAs("old", TaskRun)
+	require.True(t, ok, "a build without recorded runs takes any run task")
+	require.NoError(t, h.core.CompleteRunTask(h.ctx, RunTaskResult{TaskID: task.ID, BuildID: "old", Commands: seqs(stepCmd("extract"))}))
 
-	require.NoError(t, h.core.RegisterBuild(h.ctx, BuildRequest{ID: "old", Hauls: []string{"rev"}, Lifts: lifts}))
-	h.startHaul("x")
-	_, ok = h.pollAs("old", TaskHaul)
+	require.NoError(t, h.core.RegisterBuild(h.ctx, BuildRequest{ID: "old", Pipelines: []string{"rev"}, Steps: steps}))
+	h.startRun("x")
+	_, ok = h.pollAs("old", TaskRun)
 	assert.False(t, ok, "now it defines rev only")
 }
 
-func TestBuildHaulsSurviveRestart(t *testing.T) {
+func TestBuildRunsSurviveRestart(t *testing.T) {
 	h := newProjectsHarness(t)
 	h.restart()
-	mkt := h.startHaul("mkt")
-	h.startHaul("rev")
-	task, ok := h.pollAs("marketing", TaskHaul)
+	mkt := h.startRun("mkt")
+	h.startRun("rev")
+	task, ok := h.pollAs("marketing", TaskRun)
 	require.True(t, ok)
-	assert.Equal(t, mkt, task.HaulID)
-	_, ok = h.pollAs("marketing", TaskHaul)
+	assert.Equal(t, mkt, task.RunID)
+	_, ok = h.pollAs("marketing", TaskRun)
 	assert.False(t, ok)
 }

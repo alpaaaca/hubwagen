@@ -1,13 +1,13 @@
-"""Code versions: what a lift's fingerprint knows about its code.
+"""Code versions: what a step's fingerprint knows about its code.
 
-A lift's code version covers the code it can run, found by walking the
+A step's code version covers the code it can run, found by walking the
 objects its function refers to, not by parsing import statements:
 
 - the function itself, and every project function, class and module-level
   constant it refers to, directly or through another one, in its own
   module or another project module (`from .helpers import clean`,
   `helpers.clean(...)`), each as its AST: comments, docstrings, formatting
-  and the lift's own decorator don't count;
+  and the step's own decorator don't count;
 - for code outside the project, the installed distribution that provides
   it, with its version and the versions of what it requires (`polars 1.9.0`,
   `pandas 2.2.3` + `numpy 2.1.2`, ...); the standard library counts as the
@@ -15,7 +15,7 @@ objects its function refers to, not by parsing import statements:
   the server);
 - the types its parameters and return are annotated with, which decide
   how inputs are loaded (`pd.DataFrame`, `pl.LazyFrame`);
-- for a haul, the lifts and child hauls it calls by name only: their code
+- for a pipeline, the steps and child pipelines it calls by name only: their code
   has versions of their own;
 - files named by `deps=`, by content.
 
@@ -53,18 +53,18 @@ _LIBRARY_DIRS = tuple({os.path.realpath(sysconfig.get_paths()[k]) + os.sep
 _SIMPLE = (type(None), bool, int, float, complex, str, bytes)
 
 
-def code_version(fn: Callable, deps: tuple[str, ...] = (), name: str = "", haul: bool = False) -> str:
+def code_version(fn: Callable, deps: tuple[str, ...] = (), name: str = "", pipeline: bool = False) -> str:
     """The code version of fn, with deps (paths relative to the project
-    root, the directory of the nearest pyproject.toml). For a haul, lifts
+    root, the directory of the nearest pyproject.toml). For a pipeline, steps
     count by name."""
-    p = parts(fn, deps, name, haul)
+    p = parts(fn, deps, name, pipeline)
     return "py-" + hashlib.sha256(json.dumps(p, sort_keys=True).encode()).hexdigest()[:12]
 
 
-def parts(fn: Callable, deps: tuple[str, ...] = (), name: str = "", haul: bool = False) -> dict:
+def parts(fn: Callable, deps: tuple[str, ...] = (), name: str = "", pipeline: bool = False) -> dict:
     """What code_version hashes, readable: {"python", "code", "packages",
     "files"}. Shown by `python -m moksha.worker --versions`."""
-    w = _Walker(project_root(_source_file(fn)), lifts_by_name=haul)
+    w = _Walker(project_root(_source_file(fn)), steps_by_name=pipeline)
     w.function(fn, root=True)
     return {
         "python": f"{sys.implementation.name} {sys.version_info.major}.{sys.version_info.minor}",
@@ -87,9 +87,9 @@ def is_project_file(filename: str) -> bool:
 
 
 class _Walker:
-    def __init__(self, root: Path, lifts_by_name: bool = False) -> None:
+    def __init__(self, root: Path, steps_by_name: bool = False) -> None:
         self.root = root
-        self.lifts_by_name = lifts_by_name
+        self.steps_by_name = steps_by_name
         self.code: dict[str, str] = {}
         self.packages: dict[str, str] = {}
         self._seen: set[int] = set()
@@ -109,13 +109,13 @@ class _Walker:
         if not is_project_file(f.__code__.co_filename):
             self.package(f.__module__)
             return
-        lift = getattr(f, "__moksha_lift__", None)
-        if lift is not None and self.lifts_by_name and not root:
-            self.code[f"{f.__module__}:{f.__qualname__}"] = "lift " + lift.name
+        step = getattr(f, "__moksha_step__", None)
+        if step is not None and self.steps_by_name and not root:
+            self.code[f"{f.__module__}:{f.__qualname__}"] = "step " + step.name
             return
-        child = getattr(f, "__moksha_haul__", None)
-        if child is not None and self.lifts_by_name and not root:  # ctx.haul(other): its own version
-            self.code[f"{f.__module__}:{f.__qualname__}"] = "haul " + child.name
+        child = getattr(f, "__moksha_pipeline__", None)
+        if child is not None and self.steps_by_name and not root:  # ctx.run(other): its own version
+            self.code[f"{f.__module__}:{f.__qualname__}"] = "pipeline " + child.name
             return
         self.code[f"{f.__module__}:{f.__qualname__}"] = _source_hash(f, strip_decorators=root)
         names = _names(f.__code__)
@@ -264,7 +264,7 @@ def _plain(v: Any) -> bool:
 
 
 def _source_hash(obj: Any, strip_decorators: bool = False) -> str:
-    """obj's source as an AST without docstrings (and, for the lift itself,
+    """obj's source as an AST without docstrings (and, for the step itself,
     without decorators), so comments and formatting don't count. Falls back
     to the compiled code when there is no source."""
     try:
@@ -300,7 +300,7 @@ def _files(fn: Callable, deps: tuple[str, ...], name: str) -> dict[str, str]:
                 if f.is_file() and "__pycache__" not in f.parts:
                     out[f.relative_to(root).as_posix()] = _hash(f.read_bytes())
         else:
-            raise ValueError(f"lift {name or fn.__name__}: deps {d!r}: no such file or directory under {root}")
+            raise ValueError(f"step {name or fn.__name__}: deps {d!r}: no such file or directory under {root}")
     return out
 
 

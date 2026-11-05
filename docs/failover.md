@@ -9,7 +9,7 @@
 Today there is one leader and no standby. If it dies, nothing schedules,
 dispatches or fires timers until someone restarts it on the same data
 directory. A restart loses nothing durable: the event log is the truth, and
-restore rebuilds hauls, lifts, timers and flights from it. But the outage
+restore rebuilds runs, steps, timers and flights from it. But the outage
 lasts as long as the leader is down, and a lost disk loses everything.
 
 We want: when the leader's machine dies, another machine takes over within
@@ -39,13 +39,13 @@ Every machine runs one **node**: the `moksha` binary in a new mode
 What stays the same:
 
 - **The leader never runs user code.** Workers are still separate Python
-  processes; the node only starts them. A lift that runs out of memory kills
+  processes; the node only starts them. A step that runs out of memory kills
   a Python child, not the leader. Leader candidates are Go nodes, never
   workers, so no Go SDK is needed for any of this.
 - **One writer.** Only the leader's core writes state. Failover changes which
   node that is, not how many there are.
-- **Workers outlive leaders.** A lift attempt that a worker took stays valid
-  under the new leader; a haul task is replaced.
+- **Workers outlive leaders.** A step attempt that a worker took stays valid
+  under the new leader; a run task is replaced.
 
 What's new:
 
@@ -65,7 +65,7 @@ What's new:
 apiVersion: moksha.dev/v1alpha1
 kind: Config
 
-bucket: s3://acme-moksha          # pallets, plus the lease and replicas (option A)
+bucket: s3://acme-moksha          # data versions, plus the lease and replicas (option A)
 nodes:
   - {name: a, listen: 10.0.0.1:7070, data_dir: /var/lib/moksha}
   - {name: b, listen: 10.0.0.2:7070, data_dir: /var/lib/moksha}
@@ -76,7 +76,7 @@ failover:
 workers:                            # each node starts these on its machine
   - name: py
     replicas: 2
-    command: [python3, -m, moksha.worker, app.hauls]
+    command: [python3, -m, moksha.worker, app.pipelines]
 ```
 
 Each machine runs `moksha node --name a` (b, c) under systemd. One file
@@ -122,20 +122,20 @@ event was lost. Case by case:
 
 | Lost event | Effect after failover | Severity |
 |---|---|---|
-| `HaulStarted` (client got the ID) | haul ID unknown; the client's wait fails | the caller starts it again (an idempotency key on `StartHaul` would make that safe; there is none yet) |
-| `HaulTaskCompleted`, timers fired | replayed or fired again | harmless: replay is deterministic |
-| `LiftAttemptDispatched` | the worker's result is rejected (`not_found`); the lift is dispatched again | **runs twice** |
-| `LiftFinished`, `PalletRecorded` | the lift runs again and records a new pallet; the old manifest stays in the bucket, orphaned | **runs twice**; extra storage |
-| `HaulFinished` | a completed haul goes back to running and completes again | a status that flips back |
+| `RunStarted` (client got the ID) | run ID unknown; the client's wait fails | the caller starts it again (an idempotency key on `StartRun` would make that safe; there is none yet) |
+| `RunTaskCompleted`, timers fired | replayed or fired again | harmless: replay is deterministic |
+| `StepAttemptDispatched` | the worker's result is rejected (`not_found`); the step is dispatched again | **runs twice** |
+| `StepFinished`, `DataVersionRecorded` | the step runs again and records a new data version; the old manifest stays in the bucket, orphaned | **runs twice**; extra storage |
+| `RunFinished` | a completed run goes back to running and completes again | a status that flips back |
 
-Lifts already have to tolerate running twice: retries, lost leases and
+Steps already have to tolerate running twice: retries, lost leases and
 crashed workers do the same thing today. But a failover would add
 duplicate runs that nothing failed to cause. Two mitigations reduce the damage:
 
 - **Reconcile from the bucket.** Manifests are written synchronously, with
-  `PutIfAbsent`, before `PalletRecorded`. On takeover, the new leader lists
-  manifests newer than its restored state and records them again. Lifts
-  whose pallet made it to the bucket are then not rerun.
+  `PutIfAbsent`, before `DataVersionRecorded`. On takeover, the new leader lists
+  manifests newer than its restored state and records them again. Steps
+  whose data version made it to the bucket are then not rerun.
 - **Shorter sync interval** for the replica. This narrows the window but
   never closes it.
 
@@ -186,7 +186,7 @@ its own SQLite copy. The Raft term is the store's term.
 | | A: bucket lease + Litestream | B: embedded Raft |
 |---|---|---|
 | Nodes for failover | 2 or more | 3 or more (odd) |
-| Data lost on failover | the last ~1 s of events (some lifts run twice) | none |
+| Data lost on failover | the last ~1 s of events (some steps run twice) | none |
 | Split brain | prevented by the lease and self-fencing (clock rate) | impossible (quorum) |
 | Failover time | lease TTL + restore: ~15–30 s | election: ~1–3 s |
 | Commit latency | unchanged (local SQLite) | + network round trip and remote fsync |
@@ -215,7 +215,7 @@ failover:
 workers:
   - name: py
     replicas: 2
-    command: [python3, -m, moksha.worker, revenue.hauls]
+    command: [python3, -m, moksha.worker, revenue.pipelines]
 ```
 
 ```bash
@@ -234,7 +234,7 @@ What to watch:
   node, which comes back as a standby with its workers.
 - **The replay** keeps going, apart from errors on calls that were in
   flight, which the client retries.
-- **Option A:** lifts that were dispatched in the last second can run
+- **Option A:** steps that were dispatched in the last second can run
   twice. `moksha nodes` reports the events the new leader didn't get and
   what reconciliation recovered.
 - **Option B:** the same file without the lease. Kill any one node and
@@ -253,12 +253,12 @@ calls.
   one standby.
 - The bucket replica is also the disaster-recovery story, which option B
   doesn't give.
-- Duplicate lift runs are a failure mode we already design for (lifts are
+- Duplicate step runs are a failure mode we already design for (steps are
   retried and should be idempotent). Reconciling manifests from the bucket
-  removes the costly case: a finished lift whose pallet exists.
+  removes the costly case: a finished step whose data version exists.
 
 **Move to option B** when a deployment can't accept even rare duplicate runs
-(lifts that are expensive or not idempotent at all) or needs failover under
+(steps that are expensive or not idempotent at all) or needs failover under
 5 s. The pieces we build for A carry over:
 
 - the node and its supervisor,
@@ -275,7 +275,7 @@ leader process. Both would put user code next to the one writer.
 
 1. **Nodes:** `moksha node --name`, `nodes:` in the config, and the
    supervisor moved out of `dev`. Workers exit when their node is gone, and
-   lift results are retried until delivered (both needed anyway).
+   step results are retried until delivered (both needed anyway).
 2. **Terms reach workers:** the term goes on every API reply; the SDK drops
    lower terms; the core rejects results from attempts of a term it no longer
    honours.

@@ -16,8 +16,8 @@ import (
 )
 
 // Console is what `moksha dev` prints: a line when a run starts and when
-// it ends, and in between what its lifts printed and logged, each line
-// marked with the run and the lift. With events, it also prints the
+// it ends, and in between what its steps printed and logged, each line
+// marked with the run and the step. With events, it also prints the
 // engine's own events (Describe), for debugging moksha itself.
 func (e *Engine) Console(ctx context.Context, afterSeq int64, events bool, print func(string)) {
 	c := &console{e: e, print: print, runs: map[string]run{}, announced: map[string]bool{}}
@@ -46,34 +46,34 @@ type console struct {
 	e     *Engine
 	print func(string)
 	mu    sync.Mutex
-	runs  map[string]run // by haul ID
-	// Runs whose start was printed. Lift output arrives at once, events a
+	runs  map[string]run // by run ID
+	// Runs whose start was printed. Step output arrives at once, events a
 	// poll later: a run's first output line prints its start first.
 	announced map[string]bool
 }
 
-// announce reports whether haulID's start is still to be printed, and
+// announce reports whether runID's start is still to be printed, and
 // takes that on.
-func (c *console) announce(haulID string) bool {
+func (c *console) announce(runID string) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.announced[haulID] {
+	if c.announced[runID] {
 		return false
 	}
-	c.announced[haulID] = true
+	c.announced[runID] = true
 	return true
 }
 
-func (c *console) run(ctx context.Context, haulID string) run {
+func (c *console) run(ctx context.Context, runID string) run {
 	c.mu.Lock()
-	r, ok := c.runs[haulID]
+	r, ok := c.runs[runID]
 	c.mu.Unlock()
 	if ok {
 		return r
 	}
-	h, err := c.e.Store.GetHaul(ctx, haulID)
+	h, err := c.e.Store.GetRun(ctx, runID)
 	if err != nil {
-		return run{label: short(haulID), inputs: short(haulID)}
+		return run{label: short(runID), inputs: short(runID)}
 	}
 	title := h.Name
 	if ps, err := c.e.Store.ListPipelines(ctx); err == nil {
@@ -86,7 +86,7 @@ func (c *console) run(ctx context.Context, haulID string) run {
 	r = run{inputs: inputs(h.Params, h.ID), started: h.CreatedAt}
 	r.label = title + " " + r.inputs
 	c.mu.Lock()
-	c.runs[haulID] = r
+	c.runs[runID] = r
 	c.mu.Unlock()
 	return r
 }
@@ -106,13 +106,13 @@ func (c *console) watchWaiting(ctx context.Context, hintAfter time.Duration) {
 			return
 		case <-t.C:
 		}
-		hauls, err := c.e.Store.ListHauls(ctx, state.HaulFilter{Statuses: []string{state.HaulRunning}, Limit: 1000})
-		if err != nil || len(hauls) == 0 {
+		runs, err := c.e.Store.ListRuns(ctx, state.RunFilter{Statuses: []string{state.RunRunning}, Limit: 1000})
+		if err != nil || len(runs) == 0 {
 			clear(hinted)
 			continue
 		}
-		ids := make([]string, len(hauls))
-		for i, h := range hauls {
+		ids := make([]string, len(runs))
+		for i, h := range runs {
 			ids[i] = h.ID
 		}
 		ws, err := c.e.Core.Waiting(ctx, ids)
@@ -156,11 +156,11 @@ func inputs(params map[string]any, id string) string {
 
 func (c *console) describeRun(ctx context.Context, ev state.Event) string {
 	switch ev.Type {
-	case state.EventHaulStarted, state.EventHaulFinished, state.EventHaulStuck, state.EventLiftFinished:
+	case state.EventRunStarted, state.EventRunFinished, state.EventRunStuck, state.EventStepFinished:
 	default:
 		return ""
 	}
-	r := c.run(ctx, ev.HaulID)
+	r := c.run(ctx, ev.RunID)
 	var p struct {
 		Status, Reason, Message string
 		Seq                     int
@@ -168,22 +168,22 @@ func (c *console) describeRun(ctx context.Context, ev state.Event) string {
 	}
 	_ = json.Unmarshal(ev.Payload, &p)
 	switch ev.Type {
-	case state.EventLiftFinished:
-		// A reused lift prints nothing: say why it is quiet.
+	case state.EventStepFinished:
+		// A reused step prints nothing: say why it is quiet.
 		if !p.Reused {
 			return ""
 		}
 		name := ""
-		if l, err := c.e.Store.GetLift(ctx, ev.HaulID, p.Seq); err == nil {
+		if l, err := c.e.Store.GetStep(ctx, ev.RunID, p.Seq); err == nil {
 			name = l.Name
 		}
 		return fmt.Sprintf("  %s › %s ↺ reused: same inputs and code, nothing ran", r.inputs, name)
-	case state.EventHaulStarted:
-		if !c.announce(ev.HaulID) {
+	case state.EventRunStarted:
+		if !c.announce(ev.RunID) {
 			return ""
 		}
 		return fmt.Sprintf("▶ %s started", r.label)
-	case state.EventHaulStuck:
+	case state.EventRunStuck:
 		return fmt.Sprintf("■ %s stuck: %s", r.label, p.Message)
 	}
 	took := ""
@@ -191,7 +191,7 @@ func (c *console) describeRun(ctx context.Context, ev state.Event) string {
 		took = " in " + roundDuration(ev.Time.Sub(r.started))
 	}
 	switch p.Status {
-	case state.HaulCompleted:
+	case state.RunCompleted:
 		return fmt.Sprintf("✓ %s completed%s", r.label, took)
 	case "continued":
 		return fmt.Sprintf("↻ %s continued as a new run", r.label)
@@ -213,24 +213,24 @@ func roundDuration(d time.Duration) string {
 	return d.Round(time.Second).String()
 }
 
-// logs prints lift output as it arrives: "  day=2026-10-07 › extract │ text".
+// logs prints step output as it arrives: "  day=2026-10-07 › extract │ text".
 func (c *console) logs(es []runlog.Entry) {
 	ctx := context.Background()
 	names := map[string]map[int]string{}
 	for _, e := range es {
-		if names[e.HaulID] == nil {
-			names[e.HaulID] = map[int]string{}
-			if lifts, err := c.e.Store.ListLifts(ctx, e.HaulID); err == nil {
-				for _, l := range lifts {
-					names[e.HaulID][l.Seq] = l.Name
+		if names[e.RunID] == nil {
+			names[e.RunID] = map[int]string{}
+			if steps, err := c.e.Store.ListSteps(ctx, e.RunID); err == nil {
+				for _, l := range steps {
+					names[e.RunID][l.Seq] = l.Name
 				}
 			}
 		}
-		r := c.run(ctx, e.HaulID)
-		if c.announce(e.HaulID) {
+		r := c.run(ctx, e.RunID)
+		if c.announce(e.RunID) {
 			c.print(fmt.Sprintf("▶ %s started", r.label))
 		}
-		prefix := fmt.Sprintf("  %s › %s │ ", r.inputs, names[e.HaulID][e.Seq])
+		prefix := fmt.Sprintf("  %s › %s │ ", r.inputs, names[e.RunID][e.Seq])
 		text := e.Text
 		if e.Stream == "log" && e.Level != "" && e.Level != "INFO" {
 			text = e.Level + " " + text

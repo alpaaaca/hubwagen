@@ -56,7 +56,7 @@ func (c *Core) Deploy(ctx context.Context, req DeployRequest) (state.Deployment,
 		}
 		d := state.Deployment{Project: req.Project, Version: version, BuildID: req.Build.ID, Image: req.Image,
 			Dir: req.Dir, Python: req.Python, Env: req.Env, Secrets: req.Secrets, Pools: req.Pools,
-			Hauls: slices.Compact(slices.Sorted(slices.Values(req.Build.Hauls))), By: req.By, DeployedAt: c.now()}
+			Pipelines: slices.Compact(slices.Sorted(slices.Values(req.Build.Pipelines))), By: req.By, DeployedAt: c.now()}
 		p := &state.Project{Deployment: d}
 		c.projects[req.Project] = p
 		c.b.catalog = append(c.b.catalog, func(tx *state.Tx) error { return tx.PutProject(*p) })
@@ -88,8 +88,8 @@ func (c *Core) checkDeploy(req DeployRequest) error {
 			return fmt.Errorf("%w: project %s: pool name %q: unique, lower-case letters, digits, - and _", ErrInvalid, req.Project, p.Name)
 		case p.Min < 0 || p.Max < p.Min || p.Max < 1:
 			return fmt.Errorf("%w: project %s: pool %s: want 0 ≤ min ≤ max, max ≥ 1", ErrInvalid, req.Project, p.Name)
-		case p.Lifts < 1 || len(p.Docks) == 0:
-			return fmt.Errorf("%w: project %s: pool %s: needs docks and lifts ≥ 1", ErrInvalid, req.Project, p.Name)
+		case p.Steps < 1 || len(p.Queues) == 0:
+			return fmt.Errorf("%w: project %s: pool %s: needs queues and steps ≥ 1", ErrInvalid, req.Project, p.Name)
 		}
 		seen[p.Name] = true
 	}
@@ -100,8 +100,8 @@ func (c *Core) checkDeploy(req DeployRequest) error {
 		if name == req.Project || other.DeletedAt != nil {
 			continue
 		}
-		for _, h := range req.Build.Hauls {
-			if slices.Contains(other.Hauls, h) {
+		for _, h := range req.Build.Pipelines {
+			if slices.Contains(other.Pipelines, h) {
 				return fmt.Errorf("%w: pipeline %s belongs to project %s", ErrConflict, h, name)
 			}
 		}
@@ -118,9 +118,9 @@ func (c *Core) DeleteProject(ctx context.Context, name, by string, cancelRuns bo
 		if p == nil || p.DeletedAt != nil {
 			return 0, fmt.Errorf("%w: project %s", ErrNotFound, name)
 		}
-		var open []*haulState
-		for _, id := range slices.Sorted(maps.Keys(c.hauls)) {
-			if h := c.hauls[id]; slices.Contains(p.Hauls, h.rec.Name) {
+		var open []*runState
+		for _, id := range slices.Sorted(maps.Keys(c.runs)) {
+			if h := c.runs[id]; slices.Contains(p.Pipelines, h.rec.Name) {
 				open = append(open, h)
 			}
 		}
@@ -128,7 +128,7 @@ func (c *Core) DeleteProject(ctx context.Context, name, by string, cancelRuns bo
 			return 0, fmt.Errorf("%w: project %s has %d open runs: wait for them, or cancel them with the delete", ErrConflict, name, len(open))
 		}
 		for _, h := range open {
-			c.finishHaul(h, state.HaulCancelled, "cancelled", fmt.Sprintf("project %s deleted by %s", name, by), nil)
+			c.finishRun(h, state.RunCancelled, "cancelled", fmt.Sprintf("project %s deleted by %s", name, by), nil)
 		}
 		at := c.now()
 		p.DeletedAt = &at
@@ -150,13 +150,13 @@ func (c *Core) Projects(ctx context.Context) ([]state.Project, error) {
 	})
 }
 
-// deletedProjectOf is the deleted project that defined haul, if no project
+// deletedProjectOf is the deleted project that defined run, if no project
 // still running defines it.
-func (c *Core) deletedProjectOf(haul string) string {
+func (c *Core) deletedProjectOf(run string) string {
 	deleted := ""
 	for _, name := range slices.Sorted(maps.Keys(c.projects)) {
 		p := c.projects[name]
-		if !slices.Contains(p.Hauls, haul) {
+		if !slices.Contains(p.Pipelines, run) {
 			continue
 		}
 		if p.DeletedAt == nil {

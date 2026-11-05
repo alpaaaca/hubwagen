@@ -26,22 +26,22 @@ def until(cond, timeout: float, what: str):
 def test_a_result_waits_for_the_leader_to_come_back(moksha_bin, tmp_path):
     url, dev = start_dev(moksha_bin, tmp_path)
     log = tmp_path / "worker.log"
-    worker = start_worker(url, "example_hauls", SDK / "tests", log)
+    worker = start_worker(url, "example_pipelines", SDK / "tests", log)
     try:
         client = mk.Client(url)
         started, release = tmp_path / "started", tmp_path / "release"
-        haul_id = client.start_haul("wait_for_release", {"started": str(started), "release": str(release)})
-        until(started.exists, 20, "the lift to start")
+        run_id = client.start_run("wait_for_release", {"started": str(started), "release": str(release)})
+        until(started.exists, 20, "the step to start")
 
-        stop(dev, signal.SIGINT)  # the leader goes away while the lift runs ...
-        release.touch()  # ... and the lift finishes meanwhile
+        stop(dev, signal.SIGINT)  # the leader goes away while the step runs ...
+        release.touch()  # ... and the step finishes meanwhile
         until(lambda: "can't deliver the result of step gated" in log.read_text(), 10, "a failed delivery")
 
         _, dev = start_dev(moksha_bin, tmp_path, url)
-        h = wait(client, haul_id)
+        h = wait(client, run_id)
         assert h["status"] == "completed", h
         assert json.loads(h["resultJson"]) == "released"
-        assert h["lifts"][0]["attempts"] == 1, "the first attempt's result was taken, not rerun"
+        assert h["steps"][0]["attempts"] == 1, "the first attempt's result was taken, not rerun"
     finally:
         stop(worker)
         stop(dev, signal.SIGINT)
@@ -56,7 +56,7 @@ server: {{listen: "127.0.0.1:{port}"}}
 workers:
   - name: py
     replicas: 2
-    command: [{sys.executable}, -m, moksha.worker, example_hauls, --poll-wait, 1s]
+    command: [{sys.executable}, -m, moksha.worker, example_pipelines, --poll-wait, 1s]
     dir: {SDK / "tests"}
     env: {{PYTHONPATH: "{SDK / "src"}"}}
 """)

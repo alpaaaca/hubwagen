@@ -23,7 +23,7 @@ type harness struct {
 	core  *Core
 	stop  func() error
 	ids   int
-	// results overrides what runHaul's lifts return, by lift name (JSON).
+	// results overrides what runPipeline's steps return, by step name (JSON).
 	results map[string]string
 	// expectRunErr: the test makes core.Run fail on purpose.
 	expectRunErr bool
@@ -43,12 +43,12 @@ func newHarnessAt(t *testing.T, now time.Time, opts ...option) *harness {
 	t.Cleanup(func() { st.Close() })
 	h := &harness{t: t, ctx: context.Background(), store: st, clock: clock.NewFake(now)}
 	h.start(opts...)
-	// StartHaul takes only hauls some build defines: these are the tests'.
-	require.NoError(t, h.core.RegisterBuild(h.ctx, BuildRequest{ID: "test-hauls", Hauls: testHauls}))
+	// StartRun takes only pipelines some build defines: these are the tests'.
+	require.NoError(t, h.core.RegisterBuild(h.ctx, BuildRequest{ID: "test-runs", Pipelines: testRuns}))
 	return h
 }
 
-var testHauls = []string{"a", "b", "daily_revenue", "fanout", "fire_and_forget", "ingest", "pipeline", "x", "y"}
+var testRuns = []string{"a", "b", "daily_revenue", "fanout", "fire_and_forget", "ingest", "pipeline", "x", "y"}
 
 // start runs a core with a new term over the harness's store.
 func (h *harness) start(opts ...option) {
@@ -115,7 +115,7 @@ func (h *harness) do(f func(c *Core)) {
 	require.NoError(h.t, err)
 }
 
-// fakeWorker polls docks like a real worker would and passes every task it
+// fakeWorker polls queues like a real worker would and passes every task it
 // receives to handle (by default: onto tasks). It stops when the test ends
 // or the core stops.
 type fakeWorker struct {

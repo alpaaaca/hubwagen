@@ -65,7 +65,7 @@ def start_dev(moksha_bin: str, tmp: Path, url: str | None = None,
 
 def start_worker(server: str, module: str | None, cwd: Path, log: Path, *args: str) -> subprocess.Popen:
     """`python -m moksha.worker [module] [args]` from cwd against server,
-    once it has registered its build (the server starts only hauls a build
+    once it has registered its build (the server starts only runs a build
     defines). No module: the worker reads them from cwd/pyproject.toml."""
     env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(SDK / "src"), str(cwd)])}
     proc = subprocess.Popen([sys.executable, "-m", "moksha.worker", *([module] if module else []), "--server", server,
@@ -114,8 +114,8 @@ def server(moksha_bin, tmp_path_factory) -> str:
 
 @pytest.fixture(scope="session")
 def worker(server, tmp_path_factory) -> None:
-    """A worker running tests/example_hauls.py."""
-    proc = start_worker(server, "example_hauls", SDK / "tests", tmp_path_factory.mktemp("worker") / "worker.log")
+    """A worker running tests/example_pipelines.py."""
+    proc = start_worker(server, "example_pipelines", SDK / "tests", tmp_path_factory.mktemp("worker") / "worker.log")
     yield
     stop(proc)
 
@@ -125,11 +125,11 @@ def client(server, worker) -> mk.Client:
     return mk.Client(server)
 
 
-def wait(client: mk.Client, haul_id: str, timeout: float = 20) -> dict:
+def wait(client: mk.Client, run_id: str, timeout: float = 20) -> dict:
     deadline = time.time() + timeout
     while time.time() < deadline:
-        h = client.get_haul(haul_id)
+        h = client.get_run(run_id)
         if h["status"] != "running":
             return h
         time.sleep(0.05)
-    raise AssertionError(f"haul {haul_id} still running: {client.get_haul(haul_id)}")
+    raise AssertionError(f"run {run_id} still running: {client.get_run(run_id)}")

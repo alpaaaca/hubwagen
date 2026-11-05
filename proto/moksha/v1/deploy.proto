@@ -47,11 +47,11 @@ message DeployRequest {
 
 message DeployedPool {
   string name = 1;
-  repeated string docks = 2;
+  repeated string queues = 2;
   int32 min = 3;
   int32 max = 4;
   // Steps one worker runs at once.
-  int32 lifts = 5;
+  int32 steps = 5;
   google.protobuf.Duration idle_after = 6;
 }
 

@@ -1,38 +1,38 @@
-import type { Lift } from "../gen/moksha/v1/haul_pb";
-import { duration, liftStatus, Status, took } from "../format";
+import type { Step } from "../gen/moksha/v1/run_pb";
+import { duration, stepStatus, Status, took } from "../format";
 
 const W = 200; // node width
 const H = 80; // node height
 const GX = 56; // gap between columns
 const GY = 14; // gap between rows
 
-type Node = { key: string; name: string; col: number; row: number; lifts: Lift[]; dataset: string };
+type Node = { key: string; name: string; col: number; row: number; steps: Step[]; dataset: string };
 
-// layout puts each lift in the column after the lifts it reads from, and
-// folds lifts of one name in one column into one node (a fan-out of 100
+// layout puts each step in the column after the steps it reads from, and
+// folds steps of one name in one column into one node (a fan-out of 100
 // extracts is one box, "100 ×").
-export function layout(lifts: Lift[]): { nodes: Node[]; edges: [Node, Node][] } {
+export function layout(steps: Step[]): { nodes: Node[]; edges: [Node, Node][] } {
   const col = new Map<number, number>(); // seq → column
   const nodeOf = new Map<number, Node>(); // seq → node
   const nodes: Node[] = [];
   const rows: number[] = [];
-  for (const l of [...lifts].sort((a, b) => a.seq - b.seq)) {
-    const known = l.after.filter((a) => col.has(a)); // pallets from outside the haul start a column
+  for (const l of [...steps].sort((a, b) => a.seq - b.seq)) {
+    const known = l.after.filter((a) => col.has(a)); // data versions from outside the run start a column
     const c = known.length ? Math.max(...known.map((a) => col.get(a)! + 1)) : 0;
     col.set(l.seq, c);
     const key = `${c}:${l.name}`;
     let n = nodes.find((x) => x.key === key);
     if (!n) {
-      n = { key, name: l.name, col: c, row: rows[c] ?? 0, lifts: [], dataset: l.dataset };
+      n = { key, name: l.name, col: c, row: rows[c] ?? 0, steps: [], dataset: l.dataset };
       rows[c] = n.row + 1;
       nodes.push(n);
     }
-    n.lifts.push(l);
+    n.steps.push(l);
     nodeOf.set(l.seq, n);
   }
   const edges: [Node, Node][] = [];
   const seen = new Set<string>();
-  for (const l of lifts) {
+  for (const l of steps) {
     for (const a of l.after) {
       const from = nodeOf.get(a);
       const to = nodeOf.get(l.seq)!;
@@ -45,29 +45,29 @@ export function layout(lifts: Lift[]): { nodes: Node[]; edges: [Node, Node][] } 
   return { nodes, edges };
 }
 
-// groupStatus is a node's status: the worst of its lifts', or how far along they are.
-function groupStatus(lifts: Lift[]): string {
-  const ss = lifts.map(liftStatus);
+// groupStatus is a node's status: the worst of its steps', or how far along they are.
+function groupStatus(steps: Step[]): string {
+  const ss = steps.map(stepStatus);
   for (const s of ["failed", "cancelled", "retrying", "running", "waiting"]) if (ss.includes(s)) return s;
   return ss.every((s) => s === "reused") ? "reused" : "completed";
 }
 
-// Dag draws a haul's lifts as boxes in columns, with arrows from the lifts
-// whose pallets each one reads.
+// Dag draws a run's steps as boxes in columns, with arrows from the steps
+// whose data versions each one reads.
 export function Dag({
-  lifts,
+  steps,
   now,
   plain = false,
   selected = 0,
   onSelect,
 }: {
-  lifts: Lift[];
+  steps: Step[];
   now: number;
   plain?: boolean;
-  selected?: number; // a lift's seq, to mark its node
-  onSelect?: (seq: number) => void; // clicking a node picks its (first) lift
+  selected?: number; // a step's seq, to mark its node
+  onSelect?: (seq: number) => void; // clicking a node picks its (first) step
 }) {
-  const { nodes, edges } = layout(lifts);
+  const { nodes, edges } = layout(steps);
   const cols = Math.max(...nodes.map((n) => n.col)) + 1;
   const rows = Math.max(...nodes.map((n) => n.row)) + 1;
   const width = cols * W + (cols - 1) * GX;
@@ -93,27 +93,27 @@ export function Dag({
           })}
         </svg>
         {nodes.map((n) => {
-          const status = groupStatus(n.lifts);
-          const one = n.lifts.length === 1 ? n.lifts[0] : undefined;
-          const done = n.lifts.filter((l) => l.status === "completed").length;
+          const status = groupStatus(n.steps);
+          const one = n.steps.length === 1 ? n.steps[0] : undefined;
+          const done = n.steps.filter((l) => l.status === "completed").length;
           const t = one && took(one.scheduledAt, one.finishedAt, now);
           return (
             <div
               key={n.key}
               role="listitem"
-              className={`dag-node${plain ? "" : ` node-${status}`}${onSelect ? " clickable" : ""}${n.lifts.some((l) => l.seq === selected) ? " selected" : ""}`}
+              className={`dag-node${plain ? "" : ` node-${status}`}${onSelect ? " clickable" : ""}${n.steps.some((l) => l.seq === selected) ? " selected" : ""}`}
               style={{ left: x(n), top: y(n), width: W, height: H }}
-              onClick={onSelect && (() => onSelect(n.lifts[0].seq))}
+              onClick={onSelect && (() => onSelect(n.steps[0].seq))}
               title={onSelect ? "show its logs" : undefined}
             >
               <div className="dag-name" title={n.name}>
-                {n.lifts.length > 1 && <span className="dim">{n.lifts.length} × </span>}
+                {n.steps.length > 1 && <span className="dim">{n.steps.length} × </span>}
                 {n.name}
               </div>
               {!plain && (
                 <div className="dag-meta">
                   <Status status={status} />
-                  <span className="dim small">{one ? (t === undefined ? "" : duration(t)) : `${done} of ${n.lifts.length} done`}</span>
+                  <span className="dim small">{one ? (t === undefined ? "" : duration(t)) : `${done} of ${n.steps.length} done`}</span>
                 </div>
               )}
               {n.dataset && (

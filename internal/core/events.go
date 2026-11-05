@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/alper/moksha/internal/pallet"
+	"github.com/alper/moksha/internal/dataversion"
 	"github.com/alper/moksha/internal/state"
 )
 
@@ -12,24 +12,24 @@ import (
 // API and tests; add fields freely, but don't rename existing ones.
 
 type leaderTermStartedPayload struct {
-	Term          int64 `json:"term"`
-	ActiveHauls   int   `json:"active_hauls"`
-	LostHaulTasks int   `json:"lost_haul_tasks"`
+	Term         int64 `json:"term"`
+	ActiveRuns   int   `json:"active_runs"`
+	LostRunTasks int   `json:"lost_run_tasks"`
 }
 
-// Haul events. Seq is the sequence number of the command that created a
-// lift or timer.
+// Run events. Seq is the sequence number of the command that created a
+// step or timer.
 
-type haulStartedPayload struct {
+type runStartedPayload struct {
 	Name    string         `json:"name"`
-	Dock    string         `json:"dock"`
+	Queue   string         `json:"queue"`
 	Trigger string         `json:"trigger"`
 	Params  map[string]any `json:"params,omitempty"`
-	Parent  string         `json:"parent,omitempty"` // a child haul: the haul that started it
+	Parent  string         `json:"parent,omitempty"` // a child run: the run that started it
 }
 
 type subscriptionSetPayload struct {
-	Haul     string        `json:"haul"`
+	Pipeline string        `json:"pipeline"`
 	Datasets []string      `json:"datasets"`
 	Debounce time.Duration `json:"debounce"`
 	MaxWait  time.Duration `json:"max_wait"`
@@ -38,19 +38,19 @@ type subscriptionSetPayload struct {
 }
 
 type subscriptionRemovedPayload struct {
-	Haul  string `json:"haul"`
-	Build string `json:"build"`
+	Pipeline string `json:"pipeline"`
+	Build    string `json:"build"`
 }
 
 type subscriptionStartedPayload struct {
-	Haul    string   `json:"haul"`
-	Pallets []string `json:"pallets"`
-	HaulID  string   `json:"haul_id,omitempty"`
-	Error   string   `json:"error,omitempty"`
+	Pipeline     string   `json:"pipeline"`
+	DataVersions []string `json:"data_versions"`
+	RunID        string   `json:"run_id,omitempty"`
+	Error        string   `json:"error,omitempty"`
 }
 
 type scheduleSetPayload struct {
-	Haul     string    `json:"haul"`
+	Pipeline string    `json:"pipeline"`
 	Cron     string    `json:"cron"`
 	Timezone string    `json:"timezone,omitempty"`
 	Interval string    `json:"interval"`
@@ -60,76 +60,76 @@ type scheduleSetPayload struct {
 }
 
 type scheduleRemovedPayload struct {
-	Haul  string `json:"haul"`
-	Build string `json:"build"` // the build that defines the haul without a schedule
+	Pipeline string `json:"pipeline"`
+	Build    string `json:"build"` // the build that defines the run without a schedule
 }
 
-// scheduleFiredPayload is one due interval: the haul it started, or why
+// scheduleFiredPayload is one due interval: the run it started, or why
 // none was (Skipped, Error).
 type scheduleFiredPayload struct {
-	Haul    string    `json:"haul"`
-	Tick    time.Time `json:"tick"`
-	Start   time.Time `json:"start"`
-	End     time.Time `json:"end"`
-	HaulID  string    `json:"haul_id,omitempty"`
-	Skipped string    `json:"skipped,omitempty"`
-	Error   string    `json:"error,omitempty"`
+	Pipeline string    `json:"pipeline"`
+	Tick     time.Time `json:"tick"`
+	Start    time.Time `json:"start"`
+	End      time.Time `json:"end"`
+	RunID    string    `json:"run_id,omitempty"`
+	Skipped  string    `json:"skipped,omitempty"`
+	Error    string    `json:"error,omitempty"`
 }
 
 type childStartedPayload struct {
 	Seq  int    `json:"seq"`
 	Name string `json:"name"`
-	Haul string `json:"haul"`
+	Run  string `json:"run"`
 }
 
-// childFinishedPayload answers a start_haul command Seq: the waited-for
-// child ended with Status, or (Haul empty) it couldn't start.
+// childFinishedPayload answers a start_run command Seq: the waited-for
+// child ended with Status, or (Run empty) it couldn't start.
 type childFinishedPayload struct {
 	Seq     int             `json:"seq"`
 	Name    string          `json:"name"`
-	Haul    string          `json:"haul,omitempty"`
+	Run     string          `json:"run,omitempty"`
 	Status  string          `json:"status"`
 	Result  json.RawMessage `json:"result,omitempty"`
 	Reason  string          `json:"reason,omitempty"`
 	Message string          `json:"message,omitempty"`
 }
 
-type haulTaskPayload struct {
+type runTaskPayload struct {
 	Number int    `json:"number"`
 	Worker string `json:"worker,omitempty"`
 }
 
-type haulTaskCompletedPayload struct {
-	Number   int          `json:"number"`
-	BuildID  string       `json:"build_id,omitempty"`
-	Commands []Command    `json:"commands,omitempty"` // only the new ones
-	Markers  []Marker     `json:"markers,omitempty"`  // only the new ones
-	Outcome  *HaulOutcome `json:"outcome,omitempty"`
+type runTaskCompletedPayload struct {
+	Number   int         `json:"number"`
+	BuildID  string      `json:"build_id,omitempty"`
+	Commands []Command   `json:"commands,omitempty"` // only the new ones
+	Markers  []Marker    `json:"markers,omitempty"`  // only the new ones
+	Outcome  *RunOutcome `json:"outcome,omitempty"`
 }
 
-type haulTaskFailedPayload struct {
+type runTaskFailedPayload struct {
 	Number  int    `json:"number"`
 	Reason  string `json:"reason"`
 	Message string `json:"message,omitempty"`
 }
 
-type haulStuckPayload struct {
+type runStuckPayload struct {
 	Reason  string `json:"reason"`
 	Message string `json:"message,omitempty"`
 	Seq     int    `json:"seq,omitempty"` // the contradicting command
 }
 
-type haulFinishedPayload struct {
+type runFinishedPayload struct {
 	Status  string          `json:"status"`
 	Reason  string          `json:"reason,omitempty"`
 	Message string          `json:"message,omitempty"`
 	Result  json.RawMessage `json:"result,omitempty"`
 }
 
-type liftScheduledPayload struct {
+type stepScheduledPayload struct {
 	Seq     int             `json:"seq"`
 	Name    string          `json:"name"`
-	Dock    string          `json:"dock"`
+	Queue   string          `json:"queue"`
 	Args    json.RawMessage `json:"args,omitempty"`
 	Timeout time.Duration   `json:"timeout,omitempty"`
 	Retry   *RetryPolicy    `json:"retry,omitempty"`
@@ -141,19 +141,19 @@ type liftScheduledPayload struct {
 	RunReason   string `json:"run_reason,omitempty"`
 }
 
-type liftRetryScheduledPayload struct {
+type stepRetryScheduledPayload struct {
 	Seq         int       `json:"seq"`
 	NextAttempt int       `json:"next_attempt"`
 	RetryAt     time.Time `json:"retry_at"`
 }
 
-type liftAttemptDispatchedPayload struct {
+type stepAttemptDispatchedPayload struct {
 	Seq    int    `json:"seq"`
 	Number int    `json:"number"`
 	Worker string `json:"worker"`
 }
 
-type liftAttemptFinishedPayload struct {
+type stepAttemptFinishedPayload struct {
 	Seq     int    `json:"seq"`
 	Number  int    `json:"number"`
 	Status  string `json:"status"`
@@ -161,35 +161,35 @@ type liftAttemptFinishedPayload struct {
 	Message string `json:"message,omitempty"`
 }
 
-// liftFinishedPayload is what a replay reads as the lift's result.
-type liftFinishedPayload struct {
-	Seq     int             `json:"seq"`
-	Status  string          `json:"status"`
-	Result  json.RawMessage `json:"result,omitempty"`
-	Reason  string          `json:"reason,omitempty"`
-	Message string          `json:"message,omitempty"`
-	Pallet  string          `json:"pallet,omitempty"` // the pallet it produced (or reused)
-	Reused  bool            `json:"reused,omitempty"`
+// stepFinishedPayload is what a replay reads as the step's result.
+type stepFinishedPayload struct {
+	Seq         int             `json:"seq"`
+	Status      string          `json:"status"`
+	Result      json.RawMessage `json:"result,omitempty"`
+	Reason      string          `json:"reason,omitempty"`
+	Message     string          `json:"message,omitempty"`
+	DataVersion string          `json:"data_version,omitempty"` // the data version it produced (or reused)
+	Reused      bool            `json:"reused,omitempty"`
 }
 
-// liftReusedPayload names what stands in for the lift: a pallet, or for a
-// lift without an output, the result of the lift (Haul, OnSeq) that ran.
-type liftReusedPayload struct {
+// stepReusedPayload names what stands in for the step: a data version, or for a
+// step without an output, the result of the step (Run, OnSeq) that ran.
+type stepReusedPayload struct {
 	Seq         int    `json:"seq"`
-	Pallet      string `json:"pallet,omitempty"`
-	Haul        string `json:"haul,omitempty"`
+	DataVersion string `json:"data_version,omitempty"`
+	Run         string `json:"run,omitempty"`
 	OnSeq       int    `json:"on_seq,omitempty"`
 	Fingerprint string `json:"fingerprint"`
 }
 
-// queryAnsweredPayload is a latest_pallet answer; Pallet is null when the
-// partition has no committed pallet.
+// queryAnsweredPayload is a latest_version answer; DataVersion is null when the
+// partition has no committed data version.
 type queryAnsweredPayload struct {
-	Seq    int           `json:"seq"`
-	Pallet *palletAnswer `json:"pallet"`
+	Seq         int                `json:"seq"`
+	DataVersion *dataVersionAnswer `json:"data_version"`
 }
 
-type palletAnswer struct {
+type dataVersionAnswer struct {
 	ID          string         `json:"id"`
 	Dataset     string         `json:"dataset"`
 	Partition   string         `json:"partition,omitempty"`
@@ -200,19 +200,19 @@ type palletAnswer struct {
 	CommittedAt *time.Time     `json:"committed_at,omitempty"`
 }
 
-// liftWaitingPayload names the run a lift waits for.
-type liftWaitingPayload struct {
+// stepWaitingPayload names the run a step waits for.
+type stepWaitingPayload struct {
 	Seq         int    `json:"seq"`
 	Fingerprint string `json:"fingerprint"`
-	Haul        string `json:"haul"`   // the running lift's haul
+	Run         string `json:"run"`    // the running step's run
 	OnSeq       int    `json:"on_seq"` // and its seq
 }
 
 type buildRegisteredPayload struct {
-	ID    string                    `json:"id"`
-	Hauls []string                  `json:"hauls,omitempty"`
-	Info  map[string]state.HaulInfo `json:"info,omitempty"`
-	Lifts map[string]string         `json:"lifts"`
+	ID        string                   `json:"id"`
+	Pipelines []string                 `json:"pipelines,omitempty"`
+	Info      map[string]state.RunInfo `json:"info,omitempty"`
+	Steps     map[string]string        `json:"steps"`
 }
 
 type timerStartedPayload struct {
@@ -247,12 +247,12 @@ type datasetCreatedPayload struct {
 	PartitionKey string `json:"partition_key,omitempty"`
 }
 
-// palletRecordedPayload carries the whole manifest, so a new leader can redo
+// dataVersionRecordedPayload carries the whole manifest, so a new leader can redo
 // the promote.
-type palletRecordedPayload struct {
-	Seq      int             `json:"seq"`
-	Manifest pallet.Manifest `json:"manifest"`
-	Location string          `json:"location"`
+type dataVersionRecordedPayload struct {
+	Seq      int                  `json:"seq"`
+	Manifest dataversion.Manifest `json:"manifest"`
+	Location string               `json:"location"`
 }
 
 type retentionSetPayload struct {
@@ -262,27 +262,27 @@ type retentionSetPayload struct {
 	Build    string        `json:"build"`
 }
 
-type palletExpiredPayload struct {
-	Pallet    string `json:"pallet"`
-	Dataset   string `json:"dataset"`
-	Partition string `json:"partition,omitempty"`
-	Reason    string `json:"reason"`
+type dataVersionExpiredPayload struct {
+	DataVersion string `json:"data_version"`
+	Dataset     string `json:"dataset"`
+	Partition   string `json:"partition,omitempty"`
+	Reason      string `json:"reason"`
 }
 
-// palletInvalidatedPayload: InvalidatePallet marked Pallet invalid, because
-// of Cause (itself, or a pallet it was built from).
-type palletInvalidatedPayload struct {
-	Pallet    string `json:"pallet"`
-	Dataset   string `json:"dataset"`
-	Partition string `json:"partition,omitempty"`
-	Reason    string `json:"reason"`
-	Cause     string `json:"cause"`
-	By        string `json:"by,omitempty"`
+// dataVersionInvalidatedPayload: InvalidateDataVersion marked DataVersion invalid, because
+// of Cause (itself, or a data version it was built from).
+type dataVersionInvalidatedPayload struct {
+	DataVersion string `json:"data_version"`
+	Dataset     string `json:"dataset"`
+	Partition   string `json:"partition,omitempty"`
+	Reason      string `json:"reason"`
+	Cause       string `json:"cause"`
+	By          string `json:"by,omitempty"`
 }
 
-type palletPayload struct {
-	Pallet  string `json:"pallet"`
-	Seq     int    `json:"seq"`
-	Reason  string `json:"reason,omitempty"`
-	Message string `json:"message,omitempty"`
+type dataVersionPayload struct {
+	DataVersion string `json:"data_version"`
+	Seq         int    `json:"seq"`
+	Reason      string `json:"reason,omitempty"`
+	Message     string `json:"message,omitempty"`
 }

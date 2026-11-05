@@ -59,18 +59,18 @@ func (s *server) upload(t *testing.T, attempt, path string, content []byte) {
 	require.Equal(t, http.StatusOK, status, string(body))
 }
 
-// checkInputs reads every input of the lift task through download URLs:
+// checkInputs reads every input of the step task through download URLs:
 // build reads what extract wrote.
-func (s *server) checkInputs(t *testing.T, task *mokshav1.LiftTask) {
+func (s *server) checkInputs(t *testing.T, task *mokshav1.StepTask) {
 	t.Helper()
 	for _, in := range task.Inputs {
-		res, err := s.client.GetDownloadURLs(ctx, connect.NewRequest(&mokshav1.GetDownloadURLsRequest{AttemptId: task.Id, Pallet: in.Pallet}))
+		res, err := s.client.GetDownloadURLs(ctx, connect.NewRequest(&mokshav1.GetDownloadURLsRequest{AttemptId: task.Id, DataVersion: in.DataVersion}))
 		require.NoError(t, err)
 		var m struct {
-			Pallet string `json:"pallet"`
+			DataVersion string `json:"data_version"`
 		}
 		require.NoError(t, json.Unmarshal([]byte(res.Msg.ManifestJson), &m))
-		assert.Equal(t, in.Pallet, m.Pallet)
+		assert.Equal(t, in.DataVersion, m.DataVersion)
 		require.Len(t, res.Msg.Files, 1)
 		assert.Equal(t, "part-0.csv", res.Msg.Files[0].Path)
 		status, body := s.do(t, http.MethodGet, res.Msg.Files[0], nil)
@@ -79,41 +79,41 @@ func (s *server) checkInputs(t *testing.T, task *mokshav1.LiftTask) {
 	}
 }
 
-// A worker that shares no filesystem with the server runs the haul twice,
-// moving data only through URLs: the second run reuses both lifts.
-func TestLiftDataThroughURLs(t *testing.T) {
+// A worker that shares no filesystem with the server runs the run twice,
+// moving data only through URLs: the second run reuses both steps.
+func TestStepDataThroughURLs(t *testing.T) {
 	run := func(t *testing.T, s *server) {
 		s.viaURLs = true
 		_, err := s.client.RegisterBuild(ctx, connect.NewRequest(&mokshav1.RegisterBuildRequest{
-			BuildId: "b1", Hauls: []string{"daily_revenue"}, LiftVersions: map[string]string{"extract": "v1", "build": "v1"}}))
+			BuildId: "b1", Pipelines: []string{"daily_revenue"}, StepVersions: map[string]string{"extract": "v1", "build": "v1"}}))
 		require.NoError(t, err)
 		for i, want := range [][]string{{"extract", "build"}, nil} {
-			res, err := s.core.StartHaul(ctx, core.StartHaulRequest{Tenant: "t", Name: "daily_revenue", Params: map[string]any{"day": "2026-10-24"}})
+			res, err := s.core.StartRun(ctx, core.StartRunRequest{Tenant: "t", Name: "daily_revenue", Params: map[string]any{"day": "2026-10-24"}})
 			require.NoError(t, err)
-			assert.Equal(t, want, s.work(t, res.HaulID), "run %d", i+1)
-			h, err := s.store.GetHaul(ctx, res.HaulID)
+			assert.Equal(t, want, s.work(t, res.RunID), "run %d", i+1)
+			h, err := s.store.GetRun(ctx, res.RunID)
 			require.NoError(t, err)
-			assert.Equal(t, state.HaulCompleted, h.Status)
+			assert.Equal(t, state.RunCompleted, h.Status)
 		}
 	}
 	t.Run("file bucket, through the server", func(t *testing.T) { run(t, start(t)) })
 	t.Run("s3 bucket, presigned", func(t *testing.T) {
-		srv, endpoint := s3fake.Start(t, "hwb")
-		b, err := blob.OpenS3(ctx, blob.S3Config{URL: "s3://hwb/prod", Endpoint: endpoint, PathStyle: true, AccessKeyID: "k", SecretAccessKey: "s"})
+		srv, endpoint := s3fake.Start(t, "mkb")
+		b, err := blob.OpenS3(ctx, blob.S3Config{URL: "s3://mkb/prod", Endpoint: endpoint, PathStyle: true, AccessKeyID: "k", SecretAccessKey: "s"})
 		require.NoError(t, err)
 		s := startWith(t, b, false)
 		run(t, s)
 		var data int
-		for _, k := range srv.Keys("hwb") {
+		for _, k := range srv.Keys("mkb") {
 			if strings.HasSuffix(k, "/part-0.csv") {
 				data++
 			}
 		}
-		assert.Equal(t, 2, data, "both pallets' files are in the store")
+		assert.Equal(t, 2, data, "both data versions' files are in the store")
 	})
 	t.Run("s3 bucket, through the server", func(t *testing.T) {
-		_, endpoint := s3fake.Start(t, "hwb")
-		b, err := blob.OpenS3(ctx, blob.S3Config{URL: "s3://hwb", Endpoint: endpoint, PathStyle: true, AccessKeyID: "k", SecretAccessKey: "s"})
+		_, endpoint := s3fake.Start(t, "mkb")
+		b, err := blob.OpenS3(ctx, blob.S3Config{URL: "s3://mkb", Endpoint: endpoint, PathStyle: true, AccessKeyID: "k", SecretAccessKey: "s"})
 		require.NoError(t, err)
 		run(t, startWith(t, b, true))
 	})
@@ -124,16 +124,16 @@ func TestLiftDataThroughURLs(t *testing.T) {
 func TestTransferURLsAreScoped(t *testing.T) {
 	s := start(t)
 	_, err := s.client.RegisterBuild(ctx, connect.NewRequest(&mokshav1.RegisterBuildRequest{
-		BuildId: "b1", Hauls: []string{"daily_revenue"}, LiftVersions: map[string]string{"extract": "v1", "build": "v1"}}))
+		BuildId: "b1", Pipelines: []string{"daily_revenue"}, StepVersions: map[string]string{"extract": "v1", "build": "v1"}}))
 	require.NoError(t, err)
-	_, err = s.core.StartHaul(ctx, core.StartHaulRequest{Tenant: "t", Name: "daily_revenue", Params: map[string]any{"day": "2026-10-24"}})
+	_, err = s.core.StartRun(ctx, core.StartRunRequest{Tenant: "t", Name: "daily_revenue", Params: map[string]any{"day": "2026-10-24"}})
 	require.NoError(t, err)
-	hr, err := s.client.PollHaulTask(ctx, connect.NewRequest(&mokshav1.PollHaulTaskRequest{WorkerId: "w1", Docks: []string{core.DefaultDock}, Wait: durationpb.New(time.Second)}))
+	hr, err := s.client.PollRunTask(ctx, connect.NewRequest(&mokshav1.PollRunTaskRequest{WorkerId: "w1", Queues: []string{core.DefaultQueue}, Wait: durationpb.New(time.Second)}))
 	require.NoError(t, err)
-	cmds, _ := s.replay(hr.Msg.Task.Logbook)
-	_, err = s.client.CompleteHaulTask(ctx, connect.NewRequest(&mokshav1.CompleteHaulTaskRequest{TaskId: hr.Msg.Task.Id, BuildId: "b1", Commands: cmds}))
+	cmds, _ := s.replay(hr.Msg.Task.EventLog)
+	_, err = s.client.CompleteRunTask(ctx, connect.NewRequest(&mokshav1.CompleteRunTaskRequest{TaskId: hr.Msg.Task.Id, BuildId: "b1", Commands: cmds}))
 	require.NoError(t, err)
-	lr, err := s.client.PollLiftTask(ctx, connect.NewRequest(&mokshav1.PollLiftTaskRequest{WorkerId: "w1", Docks: []string{core.DefaultDock}, Wait: durationpb.New(time.Second)}))
+	lr, err := s.client.PollStepTask(ctx, connect.NewRequest(&mokshav1.PollStepTaskRequest{WorkerId: "w1", Queues: []string{core.DefaultQueue}, Wait: durationpb.New(time.Second)}))
 	require.NoError(t, err)
 	task := lr.Msg.Task
 	require.NotNil(t, task)
@@ -155,7 +155,7 @@ func TestTransferURLsAreScoped(t *testing.T) {
 	}
 	_, err = s.client.GetUploadURLs(ctx, connect.NewRequest(&mokshav1.GetUploadURLsRequest{AttemptId: "not-running"}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
-	_, err = s.client.GetDownloadURLs(ctx, connect.NewRequest(&mokshav1.GetDownloadURLsRequest{AttemptId: task.Id, Pallet: "not-an-input"}))
+	_, err = s.client.GetDownloadURLs(ctx, connect.NewRequest(&mokshav1.GetDownloadURLsRequest{AttemptId: task.Id, DataVersion: "not-an-input"}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 
 	tr, err := upload("dir/part 0.csv")
@@ -190,8 +190,8 @@ func TestTransferURLsAreScoped(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, status, "the expiry is signed")
 
 	// Once the attempt has finished, it gets no more URLs.
-	_, err = s.client.CompleteLiftTask(ctx, connect.NewRequest(&mokshav1.CompleteLiftTaskRequest{
-		AttemptId: task.Id, Status: mokshav1.CompleteLiftTaskRequest_STATUS_FAILED, Reason: "x", NoRetry: true}))
+	_, err = s.client.CompleteStepTask(ctx, connect.NewRequest(&mokshav1.CompleteStepTaskRequest{
+		AttemptId: task.Id, Status: mokshav1.CompleteStepTaskRequest_STATUS_FAILED, Reason: "x", NoRetry: true}))
 	require.NoError(t, err)
 	_, err = upload("late.csv")
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))

@@ -131,7 +131,7 @@ func workerProcess(w config.Worker, id, server, dataDir string, extraEnv ...stri
 		env = append(env, k+"="+v)
 	}
 	env = append(env, config.EnvWorkerID+"="+id,
-		config.EnvDocks+"="+strings.Join(w.DockList(), ","), config.EnvLifts+"="+strconv.Itoa(w.LiftCount()))
+		config.EnvQueues+"="+strings.Join(w.QueueList(), ","), config.EnvSteps+"="+strconv.Itoa(w.StepCount()))
 	env = append(env, extraEnv...)
 	if w.Launcher == config.LauncherContainer {
 		// No supervisor PID: in the container's PID namespace it means
@@ -171,9 +171,9 @@ func startWorkers(ctx context.Context, g *supervise.Group, cfg *config.Config, c
 			}
 			continue
 		}
-		p := pools.Pool{Name: w.Name, Docks: w.DockList(), Lifts: w.LiftCount(), Min: lo, Max: hi,
+		p := pools.Pool{Name: w.Name, Queues: w.QueueList(), Steps: w.StepCount(), Min: lo, Max: hi,
 			IdleAfter: w.Idle(), External: w.External()}
-		msg := "scaled by the work waiting on its docks"
+		msg := "scaled by the work waiting on its queues"
 		switch w.Launcher {
 		case config.LauncherExternal:
 			msg = "started elsewhere; its desired count is at GET /v1/pools/" + w.Name
@@ -182,14 +182,14 @@ func startWorkers(ctx context.Context, g *supervise.Group, cfg *config.Config, c
 			p.Apply = func(ctx context.Context, n int) error { return kube.Scale(ctx, ns, deployment, n) }
 			msg = "the replicas of Deployment " + or(ns, kube.Namespace) + "/" + deployment
 		case config.LauncherContainer:
-			msg = "containers of " + w.Image + ", scaled by the work waiting on its docks"
+			msg = "containers of " + w.Image + ", scaled by the work waiting on its queues"
 		}
 		static = append(static, p)
 		launcher.set(w.Name, func(id string) (supervise.Process, error) {
 			return workerProcess(w, id, server, cfg.DataDir, extraEnv...), nil
 		})
 		log.Info("worker pool "+w.Name+": "+msg, "pool", w.Name, "min", lo, "max", hi,
-			"docks", strings.Join(w.DockList(), ","), "idle_after", w.Idle())
+			"queues", strings.Join(w.QueueList(), ","), "idle_after", w.Idle())
 	}
 	sc := pools.New(static, launcher, c, clock.Real{}, log)
 	go sc.Run(ctx)
@@ -242,7 +242,7 @@ func followProjects(ctx context.Context, c *core.Core, sc *pools.Scaler, static 
 					}
 					return workerProcess(w, id, server, cfg.DataDir, extraEnv...), nil
 				})
-				all = append(all, pools.Pool{Name: name, Docks: dp.Docks, Lifts: dp.Lifts, Min: dp.Min, Max: dp.Max, IdleAfter: dp.IdleAfter,
+				all = append(all, pools.Pool{Name: name, Queues: dp.Queues, Steps: dp.Steps, Min: dp.Min, Max: dp.Max, IdleAfter: dp.IdleAfter,
 					Registered: true}) // deploying registered its build
 			}
 		}
@@ -276,8 +276,8 @@ func followProjects(ctx context.Context, c *core.Core, sc *pools.Scaler, static 
 // projectWorker is the worker group a deployed pool runs as: containers of
 // the deployment's image, or processes in its directory.
 func projectWorker(p state.Project, dp state.DeployedPool, name string, cfg *config.Config) config.Worker {
-	lifts := dp.Lifts
-	w := config.Worker{Name: name, Docks: dp.Docks, Lifts: &lifts, Env: p.Env}
+	steps := dp.Steps
+	w := config.Worker{Name: name, Queues: dp.Queues, Steps: &steps, Env: p.Env}
 	if p.Image != "" {
 		w.Launcher, w.Image, w.Runtime, w.ServerURL = config.LauncherContainer, p.Image, cfg.Projects.Runtime, cfg.Projects.ServerURL
 		w.AuthFile = cfg.Projects.AuthFile

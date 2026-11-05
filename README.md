@@ -136,9 +136,7 @@ moksha start daily --param day=2026-10-04 --wait
 - The **bucket** holds the data versions. Only the server opens it;
   workers on other machines move data through URLs it hands out.
 
-The design is in [docs/architecture.md](docs/architecture.md). (Inside,
-the engine calls a pipeline a haul, a step a lift and a data version a
-pallet.)
+The design is in [docs/architecture.md](docs/architecture.md).
 
 ## Running it
 
@@ -165,7 +163,7 @@ web UI, invalidating data versions, and showing what is stale. See
 - [Configuration](docs/config.md): `moksha.yaml`
 - [Deployment](docs/deploy.md): images, compose, Helm
 - [Projects](docs/projects.md): a repo's project file and `moksha deploy`
-- [Architecture](docs/architecture.md): hauls, lifts, pallets, memoization, commits
+- [Architecture](docs/architecture.md): runs, steps, data versions, memoization, commits
 - [Roadmap](docs/roadmap.md)
 
 ## Development

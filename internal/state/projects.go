@@ -31,8 +31,8 @@ type Deployment struct {
 	// when it starts a worker (env name → secret name). Never the values.
 	Secrets map[string]string `json:"secrets,omitempty"`
 	Pools   []DeployedPool    `json:"pools"`
-	// Hauls are the pipelines its build defines.
-	Hauls      []string  `json:"hauls"`
+	// Pipelines are the pipelines its build defines.
+	Pipelines  []string  `json:"pipelines"`
 	By         string    `json:"by,omitempty"`
 	DeployedAt time.Time `json:"deployed_at"`
 }
@@ -40,10 +40,10 @@ type Deployment struct {
 // DeployedPool is a pool of a deployment's workers.
 type DeployedPool struct {
 	Name      string        `json:"name"`
-	Docks     []string      `json:"docks"`
+	Queues    []string      `json:"queues"`
 	Min       int           `json:"min"`
 	Max       int           `json:"max"`
-	Lifts     int           `json:"lifts"`
+	Steps     int           `json:"steps"`
 	IdleAfter time.Duration `json:"idle_after"`
 }
 

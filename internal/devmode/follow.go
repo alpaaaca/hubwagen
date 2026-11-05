@@ -11,8 +11,8 @@ import (
 )
 
 // Follow calls fn with a one-line description of every notable event after
-// afterSeq (hauls started, stuck and finished; lift attempts dispatched;
-// lifts finished, reused and retried; builds registered), and each with
+// afterSeq (runs started, stuck and finished; step attempts dispatched;
+// steps finished, reused and retried; builds registered), and each with
 // every event, polling the event log until ctx ends. Either may be nil.
 // `moksha dev --events` prints these.
 func (e *Engine) Follow(ctx context.Context, afterSeq int64, fn func(string), each func(state.Event)) {
@@ -51,7 +51,7 @@ func (e *Engine) LastSeq(ctx context.Context) int64 {
 	return n
 }
 
-// short abbreviates a haul ID to its last characters.
+// short abbreviates a run ID to its last characters.
 func short(id string) string {
 	if len(id) > 10 {
 		return "…" + id[len(id)-10:]
@@ -65,87 +65,87 @@ func Describe(ev state.Event) string {
 	_ = json.Unmarshal(ev.Payload, &p)
 	str := func(k string) string { s, _ := p[k].(string); return s }
 	num := func(k string) int { f, _ := p[k].(float64); return int(f) }
-	haul := short(ev.HaulID)
+	run := short(ev.RunID)
 	why := strings.TrimSpace(str("reason") + " " + str("message"))
 	switch ev.Type {
-	case state.EventHaulStarted:
+	case state.EventRunStarted:
 		params, _ := json.Marshal(p["params"])
-		return fmt.Sprintf("haul %s %s started %s", haul, str("name"), params)
-	case state.EventHaulFinished:
-		if why != "" && str("status") != state.HaulCompleted {
-			return fmt.Sprintf("haul %s %s: %s", haul, str("status"), why)
+		return fmt.Sprintf("run %s %s started %s", run, str("name"), params)
+	case state.EventRunFinished:
+		if why != "" && str("status") != state.RunCompleted {
+			return fmt.Sprintf("run %s %s: %s", run, str("status"), why)
 		}
-		return fmt.Sprintf("haul %s %s", haul, str("status"))
-	case state.EventHaulStuck:
-		return fmt.Sprintf("haul %s stuck: %s", haul, str("message"))
-	case state.EventLiftScheduled:
-		return fmt.Sprintf("haul %s: lift %d %s scheduled (%s)", haul, num("seq"), str("name"), str("run_reason"))
-	case state.EventPalletInvalidated:
-		if ev.HaulID != "" { // a promote that failed
-			return fmt.Sprintf("haul %s: pallet %s invalid: %s", haul, short(str("pallet")), why)
+		return fmt.Sprintf("run %s %s", run, str("status"))
+	case state.EventRunStuck:
+		return fmt.Sprintf("run %s stuck: %s", run, str("message"))
+	case state.EventStepScheduled:
+		return fmt.Sprintf("run %s: step %d %s scheduled (%s)", run, num("seq"), str("name"), str("run_reason"))
+	case state.EventDataVersionInvalidated:
+		if ev.RunID != "" { // a promote that failed
+			return fmt.Sprintf("run %s: data version %s invalid: %s", run, short(str("data_version")), why)
 		}
-		return fmt.Sprintf("pallet %s (%s %s) invalidated: %s", short(str("pallet")), str("dataset"), str("partition"), str("reason"))
+		return fmt.Sprintf("data version %s (%s %s) invalidated: %s", short(str("data_version")), str("dataset"), str("partition"), str("reason"))
 	case state.EventSubscriptionSet:
 		ds, _ := json.Marshal(p["datasets"])
-		return fmt.Sprintf("subscription %s: on %s", str("haul"), ds)
+		return fmt.Sprintf("subscription %s: on %s", str("pipeline"), ds)
 	case state.EventSubscriptionRemoved:
-		return fmt.Sprintf("subscription %s removed", str("haul"))
+		return fmt.Sprintf("subscription %s removed", str("pipeline"))
 	case state.EventSubscriptionStarted:
 		n := 0
-		if ps, ok := p["pallets"].([]any); ok {
+		if ps, ok := p["versions"].([]any); ok {
 			n = len(ps)
 		}
 		if str("error") != "" {
-			return fmt.Sprintf("subscription %s: couldn't start: %s", str("haul"), str("error"))
+			return fmt.Sprintf("subscription %s: couldn't start: %s", str("pipeline"), str("error"))
 		}
-		return fmt.Sprintf("subscription %s: started haul %s with %d pallets", str("haul"), short(str("haul_id")), n)
+		return fmt.Sprintf("subscription %s: started run %s with %d data versions", str("pipeline"), short(str("run_id")), n)
 	case state.EventScheduleSet:
-		return fmt.Sprintf("schedule %s: %s (%s, catch-up %s)", str("haul"), str("cron"), str("interval"), str("catch_up"))
+		return fmt.Sprintf("schedule %s: %s (%s, catch-up %s)", str("pipeline"), str("cron"), str("interval"), str("catch_up"))
 	case state.EventScheduleRemoved:
-		return fmt.Sprintf("schedule %s removed", str("haul"))
+		return fmt.Sprintf("schedule %s removed", str("pipeline"))
 	case state.EventScheduleFired:
 		switch {
 		case str("skipped") != "":
-			return fmt.Sprintf("schedule %s: skipped %s..%s (%s)", str("haul"), str("start"), str("end"), str("skipped"))
+			return fmt.Sprintf("schedule %s: skipped %s..%s (%s)", str("pipeline"), str("start"), str("end"), str("skipped"))
 		case str("error") != "":
-			return fmt.Sprintf("schedule %s: couldn't start: %s", str("haul"), str("error"))
+			return fmt.Sprintf("schedule %s: couldn't start: %s", str("pipeline"), str("error"))
 		}
-		return fmt.Sprintf("schedule %s: started haul %s for %s..%s", str("haul"), short(str("haul_id")), str("start"), str("end"))
+		return fmt.Sprintf("schedule %s: started run %s for %s..%s", str("pipeline"), short(str("run_id")), str("start"), str("end"))
 	case state.EventChildStarted:
-		return fmt.Sprintf("haul %s: started child haul %s %s", haul, short(str("haul")), str("name"))
+		return fmt.Sprintf("run %s: started child run %s %s", run, short(str("run")), str("name"))
 	case state.EventChildFinished:
-		if str("haul") == "" {
-			return fmt.Sprintf("haul %s: child haul %s couldn't start: %s", haul, str("name"), str("message"))
+		if str("run") == "" {
+			return fmt.Sprintf("run %s: child run %s couldn't start: %s", run, str("name"), str("message"))
 		}
-		return fmt.Sprintf("haul %s: child haul %s %s", haul, short(str("haul")), str("status"))
+		return fmt.Sprintf("run %s: child run %s %s", run, short(str("run")), str("status"))
 	case state.EventSignalReceived:
-		return fmt.Sprintf("haul %s: signal %s received", haul, str("name"))
+		return fmt.Sprintf("run %s: signal %s received", run, str("name"))
 	case state.EventSignalDelivered:
 		if p["timed_out"] == true {
-			return fmt.Sprintf("haul %s: wait %d for signal %s timed out", haul, num("seq"), str("name"))
+			return fmt.Sprintf("run %s: wait %d for signal %s timed out", run, num("seq"), str("name"))
 		}
-		return fmt.Sprintf("haul %s: wait %d got signal %s", haul, num("seq"), str("name"))
-	case state.EventLiftReused:
-		if str("pallet") == "" {
-			return fmt.Sprintf("haul %s: lift %d reused the result of haul %s lift %d", haul, num("seq"), str("haul"), num("on_seq"))
+		return fmt.Sprintf("run %s: wait %d got signal %s", run, num("seq"), str("name"))
+	case state.EventStepReused:
+		if str("data_version") == "" {
+			return fmt.Sprintf("run %s: step %d reused the result of run %s step %d", run, num("seq"), str("run"), num("on_seq"))
 		}
-		return fmt.Sprintf("haul %s: lift %d reused pallet %s", haul, num("seq"), str("pallet"))
-	case state.EventLiftAttemptDispatched:
-		return fmt.Sprintf("haul %s: lift %d attempt %d → %s", haul, num("seq"), num("number"), str("worker"))
-	case state.EventLiftRetryScheduled:
-		return fmt.Sprintf("haul %s: lift %d will retry (attempt %d)", haul, num("seq"), num("next_attempt"))
-	case state.EventLiftFinished:
+		return fmt.Sprintf("run %s: step %d reused data version %s", run, num("seq"), str("data_version"))
+	case state.EventStepAttemptDispatched:
+		return fmt.Sprintf("run %s: step %d attempt %d → %s", run, num("seq"), num("number"), str("worker"))
+	case state.EventStepRetryScheduled:
+		return fmt.Sprintf("run %s: step %d will retry (attempt %d)", run, num("seq"), num("next_attempt"))
+	case state.EventStepFinished:
 		if p["reused"] == true {
 			return ""
 		}
-		if str("status") != state.LiftCompleted {
-			return fmt.Sprintf("haul %s: lift %d %s: %s", haul, num("seq"), str("status"), why)
+		if str("status") != state.StepCompleted {
+			return fmt.Sprintf("run %s: step %d %s: %s", run, num("seq"), str("status"), why)
 		}
-		return fmt.Sprintf("haul %s: lift %d completed", haul, num("seq"))
+		return fmt.Sprintf("run %s: step %d completed", run, num("seq"))
 	case state.EventBuildRegistered:
-		lifts, _ := p["lifts"].(map[string]any)
-		hauls, _ := p["hauls"].([]any)
-		return fmt.Sprintf("build %s registered (%d hauls, %d lifts)", str("id"), len(hauls), len(lifts))
+		steps, _ := p["steps"].(map[string]any)
+		pipelines, _ := p["pipelines"].([]any)
+		return fmt.Sprintf("build %s registered (%d pipelines, %d steps)", str("id"), len(pipelines), len(steps))
 	}
 	return ""
 }

@@ -7,46 +7,46 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/alper/moksha/internal/api/gen/moksha/v1;mokshav1";
 
-// CatalogService reads the catalog: datasets, their partitions and pallets,
-// and what each pallet was built from and into. It is a projection of the
-// logbooks; the one write is marking bad data invalid.
+// CatalogService reads the catalog: datasets, their partitions and data versions,
+// and what each data version was built from and into. It is a projection of the
+// event logs; the one write is marking bad data invalid.
 service CatalogService {
   rpc ListDatasets(ListDatasetsRequest) returns (ListDatasetsResponse);
-  // ListPartitions returns a dataset's partitions with a committed pallet,
+  // ListPartitions returns a dataset's partitions with a committed data version,
   // each with its newest one, in partition order.
   rpc ListPartitions(ListPartitionsRequest) returns (ListPartitionsResponse);
-  // ListPallets returns pallets newest first.
-  rpc ListPallets(ListPalletsRequest) returns (ListPalletsResponse);
-  // GetPallet returns a pallet, its manifest if it can be read, and its
+  // ListDataVersions returns data versions newest first.
+  rpc ListDataVersions(ListDataVersionsRequest) returns (ListDataVersionsResponse);
+  // GetDataVersion returns a data version, its manifest if it can be read, and its
   // lineage: everything it was built from (upstream) and everything built
   // from it (downstream), transitively.
-  rpc GetPallet(GetPalletRequest) returns (GetPalletResponse);
-  // InvalidatePallet marks a pallet and everything built from it,
+  rpc GetDataVersion(GetDataVersionRequest) returns (GetDataVersionResponse);
+  // InvalidateDataVersion marks a data version and everything built from it,
   // transitively, invalid: never reused, never a dataset's latest. It
-  // returns what it marked (or, dry_run, would mark) and the hauls that
-  // built those pallets, whose replay recomputes them.
-  rpc InvalidatePallet(InvalidatePalletRequest) returns (InvalidatePalletResponse);
-  // ListStale returns the partitions whose latest pallet is out of date:
-  // an input's partition has a newer pallet with other content, or the
-  // newest build has another code version of the lift that built it.
+  // returns what it marked (or, dry_run, would mark) and the runs that
+  // built those data versions, whose replay recomputes them.
+  rpc InvalidateDataVersion(InvalidateDataVersionRequest) returns (InvalidateDataVersionResponse);
+  // ListStale returns the partitions whose latest data version is out of date:
+  // an input's partition has a newer data version with other content, or the
+  // newest build has another code version of the step that built it.
   rpc ListStale(ListStaleRequest) returns (ListStaleResponse);
-  // ExpirePallets expires now what retention no longer keeps (the leader
-  // also does on a timer): the pallets are recorded as expired, then their
+  // ExpireDataVersions expires now what retention no longer keeps (the leader
+  // also does on a timer): the data versions are recorded as expired, then their
   // data is deleted; manifests and lineage stay.
-  rpc ExpirePallets(ExpirePalletsRequest) returns (ExpirePalletsResponse);
+  rpc ExpireDataVersions(ExpireDataVersionsRequest) returns (ExpireDataVersionsResponse);
 }
 
-message ExpirePalletsRequest {
+message ExpireDataVersionsRequest {
   bool dry_run = 1;
 }
 
-message ExpiredPallet {
-  Pallet pallet = 1;
+message ExpiredDataVersion {
+  DataVersion data_version = 1;
   string reason = 2;
 }
 
-message ExpirePalletsResponse {
-  repeated ExpiredPallet expired = 1;
+message ExpireDataVersionsResponse {
+  repeated ExpiredDataVersion expired = 1;
 }
 
 message ListStaleRequest {
@@ -56,41 +56,41 @@ message ListStaleRequest {
   string dataset = 2;
 }
 
-message StalePallet {
-  // The partition's latest pallet.
-  Pallet pallet = 1;
-  string lift = 2;
+message StaleDataVersion {
+  // The partition's latest data version.
+  DataVersion data_version = 1;
+  string step = 2;
   repeated string reasons = 3;
-  // The haul that built it: starting it again with its params refreshes it.
-  HaulRef haul = 4;
+  // The run that built it: starting it again with its params refreshes it.
+  RunRef run = 4;
 }
 
 message ListStaleResponse {
-  repeated StalePallet stale = 1;
+  repeated StaleDataVersion stale = 1;
 }
 
-message InvalidatePalletRequest {
+message InvalidateDataVersionRequest {
   string id = 1;
-  // Required; recorded with every pallet marked.
+  // Required; recorded with every data version marked.
   string reason = 2;
   // Who asked, for the record.
   string by = 3;
   bool dry_run = 4;
 }
 
-// HaulRef is a haul that built an invalidated pallet: replaying it with the
+// RunRef is a run that built an invalidated data version: replaying it with the
 // same params recomputes what was invalidated.
-message HaulRef {
+message RunRef {
   string id = 1;
   string name = 2;
   string params_json = 3;
   string tenant = 4;
 }
 
-message InvalidatePalletResponse {
-  // The pallet itself first.
-  repeated Pallet pallets = 1;
-  repeated HaulRef hauls = 2;
+message InvalidateDataVersionResponse {
+  // The data version itself first.
+  repeated DataVersion data_versions = 1;
+  repeated RunRef runs = 2;
 }
 
 message Dataset {
@@ -105,7 +105,7 @@ message Dataset {
   google.protobuf.Duration keep_for = 6;
 }
 
-message Pallet {
+message DataVersion {
   string id = 1;
   string tenant = 2;
   string dataset = 3;
@@ -116,9 +116,9 @@ message Pallet {
   string fingerprint = 7;
   string stats_json = 8;
   string meta_json = 9;
-  // Who built it: a haul and its lift command.
-  string haul_id = 10;
-  int32 lift_seq = 11;
+  // Who built it: a run and its step command.
+  string run_id = 10;
+  int32 step_seq = 11;
   // pending, committed, invalid or expired.
   string state = 12;
   // Why it is invalid or expired.
@@ -149,16 +149,16 @@ message ListPartitionsRequest {
 
 message Partition {
   string partition = 1;
-  Pallet latest = 2;
-  // Committed pallets of the partition.
-  int32 pallets = 3;
+  DataVersion latest = 2;
+  // Committed data versions of the partition.
+  int32 data_versions = 3;
 }
 
 message ListPartitionsResponse {
   repeated Partition partitions = 1;
 }
 
-message ListPalletsRequest {
+message ListDataVersionsRequest {
   // Default: "default".
   string tenant = 1;
   string dataset = 2;
@@ -166,17 +166,17 @@ message ListPalletsRequest {
   optional string partition = 3;
   // Empty: any.
   repeated string states = 4;
-  // Only pallets older than this one (paging).
+  // Only data versions older than this one (paging).
   string before_id = 5;
   // Default 50, at most 1000.
   int32 limit = 6;
 }
 
-message ListPalletsResponse {
-  repeated Pallet pallets = 1;
+message ListDataVersionsResponse {
+  repeated DataVersion data_versions = 1;
 }
 
-message GetPalletRequest {
+message GetDataVersionRequest {
   string id = 1;
 }
 
@@ -190,27 +190,27 @@ message Manifest {
   // The prefix its files are under.
   string data = 1;
   repeated ManifestFile files = 2;
-  // What the lift returned, if not null.
+  // What the step returned, if not null.
   string result_json = 3;
 }
 
-// LineageEdge: pallet_id was built from input_id, passed as name.
+// LineageEdge: data_version_id was built from input_id, passed as name.
 message LineageEdge {
-  string pallet_id = 1;
+  string data_version_id = 1;
   string input_id = 2;
   string name = 3;
 }
 
 message Lineage {
-  // Including the pallet itself.
-  repeated Pallet pallets = 1;
+  // Including the data version itself.
+  repeated DataVersion data_versions = 1;
   repeated LineageEdge edges = 2;
 }
 
-message GetPalletResponse {
-  Pallet pallet = 1;
-  // The lift that built it.
-  string lift = 2;
+message GetDataVersionResponse {
+  DataVersion data_version = 1;
+  // The step that built it.
+  string step = 2;
   // Unset when it can't be read (expired, or the bucket isn't reachable).
   Manifest manifest = 3;
   string manifest_error = 4;

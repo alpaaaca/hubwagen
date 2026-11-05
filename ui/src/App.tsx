@@ -1,6 +1,6 @@
 import { useRoute } from "./router";
-import { HaulDetail } from "./views/HaulDetail";
-import { HaulList } from "./views/HaulList";
+import { RunDetail } from "./views/RunDetail";
+import { RunList } from "./views/RunList";
 import { Pipeline } from "./views/Pipeline";
 
 export function App() {
@@ -8,17 +8,17 @@ export function App() {
   return (
     <>
       <header>
-        <a href="#/hauls" className="brand">
+        <a href="#/runs" className="brand">
           moksha
         </a>
         <nav>
-          <a href="#/hauls" className="active">
+          <a href="#/runs" className="active">
             Pipelines
           </a>
         </nav>
       </header>
       <main>
-        {route.name === "haul" ? <HaulDetail key={route.id} id={route.id} step={route.step} /> : route.name === "pipeline" ? <Pipeline haul={route.haul} /> : <HaulList />}
+        {route.name === "run" ? <RunDetail key={route.id} id={route.id} step={route.step} /> : route.name === "pipeline" ? <Pipeline run={route.run} /> : <RunList />}
       </main>
     </>
   );

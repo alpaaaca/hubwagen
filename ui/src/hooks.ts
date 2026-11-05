@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-// How often lists and the open haul refresh while the page is visible.
+// How often lists and the open run refresh while the page is visible.
 export const POLL_MS = 2000;
 
 export type Loaded<T> = { data?: T; error?: string; loading: boolean; reload: () => void };

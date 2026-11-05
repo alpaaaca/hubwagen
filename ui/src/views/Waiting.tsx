@@ -1,9 +1,9 @@
-import type { Waiting as WaitingMsg, Worker } from "../gen/moksha/v1/haul_pb";
+import type { Waiting as WaitingMsg, Worker } from "../gen/moksha/v1/run_pb";
 import { ago, when } from "../format";
 import { useApi } from "../api";
 import { usePoll } from "../hooks";
 
-// Waiting says why a running run's work waits (no worker connected, none
+// Waiting says why the work of a run in progress waits (no worker connected, none
 // with its code, all busy), as the server tells it: `code` in its message
 // shows as code.
 export function Waiting({ waiting, short }: { waiting: WaitingMsg; short?: boolean }) {
@@ -33,15 +33,15 @@ function Code({ text }: { text: string }) {
 // lately, for a run that waits.
 export function Workers() {
   const api = useApi();
-  const workers = usePoll(() => api.hauls.listWorkers({}), []);
-  const pools = usePoll(() => api.hauls.listPools({}), []);
+  const workers = usePoll(() => api.runs.listWorkers({}), []);
+  const pools = usePoll(() => api.runs.listPools({}), []);
   const ws = workers.data?.workers;
   if (!ws) return null;
   return (
     <>
       {(pools.data?.pools ?? []).map((p) => (
         <p key={p.name} className="small">
-          Pool <span className="mono">{p.name}</span> ({p.docks.join(", ")}
+          Pool <span className="mono">{p.name}</span> ({p.queues.join(", ")}
           {p.external && ", started elsewhere"}): {p.workers.length} of {p.min}–{p.max} workers
           {p.external && p.desired !== p.workers.length && <>, wants {p.desired}</>}
           {p.starting > 0 && <>, {p.starting} starting</>}
@@ -64,7 +64,7 @@ function WorkerTable({ workers: ws }: { workers: Worker[] }) {
       <thead>
         <tr>
           <th>worker</th>
-          <th>docks</th>
+          <th>queues</th>
           <th>build</th>
           <th>last seen</th>
           <th>now</th>
@@ -74,7 +74,7 @@ function WorkerTable({ workers: ws }: { workers: Worker[] }) {
         {ws.map((w) => (
           <tr key={w.id}>
             <td className="mono">{w.id}</td>
-            <td>{w.docks.join(", ")}</td>
+            <td>{w.queues.join(", ")}</td>
             <td className="mono">{w.buildId ? w.buildId.slice(0, 12) : "–"}</td>
             <td title={when(w.lastSeen)}>{ago(w.lastSeen)}</td>
             <td>{w.running > 0 ? `running ${w.running}` : w.polling ? "waiting for work" : "busy"}</td>

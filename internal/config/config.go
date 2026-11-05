@@ -44,10 +44,10 @@ const (
 	// process, so a supervisor that dies without stopping its workers (kill
 	// -9, a crash) leaves none behind.
 	EnvSupervisorPID = "MOKSHA_SUPERVISOR_PID"
-	// EnvDocks and EnvLifts are the group's docks (comma-separated) and
-	// steps per worker: the Python worker's defaults for --dock and --lifts.
-	EnvDocks = "MOKSHA_DOCKS"
-	EnvLifts = "MOKSHA_LIFTS"
+	// EnvQueues and EnvSteps are the group's queues (comma-separated) and
+	// steps per worker: the Python worker's defaults for --queue and --steps.
+	EnvQueues = "MOKSHA_QUEUES"
+	EnvSteps  = "MOKSHA_STEPS"
 )
 
 type Config struct {
@@ -71,7 +71,7 @@ type Config struct {
 	Path string `yaml:"-"`
 }
 
-// Bucket is where pallets (data versions) are kept. Without a URL it is
+// Bucket is where data versions (data versions) are kept. Without a URL it is
 // file://<data_dir>/bucket. Only the server uses it: workers get URLs from
 // the server for what they read and write.
 type Bucket struct {
@@ -161,9 +161,9 @@ type Server struct {
 
 // Worker is a group of identical worker processes, a pool: a fixed number
 // (replicas), or between min and max, scaled by the server from the work
-// queued on its docks (internal/pools). Each process gets MOKSHA_SERVER
-// (the API's URL), MOKSHA_WORKER_ID (<name>-<n>), MOKSHA_DOCKS and
-// MOKSHA_LIFTS.
+// queued on its queues (internal/pools). Each process gets MOKSHA_SERVER
+// (the API's URL), MOKSHA_WORKER_ID (<name>-<n>), MOKSHA_QUEUES and
+// MOKSHA_STEPS.
 type Worker struct {
 	Name string `yaml:"name"`
 	// Launcher is what starts the group's workers: "process" (default),
@@ -188,8 +188,8 @@ type Worker struct {
 	Replicas   *int     `yaml:"replicas"` // default 1; 0 turns the group off
 	Min        *int     `yaml:"min"`      // instead of replicas: always running
 	Max        *int     `yaml:"max"`      // instead of replicas: at most, when work waits
-	Docks      []string `yaml:"docks"`    // default [default]
-	Lifts      *int     `yaml:"lifts"`    // steps one worker runs at once; default 4
+	Queues     []string `yaml:"queues"`   // default [default]
+	Steps      *int     `yaml:"steps"`    // steps one worker runs at once; default 4
 	// IdleAfter: a worker above min that had nothing to run for this long is
 	// stopped. Default DefaultIdleAfter.
 	IdleAfter Duration          `yaml:"idle_after"`
@@ -198,7 +198,7 @@ type Worker struct {
 }
 
 const (
-	DefaultLifts     = 4 // the Python worker's default
+	DefaultSteps     = 4 // the Python worker's default
 	DefaultIdleAfter = 5 * time.Minute
 )
 
@@ -252,20 +252,20 @@ func (w Worker) External() bool {
 	return w.Launcher == LauncherExternal || w.Launcher == LauncherKubernetes
 }
 
-// DockList is the docks the group's workers poll.
-func (w Worker) DockList() []string {
-	if len(w.Docks) == 0 {
+// QueueList is the queues the group's workers poll.
+func (w Worker) QueueList() []string {
+	if len(w.Queues) == 0 {
 		return []string{"default"}
 	}
-	return w.Docks
+	return w.Queues
 }
 
-// LiftCount is how many steps one worker runs at once.
-func (w Worker) LiftCount() int {
-	if w.Lifts == nil {
-		return DefaultLifts
+// StepCount is how many steps one worker runs at once.
+func (w Worker) StepCount() int {
+	if w.Steps == nil {
+		return DefaultSteps
 	}
-	return *w.Lifts
+	return *w.Steps
 }
 
 // Idle is how long a worker above min may have nothing to run.
@@ -384,7 +384,7 @@ func Parse(data []byte, dir string) (*Config, error) {
 		switch w.Launcher {
 		case "", LauncherProcess:
 			if len(w.Command) == 0 || w.Command[0] == "" {
-				add("%s.command: required, e.g. [python3, -m, moksha.worker, app.hauls]", at)
+				add("%s.command: required, e.g. [python3, -m, moksha.worker, app.pipelines]", at)
 			}
 		case LauncherContainer:
 			if w.Image == "" {
@@ -420,19 +420,19 @@ func Parse(data []byte, dir string) (*Config, error) {
 		case lo > hi:
 			add("%s: min %d is more than max %d", at, lo, hi)
 		}
-		if w.LiftCount() < 1 {
-			add("%s.lifts: must be 1 or more", at)
+		if w.StepCount() < 1 {
+			add("%s.steps: must be 1 or more", at)
 		}
 		if w.IdleAfter < 0 {
 			add("%s.idle_after: must be positive", at)
 		}
-		for j, d := range w.Docks {
+		for j, d := range w.Queues {
 			if d == "" {
-				add("%s.docks[%d]: empty", at, j)
+				add("%s.queues[%d]: empty", at, j)
 			}
 		}
 		for k := range w.Env {
-			if k == EnvServer || k == EnvWorkerID || k == EnvSupervisorPID || k == EnvDocks || k == EnvLifts {
+			if k == EnvServer || k == EnvWorkerID || k == EnvSupervisorPID || k == EnvQueues || k == EnvSteps {
 				add("%s.env.%s: set by moksha", at, k)
 			}
 		}

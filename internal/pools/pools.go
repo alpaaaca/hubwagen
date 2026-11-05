@@ -1,6 +1,6 @@
 // Package pools scales worker pools: the config's worker groups with min
 // below max. Every few seconds the scaler looks at the work queued on each
-// pool's docks that waits for a worker (core.Demand) and at the workers
+// pool's queues that waits for a worker (core.Demand) and at the workers
 // the core sees, then starts workers up to max when work waits and stops
 // those that had nothing to run for idle_after, down to min. A launcher
 // does the starting and stopping (processes today; containers later).
@@ -34,13 +34,13 @@ import (
 // Pool is one worker group as the scaler sees it.
 type Pool struct {
 	Name      string
-	Docks     []string
-	Lifts     int // steps one worker runs at once
+	Queues    []string
+	Steps     int // steps one worker runs at once
 	Min, Max  int
 	IdleAfter time.Duration
 	// External: something else starts its workers (KEDA, an HPA); the
 	// scaler only works out how many it wants (Desired), from the workers
-	// that poll its docks and the work waiting there.
+	// that poll its queues and the work waiting there.
 	External bool
 	// Apply, if set (an external pool), makes the desired count so: it
 	// sets a Kubernetes Deployment's replicas. It is called when the count
@@ -62,7 +62,7 @@ type Launcher interface {
 // Source is what the scaler reads and reports to: the core.
 type Source interface {
 	Workers(ctx context.Context) ([]core.Worker, error)
-	Demand(ctx context.Context) (map[string]core.DockDemand, error)
+	Demand(ctx context.Context) (map[string]core.QueueDemand, error)
 	SetPools(ctx context.Context, pools []core.PoolStatus) error
 }
 
@@ -88,7 +88,7 @@ type poolState struct {
 	workers   map[string]*worker // by ID: started by the launcher
 	decision  string
 	decidedAt time.Time
-	// External pools: when each worker polling its docks last ran
+	// External pools: when each worker polling its queues last ran
 	// something (or was first seen), and the desired count.
 	active  map[string]time.Time
 	desired int
@@ -175,8 +175,8 @@ func (s *Scaler) Tick(ctx context.Context) error {
 		byID[w.ID] = w
 	}
 	now := s.clock.Now()
-	claimed := map[string]bool{} // docks whose demand a pool took on
-	// Workers an external pool counts: those polling its docks that no
+	claimed := map[string]bool{} // queues whose demand a pool took on
+	// Workers an external pool counts: those polling its queues that no
 	// process pool started and no external pool before it counted.
 	counted := map[string]bool{}
 	for _, st := range s.state {
@@ -214,14 +214,14 @@ func (s *Scaler) Tick(ctx context.Context) error {
 		for _, w := range st.workers {
 			st.registered = st.registered || w.seen
 		}
-		haulTasks, lifts, need, docks := waiting(p, demand, claimed, n)
+		runTasks, steps, need, queues := waiting(p, demand, claimed, n)
 		waits := need > 0
 
 		switch {
 		case n < p.Min:
 			s.start(p, st, p.Min-n, now, fmt.Sprintf("below min %d", p.Min))
 		case waits && starting == 0 && n < p.Max:
-			s.start(p, st, min(need, p.Max-n), now, waitsText(haulTasks, lifts, docks))
+			s.start(p, st, min(need, p.Max-n), now, waitsText(runTasks, steps, queues))
 		case !st.registered && n == 0 && p.Max > 0:
 			st.warming = true
 			s.start(p, st, 1, now, registerText)
@@ -235,51 +235,51 @@ func (s *Scaler) Tick(ctx context.Context) error {
 			st.warming = false
 		}
 
-		status = append(status, core.PoolStatus{Name: p.Name, Docks: p.Docks, Min: p.Min, Max: p.Max,
+		status = append(status, core.PoolStatus{Name: p.Name, Queues: p.Queues, Min: p.Min, Max: p.Max,
 			Workers: slices.Sorted(maps.Keys(st.workers)), Starting: s.starting(st, now), Desired: len(st.workers),
 			Decision: st.decision, DecidedAt: st.decidedAt})
 	}
 	return s.src.SetPools(ctx, status)
 }
 
-// waiting is the work waiting on p's docks that no pool before it took on,
-// and how many workers it takes; it marks those docks claimed if p has
+// waiting is the work waiting on p's queues that no pool before it took on,
+// and how many workers it takes; it marks those queues claimed if p has
 // room for more than n workers.
-func waiting(p Pool, demand map[string]core.DockDemand, claimed map[string]bool, n int) (haulTasks, lifts, need int, docks []string) {
-	for _, d := range p.Docks {
+func waiting(p Pool, demand map[string]core.QueueDemand, claimed map[string]bool, n int) (runTasks, steps, need int, queues []string) {
+	for _, d := range p.Queues {
 		dd := demand[d]
-		if claimed[d] || dd.HaulTasks+dd.Lifts == 0 {
+		if claimed[d] || dd.RunTasks+dd.Steps == 0 {
 			continue
 		}
-		haulTasks += dd.HaulTasks
-		lifts += dd.Lifts
-		docks = append(docks, d)
+		runTasks += dd.RunTasks
+		steps += dd.Steps
+		queues = append(queues, d)
 	}
-	if haulTasks+lifts == 0 {
+	if runTasks+steps == 0 {
 		return 0, 0, 0, nil
 	}
 	if n < p.Max {
-		for _, d := range docks {
+		for _, d := range queues {
 			claimed[d] = true
 		}
 	}
-	need = (lifts + p.Lifts - 1) / p.Lifts
+	need = (steps + p.Steps - 1) / p.Steps
 	if need == 0 {
-		need = 1 // haul tasks: any worker takes them
+		need = 1 // run tasks: any worker takes them
 	}
-	return haulTasks, lifts, need, docks
+	return runTasks, steps, need, queues
 }
 
 // external works out how many workers an external pool wants: those
-// polling its docks that ran something within IdleAfter, plus what the
+// polling its queues that ran something within IdleAfter, plus what the
 // work waiting there takes, between Min and Max. Whatever starts its
 // workers reads it (GET /v1/pools/<name>).
-func (s *Scaler) external(ctx context.Context, p Pool, st *poolState, seen []core.Worker, demand map[string]core.DockDemand,
+func (s *Scaler) external(ctx context.Context, p Pool, st *poolState, seen []core.Worker, demand map[string]core.QueueDemand,
 	claimed, counted map[string]bool, now time.Time) core.PoolStatus {
 	var ids []string
 	active := 0
 	for _, w := range seen {
-		if counted[w.ID] || !overlaps(w.Docks, p.Docks) {
+		if counted[w.ID] || !overlaps(w.Queues, p.Queues) {
 			continue
 		}
 		counted[w.ID] = true
@@ -304,7 +304,7 @@ func (s *Scaler) external(ctx context.Context, p Pool, st *poolState, seen []cor
 		}
 	}
 	st.registered = st.registered || len(ids) > 0
-	haulTasks, lifts, need, docks := waiting(p, demand, claimed, active)
+	runTasks, steps, need, queues := waiting(p, demand, claimed, active)
 	desired := min(max(active+need, p.Min), p.Max)
 	warming := !st.registered && desired == 0 && p.Max > 0
 	if warming {
@@ -314,7 +314,7 @@ func (s *Scaler) external(ctx context.Context, p Pool, st *poolState, seen []cor
 		why := "workers had nothing to run for " + p.IdleAfter.String()
 		switch {
 		case need > 0:
-			why = waitsText(haulTasks, lifts, docks)
+			why = waitsText(runTasks, steps, queues)
 		case warming:
 			why = registerText
 		case st.warming:
@@ -334,7 +334,7 @@ func (s *Scaler) external(ctx context.Context, p Pool, st *poolState, seen []cor
 		}
 	}
 	slices.Sort(ids)
-	return core.PoolStatus{Name: p.Name, Docks: p.Docks, Min: p.Min, Max: p.Max, Workers: ids, Desired: desired,
+	return core.PoolStatus{Name: p.Name, Queues: p.Queues, Min: p.Min, Max: p.Max, Workers: ids, Desired: desired,
 		External: true, Decision: st.decision, DecidedAt: st.decidedAt}
 }
 
@@ -414,19 +414,19 @@ func number(id string) int {
 	return n
 }
 
-func waitsText(haulTasks, lifts int, docks []string) string {
+func waitsText(runTasks, steps int, queues []string) string {
 	var parts []string
-	if lifts > 0 {
-		parts = append(parts, plural(lifts, "step"))
+	if steps > 0 {
+		parts = append(parts, plural(steps, "step"))
 	}
-	if haulTasks > 0 {
-		parts = append(parts, plural(haulTasks, "run"))
+	if runTasks > 0 {
+		parts = append(parts, plural(runTasks, "run"))
 	}
 	verb := "wait"
-	if haulTasks+lifts == 1 {
+	if runTasks+steps == 1 {
 		verb = "waits"
 	}
-	return fmt.Sprintf("%s %s on %s", strings.Join(parts, " and "), verb, strings.Join(docks, ", "))
+	return fmt.Sprintf("%s %s on %s", strings.Join(parts, " and "), verb, strings.Join(queues, ", "))
 }
 
 func plural(n int, word string) string {

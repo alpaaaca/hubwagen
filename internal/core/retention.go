@@ -11,18 +11,18 @@ import (
 	"github.com/alper/moksha/internal/state"
 )
 
-// Retention. A build declares, for the datasets its lifts write, how many
+// Retention. A build declares, for the datasets its steps write, how many
 // versions to keep (mk.Dataset(keep=...)); the newest build that declares a
 // dataset decides, and one that declares it without keep removes its
-// retention (everything stays). Per partition, the latest committed pallet
+// retention (everything stays). Per partition, the latest committed data version
 // always stays, and so do those among the newest Versions or committed less
 // than Age ago; the rest expire, unless something running may read them
 // (see state.ExpiryCandidates).
 //
-// Expiring is write before act: the pallet is recorded as expired with a
-// PalletExpired event first, then its data is deleted off the loop. Its
-// manifest and lineage stay, as a record. Expired pallets are never reused
-// or read; a replay that needs one reruns its lift.
+// Expiring is write before act: the data version is recorded as expired with a
+// DataVersionExpired event first, then its data is deleted off the loop. Its
+// manifest and lineage stay, as a record. Expired data versions are never reused
+// or read; a replay that needs one reruns its step.
 //
 // The leader expires on a timer (Config.RetentionEvery) and on request
 // (Expire, `moksha gc`).
@@ -33,7 +33,7 @@ const DefaultRetentionEvery = time.Hour
 // maxExpiredPerRun bounds one run; the next run continues.
 const maxExpiredPerRun = 1000
 
-// DatasetSpec is what a build declares for a dataset its lifts write.
+// DatasetSpec is what a build declares for a dataset its steps write.
 type DatasetSpec struct {
 	Name     string
 	Versions int           // keep the newest N per partition; 0: unset
@@ -84,20 +84,20 @@ func (c *Core) applyRetention(build string, specs []DatasetSpec) {
 	}
 }
 
-// ExpiredPallet is a pallet retention expired (or, dry, would expire).
-type ExpiredPallet struct {
-	Pallet state.Pallet
-	Reason string
+// ExpiredDataVersion is a data version retention expired (or, dry, would expire).
+type ExpiredDataVersion struct {
+	DataVersion state.DataVersion
+	Reason      string
 }
 
 // Expire expires what retention no longer keeps, at most maxExpiredPerRun
-// pallets, oldest first per dataset. DryRun only reports.
-func (c *Core) Expire(ctx context.Context, dryRun bool) ([]ExpiredPallet, error) {
-	return submit(ctx, c, func(c *Core) ([]ExpiredPallet, error) { return c.expire(dryRun) })
+// data versions, oldest first per dataset. DryRun only reports.
+func (c *Core) Expire(ctx context.Context, dryRun bool) ([]ExpiredDataVersion, error) {
+	return submit(ctx, c, func(c *Core) ([]ExpiredDataVersion, error) { return c.expire(dryRun) })
 }
 
-func (c *Core) expire(dryRun bool) ([]ExpiredPallet, error) {
-	var out []ExpiredPallet
+func (c *Core) expire(dryRun bool) ([]ExpiredDataVersion, error) {
+	var out []ExpiredDataVersion
 	for _, name := range slices.Sorted(maps.Keys(c.retention)) {
 		r := c.retention[name]
 		left := maxExpiredPerRun - len(out)
@@ -110,18 +110,18 @@ func (c *Core) expire(dryRun bool) ([]ExpiredPallet, error) {
 		}
 		reason := retentionReason(r)
 		for _, p := range ps {
-			out = append(out, ExpiredPallet{Pallet: p, Reason: reason})
+			out = append(out, ExpiredDataVersion{DataVersion: p, Reason: reason})
 		}
 	}
 	if dryRun {
 		return out, nil
 	}
 	for i := range out {
-		p := &out[i].Pallet
-		p.State, p.Reason, p.RetiredAt = state.PalletExpired, out[i].Reason, ptr(c.now())
-		c.putPallet(*p)
-		c.emit(state.EventPalletExpired, p.Tenant, palletExpiredPayload{
-			Pallet: p.ID, Dataset: p.Dataset, Partition: p.Partition, Reason: out[i].Reason})
+		p := &out[i].DataVersion
+		p.State, p.Reason, p.RetiredAt = state.DataVersionExpired, out[i].Reason, ptr(c.now())
+		c.putDataVersion(*p)
+		c.emit(state.EventDataVersionExpired, p.Tenant, dataVersionExpiredPayload{
+			DataVersion: p.ID, Dataset: p.Dataset, Partition: p.Partition, Reason: out[i].Reason})
 		c.deleteData(p.Location)
 	}
 	return out, nil
@@ -138,20 +138,20 @@ func retentionReason(r state.Retention) string {
 	return fmt.Sprintf("retention: %s keeps each partition's latest and %s", r.Dataset, strings.Join(keep, " and "))
 }
 
-// deleteData removes an expired pallet's files, off the loop, once its
+// deleteData removes an expired data version's files, off the loop, once its
 // expiry is committed. Its manifest stays.
 func (c *Core) deleteData(manifest string) {
-	if c.cfg.Pallets == nil {
+	if c.cfg.DataVersions == nil {
 		return
 	}
-	ctx, store := c.ctx, c.cfg.Pallets
+	ctx, store := c.ctx, c.cfg.DataVersions
 	c.background(func() {
 		m, err := store.Read(ctx, manifest)
 		if err == nil {
 			err = store.Discard(ctx, m.Data)
 		}
 		if err != nil {
-			c.log.Warn("deleting an expired pallet's data failed", "manifest", manifest, "err", err)
+			c.log.Warn("deleting an expired data version's data failed", "manifest", manifest, "err", err)
 		}
 	})
 }

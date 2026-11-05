@@ -1,6 +1,6 @@
 """The M3c demo: the example project in pipelines/examples/revenue, run by a
 real worker against `moksha dev`, replayed with the `moksha replay`
-command. The second replay reuses what didn't change; changing a lift's
+command. The second replay reuses what didn't change; changing a step's
 code or the source data reruns exactly what depends on it."""
 
 import re
@@ -59,18 +59,18 @@ def test_replay_reuses_what_did_not_change(demo):
     # The web UI's view: the pipeline by its title, and each run's steps as
     # a DAG (a step comes after the steps whose data versions it reads).
     api = mk.Client(url)
-    pipelines = api.call("HaulService", "ListPipelines", {})["pipelines"]
+    pipelines = api.call("RunService", "ListPipelines", {})["pipelines"]
     assert [(p["name"], p["title"]) for p in pipelines] == [("daily", "Daily revenue"), ("nightly", "Nightly revenue")]
-    schedules = api.call("HaulService", "ListSchedules", {})["schedules"]
-    assert [(s["haul"], s["cron"], s.get("timezone", "")) for s in schedules] == [("nightly", "0 3 * * *", "")]  # UTC
-    run = api.call("HaulService", "ListHauls", {"name": "daily", "limit": 1})["hauls"][0]
+    schedules = api.call("RunService", "ListSchedules", {})["schedules"]
+    assert [(s["pipeline"], s["cron"], s.get("timezone", "")) for s in schedules] == [("nightly", "0 3 * * *", "")]  # UTC
+    run = api.call("RunService", "ListRuns", {"name": "daily", "limit": 1})["runs"][0]
     assert run["trigger"] == "the CLI"
-    assert run["liftCounts"] == {"total": 3, "completed": 3}
-    history = api.call("HaulService", "ListHauls", {"name": "daily", "limit": 3, "withLifts": True})["hauls"]
-    assert [[(l["name"], l["status"]) for l in h["lifts"]] for h in history] == [
+    assert run["stepCounts"] == {"total": 3, "completed": 3}
+    history = api.call("RunService", "ListRuns", {"name": "daily", "limit": 3, "withSteps": True})["runs"]
+    assert [[(l["name"], l["status"]) for l in h["steps"]] for h in history] == [
         [("extract_orders", "completed"), ("daily_revenue", "completed"), ("revenue_report", "completed")]] * 3
-    lifts = api.call("HaulService", "GetHaul", {"haulId": run["id"]})["haul"]["lifts"]
-    assert [(l["name"], l.get("after", []), l["dataset"]) for l in lifts] == [
+    steps = api.call("RunService", "GetRun", {"runId": run["id"]})["run"]["steps"]
+    assert [(l["name"], l.get("after", []), l["dataset"]) for l in steps] == [
         ("extract_orders", [], "raw.orders"), ("daily_revenue", [1], "mart.daily_revenue"),
         ("revenue_report", [2], "reports.revenue")]
 
@@ -87,8 +87,8 @@ def test_replay_reuses_what_did_not_change(demo):
 
     # daily_revenue's code changes: it runs again, and so does the report
     # built from its new output.
-    hauls = project / "revenue" / "hauls.py"
-    hauls.write_text(hauls.read_text().replace('amount.quantize(Decimal("0.01"))', 'amount.quantize(Decimal("1"))'))
+    runs = project / "revenue" / "pipelines.py"
+    runs.write_text(runs.read_text().replace('amount.quantize(Decimal("0.01"))', 'amount.quantize(Decimal("1"))'))
     restart_worker()
     out = replay("2026-10-01..2026-10-03")
     assert re.fullmatch(normalize("""

@@ -39,22 +39,22 @@ class Client:
         except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
             raise ConnectError("unavailable", f"{self.server}: {getattr(e, 'reason', e)}") from None
 
-    # --- HaulService ---
+    # --- RunService ---
 
-    def start_haul(self, name: str, params: dict[str, Any] | None = None, *, tenant: str = "default",
-                   dock: str = "") -> str:
+    def start_run(self, name: str, params: dict[str, Any] | None = None, *, tenant: str = "default",
+                   queue: str = "") -> str:
         from ._model import encode
         body = {"tenant": tenant, "name": name, "paramsJson": json.dumps(encode(params or {}))}
-        if dock:
-            body["dock"] = dock
-        return self.call("HaulService", "StartHaul", body)["haulId"]
+        if queue:
+            body["queue"] = queue
+        return self.call("RunService", "StartRun", body)["runId"]
 
-    def get_haul(self, haul_id: str) -> dict:
-        return self.call("HaulService", "GetHaul", {"haulId": haul_id})["haul"]
+    def get_run(self, run_id: str) -> dict:
+        return self.call("RunService", "GetRun", {"runId": run_id})["run"]
 
-    def signal_haul(self, haul_id: str, name: str, payload: Any = None) -> str:
-        """Send a signal to a haul (ctx.wait_signal(name) gets payload).
+    def signal_run(self, run_id: str, name: str, payload: Any = None) -> str:
+        """Send a signal to a run (ctx.wait_signal(name) gets payload).
         Returns the signal's ID."""
         from ._model import encode
-        body = {"haulId": haul_id, "name": name, "payloadJson": json.dumps(encode(payload))}
-        return self.call("HaulService", "SignalHaul", body)["signalId"]
+        body = {"runId": run_id, "name": name, "payloadJson": json.dumps(encode(payload))}
+        return self.call("RunService", "SignalRun", body)["signalId"]

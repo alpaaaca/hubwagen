@@ -1,9 +1,9 @@
-"""Replay until blocked: run a haul function against its logbook.
+"""Replay until blocked: run a pipeline function against its event log.
 
-Each ctx call either returns its result from the logbook or is recorded as
+Each ctx call either returns its result from the event log or is recorded as
 a new command; the replay stops at the first call with no result yet. The
 worker sends every command issued (from seq 1) and, if the function ended,
-its outcome. Haul code must be deterministic: the same calls in the same
+its outcome. Pipeline code must be deterministic: the same calls in the same
 order on every replay (see docs/spikes/s1-python-replay.md).
 """
 
@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, NoReturn
 
 from ._guards import NondeterminismError, guarded
-from ._model import DataVersion, Dataset, HaulDef, LiftDef, StepFailed, decode, encode, lift_def
+from ._model import DataVersion, Dataset, PipelineDef, StepDef, StepFailed, decode, encode, step_def
 
 
 class RunFailed(Exception):
@@ -26,21 +26,14 @@ class RunFailed(Exception):
     cancelled, or couldn't start (status "failed", reason "start_failed").
     Pipeline code may catch it."""
 
-    def __init__(self, name: str, haul_id: str, status: str, reason: str, message: str):
-        what = f"the run of {name}" + (f" ({haul_id})" if haul_id else "")
+    def __init__(self, name: str, run_id: str, status: str, reason: str, message: str):
+        what = f"the run of {name}" + (f" ({run_id})" if run_id else "")
         super().__init__(f"{what} {status}: {reason}" + (f": {message}" if message else ""))
-        self.name, self.haul_id, self.status, self.reason, self.message = name, haul_id, status, reason, message
-
-    @property
-    def run_id(self) -> str:
-        return self.haul_id
-
-
-ChildFailed = RunFailed  # the engine's name
+        self.name, self.run_id, self.status, self.reason, self.message = name, run_id, status, reason, message
 
 
 class _ContinueAsNew(BaseException):
-    """Raised by ctx.continue_as_new to end the replay; never seen by haul
+    """Raised by ctx.continue_as_new to end the replay; never seen by run
     code that catches Exception."""
 
     def __init__(self, params: dict):
@@ -48,7 +41,7 @@ class _ContinueAsNew(BaseException):
 
 
 class SignalTimeout(Exception):
-    """ctx.wait_signal's timeout passed before the signal came. Haul code
+    """ctx.wait_signal's timeout passed before the signal came. Pipeline code
     may catch it."""
 
     def __init__(self, name: str, timeout: float | None):
@@ -57,7 +50,7 @@ class SignalTimeout(Exception):
 
 
 class Blocked(BaseException):
-    """The replay reached a call without a result. A BaseException, so haul
+    """The replay reached a call without a result. A BaseException, so run
     code's `except Exception:` can't swallow it and carry on with a made-up
     value."""
 
@@ -90,16 +83,16 @@ class Handle:
     """A step started with ctx.step_async; pass handles to ctx.gather."""
 
     seq: int
-    lift: LiftDef
+    step: StepDef
 
 
 @dataclass
 class ReplayResult:
     commands: list[dict]
-    # Set when the haul function ended: {"status": "STATUS_COMPLETED", ...}.
+    # Set when the pipeline function ended: {"status": "STATUS_COMPLETED", ...}.
     outcome: dict | None
-    # Set when a command contradicted the logbook, or haul code read the
-    # clock or randomness (nondeterministic); the haul will be stuck.
+    # Set when a command contradicted the event log, or pipeline code read the
+    # clock or randomness (nondeterministic); the run will be stuck.
     mismatch: str | None = None
     nondeterministic: bool = False
     # Every version marker the replay decided: [{"name", "version"}].
@@ -110,11 +103,11 @@ class Ctx:
     """What pipeline code gets as its first argument: it starts steps
     (ctx.step), sleeps, waits for signals and starts other pipelines."""
 
-    def __init__(self, haul_id: str, logbook: list[dict], max_parallel: int | None = None):
-        self.haul_id = haul_id
+    def __init__(self, run_id: str, event_log: list[dict], max_parallel: int | None = None):
+        self.run_id = run_id
         self.state: dict[str, Any] = {}  # rebuilt by every replay
-        self.rng = _random.Random(haul_id)  # deterministic per haul
-        self._max_parallel = max_parallel  # @haul(max_parallel=): every lift's haul-wide limit
+        self.rng = _random.Random(run_id)  # deterministic per run
+        self._max_parallel = max_parallel  # @pipeline(max_parallel=): every step's run-wide limit
         self._seq = 0
         self.commands: list[dict] = []
         self.mismatch: str | None = None
@@ -123,17 +116,17 @@ class Ctx:
         self._now: _dt.datetime | None = None
         self._markers: dict[str, int] = {}  # recorded version markers
         self.markers: dict[str, int] = {}  # decided by this replay
-        for e in logbook:
+        for e in event_log:
             payload = json.loads(e.get("payloadJson") or "{}")
             t = _time(e["time"]) if e.get("time") else None
             match e.get("type"):
-                case "HaulStarted":
+                case "RunStarted":
                     self._now = t
-                case "LiftFinished" | "TimerFired" | "QueryAnswered" | "SignalDelivered" | "ChildStarted" | "ChildFinished":
+                case "StepFinished" | "TimerFired" | "QueryAnswered" | "SignalDelivered" | "ChildStarted" | "ChildFinished":
                     # A waited-for child's ChildFinished comes after its
                     # ChildStarted and replaces it.
                     self._results[payload["seq"]] = _Result(payload, t)
-                case "HaulTaskCompleted":
+                case "RunTaskCompleted":
                     self._recorded.extend(payload.get("commands") or [])
                     for m in payload.get("markers") or []:
                         self._markers.setdefault(m["name"], m["version"])
@@ -143,7 +136,7 @@ class Ctx:
     def _command(self, kind: str, body: dict, target: str = "") -> int:
         self._seq += 1
         f = sys._getframe(1)
-        while f.f_code.co_filename == __file__:  # the first frame in haul code
+        while f.f_code.co_filename == __file__:  # the first frame in pipeline code
             f = f.f_back
         cmd = {"seq": self._seq, "source": f"{f.f_code.co_filename}:{f.f_lineno}", **body}
         self.commands.append(cmd)
@@ -152,7 +145,7 @@ class Ctx:
             old_target = old.get("name") or old.get("dataset") or ""
             if old.get("kind") != kind or old_target != target:
                 self.mismatch = (f"command {self._seq}: replay issued {kind} {target!r} at {cmd['source']}, "
-                                 f"the logbook has {old.get('kind')} {old_target!r}"
+                                 f"the event log has {old.get('kind')} {old_target!r}"
                                  + (f" at {old['source']}" if old.get("source") else ""))
                 raise Blocked()
         return self._seq
@@ -165,19 +158,19 @@ class Ctx:
             self._now = r.time
         return r.payload
 
-    def _lift_command(self, f: Callable | str, args: tuple, kwargs: dict) -> tuple[int, LiftDef]:
-        d = lift_def(f)
+    def _step_command(self, f: Callable | str, args: tuple, kwargs: dict) -> tuple[int, StepDef]:
+        d = step_def(f)
         bound = inspect.signature(d.fn).bind(*args, **kwargs)
         inputs, call = [], {}
         for name, value in bound.arguments.items():
             if isinstance(value, DataVersion):
-                inputs.append({"name": name, "pallet": value.id})
+                inputs.append({"name": name, "data_version": value.id})
                 call[name] = {"$input": name}  # the ID stays out of the arguments (and the fingerprint)
             else:
                 call[name] = encode(value)
         body: dict[str, Any] = {"name": d.name, "argsJson": json.dumps(call, sort_keys=True)}
-        if d.dock:
-            body["dock"] = d.dock
+        if d.queue:
+            body["queue"] = d.queue
         if d.timeout:
             body["timeout"] = _duration(d.timeout)
         if d.retry:
@@ -194,43 +187,41 @@ class Ctx:
         if inputs:
             body["inputs"] = inputs
         if self._max_parallel:
-            body["limits"] = [{"group": "haul", "max": self._max_parallel}]
+            body["limits"] = [{"group": "run", "max": self._max_parallel}]
         if d.memo:
             body["memo"] = d.memo
-        return self._command("lift", {"lift": body}, d.name), d
+        return self._command("step", {"step": body}, d.name), d
 
-    def _lift_result(self, seq: int, d: LiftDef, r: dict) -> Any:
+    def _step_result(self, seq: int, d: StepDef, r: dict) -> Any:
         if r.get("status") != "completed":
             raise StepFailed(d.name, r.get("reason", r.get("status", "")), r.get("message", ""))
         result = decode(r.get("result"))
-        if not r.get("pallet"):
+        if not r.get("data_version"):
             return result
-        # A pallet: the lift's output, or for a lift without one, the
+        # A data version: the step's output, or for a step without one, the
         # dataframe it returned, in its implicit dataset.
-        dataset = d.output.name if d.output is not None else "lift:" + d.name
-        return DataVersion(id=r["pallet"], dataset=dataset, result=result, reused=bool(r.get("reused")),
+        dataset = d.output.name if d.output is not None else "step:" + d.name
+        return DataVersion(id=r["data_version"], dataset=dataset, result=result, reused=bool(r.get("reused")),
                       partition=self._partition_of(seq))
 
     def _partition_of(self, seq: int) -> str:
-        return self.commands[seq - 1]["lift"].get("output", {}).get("partition", "")
+        return self.commands[seq - 1]["step"].get("output", {}).get("partition", "")
 
     def step(self, f: Callable | str, *args: Any, **kwargs: Any) -> Any:
         """Run a step and wait for it. Returns what it returned, or a
         DataVersion for a step with an output or one that returned a
         dataframe. Raises StepFailed if it failed."""
-        seq, d = self._lift_command(f, args, kwargs)
+        seq, d = self._step_command(f, args, kwargs)
         r = self._consume(seq)
         if r is None:
             raise Blocked()
-        return self._lift_result(seq, d, r)
+        return self._step_result(seq, d, r)
 
     def step_async(self, f: Callable | str, *args: Any, **kwargs: Any) -> Handle:
         """Start a step without waiting; collect it with gather."""
-        seq, d = self._lift_command(f, args, kwargs)
+        seq, d = self._step_command(f, args, kwargs)
         return Handle(seq, d)
 
-    lift = step  # the engine's names
-    lift_async = step_async
 
     def gather(self, handles: list[Handle], max_parallel: int | None = None) -> list[Any]:
         """Wait for every handle; results in the same order. Raises the first
@@ -247,11 +238,11 @@ class Ctx:
                 limit = {"group": f"gather:{handles[0].seq}", "max": max_parallel}
                 for h in handles:
                     if h.seq > len(self._recorded):  # issued by this replay: not sent yet
-                        self.commands[h.seq - 1]["lift"].setdefault("limits", []).append(limit)
+                        self.commands[h.seq - 1]["step"].setdefault("limits", []).append(limit)
         results = [self._consume(h.seq) for h in handles]
         if any(r is None for r in results):
             raise Blocked()
-        return [self._lift_result(h.seq, h.lift, r) for h, r in zip(handles, results)]
+        return [self._step_result(h.seq, h.step, r) for h, r in zip(handles, results)]
 
     def sleep(self, duration: float | _dt.timedelta) -> None:
         """A durable sleep, held by the server: survives restarts and deploys."""
@@ -279,7 +270,7 @@ class Ctx:
         v = self._markers.get(name)
         if v is None:
             # Inside the recorded history (commands after this point are in the
-            # logbook): this haul ran the code from before the marker.
+            # event log): this run ran the code from before the marker.
             v = min if self._seq < len(self._recorded) else max
             self._markers[name] = v
         elif not min <= v <= max:
@@ -294,12 +285,12 @@ class Ctx:
         run of its own (a sub-run); cancelling or ending this run cancels
         it."""
         params = inputs
-        seq, name = self._start_haul_command(f, params, wait=True)
+        seq, name = self._start_run_command(f, params, wait=True)
         r = self._consume(seq)
         if r is None or "status" not in r:  # not started yet, or started and running
             raise Blocked()
         if r["status"] != "completed":
-            raise RunFailed(name, r.get("haul", ""), r["status"], r.get("reason", ""), r.get("message", ""))
+            raise RunFailed(name, r.get("run", ""), r["status"], r.get("reason", ""), r.get("message", ""))
         return decode(r.get("result"))
 
     def start_run(self, f: Callable | str, **inputs: Any) -> str:
@@ -307,16 +298,14 @@ class Ctx:
         its ID. It carries on whatever this run does. Raises RunFailed if it
         can't start."""
         params = inputs
-        seq, name = self._start_haul_command(f, params, wait=False)
+        seq, name = self._start_run_command(f, params, wait=False)
         r = self._consume(seq)
         if r is None:
             raise Blocked()
         if "status" in r:
             raise RunFailed(name, "", r["status"], r.get("reason", ""), r.get("message", ""))
-        return r["haul"]
+        return r["run"]
 
-    haul = run  # the engine's names
-    start_haul = start_run
 
     def continue_as_new(self, **inputs: Any) -> NoReturn:
         """End this run and start the pipeline again with these inputs and a
@@ -327,11 +316,11 @@ class Ctx:
         params = inputs
         raise _ContinueAsNew(params)
 
-    def _start_haul_command(self, f: Callable | str, params: dict, wait: bool) -> tuple[int, str]:
+    def _start_run_command(self, f: Callable | str, params: dict, wait: bool) -> tuple[int, str]:
         if isinstance(f, str):
             name = f
         else:
-            d = getattr(f, "__moksha_haul__", None)
+            d = getattr(f, "__moksha_pipeline__", None)
             if d is None:
                 raise TypeError(f"{f!r} is not a pipeline (decorate it with @moksha.pipeline)")
             name = d.name
@@ -339,11 +328,11 @@ class Ctx:
         body = {"name": name, "paramsJson": json.dumps(encode(params), sort_keys=True)}
         if wait:
             body["wait"] = True
-        return self._command("start_haul", {"startHaul": body}, name), name
+        return self._command("start_run", {"startRun": body}, name), name
 
     def wait_signal(self, name: str, timeout: float | _dt.timedelta | None = None) -> Any:
-        """Wait for a signal named name (`moksha signal <haul> <name>`, or
-        SignalHaul) and return its payload. A signal sent before the run
+        """Wait for a signal named name (`moksha signal <run> <name>`, or
+        SignalRun) and return its payload. A signal sent before the run
         waits is kept for it; each signal answers one wait. Raises
         SignalTimeout if timeout (seconds or a timedelta) passes first. The
         wait is held by the server: it survives restarts and deploys."""
@@ -369,39 +358,35 @@ class Ctx:
         body = {"dataset": name}
         if partition is not None:
             body["partition"] = _partition_value(partition)
-        seq = self._command("latest_pallet", {"latestPallet": body}, name)
+        seq = self._command("latest_version", {"latestDataVersion": body}, name)
         r = self._consume(seq)
         if r is None:
             raise Blocked()
-        p = r.get("pallet")
+        p = r.get("data_version")
         if not p:
             return None
         return DataVersion(id=p["id"], dataset=p.get("dataset", name), partition=p.get("partition", ""),
                            location=p.get("location", ""), meta=p.get("meta") or {}, stats=p.get("stats") or {})
 
-    latest_pallet = latest_version  # the engine's name
 
     # --- deterministic values ---------------------------------------------
 
     def now(self) -> _dt.datetime:
-        """The time of the newest result this replay has used (the haul's
+        """The time of the newest result this replay has used (the run's
         start before any): the same on every replay."""
         if self._now is None:
-            raise RuntimeError("the logbook has no HaulStarted event")
+            raise RuntimeError("the event log has no RunStarted event")
         return self._now
 
     def random(self) -> float:
-        """A random float, the same sequence on every replay of this haul."""
+        """A random float, the same sequence on every replay of this run."""
         return self.rng.random()
 
 
-def replay(d: HaulDef, haul_id: str, params: dict, logbook: list[dict]) -> ReplayResult:
-    """Run the haul function until it blocks or ends."""
-    ctx = Ctx(haul_id, logbook, d.max_parallel)
+def replay(d: PipelineDef, run_id: str, params: dict, event_log: list[dict]) -> ReplayResult:
+    """Run the pipeline function until it blocks or ends."""
+    ctx = Ctx(run_id, event_log, d.max_parallel)
     takes = inspect.signature(d.fn).parameters
-    if "pallets" in params and "pallets" not in takes and "versions" in takes:
-        # A subscription's new data versions: the server sends them as pallets.
-        params = {("versions" if k == "pallets" else k): v for k, v in params.items()}
     try:
         inspect.signature(d.fn).bind(None, **params)
     except TypeError as e:
@@ -421,7 +406,7 @@ def replay(d: HaulDef, haul_id: str, params: dict, logbook: list[dict]) -> Repla
     except _ContinueAsNew as c:
         return ReplayResult(ctx.commands, {"status": "STATUS_CONTINUED", "paramsJson": json.dumps(encode(c.params))},
                             markers=_markers(ctx))
-    except Exception as e:  # noqa: BLE001 - the haul function raised: it failed
+    except Exception as e:  # noqa: BLE001 - the pipeline function raised: it failed
         return ReplayResult(ctx.commands, {"status": "STATUS_FAILED", "reason": type(e).__name__, "message": str(e)},
                             markers=_markers(ctx))
     return ReplayResult(ctx.commands, {"status": "STATUS_COMPLETED", "resultJson": json.dumps(encode(result))},

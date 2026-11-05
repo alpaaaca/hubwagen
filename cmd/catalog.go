@@ -13,11 +13,11 @@ import (
 )
 
 var (
-	catalogTenant    string
-	palletsPartition string
-	palletsStates    []string
-	palletsAll       bool
-	palletsLimit     int
+	catalogTenant         string
+	dataVersionsPartition string
+	dataVersionsStates    []string
+	dataVersionsAll       bool
+	dataVersionsLimit     int
 )
 
 var datasetsCmd = &cobra.Command{
@@ -28,18 +28,16 @@ partitions have a saved version, and the newest one.`,
 	Args:         cobra.NoArgs,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return serverError(catalogcli.NewClient(haulServer).Datasets(cmd.Context(), os.Stdout, catalogTenant))
+		return serverError(catalogcli.NewClient(apiServer).Datasets(cmd.Context(), os.Stdout, catalogTenant))
 	},
 }
 
-var palletsCmd = &cobra.Command{
-	Use:     "versions <dataset>",
-	Aliases: []string{"pallets"},
-	Short:   "List a dataset's partitions, or its versions",
+var dataVersionsCmd = &cobra.Command{
+	Use:   "versions <dataset>",
+	Short: "List a dataset's partitions, or its versions",
 	Long: `Versions lists a dataset's partitions, each with its latest version and how
 many versions it has. With --partition, --state or --all it lists the
-versions themselves, newest first. (The engine calls a data version a
-pallet; "pallets" works too.)
+versions themselves, newest first.
 
   moksha versions mart.daily_revenue
   moksha versions mart.daily_revenue --partition 2026-10-01
@@ -47,25 +45,24 @@ pallet; "pallets" works too.)
 	Args:         cobra.ExactArgs(1),
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		q := catalogcli.PalletsQuery{Tenant: catalogTenant, Dataset: args[0], States: palletsStates, All: palletsAll, Limit: palletsLimit}
+		q := catalogcli.DataVersionsQuery{Tenant: catalogTenant, Dataset: args[0], States: dataVersionsStates, All: dataVersionsAll, Limit: dataVersionsLimit}
 		if cmd.Flags().Changed("partition") {
-			q.Partition = &palletsPartition
+			q.Partition = &dataVersionsPartition
 		}
-		return serverError(catalogcli.NewClient(haulServer).Pallets(cmd.Context(), os.Stdout, q))
+		return serverError(catalogcli.NewClient(apiServer).DataVersions(cmd.Context(), os.Stdout, q))
 	},
 }
 
-var palletCmd = &cobra.Command{
-	Use:     "data <version-id>",
-	Aliases: []string{"pallet"},
-	Short:   "Show a data version, its files and its lineage",
+var dataVersionCmd = &cobra.Command{
+	Use:   "data <version-id>",
+	Short: "Show a data version, its files and its lineage",
 	Long: `Data shows one version of a dataset: its dataset and partition, the step and
 run that wrote it, its files, and its lineage both ways: everything it was
-built from, and everything built from it. ("pallet" works too.)`,
+built from, and everything built from it.`,
 	Args:         cobra.ExactArgs(1),
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return serverError(catalogcli.NewClient(haulServer).Pallet(cmd.Context(), os.Stdout, args[0]))
+		return serverError(catalogcli.NewClient(apiServer).DataVersion(cmd.Context(), os.Stdout, args[0]))
 	},
 }
 
@@ -86,7 +83,7 @@ the runs to start again: their unchanged steps are reused.
 		if len(args) == 1 {
 			dataset = args[0]
 		}
-		return serverError(catalogcli.NewClient(haulServer).Stale(cmd.Context(), os.Stdout, catalogTenant, dataset))
+		return serverError(catalogcli.NewClient(apiServer).Stale(cmd.Context(), os.Stdout, catalogTenant, dataset))
 	},
 }
 
@@ -102,7 +99,7 @@ expired, then their data is deleted; their manifests and lineage stay.`,
 	Args:         cobra.NoArgs,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return serverError(catalogcli.NewClient(haulServer).GC(cmd.Context(), os.Stdout, gcDryRun))
+		return serverError(catalogcli.NewClient(apiServer).GC(cmd.Context(), os.Stdout, gcDryRun))
 	},
 }
 
@@ -143,29 +140,29 @@ reused, so only the invalid ones run.
 				}
 			}
 		}
-		return serverError(catalogcli.NewClient(haulServer).Invalidate(cmd.Context(), os.Stdout, q))
+		return serverError(catalogcli.NewClient(apiServer).Invalidate(cmd.Context(), os.Stdout, q))
 	},
 }
 
 func init() {
-	invalidateCmd.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "moksha API to talk to (moksha dev or moksha server)")
+	invalidateCmd.Flags().StringVar(&apiServer, "server", "http://127.0.0.1:7070", "moksha API to talk to (moksha dev or moksha server)")
 	invalidateCmd.Flags().StringVar(&invalidateReason, "reason", "", "why the data is bad (required)")
 	invalidateCmd.Flags().BoolVar(&invalidateDryRun, "dry-run", false, "only show what would be marked")
 	invalidateCmd.Flags().BoolVarP(&invalidateYes, "yes", "y", false, "don't ask")
-	palletCmd.AddCommand(invalidateCmd)
-	gcCmd.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "moksha API to talk to (moksha dev or moksha server)")
+	dataVersionCmd.AddCommand(invalidateCmd)
+	gcCmd.Flags().StringVar(&apiServer, "server", "http://127.0.0.1:7070", "moksha API to talk to (moksha dev or moksha server)")
 	gcCmd.Flags().BoolVar(&gcDryRun, "dry-run", false, "only show what would expire")
 	rootCmd.AddCommand(gcCmd)
 
-	for _, c := range []*cobra.Command{datasetsCmd, palletsCmd, palletCmd, staleCmd} {
-		c.Flags().StringVar(&haulServer, "server", "http://127.0.0.1:7070", "moksha API to talk to (moksha dev or moksha server)")
-		if c != palletCmd {
+	for _, c := range []*cobra.Command{datasetsCmd, dataVersionsCmd, dataVersionCmd, staleCmd} {
+		c.Flags().StringVar(&apiServer, "server", "http://127.0.0.1:7070", "moksha API to talk to (moksha dev or moksha server)")
+		if c != dataVersionCmd {
 			c.Flags().StringVar(&catalogTenant, "tenant", "default", "tenant")
 		}
 		rootCmd.AddCommand(c)
 	}
-	palletsCmd.Flags().StringVar(&palletsPartition, "partition", "", "only this partition")
-	palletsCmd.Flags().StringSliceVar(&palletsStates, "state", nil, "only versions in these states (committed, pending, invalid, expired)")
-	palletsCmd.Flags().BoolVar(&palletsAll, "all", false, "every version, not each partition's latest")
-	palletsCmd.Flags().IntVar(&palletsLimit, "limit", 50, "at most this many versions")
+	dataVersionsCmd.Flags().StringVar(&dataVersionsPartition, "partition", "", "only this partition")
+	dataVersionsCmd.Flags().StringSliceVar(&dataVersionsStates, "state", nil, "only versions in these states (committed, pending, invalid, expired)")
+	dataVersionsCmd.Flags().BoolVar(&dataVersionsAll, "all", false, "every version, not each partition's latest")
+	dataVersionsCmd.Flags().IntVar(&dataVersionsLimit, "limit", 50, "at most this many versions")
 }

@@ -30,8 +30,8 @@ var (
 	// ErrUnknownBuild: a worker polled with a build the leader doesn't know;
 	// it should register it (again).
 	ErrUnknownBuild = errors.New("unknown build")
-	// ErrUnknownHaul: no registered build defines the haul.
-	ErrUnknownHaul = errors.New("unknown haul")
+	// ErrUnknownPipeline: no registered build defines the pipeline.
+	ErrUnknownPipeline = errors.New("unknown pipeline")
 	// ErrStopped is returned to callers when the core is not running.
 	ErrStopped = errors.New("core stopped")
 )
@@ -41,10 +41,10 @@ type Config struct {
 	Term   int64 // from Store.StartTerm
 	Clock  clock.Clock
 	Layout layout.Layout
-	// Pallets promotes and discards lift outputs. Without it, lifts that
-	// declare an output fail (reason no_pallet_store).
-	Pallets PalletStore
-	// HeartbeatTimeout, if set, is how long a dispatched lift attempt or haul
+	// DataVersions promotes and discards step outputs. Without it, steps that
+	// declare an output fail (reason no_data_version_store).
+	DataVersions DataVersionStore
+	// HeartbeatTimeout, if set, is how long a dispatched step attempt or run
 	// task survives without a heartbeat from its worker (see leases.go).
 	HeartbeatTimeout time.Duration
 	// RetentionEvery is how often the leader expires what retention no
@@ -53,8 +53,8 @@ type Config struct {
 	// WorkerExpiry is how long a worker counts as connected after its last
 	// poll or heartbeat (see workers.go): 0 is DefaultWorkerExpiry.
 	WorkerExpiry time.Duration
-	// Docks limits docks by name; a dock not listed has no limits.
-	Docks  map[string]DockConfig
+	// Queues limits queues by name; a queue not listed has no limits.
+	Queues map[string]QueueConfig
 	NewID  func() string // default: ULID
 	Logger *slog.Logger
 }
@@ -65,26 +65,26 @@ type Core struct {
 	inbox mailbox
 
 	// Everything below is owned by the Run goroutine.
-	hauls         map[string]*haulState // open hauls
-	haulTasks     map[string]*haulTaskState
-	liftAttempts  map[string]*liftAttemptState // dispatched, unfinished
-	docks         map[string]*dockState
-	datasets      map[string]string             // tenant\x00name → partition key
-	builds        map[string]map[string]string  // build ID → lift → code version
-	buildHauls    map[string]map[string]bool    // build ID → hauls it defines (none recorded: any)
-	haulNames     map[string]bool               // hauls some build defines; StartHaul accepts only these
-	promotions    map[string]*promotion         // by pallet ID, while its promote runs
-	flights       map[string]*flight            // running memoized lifts, by tenant\x00fingerprint
-	schedules     map[string]*scheduleState     // by haul name (ScheduleTenant)
-	subscriptions map[string]*subscriptionState // by haul name
-	retention     map[string]state.Retention    // by dataset name
-	bg            sync.WaitGroup                // background bucket I/O
-	pollers       []*poller                     // waiting, oldest first
-	workers       map[string]*seenWorker        // polled lately, by worker ID (workers.go)
-	pools         []PoolStatus                  // as the scaler last reported them (pools.go)
-	projects      map[string]*state.Project     // by name, deleted ones too (projects.go)
-	b             *batch
-	// queueOrder numbers queued tasks so the oldest across docks goes first.
+	runs           map[string]*runState // open runs
+	runTasks       map[string]*runTaskState
+	stepAttempts   map[string]*stepAttemptState // dispatched, unfinished
+	queues         map[string]*queueState
+	datasets       map[string]string             // tenant\x00name → partition key
+	builds         map[string]map[string]string  // build ID → step → code version
+	buildPipelines map[string]map[string]bool    // build ID → pipelines it defines (none recorded: any)
+	pipelineNames  map[string]bool               // pipelines some build defines; StartRun accepts only these
+	promotions     map[string]*promotion         // by data version ID, while its promote runs
+	flights        map[string]*flight            // running memoized steps, by tenant\x00fingerprint
+	schedules      map[string]*scheduleState     // by run name (ScheduleTenant)
+	subscriptions  map[string]*subscriptionState // by run name
+	retention      map[string]state.Retention    // by dataset name
+	bg             sync.WaitGroup                // background bucket I/O
+	pollers        []*poller                     // waiting, oldest first
+	workers        map[string]*seenWorker        // polled lately, by worker ID (workers.go)
+	pools          []PoolStatus                  // as the scaler last reported them (pools.go)
+	projects       map[string]*state.Project     // by name, deleted ones too (projects.go)
+	b              *batch
+	// queueOrder numbers queued tasks so the oldest across queues goes first.
 	queueOrder uint64
 	ctx        context.Context // Run's context, for store reads inside the loop
 }
@@ -100,24 +100,24 @@ func New(cfg Config) *Core {
 		cfg.Logger = slog.Default()
 	}
 	return &Core{
-		cfg:           cfg,
-		log:           cfg.Logger.With("component", "core", "term", cfg.Term),
-		inbox:         newMailbox(),
-		hauls:         map[string]*haulState{},
-		haulTasks:     map[string]*haulTaskState{},
-		liftAttempts:  map[string]*liftAttemptState{},
-		docks:         map[string]*dockState{},
-		datasets:      map[string]string{},
-		builds:        map[string]map[string]string{},
-		buildHauls:    map[string]map[string]bool{},
-		haulNames:     map[string]bool{},
-		promotions:    map[string]*promotion{},
-		flights:       map[string]*flight{},
-		schedules:     map[string]*scheduleState{},
-		subscriptions: map[string]*subscriptionState{},
-		retention:     map[string]state.Retention{},
-		workers:       map[string]*seenWorker{},
-		projects:      map[string]*state.Project{},
+		cfg:            cfg,
+		log:            cfg.Logger.With("component", "core", "term", cfg.Term),
+		inbox:          newMailbox(),
+		runs:           map[string]*runState{},
+		runTasks:       map[string]*runTaskState{},
+		stepAttempts:   map[string]*stepAttemptState{},
+		queues:         map[string]*queueState{},
+		datasets:       map[string]string{},
+		builds:         map[string]map[string]string{},
+		buildPipelines: map[string]map[string]bool{},
+		pipelineNames:  map[string]bool{},
+		promotions:     map[string]*promotion{},
+		flights:        map[string]*flight{},
+		schedules:      map[string]*scheduleState{},
+		subscriptions:  map[string]*subscriptionState{},
+		retention:      map[string]state.Retention{},
+		workers:        map[string]*seenWorker{},
+		projects:       map[string]*state.Project{},
 	}
 }
 
@@ -149,7 +149,7 @@ func (c *Core) process(ctx context.Context, inputs []input) error {
 	for _, in := range inputs {
 		in.apply(c)
 	}
-	c.matchDocks()
+	c.matchQueues()
 	return c.commit(ctx)
 }
 

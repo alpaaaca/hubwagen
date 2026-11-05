@@ -41,11 +41,11 @@ const (
 
 // LogServiceClient is a client for the moksha.v1.LogService service.
 type LogServiceClient interface {
-	// AppendLogs adds lines to a lift attempt's log. An attempt keeps at most
+	// AppendLogs adds lines to a step attempt's log. An attempt keeps at most
 	// 1 MiB; after that its log says it was cut.
 	AppendLogs(context.Context, *connect.Request[v1.AppendLogsRequest]) (*connect.Response[v1.AppendLogsResponse], error)
-	// GetLogs returns a haul's log lines (of one lift, with seq), oldest
-	// first, lifts interleaved by time.
+	// GetLogs returns a run's log lines (of one step, with seq), oldest
+	// first, steps interleaved by time.
 	GetLogs(context.Context, *connect.Request[v1.GetLogsRequest]) (*connect.Response[v1.GetLogsResponse], error)
 }
 
@@ -93,11 +93,11 @@ func (c *logServiceClient) GetLogs(ctx context.Context, req *connect.Request[v1.
 
 // LogServiceHandler is an implementation of the moksha.v1.LogService service.
 type LogServiceHandler interface {
-	// AppendLogs adds lines to a lift attempt's log. An attempt keeps at most
+	// AppendLogs adds lines to a step attempt's log. An attempt keeps at most
 	// 1 MiB; after that its log says it was cut.
 	AppendLogs(context.Context, *connect.Request[v1.AppendLogsRequest]) (*connect.Response[v1.AppendLogsResponse], error)
-	// GetLogs returns a haul's log lines (of one lift, with seq), oldest
-	// first, lifts interleaved by time.
+	// GetLogs returns a run's log lines (of one step, with seq), oldest
+	// first, steps interleaved by time.
 	GetLogs(context.Context, *connect.Request[v1.GetLogsRequest]) (*connect.Response[v1.GetLogsResponse], error)
 }
 

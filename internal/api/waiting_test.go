@@ -18,40 +18,40 @@ import (
 func TestWaitingOverTheAPI(t *testing.T) {
 	s := start(t)
 	mux := http.NewServeMux()
-	path, h := NewHaulHandler(s.core, s.store)
+	path, h := NewRunHandler(s.core, s.store)
 	mux.Handle(path, h)
-	c := mokshav1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
-	require.NoError(t, s.core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Hauls: []string{"daily"}}))
-	res, err := c.StartHaul(ctx, connect.NewRequest(&mokshav1.StartHaulRequest{Tenant: "t", Name: "daily"}))
+	c := mokshav1connect.NewRunServiceClient(http.DefaultClient, httptestServer(t, mux))
+	require.NoError(t, s.core.RegisterBuild(ctx, core.BuildRequest{ID: "b1", Pipelines: []string{"daily"}}))
+	res, err := c.StartRun(ctx, connect.NewRequest(&mokshav1.StartRunRequest{Tenant: "t", Name: "daily"}))
 	require.NoError(t, err)
-	id := res.Msg.HaulId
+	id := res.Msg.RunId
 
-	got, err := c.GetHaul(ctx, connect.NewRequest(&mokshav1.GetHaulRequest{HaulId: id}))
+	got, err := c.GetRun(ctx, connect.NewRequest(&mokshav1.GetRunRequest{RunId: id}))
 	require.NoError(t, err)
-	w := got.Msg.Haul.Waiting
+	w := got.Msg.Run.Waiting
 	require.NotNil(t, w)
-	assert.Equal(t, []string{"no_worker", "haul", "daily", "default"}, []string{w.Reason, w.Kind, w.Name, w.Dock})
+	assert.Equal(t, []string{"no_worker", "run", "daily", "default"}, []string{w.Reason, w.Kind, w.Name, w.Queue})
 	assert.Contains(t, w.Message, "no worker is connected")
 	assert.NotNil(t, w.Since)
-	list, err := c.ListHauls(ctx, connect.NewRequest(&mokshav1.ListHaulsRequest{}))
+	list, err := c.ListRuns(ctx, connect.NewRequest(&mokshav1.ListRunsRequest{}))
 	require.NoError(t, err)
-	require.Len(t, list.Msg.Hauls, 1)
-	assert.Equal(t, "no_worker", list.Msg.Hauls[0].Waiting.GetReason())
+	require.Len(t, list.Msg.Runs, 1)
+	assert.Equal(t, "no_worker", list.Msg.Runs[0].Waiting.GetReason())
 
 	// A worker takes it: the wait is over, and the worker is listed.
-	_, ok, err := s.core.Poll(ctx, core.PollRequest{WorkerID: "w1", BuildID: "b1", Docks: []string{"default"}})
+	_, ok, err := s.core.Poll(ctx, core.PollRequest{WorkerID: "w1", BuildID: "b1", Queues: []string{"default"}})
 	require.NoError(t, err)
 	require.True(t, ok)
-	got, err = c.GetHaul(ctx, connect.NewRequest(&mokshav1.GetHaulRequest{HaulId: id}))
+	got, err = c.GetRun(ctx, connect.NewRequest(&mokshav1.GetRunRequest{RunId: id}))
 	require.NoError(t, err)
-	assert.Nil(t, got.Msg.Haul.Waiting)
+	assert.Nil(t, got.Msg.Run.Waiting)
 	workers, err := c.ListWorkers(ctx, connect.NewRequest(&mokshav1.ListWorkersRequest{}))
 	require.NoError(t, err)
 	require.Len(t, workers.Msg.Workers, 1)
 	wk := workers.Msg.Workers[0]
 	assert.Equal(t, []string{"w1", "b1"}, []string{wk.Id, wk.BuildId})
-	assert.Equal(t, []string{"default"}, wk.Docks)
-	assert.Equal(t, []string{"haul", "lift"}, wk.Kinds)
+	assert.Equal(t, []string{"default"}, wk.Queues)
+	assert.Equal(t, []string{"run", "step"}, wk.Kinds)
 	assert.False(t, wk.Polling)
 }
 
@@ -60,20 +60,20 @@ func TestWaitingText(t *testing.T) {
 		w    core.Waiting
 		want string
 	}{
-		{core.Waiting{Reason: core.WaitNoWorker, Kind: core.TaskHaul, Name: "daily", Dock: "default"},
+		{core.Waiting{Reason: core.WaitNoWorker, Kind: core.TaskRun, Name: "daily", Queue: "default"},
 			"no worker is connected to run the pipeline's code. Start one with `python -m moksha.worker <modules>` (or `moksha workers --config moksha.yaml`)"},
-		{core.Waiting{Reason: core.WaitNoWorker, Kind: core.TaskLift, Name: "train", Dock: "gpu"},
-			"no worker is connected on dock \"gpu\" to run step train. Start one with `python -m moksha.worker --dock gpu <modules>` (or `moksha workers --config moksha.yaml`)"},
-		{core.Waiting{Reason: core.WaitNoBuild, Kind: core.TaskHaul, Name: "daily", Dock: "default", Workers: 1, Builds: []string{"0123456789abcdef"}},
+		{core.Waiting{Reason: core.WaitNoWorker, Kind: core.TaskStep, Name: "train", Queue: "gpu"},
+			"no worker is connected on queue \"gpu\" to run step train. Start one with `python -m moksha.worker --queue gpu <modules>` (or `moksha workers --config moksha.yaml`)"},
+		{core.Waiting{Reason: core.WaitNoBuild, Kind: core.TaskRun, Name: "daily", Queue: "default", Workers: 1, Builds: []string{"0123456789abcdef"}},
 			"1 worker is connected, but its code doesn't define pipeline daily (build 0123456789ab). Restart a worker with code that has it"},
-		{core.Waiting{Reason: core.WaitNoBuild, Kind: core.TaskLift, Name: "load", Dock: "default", Workers: 2, Builds: []string{"b1", "b2"}},
+		{core.Waiting{Reason: core.WaitNoBuild, Kind: core.TaskStep, Name: "load", Queue: "default", Workers: 2, Builds: []string{"b1", "b2"}},
 			"2 workers are connected, but their code doesn't define step load (build b1, b2). Restart a worker with code that has it"},
-		{core.Waiting{Reason: core.WaitBusy, Kind: core.TaskLift, Name: "load", Dock: "default", Workers: 1},
+		{core.Waiting{Reason: core.WaitBusy, Kind: core.TaskStep, Name: "load", Queue: "default", Workers: 1},
 			"step load waits for a free worker: the workers that can run it are busy"},
-		{core.Waiting{Reason: core.WaitStarting, Kind: core.TaskHaul, Name: "daily", Dock: "default", Pool: "py"},
+		{core.Waiting{Reason: core.WaitStarting, Kind: core.TaskRun, Name: "daily", Queue: "default", Pool: "py"},
 			"a worker is starting in pool py to run the pipeline's code"},
-		{core.Waiting{Reason: core.WaitDockLimit, Kind: core.TaskLift, Name: "train", Dock: "gpu", Workers: 1},
-			"step train waits for a free slot: dock \"gpu\" runs as many steps at once as it may"},
+		{core.Waiting{Reason: core.WaitQueueLimit, Kind: core.TaskStep, Name: "train", Queue: "gpu", Workers: 1},
+			"step train waits for a free slot: queue \"gpu\" runs as many steps at once as it may"},
 	} {
 		assert.Equal(t, tc.want, WaitingText(tc.w))
 	}
@@ -82,11 +82,11 @@ func TestWaitingText(t *testing.T) {
 func TestListPools(t *testing.T) {
 	s := start(t)
 	mux := http.NewServeMux()
-	path, h := NewHaulHandler(s.core, s.store)
+	path, h := NewRunHandler(s.core, s.store)
 	mux.Handle(path, h)
-	c := mokshav1connect.NewHaulServiceClient(http.DefaultClient, httptestServer(t, mux))
+	c := mokshav1connect.NewRunServiceClient(http.DefaultClient, httptestServer(t, mux))
 	at := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
-	require.NoError(t, s.core.SetPools(ctx, []core.PoolStatus{{Name: "py", Docks: []string{"default"}, Min: 0, Max: 3,
+	require.NoError(t, s.core.SetPools(ctx, []core.PoolStatus{{Name: "py", Queues: []string{"default"}, Min: 0, Max: 3,
 		Workers: []string{"py-1"}, Starting: 1, Decision: "started py-1: 1 run waits on default", DecidedAt: at}}))
 	res, err := c.ListPools(ctx, connect.NewRequest(&mokshav1.ListPoolsRequest{}))
 	require.NoError(t, err)
@@ -102,8 +102,8 @@ func TestPoolsAsJSON(t *testing.T) {
 	srv := httptestServer(t, PoolsHandler(s.core))
 	at := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
 	require.NoError(t, s.core.SetPools(ctx, []core.PoolStatus{
-		{Name: "py", Docks: []string{"default"}, Max: 3, Workers: []string{"py-1"}, Desired: 1},
-		{Name: "gpu", Docks: []string{"gpu"}, Max: 4, Desired: 2, External: true, Decision: "wants 2 workers (was 0): 3 steps wait on gpu", DecidedAt: at},
+		{Name: "py", Queues: []string{"default"}, Max: 3, Workers: []string{"py-1"}, Desired: 1},
+		{Name: "gpu", Queues: []string{"gpu"}, Max: 4, Desired: 2, External: true, Decision: "wants 2 workers (was 0): 3 steps wait on gpu", DecidedAt: at},
 	}))
 	get := func(path string) (int, string) {
 		res, err := http.Get(srv + path)
@@ -114,7 +114,7 @@ func TestPoolsAsJSON(t *testing.T) {
 	}
 	code, body := get("/v1/pools/gpu")
 	assert.Equal(t, http.StatusOK, code)
-	assert.JSONEq(t, `{"name":"gpu","launcher":"external","docks":["gpu"],"min":0,"max":4,"desired":2,"workers":0,
+	assert.JSONEq(t, `{"name":"gpu","launcher":"external","queues":["gpu"],"min":0,"max":4,"desired":2,"workers":0,
 		"decision":"wants 2 workers (was 0): 3 steps wait on gpu","decided_at":"2026-10-30T12:00:00Z"}`, body)
 	code, body = get("/v1/pools")
 	assert.Equal(t, http.StatusOK, code)

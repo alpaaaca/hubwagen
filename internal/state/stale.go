@@ -8,26 +8,26 @@ import (
 	"fmt"
 )
 
-// Staleness. A partition's latest pallet is stale when what built it has
+// Staleness. A partition's latest data version is stale when what built it has
 // moved on:
 //
-//   - an input: the dataset partition of a pallet it was built from now has
-//     another latest committed pallet, with other content (the same content
+//   - an input: the dataset partition of a data version it was built from now has
+//     another latest committed data version, with other content (the same content
 //     would be reused, so it doesn't count);
-//   - the code: the newest registered build that defines the lift that
+//   - the code: the newest registered build that defines the step that
 //     built it has another code version for it than the one it ran with
-//     (taken from its fingerprint, else from its haul's build).
+//     (taken from its fingerprint, else from its run's build).
 //
-// A rebuild of the haul that built it refreshes it.
+// A rebuild of the run that built it refreshes it.
 
-// Stale is a partition's latest pallet that is out of date, and why.
+// Stale is a partition's latest data version that is out of date, and why.
 type Stale struct {
-	Pallet  Pallet
-	Lift    string   // the lift that built it
-	Reasons []string // e.g. `input raw.orders 2026-10-01 has a newer pallet 01M…`
+	DataVersion DataVersion
+	Step        string   // the step that built it
+	Reasons     []string // e.g. `input raw.orders 2026-10-01 has a newer data version 01M…`
 }
 
-// StalePartitions returns the stale latest pallets of a tenant's dataset,
+// StalePartitions returns the stale latest data versions of a tenant's dataset,
 // or of all its datasets when dataset is "", by dataset and partition.
 func (s *Store) StalePartitions(ctx context.Context, tenant, dataset string) ([]Stale, error) {
 	var datasets []string
@@ -53,7 +53,7 @@ func (s *Store) StalePartitions(ctx context.Context, tenant, dataset string) ([]
 			for _, p := range parts {
 				st, err := s.staleness(ctx, p.Latest)
 				if err != nil {
-					return nil, fmt.Errorf("pallet %s: %w", p.Latest.ID, err)
+					return nil, fmt.Errorf("data version %s: %w", p.Latest.ID, err)
 				}
 				if len(st.Reasons) > 0 {
 					out = append(out, st)
@@ -68,16 +68,16 @@ func (s *Store) StalePartitions(ctx context.Context, tenant, dataset string) ([]
 	return out, nil
 }
 
-func (s *Store) staleness(ctx context.Context, p Pallet) (Stale, error) {
-	st := Stale{Pallet: p}
-	inputs, err := queryAll(ctx, s.r, scanPallet, `
-		SELECT `+prefixed("i.", palletColumns)+` FROM pallet_inputs e JOIN pallets i ON i.id = e.input_id
-		WHERE e.pallet_id = ? ORDER BY i.dataset, i.partition, i.id`, p.ID)
+func (s *Store) staleness(ctx context.Context, p DataVersion) (Stale, error) {
+	st := Stale{DataVersion: p}
+	inputs, err := queryAll(ctx, s.r, scanDataVersion, `
+		SELECT `+prefixed("i.", dataVersionColumns)+` FROM data_version_inputs e JOIN data_versions i ON i.id = e.input_id
+		WHERE e.data_version_id = ? ORDER BY i.dataset, i.partition, i.id`, p.ID)
 	if err != nil {
 		return st, err
 	}
 	for _, in := range inputs {
-		latest, err := s.LatestPallet(ctx, in.Tenant, in.Dataset, in.Partition)
+		latest, err := s.LatestDataVersion(ctx, in.Tenant, in.Dataset, in.Partition)
 		switch {
 		case errors.Is(err, ErrNotFound):
 			continue // nothing readable there now: nothing newer to build from
@@ -90,39 +90,39 @@ func (s *Store) staleness(ctx context.Context, p Pallet) (Stale, error) {
 		}
 	}
 
-	lift, err := s.GetLift(ctx, p.HaulID, p.LiftSeq)
+	step, err := s.GetStep(ctx, p.RunID, p.StepSeq)
 	if errors.Is(err, ErrNotFound) {
 		return st, nil
 	}
 	if err != nil {
 		return st, err
 	}
-	st.Lift = lift.Name
+	st.Step = step.Name
 	built := ""
 	var fp struct {
 		CodeVersion string `json:"code_version"`
 	}
-	if len(lift.FPInputs) > 0 && json.Unmarshal(lift.FPInputs, &fp) == nil {
+	if len(step.FPInputs) > 0 && json.Unmarshal(step.FPInputs, &fp) == nil {
 		built = fp.CodeVersion
 	}
 	if built == "" {
 		if err := s.r.QueryRowContext(ctx, `
-			SELECT bl.code_version FROM hauls h JOIN build_lifts bl ON bl.build_id = h.build_id AND bl.lift = ?
-			WHERE h.id = ?`, lift.Name, p.HaulID).Scan(&built); err != nil && !errors.Is(err, sql.ErrNoRows) {
+			SELECT bl.code_version FROM runs h JOIN build_steps bl ON bl.build_id = h.build_id AND bl.step = ?
+			WHERE h.id = ?`, step.Name, p.RunID).Scan(&built); err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return st, err
 		}
 	}
 	var current string
 	if err := s.r.QueryRowContext(ctx, `
-		SELECT bl.code_version FROM build_lifts bl JOIN builds b ON b.id = bl.build_id
-		WHERE bl.lift = ? ORDER BY b.registered_at DESC, b.id DESC LIMIT 1`, lift.Name).Scan(&current); err != nil {
+		SELECT bl.code_version FROM build_steps bl JOIN builds b ON b.id = bl.build_id
+		WHERE bl.step = ? ORDER BY b.registered_at DESC, b.id DESC LIMIT 1`, step.Name).Scan(&current); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return st, nil // no build defines the lift any more
+			return st, nil // no build defines the step any more
 		}
 		return st, err
 	}
 	if built != "" && built != current {
-		st.Reasons = append(st.Reasons, fmt.Sprintf("step %s: code changed (%s → %s)", lift.Name, built, current))
+		st.Reasons = append(st.Reasons, fmt.Sprintf("step %s: code changed (%s → %s)", step.Name, built, current))
 	}
 	return st, nil
 }

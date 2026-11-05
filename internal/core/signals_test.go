@@ -14,17 +14,17 @@ func waitSignal(name string, timeout time.Duration) Command {
 	return Command{Kind: CommandWaitSignal, Name: name, Duration: timeout}
 }
 
-func (h *harness) signal(haulID, name, payload string) string {
+func (h *harness) signal(runID, name, payload string) string {
 	h.t.Helper()
-	id, err := h.core.SignalHaul(h.ctx, SignalRequest{HaulID: haulID, Name: name, Payload: json.RawMessage(payload)})
+	id, err := h.core.SignalRun(h.ctx, SignalRequest{RunID: runID, Name: name, Payload: json.RawMessage(payload)})
 	require.NoError(h.t, err)
 	return id
 }
 
-// deliveries returns the haul's SignalDelivered events by wait seq.
-func (h *harness) deliveries(haulID string) map[int]signalDeliveredPayload {
+// deliveries returns the run's SignalDelivered events by wait seq.
+func (h *harness) deliveries(runID string) map[int]signalDeliveredPayload {
 	h.t.Helper()
-	evs, err := h.store.HaulEvents(h.ctx, haulID)
+	evs, err := h.store.RunEvents(h.ctx, runID)
 	require.NoError(h.t, err)
 	out := map[int]signalDeliveredPayload{}
 	for _, e := range evs {
@@ -39,9 +39,9 @@ func (h *harness) deliveries(haulID string) map[int]signalDeliveredPayload {
 	return out
 }
 
-func TestSignalReachesAWaitingHaul(t *testing.T) {
+func TestSignalReachesAWaitingRun(t *testing.T) {
 	h := newHarness(t)
-	id := h.startHaul("x")
+	id := h.startRun("x")
 	h.replay(seqs(waitSignal("approve", 0)), nil)
 	h.pollNothing() // waiting: no replay until something happens
 	assert.Empty(t, h.deliveries(id))
@@ -53,20 +53,20 @@ func TestSignalReachesAWaitingHaul(t *testing.T) {
 	assert.JSONEq(t, `{"by":"ana"}`, string(d.Payload))
 	assert.False(t, d.TimedOut)
 
-	h.replay(seqs(waitSignal("approve", 0)), &HaulOutcome{Status: state.HaulCompleted}) // woken by it
-	assert.Equal(t, state.HaulCompleted, h.haul(id).Status)
+	h.replay(seqs(waitSignal("approve", 0)), &RunOutcome{Status: state.RunCompleted}) // woken by it
+	assert.Equal(t, state.RunCompleted, h.run(id).Status)
 }
 
 func TestSignalSentBeforeTheWaitIsKept(t *testing.T) {
 	h := newHarness(t)
-	id := h.startHaul("x")
-	h.replay(seqs(lift("a")), nil)
+	id := h.startRun("x")
+	h.replay(seqs(stepCmd("a")), nil)
 	early := h.signal(id, "file_arrived", `"a.csv"`)
 	h.signal(id, "other", `1`)
 	assert.Empty(t, h.deliveries(id), "nothing waits yet")
 
-	h.succeedLift(h.poll(TaskLift))
-	h.replay(seqs(lift("a"), waitSignal("file_arrived", time.Hour)), nil)
+	h.succeedStep(h.poll(TaskStep))
+	h.replay(seqs(stepCmd("a"), waitSignal("file_arrived", time.Hour)), nil)
 	d := h.deliveries(id)[2]
 	assert.Equal(t, early, d.Signal, "answered at once by the kept signal")
 	tms, err := h.store.ListTimers(h.ctx, id)
@@ -76,7 +76,7 @@ func TestSignalSentBeforeTheWaitIsKept(t *testing.T) {
 
 func TestEachSignalGoesToOneWaitInOrder(t *testing.T) {
 	h := newHarness(t)
-	id := h.startHaul("x")
+	id := h.startRun("x")
 	first := h.signal(id, "batch", `1`)
 	second := h.signal(id, "batch", `2`)
 	h.replay(seqs(waitSignal("batch", 0)), nil)
@@ -94,7 +94,7 @@ func TestEachSignalGoesToOneWaitInOrder(t *testing.T) {
 
 func TestWaitTimesOut(t *testing.T) {
 	h := newHarness(t)
-	id := h.startHaul("x")
+	id := h.startRun("x")
 	h.replay(seqs(waitSignal("approve", time.Hour)), nil)
 	h.advance(59 * time.Minute)
 	assert.Empty(t, h.deliveries(id))
@@ -103,7 +103,7 @@ func TestWaitTimesOut(t *testing.T) {
 	assert.True(t, d.TimedOut)
 	assert.Empty(t, d.Signal)
 
-	evs, err := h.store.HaulEvents(h.ctx, id)
+	evs, err := h.store.RunEvents(h.ctx, id)
 	require.NoError(t, err)
 	for _, e := range evs {
 		assert.NotEqual(t, state.EventTimerFired, e.Type, "a wait's timeout isn't a sleep's result")
@@ -116,7 +116,7 @@ func TestWaitTimesOut(t *testing.T) {
 
 func TestSignalBeatsTheTimeout(t *testing.T) {
 	h := newHarness(t)
-	id := h.startHaul("x")
+	id := h.startRun("x")
 	h.replay(seqs(waitSignal("approve", time.Hour)), nil)
 	h.signal(id, "approve", `true`)
 	h.advance(2 * time.Hour)
@@ -131,39 +131,39 @@ func TestSignalBeatsTheTimeout(t *testing.T) {
 
 func TestSignalErrors(t *testing.T) {
 	h := newHarness(t)
-	_, err := h.core.SignalHaul(h.ctx, SignalRequest{HaulID: "nope", Name: "x"})
+	_, err := h.core.SignalRun(h.ctx, SignalRequest{RunID: "nope", Name: "x"})
 	assert.ErrorIs(t, err, ErrNotFound)
 
-	id := h.startHaul("x")
-	_, err = h.core.SignalHaul(h.ctx, SignalRequest{HaulID: id, Name: ""})
+	id := h.startRun("x")
+	_, err = h.core.SignalRun(h.ctx, SignalRequest{RunID: id, Name: ""})
 	assert.ErrorIs(t, err, ErrInvalid)
-	_, err = h.core.SignalHaul(h.ctx, SignalRequest{HaulID: id, Name: "x", Payload: json.RawMessage(`{`)})
+	_, err = h.core.SignalRun(h.ctx, SignalRequest{RunID: id, Name: "x", Payload: json.RawMessage(`{`)})
 	assert.ErrorIs(t, err, ErrInvalid)
 	h.signal(id, "x", "") // no payload: null
 
-	h.replay(nil, &HaulOutcome{Status: state.HaulCompleted})
-	_, err = h.core.SignalHaul(h.ctx, SignalRequest{HaulID: id, Name: "x"})
-	assert.ErrorIs(t, err, ErrHaulFinished)
+	h.replay(nil, &RunOutcome{Status: state.RunCompleted})
+	_, err = h.core.SignalRun(h.ctx, SignalRequest{RunID: id, Name: "x"})
+	assert.ErrorIs(t, err, ErrRunFinished)
 	assert.ErrorContains(t, err, "is completed")
 
-	assert.ErrorContains(t, validateHaulTaskResult(HaulTaskResult{Commands: seqs(waitSignal("", 0))}), "needs a signal name")
-	assert.ErrorContains(t, validateHaulTaskResult(HaulTaskResult{Commands: seqs(waitSignal("x", -time.Second))}), "negative")
+	assert.ErrorContains(t, validateRunTaskResult(RunTaskResult{Commands: seqs(waitSignal("", 0))}), "needs a signal name")
+	assert.ErrorContains(t, validateRunTaskResult(RunTaskResult{Commands: seqs(waitSignal("x", -time.Second))}), "negative")
 }
 
 func TestReplayMustWaitForTheSameSignal(t *testing.T) {
 	h := newHarness(t)
-	id := h.startHaul("x")
+	id := h.startRun("x")
 	h.replay(seqs(waitSignal("approve", 0)), nil)
 	h.signal(id, "approve", `true`)
 	h.replay(seqs(waitSignal("reject", 0)), nil)
-	got := h.haul(id)
-	assert.Equal(t, state.HaulStuck, got.Status)
+	got := h.run(id)
+	assert.Equal(t, state.RunStuck, got.Status)
 	assert.Contains(t, got.Message, `wait_signal "reject"`)
 }
 
 func TestSignalsSurviveRestart(t *testing.T) {
 	h := newHarness(t)
-	id := h.startHaul("x")
+	id := h.startRun("x")
 	h.replay(seqs(waitSignal("approve", time.Hour), waitSignal("never", 0)), nil) // two open waits
 	kept := h.signal(id, "later", `"kept"`)
 

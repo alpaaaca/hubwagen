@@ -1,7 +1,7 @@
 // Package schedule is calendar and cron math for schedules: ticks, data
 // intervals (DST-correct, in a schedule's timezone) and which intervals are
-// due since a cursor. It knows nothing about pipelines or hauls; v1's
-// pipeline scheduler used it, and haul schedules (M4) will.
+// due since a cursor. It knows nothing about pipelines or runs; v1's
+// pipeline scheduler used it, and run schedules (M4) will.
 package schedule
 
 import (

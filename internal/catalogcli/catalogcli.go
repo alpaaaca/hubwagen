@@ -1,4 +1,4 @@
-// Package catalogcli is what `moksha datasets`, `pallets` and `pallet` do,
+// Package catalogcli is what `moksha datasets`, `versions` and `data` do,
 // apart from flag parsing: read the catalog over CatalogService and print
 // it for people.
 package catalogcli
@@ -90,7 +90,7 @@ func describeKeep(d *mokshav1.Dataset) string {
 
 // GC expires what retention no longer keeps, or with dryRun shows it.
 func (c *Client) GC(ctx context.Context, w io.Writer, dryRun bool) error {
-	res, err := c.catalog.ExpirePallets(ctx, connect.NewRequest(&mokshav1.ExpirePalletsRequest{DryRun: dryRun}))
+	res, err := c.catalog.ExpireDataVersions(ctx, connect.NewRequest(&mokshav1.ExpireDataVersionsRequest{DryRun: dryRun}))
 	if err != nil {
 		return err
 	}
@@ -106,25 +106,25 @@ func (c *Client) GC(ctx context.Context, w io.Writer, dryRun bool) error {
 	fmt.Fprintf(w, "%s %d version%s:\n", verb, len(ex), plural(len(ex)))
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
 	for _, e := range ex {
-		p := e.Pallet
+		p := e.DataVersion
 		fmt.Fprintf(tw, "  %s\t%s\t%s\tsaved %s\n", p.Id, p.Dataset, describePartition(p.Partition), when(p.CommittedAt.AsTime()))
 	}
 	return tw.Flush()
 }
 
-// PalletsQuery is what `moksha versions` lists.
-type PalletsQuery struct {
+// DataVersionsQuery is what `moksha versions` lists.
+type DataVersionsQuery struct {
 	Tenant    string
 	Dataset   string
 	Partition *string  // only this partition
 	States    []string // only these states
-	All       bool     // every pallet, not each partition's latest
+	All       bool     // every data version, not each partition's latest
 	Limit     int
 }
 
-// Pallets writes a dataset's partitions with their latest pallets or, for
-// one partition (or All), its pallets newest first.
-func (c *Client) Pallets(ctx context.Context, w io.Writer, q PalletsQuery) error {
+// DataVersions writes a dataset's partitions with their latest data versions or, for
+// one partition (or All), its data versions newest first.
+func (c *Client) DataVersions(ctx context.Context, w io.Writer, q DataVersionsQuery) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
 	if q.Partition == nil && !q.All && len(q.States) == 0 {
 		res, err := c.catalog.ListPartitions(ctx, connect.NewRequest(&mokshav1.ListPartitionsRequest{
@@ -139,21 +139,21 @@ func (c *Client) Pallets(ctx context.Context, w io.Writer, q PalletsQuery) error
 		fmt.Fprintln(tw, "PARTITION\tLATEST VERSION\tSAVED\tVERSIONS")
 		for _, p := range res.Msg.Partitions {
 			fmt.Fprintf(tw, "%s\t%s\t%s\t%d\n", describePartition(p.Partition), p.Latest.Id,
-				when(p.Latest.CommittedAt.AsTime()), p.Pallets)
+				when(p.Latest.CommittedAt.AsTime()), p.DataVersions)
 		}
 		return tw.Flush()
 	}
-	res, err := c.catalog.ListPallets(ctx, connect.NewRequest(&mokshav1.ListPalletsRequest{
+	res, err := c.catalog.ListDataVersions(ctx, connect.NewRequest(&mokshav1.ListDataVersionsRequest{
 		Tenant: q.Tenant, Dataset: q.Dataset, Partition: q.Partition, States: q.States, Limit: int32(q.Limit)}))
 	if err != nil {
 		return err
 	}
-	if len(res.Msg.Pallets) == 0 {
+	if len(res.Msg.DataVersions) == 0 {
 		_, err := fmt.Fprintln(w, "no versions match")
 		return err
 	}
 	fmt.Fprintln(tw, "VERSION\tPARTITION\tSTATE\tSAVED\tWRITTEN BY RUN")
-	for _, p := range res.Msg.Pallets {
+	for _, p := range res.Msg.DataVersions {
 		committed := "-"
 		if p.CommittedAt != nil {
 			committed = when(p.CommittedAt.AsTime())
@@ -162,27 +162,27 @@ func (c *Client) Pallets(ctx context.Context, w io.Writer, q PalletsQuery) error
 		if p.Reason != "" {
 			state += " (" + p.Reason + ")"
 		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", p.Id, describePartition(p.Partition), state, committed, p.HaulId)
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", p.Id, describePartition(p.Partition), state, committed, p.RunId)
 	}
 	return tw.Flush()
 }
 
-// Pallet writes one pallet, its files and its lineage as two trees.
-func (c *Client) Pallet(ctx context.Context, w io.Writer, id string) error {
-	res, err := c.catalog.GetPallet(ctx, connect.NewRequest(&mokshav1.GetPalletRequest{Id: id}))
+// DataVersion writes one data version, its files and its lineage as two trees.
+func (c *Client) DataVersion(ctx context.Context, w io.Writer, id string) error {
+	res, err := c.catalog.GetDataVersion(ctx, connect.NewRequest(&mokshav1.GetDataVersionRequest{Id: id}))
 	if err != nil {
 		return err
 	}
 	m := res.Msg
-	p := m.Pallet
+	p := m.DataVersion
 	fmt.Fprintf(w, "data version %s, %s\n", p.Id, p.State)
 	if p.Reason != "" {
 		fmt.Fprintf(w, "  reason     %s\n", p.Reason)
 	}
 	fmt.Fprintf(w, "  dataset    %s, partition %s\n", p.Dataset, describePartition(p.Partition))
-	built := fmt.Sprintf("run %s, step %d", p.HaulId, p.LiftSeq)
-	if m.Lift != "" {
-		built = fmt.Sprintf("step %s in run %s", m.Lift, p.HaulId)
+	built := fmt.Sprintf("run %s, step %d", p.RunId, p.StepSeq)
+	if m.Step != "" {
+		built = fmt.Sprintf("step %s in run %s", m.Step, p.RunId)
 	}
 	fmt.Fprintf(w, "  written by %s\n", built)
 	if p.CommittedAt != nil {
@@ -210,9 +210,9 @@ func (c *Client) Pallet(ctx context.Context, w io.Writer, id string) error {
 		fmt.Fprintf(w, "  files      can't be read: %s\n", m.ManifestError)
 	}
 	fmt.Fprintln(w, "\nbuilt from:")
-	tree(w, p.Id, m.Upstream, func(e *mokshav1.LineageEdge) (string, string) { return e.PalletId, e.InputId })
+	tree(w, p.Id, m.Upstream, func(e *mokshav1.LineageEdge) (string, string) { return e.DataVersionId, e.InputId })
 	fmt.Fprintln(w, "\nbuilt into:")
-	tree(w, p.Id, m.Downstream, func(e *mokshav1.LineageEdge) (string, string) { return e.InputId, e.PalletId })
+	tree(w, p.Id, m.Downstream, func(e *mokshav1.LineageEdge) (string, string) { return e.InputId, e.DataVersionId })
 	return nil
 }
 
@@ -224,15 +224,15 @@ type InvalidateQuery struct {
 	Confirm        func(n int) bool
 }
 
-// Invalidate shows what invalidating a pallet marks, marks it unless
+// Invalidate shows what invalidating a data version marks, marks it unless
 // DryRun (or Confirm says no), and prints the starts that recompute it.
 func (c *Client) Invalidate(ctx context.Context, w io.Writer, q InvalidateQuery) error {
-	req := &mokshav1.InvalidatePalletRequest{Id: q.ID, Reason: q.Reason, By: q.By, DryRun: true}
-	res, err := c.catalog.InvalidatePallet(ctx, connect.NewRequest(req))
+	req := &mokshav1.InvalidateDataVersionRequest{Id: q.ID, Reason: q.Reason, By: q.By, DryRun: true}
+	res, err := c.catalog.InvalidateDataVersion(ctx, connect.NewRequest(req))
 	if err != nil {
 		return err
 	}
-	ps := res.Msg.Pallets
+	ps := res.Msg.DataVersions
 	if len(ps) == 0 {
 		_, err := fmt.Fprintf(w, "nothing to mark: %s and what was built from it are already invalid or expired\n", q.ID)
 		return err
@@ -248,22 +248,22 @@ func (c *Client) Invalidate(ctx context.Context, w io.Writer, q InvalidateQuery)
 	}
 	tw.Flush()
 	if q.DryRun {
-		return replayHint(w, res.Msg.Hauls, "would recompute them")
+		return replayHint(w, res.Msg.Runs, "would recompute them")
 	}
 	if q.Confirm != nil && !q.Confirm(len(ps)) {
 		_, err := fmt.Fprintln(w, "nothing changed")
 		return err
 	}
 	req.DryRun = false
-	res, err = c.catalog.InvalidatePallet(ctx, connect.NewRequest(req))
+	res, err = c.catalog.InvalidateDataVersion(ctx, connect.NewRequest(req))
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(w, "marked %d version%s invalid\n", len(res.Msg.Pallets), plural(len(res.Msg.Pallets)))
-	return replayHint(w, res.Msg.Hauls, "recompute them")
+	fmt.Fprintf(w, "marked %d version%s invalid\n", len(res.Msg.DataVersions), plural(len(res.Msg.DataVersions)))
+	return replayHint(w, res.Msg.Runs, "recompute them")
 }
 
-// Stale writes the partitions whose latest pallet is out of date, why, and
+// Stale writes the partitions whose latest data version is out of date, why, and
 // the starts that refresh them.
 func (c *Client) Stale(ctx context.Context, w io.Writer, tenant, dataset string) error {
 	res, err := c.catalog.ListStale(ctx, connect.NewRequest(&mokshav1.ListStaleRequest{Tenant: tenant, Dataset: dataset}))
@@ -276,27 +276,27 @@ func (c *Client) Stale(ctx context.Context, w io.Writer, tenant, dataset string)
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
 	fmt.Fprintln(tw, "DATASET\tPARTITION\tLATEST VERSION\tWHY")
-	var hauls []*mokshav1.HaulRef
+	var runs []*mokshav1.RunRef
 	for _, st := range res.Msg.Stale {
-		p := st.Pallet
+		p := st.DataVersion
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", p.Dataset, describePartition(p.Partition), p.Id, strings.Join(st.Reasons, "; "))
-		if st.Haul != nil {
-			hauls = append(hauls, st.Haul)
+		if st.Run != nil {
+			runs = append(runs, st.Run)
 		}
 	}
 	tw.Flush()
-	return replayHint(w, hauls, "refresh them")
+	return replayHint(w, runs, "refresh them")
 }
 
-// replayHint prints a start per haul that built the pallets: memoization
+// replayHint prints a start per run that built the data versions: memoization
 // reuses what is still good, so those recompute only what isn't.
-func replayHint(w io.Writer, hauls []*mokshav1.HaulRef, what string) error {
-	if len(hauls) == 0 {
+func replayHint(w io.Writer, runs []*mokshav1.RunRef, what string) error {
+	if len(runs) == 0 {
 		return nil
 	}
 	fmt.Fprintf(w, "\nthese %s (memoized steps whose code and inputs didn't change are reused):\n", what)
 	printed := map[string]bool{}
-	for _, h := range hauls {
+	for _, h := range runs {
 		var params map[string]json.RawMessage
 		_ = json.Unmarshal([]byte(h.ParamsJson), &params)
 		line := "  moksha start " + h.Name
@@ -311,7 +311,7 @@ func replayHint(w io.Writer, hauls []*mokshav1.HaulRef, what string) error {
 			}
 			line += " --param " + shellQuote(k+"="+v)
 		}
-		if !printed[line] { // hauls with the same params: one start does
+		if !printed[line] { // runs with the same params: one start does
 			printed[line] = true
 			fmt.Fprintln(w, line)
 		}
@@ -337,9 +337,9 @@ func plural(n int) string {
 
 // tree prints a lineage from root, following edges as from → to.
 func tree(w io.Writer, root string, l *mokshav1.Lineage, dir func(*mokshav1.LineageEdge) (from, to string)) {
-	pallets := map[string]*mokshav1.Pallet{}
-	for _, p := range l.Pallets {
-		pallets[p.Id] = p
+	dataVersions := map[string]*mokshav1.DataVersion{}
+	for _, p := range l.DataVersions {
+		dataVersions[p.Id] = p
 	}
 	next := map[string][]*mokshav1.LineageEdge{}
 	for _, e := range l.Edges {
@@ -358,7 +358,7 @@ func tree(w io.Writer, root string, l *mokshav1.Lineage, dir func(*mokshav1.Line
 	walk = func(id string, depth int) {
 		for _, e := range next[id] {
 			_, to := dir(e)
-			p := pallets[to]
+			p := dataVersions[to]
 			line := fmt.Sprintf("%s%s  %s %s", strings.Repeat("  ", depth+1), to, p.GetDataset(), describePartition(p.GetPartition()))
 			if e.Name != "" {
 				line += fmt.Sprintf("  (as %s)", e.Name)
