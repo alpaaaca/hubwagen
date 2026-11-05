@@ -2,7 +2,7 @@
 
 **Plain data orchestrator, that lets you do your thing.**
 
-moksha(_liberation_ in _sanskrit_) is a durable execution engine for data. You write pipelines as
+**Moksha** (_liberation_ in Sanskrit) is a durable execution engine for data. You write pipelines as
 ordinary Python functions; moksha runs them to completion through crashes,
 deploys and long waits, and keeps every output as an immutable, versioned
 dataset. Because it knows which versions of data went into and came out of
