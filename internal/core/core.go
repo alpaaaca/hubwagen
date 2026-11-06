@@ -122,7 +122,10 @@ func New(cfg Config) *Core {
 }
 
 // Run loads state, recovers in-flight attempts, and processes inputs until
-// ctx is cancelled (nil error) or a commit fails.
+// ctx is cancelled (nil error) or a commit fails. A commit that fails
+// because ctx was cancelled (Ctrl-C while a batch commits) is a stop too:
+// the batch isn't recorded, its callers get the error, and nothing acted
+// on it.
 func (c *Core) Run(ctx context.Context) error {
 	defer c.bg.Wait() // last: background I/O reports into a closed inbox
 	defer c.inbox.close()
@@ -138,6 +141,9 @@ func (c *Core) Run(ctx context.Context) error {
 			return nil
 		}
 		if err := c.process(ctx, inputs); err != nil {
+			if ctx.Err() != nil {
+				return nil
+			}
 			return err
 		}
 	}
