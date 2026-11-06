@@ -1,8 +1,8 @@
 # Projects: `moksha deploy` instead of hand-run workers
 
-> **Status:** design note; steps 1–3 are built (the dry run, deployments,
-> registries and secrets); 4–7 are not, and are next, in the order below
-> (roadmap: M6). Builds on worker pools
+> **Status:** design note; steps 1–4 are built (the dry run, deployments,
+> registries and secrets, `moksha dev` on deploy); 5–7 are not, and are
+> next, in the order below (roadmap: M6). Builds on worker pools
 > ([worker-pools.md](worker-pools.md), steps 1–4 built), container images
 > ([deploy.md](deploy.md)) and builds (`RegisterBuild`). Decided
 > (2026-11-06): one worker, and pools declared in one place, the project
@@ -44,9 +44,10 @@ to a server; the server runs and scales its workers.
 ### The project file
 
 The project file is the repo's `moksha.yaml`, with `kind: Project`
-(the server's file stays `kind: Config`). Until `moksha dev` reads
-project files (step 4), a repo whose `moksha.yaml` is still a server
-config keeps its project in `moksha.project.yaml`; `deploy` takes whichever of the two is `kind: Project`. It is not the pipelines: those
+(the server's file stays `kind: Config`); `moksha dev` and `moksha
+deploy` both read it. A repo whose `moksha.yaml` is still a server
+config keeps its project in `moksha.project.yaml`; both take whichever
+of the two is `kind: Project`. It is not the pipelines: those
 are code, found the way they are today, from the modules listed in
 `pyproject.toml` (`[tool.moksha] modules`). The project file says how to
 build and run that code:
@@ -239,10 +240,17 @@ scales them, as processes on one machine or as pods on Kubernetes.
    checks it has the secret at deploy (`projects.secrets_dir`, a file per
    secret) and reads the value only when a worker starts. Kubernetes
    Secrets come with step 6.
-4. **`moksha dev` on deploy**: in a directory with a project file, dev
-   starts the server and deploys the directory in place (the process
-   launcher), and redeploys when the code changes; `workers:` in the test
-   project and moksha-demo go away.
+4. ✅ **`moksha dev` on deploy**: in a directory with a project file
+   (or `--config` naming one), dev starts the server, its data in
+   `.moksha` next to the file, and deploys the directory in place (the
+   process launcher, `--python`). It looks at the Python files,
+   `pyproject.toml` and the project file every second and deploys again
+   once a change has settled, saying which steps run again; a deploy that
+   fails (a syntax error) is printed and the next change tries again. A
+   dev started on code the server already runs (same build, directory,
+   pools and secrets) deploys nothing. `--no-workers` deploys nothing. The
+   test project (`sdk/python/tests/projects/revenue`) has a project file;
+   moksha-demo follows in M6 step 4.
 5. **No `moksha workers`; `workers:` becomes `pools:`**: the command is
    removed; the server's config takes `pools:`, `launcher: external`
    only (and `kubernetes` until step 6), and rejects `workers:` with what

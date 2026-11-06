@@ -12,7 +12,8 @@ environment, Python SDK first.
 **Today (M4 done):** `moksha dev` serves the API (`moksha server`: the
 same server for a service manager, logs only, no auth yet; both start the
 config's workers); Python workers
-(`sdk/python`) run pipelines and steps, with code versions from what a step's
+(`sdk/python`) run pipelines and steps (`moksha dev` in a project's
+directory deploys it to itself and redeploys on change), with code versions from what a step's
 code reaches and runtime guards in pipeline code; runs have signals, version
 markers, fan-out limits, child runs, continue_as_new, schedules and
 dataset subscriptions; `moksha start`/`replay` start them and report

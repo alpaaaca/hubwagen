@@ -45,6 +45,11 @@ workers:                         # started by moksha dev, server and workers
 - **Where the file comes from**: `--config <path>`, else `$MOKSHA_CONFIG`,
   else `./moksha.yaml` if it exists, else the defaults. A file named by
   `--config` or `$MOKSHA_CONFIG` must exist.
+- **A project file instead**: when that file is a project's (`kind:
+  Project`), `moksha dev` uses the defaults, its data in `.moksha` next
+  to the file, and deploys the project to itself in place; with a server
+  config, it deploys a `moksha.project.yaml` in the current directory, if
+  there is one ([projects.md](projects.md)).
 - **Flags win**: `moksha dev --data-dir … --listen …` override the file,
   but only when passed.
 - **Strict**: unknown fields, wrong types and duplicate keys are errors.
