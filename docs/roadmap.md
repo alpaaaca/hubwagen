@@ -395,6 +395,10 @@ order; each is one PR (projects steps 4–6):
    `moksha dev` first, then a Kubernetes section (a kind cluster,
    `helm install`, `moksha deploy`, pods scaling from zero for a
    backfill).
+   The release pushes the chart to `oci://ghcr.io/alpaaaca/charts/moksha`,
+   so the demo needs no checkout of moksha. The demo's change
+   (alpaaaca/moksha-demo, branch `one-project`) is for v0.2.0 and merges
+   once it is released.
 
 Done when: the demo runs from the release binary with `moksha dev`, and
 on a kind cluster with `helm install` and `moksha deploy`, with no

@@ -52,12 +52,14 @@ To try a pull request's images: label it `build`, then
 `helm upgrade … --set image.tag=pr-123`. Remove the label to stop
 rebuilding. Pull requests from forks are never built (they can't push).
 
-The Helm chart's default `image.tag` is its `appVersion` (`0.1.1`), which
-exists once the release `v0.1.1` is published; until then use a `pr-…`
+The Helm chart's default `image.tag` is its `appVersion` (the published
+chart's is the release's; in a checkout, `0.1.1`), which exists once that
+release is published; until then use a `pr-…`
 image or run the workflow by hand. The server image cross-compiles (`--platform=$BUILDPLATFORM`),
 so arm64 needs no emulation; the worker image's arm64 build runs `pip`
 under QEMU. GHCR makes a new package private: make both public in their
-package settings once, or give the cluster a pull secret.
+package settings once, or give the cluster a pull secret. The same goes
+for the chart (`charts/moksha`), pushed by the release workflow.
 
 A project's image:
 
@@ -101,7 +103,9 @@ Kubernetes.
 
 ## Kubernetes: the Helm chart
 
-[deploy/helm/moksha](../deploy/helm/moksha) installs the server, and the
+The chart, [deploy/helm/moksha](../deploy/helm/moksha), is published with
+each release as `oci://ghcr.io/alpaaaca/charts/moksha` (version `1.2.3`
+for release `v1.2.3`, its images the release's). It installs the server, and the
 server runs your projects: `moksha deploy --push` hands it a project's
 image by digest, and it runs each pool as a Deployment it creates,
 scales from the work waiting and deletes when a new version replaces it
@@ -123,7 +127,9 @@ projects:
 ```
 
 ```bash
-helm install moksha deploy/helm/moksha -n moksha --create-namespace -f values.yaml
+helm install moksha oci://ghcr.io/alpaaaca/charts/moksha --version 0.2.0 \
+  -n moksha --create-namespace -f values.yaml
+# or from a checkout: helm install moksha deploy/helm/moksha …
 kubectl -n moksha port-forward svc/moksha 7070
 ```
 

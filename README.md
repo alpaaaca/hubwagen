@@ -144,8 +144,9 @@ The design is in [docs/architecture.md](docs/architecture.md).
 - `moksha server`: the same as a service, with JSON logs; it runs the
   workers of the projects deployed to it (`moksha deploy`)
 - Containers: `make images && make up` ([deploy/compose.yaml](deploy/compose.yaml))
-- Kubernetes: the Helm chart in [deploy/helm/moksha](deploy/helm/moksha),
-  which scales worker Deployments from the work waiting
+- Kubernetes: `helm install moksha oci://ghcr.io/alpaaaca/charts/moksha`
+  installs the server; `moksha deploy --push` runs a project on it as
+  Deployments scaled from the work waiting ([docs/deploy.md](docs/deploy.md#kubernetes-the-helm-chart))
 - `moksha deploy`: ship a project's code to a running server
 
 See [docs/deploy.md](docs/deploy.md) and [docs/config.md](docs/config.md).

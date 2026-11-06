@@ -1,7 +1,8 @@
 # Release binaries: when a GitHub release (tag v1.2.3) is published, build
 # moksha with the web UI for macOS and Linux (amd64, arm64) and attach the
-# archives and checksums.txt to it (.goreleaser.yaml). The images come
-# from images.yml on the same event.
+# archives and checksums.txt to it (.goreleaser.yaml), and push the Helm
+# chart, versioned as the release, to oci://ghcr.io/<owner>/charts/moksha.
+# The images come from images.yml on the same event.
 name: release
 
 on:
@@ -39,3 +40,23 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  chart:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      TAG: ${{ inputs.tag || github.event.release.tag_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: azure/setup-helm@v4
+      # The chart's version and appVersion are the release's (v1.2.3:
+      # 1.2.3), so its default image.tag is the release's images.
+      - run: |
+          v=${TAG#v}
+          helm package deploy/helm/moksha --version "$v" --app-version "$v" -d dist
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+          helm push "dist/moksha-$v.tgz" "oci://ghcr.io/${{ github.repository_owner }}/charts"
