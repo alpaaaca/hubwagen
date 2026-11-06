@@ -16,7 +16,7 @@ Today one `moksha.yaml` mixes two things:
   (`workers:`: a command, a directory, a `PYTHONPATH`). That belongs to
   the repo.
 
-So `moksha dev --config pipelines/examples/revenue/moksha.yaml` starts
+So `moksha dev --config moksha.yaml` in a project starts
 a server *and* worker processes from the repo's file, and a production
 server has to be told about every project's workers in its own config,
 by hand. There is no step where a repo says "here is my application, run
@@ -44,8 +44,7 @@ to a server; the server runs and scales its workers.
 The project file is the repo's `moksha.yaml`, with `kind: Project`
 (the server's file stays `kind: Config`). Until `moksha dev` reads
 project files (step 5), a repo whose `moksha.yaml` is still a server
-config keeps its project in `moksha.project.yaml`, as the revenue example
-does; `deploy` takes whichever of the two is `kind: Project`. It is not the pipelines: those
+config keeps its project in `moksha.project.yaml`; `deploy` takes whichever of the two is `kind: Project`. It is not the pipelines: those
 are code, found the way they are today, from the modules listed in
 `pyproject.toml` (`[tool.moksha] modules`). The project file says how to
 build and run that code:

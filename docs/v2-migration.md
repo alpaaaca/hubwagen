@@ -43,7 +43,7 @@ one static binary — so most of the engine is reused, not rewritten.
 | `internal/spec` | **Removed** (M3c) | The compiler, YAML format and spec hash go away. The template allow-list may be reused for SQL steps, image digest resolution for code versions of pod steps |
 | `cmd/compile` | **Removed** (M3c) | Replaced by the SDK's lint (`python -m moksha.lint`) and worker registration |
 | `cmd/dev`, `cmd/run` | **Rewritten / removed** (M3c) | `dev` serves the API; `run` is replaced by `start`/`replay` |
-| `pipelines/examples/` | **Replaced** (M3c) | `revenue/`, a Python project |
+| `pipelines/examples/` | **Replaced** (M3c), **moved** | `revenue/`, a Python project; now in [moksha-demo](https://github.com/alpaaaca/moksha-demo), and the tests' copy in `sdk/python/tests/projects/revenue` |
 | `tests/` | **Kept** | The v1 engine test is gone; the leader-restart test covers runs |
 
 ## Docs

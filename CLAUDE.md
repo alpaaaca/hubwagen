@@ -68,7 +68,7 @@ spec-kit.
 | `internal/webui` | Serves the web UI from the binary (embedded `dist/`, filled by `go generate ./internal/webui`; a placeholder page without it) |
 | `ui/` | Web UI: React + TypeScript + Vite on the Connect services (clients generated from `proto/` into `ui/src/gen`); vitest tests |
 | `sdk/python/` | Python SDK (stdlib only, Python ≥ 3.12): `@pipeline`, `@step`, replay engine, worker; pytest runs it against a real `moksha dev` |
-| `pipelines/examples/revenue/` | Example Python project; `sdk/python/tests/test_example.py` is its demo |
+| `sdk/python/tests/projects/revenue/` | The revenue project the end-to-end tests run (`test_example.py`, `test_remote.py`); the example people try is in [moksha-demo](https://github.com/alpaaaca/moksha-demo) |
 | `tests/` | Cross-package end-to-end tests (leader restarts) |
 | `Dockerfile`, `sdk/python/Dockerfile`, `deploy/` | Images (server; worker base), `deploy/compose.yaml`, the Helm chart `deploy/helm/moksha`; `make images` |
 
@@ -138,10 +138,10 @@ go generate ./internal/webui  # build the web UI into the binary (needs Node; di
 (cd ui && npm run dev)        # UI dev server, proxying the API to a running moksha dev
 (cd sdk/python && uv run --no-project --with pytest --with polars --with pandas --with pyarrow --python 3.12 pytest -q)   # Python SDK, incl. against moksha dev and dataframes
 MOKSHA_TEST_S3=http://key:secret@127.0.0.1:9000/bucket go test ./internal/blob   # the bucket tests also against a real S3-compatible store (MinIO)
-(cd pipelines/examples/revenue && PYTHONPATH=../../../sdk/python/src python3 -m moksha.lint)   # lint pipeline code
+(cd sdk/python/tests/projects/revenue && PYTHONPATH=../../../src python3 -m moksha.lint)   # lint pipeline code
 
-./moksha dev --config pipelines/examples/revenue/moksha.yaml   # server + 3 workers; API on 127.0.0.1:7070
-./moksha server --config pipelines/examples/revenue/moksha.yaml --log-format json   # for a service manager, with the config's workers (--no-workers: ./moksha workers --config …)
+./moksha dev --config path/to/moksha.yaml   # server + the config's workers; API on 127.0.0.1:7070 (moksha-demo has a project to run)
+./moksha server --config path/to/moksha.yaml --log-format json   # for a service manager, with the config's workers (--no-workers: ./moksha workers --config …)
 ./moksha replay daily --param day=2026-10-01..2026-10-03   # start runs, report what was reused
-make images && make up    # server + example workers in containers (deploy/compose.yaml); CONTAINER=podman to choose
+make images && make up    # the server in a container (deploy/compose.yaml); CONTAINER=podman to choose
 ```

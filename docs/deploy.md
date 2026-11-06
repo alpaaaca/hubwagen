@@ -27,10 +27,10 @@ signals.
 |---|---|---|
 | `moksha` | [Dockerfile](../Dockerfile) (repository root) | The server, with the web UI built in: a static binary on distroless, as a non-root user. `moksha server` with [deploy/moksha.yaml](../deploy/moksha.yaml): listens on `0.0.0.0:7070`, data in the `/data` volume, the bucket from `MOKSHA_BUCKET` (empty: `/data/bucket`). |
 | `moksha-worker` | [sdk/python/Dockerfile](../sdk/python/Dockerfile) | Python 3.12 and the SDK: the base of a project's workers. Runs `python -m moksha.worker` in `/app` as a non-root user, data through the server (`MOKSHA_DATA=remote`). |
-| your project's | e.g. [pipelines/examples/revenue/Dockerfile](../pipelines/examples/revenue/Dockerfile) | `FROM moksha-worker`, then your code in `/app` (its `pyproject.toml` lists the modules) and its dependencies. |
+| your project's | your project's `Dockerfile` | `FROM moksha-worker`, then your code in `/app` (its `pyproject.toml` lists the modules) and its dependencies. |
 
 ```bash
-make images                  # moksha:dev, moksha-worker:dev, revenue-worker:dev
+make images                  # moksha:dev, moksha-worker:dev
 make images CONTAINER=podman # docker is the default when installed
 ```
 
@@ -73,13 +73,13 @@ changed, and those run again; the rest is reused.
 
 ## One machine: compose
 
-[deploy/compose.yaml](../deploy/compose.yaml) runs the server and the
-revenue example's workers (two by default):
+[deploy/compose.yaml](../deploy/compose.yaml) runs the server, with a
+commented-out `workers` service for your project's image (two by default):
 
 ```bash
 make images
 make up                      # docker compose (or podman compose) -f deploy/compose.yaml up
-moksha start daily --param day=2026-10-01 --wait
+moksha start my_pipeline --wait  # once your workers are up
 open http://127.0.0.1:7070
 make down
 ```
@@ -89,9 +89,9 @@ make down
   down -v` removes it), or in a bucket: set `MOKSHA_BUCKET` (and
   `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`) in the environment or an
   `.env` file next to the compose file.
-- More workers: `REVENUE_WORKERS=4 make up` (Docker Compose; `podman-compose`
-  ignores `deploy.replicas` and runs one). For your project, copy the
-  `revenue` service with your image.
+- Your workers: uncomment the `workers` service and set `WORKER_IMAGE`;
+  more of them: `WORKERS=4 make up` (Docker Compose; `podman-compose`
+  ignores `deploy.replicas` and runs one).
 
 Compose runs a fixed number of workers. For workers that come and go
 with the work, run the server outside a container with a `container`
@@ -130,7 +130,7 @@ pools:
 ```bash
 helm install moksha deploy/helm/moksha -n moksha --create-namespace -f values.yaml
 kubectl -n moksha port-forward svc/moksha 7070
-moksha start daily --param day=2026-10-01 --wait
+moksha start my_pipeline --wait  # once your workers are up
 ```
 
 The server runs only pipelines some worker has registered, so when it

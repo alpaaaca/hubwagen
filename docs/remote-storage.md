@@ -115,6 +115,6 @@ URLs; then the attempt fails, for its retry policy.
 - `internal/api`: a pipeline runs twice with data only through URLs, on a file
   bucket, an s3 bucket with presigned URLs, and an s3 bucket through the
   server; the second run reuses both steps. URLs are scoped and checked.
-- SDK (`tests/test_remote.py`): the revenue example with a worker that shares
+- SDK (`tests/test_remote.py`): the revenue test project with a worker that shares
   no directory with `moksha dev`, against a file bucket and against s3fake;
   the rerun reuses the unchanged steps. Dataframes too.
