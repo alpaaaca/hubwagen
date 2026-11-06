@@ -63,7 +63,7 @@ spec-kit.
 | `internal/blob` | The bucket: `file://` and `s3://` (minio-go; conditional writes for atomic create-if-absent, presigned URLs); `s3fake/` is an S3-compatible server in memory for tests |
 | `internal/config` | `moksha.yaml`: data dir, listen address, bucket, `pools:` started elsewhere (external, kubernetes); project files (`kind: Project`) |
 | `internal/supervise` | Runs and restarts worker processes for `dev` and `server` (prefixed output, SIGTERM then kill); a group that grows and shrinks |
-| `internal/launch` | What starts a pool's workers besides processes: a container per worker (`docker`/`podman run`), a Kubernetes Deployment's replicas (scale subresource, plain HTTP); the server's secrets (a file each) |
+| `internal/launch` | What starts a pool's workers besides processes: a container per worker (`docker`/`podman run`), Kubernetes Deployments for deployed projects (created, scaled, deleted; plain HTTP; `kubefake/` is the API in memory for tests); the server's secrets (a file each) |
 | `internal/pools` | Scales worker pools (`min`/`max`) from the work waiting on their queues (`core.Demand`), or works out the desired count of external ones (`GET /v1/pools`); reports to the core (`SetPools`) |
 | `cmd/` | `dev`, `server`, `deploy` (`--dry-run`), `projects`, `delete`, `start`, `replay`, `signal`, `schedules`, `datasets`, `versions`, `data` (and `data invalidate`), `stale`, `gc`, `version` |
 | `internal/webui` | Serves the web UI from the binary (embedded `dist/`, filled by `go generate ./internal/webui`; a placeholder page without it) |

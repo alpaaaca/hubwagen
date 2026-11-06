@@ -18,7 +18,7 @@ import (
 func TestDeployService(t *testing.T) {
 	s := start(t)
 	mux := http.NewServeMux()
-	path, h := NewDeployHandler(s.core, func(map[string]string) error { return nil })
+	path, h := NewDeployHandler(s.core, func(*mokshav1.DeployRequest) error { return nil })
 	mux.Handle(path, h)
 	path, h = NewRunHandler(s.core, s.store)
 	mux.Handle(path, h)
@@ -64,9 +64,9 @@ func TestDeployService(t *testing.T) {
 func TestDeployChecksSecrets(t *testing.T) {
 	s := start(t)
 	mux := http.NewServeMux()
-	path, h := NewDeployHandler(s.core, func(names map[string]string) error {
-		if names["DB"] != "revenue-db" {
-			return fmt.Errorf("secret %s: no such secret on this server", names["DB"])
+	path, h := NewDeployHandler(s.core, func(m *mokshav1.DeployRequest) error {
+		if m.Secrets["DB"] != "revenue-db" {
+			return fmt.Errorf("secret %s: no such secret on this server", m.Secrets["DB"])
 		}
 		return nil
 	})

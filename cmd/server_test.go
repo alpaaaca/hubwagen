@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -22,6 +23,7 @@ import (
 
 	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
 	"github.com/alper/moksha/internal/api/gen/moksha/v1/mokshav1connect"
+	"github.com/alper/moksha/internal/launch/kubefake"
 )
 
 // freeListen returns a loopback address with a port nothing listens on.
@@ -229,5 +231,56 @@ while :; do sleep 0.05; done
 	req.Secrets["DB_PASSWORD"] = "nope"
 	_, err = c.Deploy(context.Background(), connect.NewRequest(req))
 	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	stopServerCmd(t, done)
+}
+
+// With projects.launcher: kubernetes, each deployed pool is a Deployment:
+// created at its min, replaced by the next version's, deleted with the
+// project; one this server left behind goes at start. Code in place is
+// refused.
+func TestServerRunsDeployedProjectsAsDeployments(t *testing.T) {
+	api := kubefake.New()
+	srv := httptest.NewServer(api)
+	defer srv.Close()
+	api.Put("jobs", map[string]any{"metadata": map[string]any{"name": "moksha-old-default-v3", "labels": map[string]any{
+		"app.kubernetes.io/managed-by": "moksha", "moksha.dev/instance": "moksha"}}, "spec": map[string]any{}})
+	listen := freeListen(t)
+	done := runServerConfig(t, listen, fmt.Sprintf(
+		"kubernetes: {api_url: %q, namespace: jobs}\nprojects: {launcher: kubernetes, server_url: \"http://moksha.jobs.svc:7070\"}\n", srv.URL))
+	c := mokshav1connect.NewDeployServiceClient(http.DefaultClient, "http://"+listen)
+	deploy := func(image string) error {
+		_, err := c.Deploy(context.Background(), connect.NewRequest(&mokshav1.DeployRequest{
+			Project: "revenue", Image: image, Dir: map[bool]string{true: t.TempDir()}[image == ""],
+			Secrets: map[string]string{"DB_URL": "revenue-db"}, // the cluster's: not checked here
+			Build:   &mokshav1.RegisterBuildRequest{BuildId: "b-" + image, Pipelines: []string{"daily"}},
+			Pools:   []*mokshav1.DeployedPool{{Name: "default", Queues: []string{"default"}, Min: 1, Max: 3, Steps: 2, IdleAfter: durationpb.New(time.Minute)}}}))
+		return err
+	}
+	names := func() []string { return api.Names("jobs") }
+	waitFor := func(want ...string) {
+		t.Helper()
+		require.Eventually(t, func() bool { return slices.Equal(names(), want) }, 15*time.Second, 50*time.Millisecond, "%v", names())
+	}
+
+	waitFor() // the leftover is gone
+	require.NoError(t, deploy("acme/revenue@sha256:1"))
+	waitFor("moksha-revenue-default-v1")
+	d := api.Deployment("jobs", "moksha-revenue-default-v1")
+	assert.Equal(t, 1, kubefake.Replicas(d), "min")
+	pod := d["spec"].(map[string]any)["template"].(map[string]any)["spec"].(map[string]any)
+	assert.Equal(t, "acme/revenue@sha256:1", pod["containers"].([]any)[0].(map[string]any)["image"])
+
+	require.NoError(t, deploy("acme/revenue@sha256:2")) // the rollout: v2's Deployment, v1's goes
+	waitFor("moksha-revenue-default-v2")
+
+	err := deploy("")
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	assert.ErrorContains(t, err, "runs projects on Kubernetes (projects.launcher: kubernetes): deploy an image")
+	err = deploy("acme/revenue:b3") // as moksha deploy sends it to a port-forwarded server without --push
+	assert.ErrorContains(t, err, "deploy with --push, so the image is pushed and deployed by digest")
+
+	_, err = c.DeleteProject(context.Background(), connect.NewRequest(&mokshav1.DeleteProjectRequest{Project: "revenue", By: "test"}))
+	require.NoError(t, err)
+	waitFor()
 	stopServerCmd(t, done)
 }

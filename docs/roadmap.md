@@ -386,7 +386,11 @@ order; each is one PR (projects steps 4–6):
 3. **Kubernetes deploys**: `moksha deploy` to a server in a cluster
    creates, updates and drains a Deployment per pool and version;
    `{secret:}` from Kubernetes Secrets; the Helm chart installs only the
-   server and its RBAC.
+   server and its RBAC. Two PRs:
+   ✅ the server's side (`projects.launcher: kubernetes`,
+   `internal/launch/deployments.go`, tested against `launch/kubefake`);
+   next, the chart, and `launcher: kubernetes` leaves the server's
+   `pools:`.
 4. **moksha-demo**: one project (no `server/` and `elsewhere/` split):
    `moksha dev` first, then a Kubernetes section (a kind cluster,
    `helm install`, `moksha deploy`, pods scaling from zero for a
