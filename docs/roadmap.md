@@ -378,7 +378,7 @@ order; each is one PR (projects steps 4–6):
    already runs it as it is. The test project
    (`sdk/python/tests/projects/revenue`) has a project file
    (`test_dev_deploys_the_project_and_its_changes`).
-2. **No `moksha workers`; `workers:` becomes `pools:`**: the command
+2. ✅ **No `moksha workers`; `workers:` becomes `pools:`**: the command
    goes; the server's config keeps only pools it doesn't start
    (`launcher: external`, and `kubernetes` until step 3), under `pools:`;
    `workers:` is an error that says what to write instead. README,

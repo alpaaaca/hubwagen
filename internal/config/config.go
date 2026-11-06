@@ -51,12 +51,18 @@ const (
 )
 
 type Config struct {
-	APIVersion string   `yaml:"apiVersion"`
-	Kind       string   `yaml:"kind"`
-	DataDir    string   `yaml:"data_dir"`
-	Bucket     Bucket   `yaml:"bucket"`
-	Server     Server   `yaml:"server"`
-	Workers    []Worker `yaml:"workers"`
+	APIVersion string `yaml:"apiVersion"`
+	Kind       string `yaml:"kind"`
+	DataDir    string `yaml:"data_dir"`
+	Bucket     Bucket `yaml:"bucket"`
+	Server     Server `yaml:"server"`
+	// Pools are worker pools the server scales but doesn't start
+	// (launcher: external or kubernetes). Pools of a project's own workers
+	// come from its project file (docs/projects.md).
+	Pools []Pool `yaml:"pools"`
+	// OldWorkers is the workers: section of configs before pools:, kept
+	// only to say what to write instead.
+	OldWorkers yaml.Node `yaml:"workers"`
 	// Kubernetes is how the server reaches the cluster that runs
 	// launcher: kubernetes pools.
 	Kubernetes Kubernetes `yaml:"kubernetes"`
@@ -66,7 +72,7 @@ type Config struct {
 	Projects Projects `yaml:"projects"`
 
 	// Path is the file the config came from, "" for the defaults. Relative
-	// paths in the file (data_dir, workers[].dir) are resolved against its
+	// paths in the file (data_dir, the bucket's and projects' files) are resolved against its
 	// directory, so Load returns them absolute.
 	Path string `yaml:"-"`
 }
@@ -159,76 +165,92 @@ type Server struct {
 	Listen string `yaml:"listen"`
 }
 
-// Worker is a group of identical worker processes, a pool: a fixed number
-// (replicas), or between min and max, scaled by the server from the work
-// queued on its queues (internal/pools). Each process gets MOKSHA_SERVER
-// (the API's URL), MOKSHA_WORKER_ID (<name>-<n>), MOKSHA_QUEUES and
-// MOKSHA_STEPS.
-type Worker struct {
-	Name string `yaml:"name"`
-	// Launcher is what starts the group's workers: "process" (default),
-	// moksha itself; "container": moksha, as containers of Image;
-	// "kubernetes": a Deployment whose replicas the server sets; or
-	// "external": something else (KEDA, an HPA, a person) from the desired
-	// count the server publishes (GET /v1/pools/<name>).
-	Launcher string `yaml:"launcher"`
-	// Container: the image, the runtime (docker or podman; default the one
-	// on PATH) and the API's URL as the containers reach it (default: the
-	// listen address with host.docker.internal or host.containers.internal
-	// for a loopback host). Command, if set, replaces the image's.
-	Image     string `yaml:"image"`
-	Runtime   string `yaml:"runtime"`
-	ServerURL string `yaml:"server_url"`
-	AuthFile  string `yaml:"auth_file"` // registry credentials (podman --authfile; Docker: a config.json)
-	// Kubernetes: the Deployment that runs the group's workers, in
+// Pool is a worker pool in the server's config: between min and max
+// workers, a count the server works out from the work waiting on its
+// queues (internal/pools), and that something else applies (external:
+// KEDA, an HPA, from GET /v1/pools/<name>) or the server sets as a
+// Deployment's replicas (kubernetes).
+type Pool struct {
+	Name     string `yaml:"name"`
+	Launcher string `yaml:"launcher"` // external or kubernetes
+	// Kubernetes: the Deployment that runs the pool's workers, in
 	// Namespace (default: the kubernetes section's).
 	Deployment string   `yaml:"deployment"`
 	Namespace  string   `yaml:"namespace"`
-	Command    []string `yaml:"command"`
-	Replicas   *int     `yaml:"replicas"` // default 1; 0 turns the group off
-	Min        *int     `yaml:"min"`      // instead of replicas: always running
-	Max        *int     `yaml:"max"`      // instead of replicas: at most, when work waits
-	Queues     []string `yaml:"queues"`   // default [default]
-	Steps      *int     `yaml:"steps"`    // steps one worker runs at once; default 4
-	// IdleAfter: a worker above min that had nothing to run for this long is
-	// stopped. Default DefaultIdleAfter.
-	IdleAfter Duration          `yaml:"idle_after"`
-	Dir       string            `yaml:"dir"` // working directory; default: the config file's
-	Env       map[string]string `yaml:"env"`
+	Min        *int     `yaml:"min"`    // default 0
+	Max        *int     `yaml:"max"`    // default max(min, 1)
+	Queues     []string `yaml:"queues"` // default [default]
+	Steps      *int     `yaml:"steps"`  // steps one worker runs at once; default 4
+	// IdleAfter: a worker above min that had nothing to run for this long
+	// isn't counted. Default DefaultIdleAfter.
+	IdleAfter Duration `yaml:"idle_after"`
+}
+
+// Bounds is the pool's min and max.
+func (p Pool) Bounds() (lo, hi int) {
+	if p.Min != nil {
+		lo = *p.Min
+	}
+	hi = max(lo, 1)
+	if p.Max != nil {
+		hi = *p.Max
+	}
+	return lo, hi
+}
+
+// QueueList is the queues the pool's workers poll.
+func (p Pool) QueueList() []string {
+	if len(p.Queues) == 0 {
+		return []string{"default"}
+	}
+	return p.Queues
+}
+
+// StepCount is how many steps one worker runs at once.
+func (p Pool) StepCount() int {
+	if p.Steps == nil {
+		return DefaultSteps
+	}
+	return *p.Steps
+}
+
+// Idle is how long a worker above min may have nothing to run.
+func (p Pool) Idle() time.Duration {
+	if p.IdleAfter == 0 {
+		return DefaultIdleAfter
+	}
+	return time.Duration(p.IdleAfter)
+}
+
+// Worker is how a deployed pool's workers start (cmd, internal/launch):
+// processes of Command in Dir, or containers of Image. Each gets
+// MOKSHA_SERVER (the API's URL), MOKSHA_WORKER_ID (<name>-<n>),
+// MOKSHA_QUEUES and MOKSHA_STEPS. Not in any file: the server makes it
+// from a project's deployment.
+type Worker struct {
+	Name string
+	// Launcher is LauncherProcess (Command in Dir) or LauncherContainer
+	// (Image, with Runtime: docker or podman, default the one on PATH,
+	// reaching the API at ServerURL, default the listen address with
+	// host.docker.internal or host.containers.internal for a loopback
+	// host, pulling with AuthFile's credentials). Command, if set,
+	// replaces the image's.
+	Launcher  string
+	Image     string
+	Runtime   string
+	ServerURL string
+	AuthFile  string
+	Command   []string
+	Queues    []string // default [default]
+	Steps     *int     // steps one worker runs at once; default 4
+	Dir       string
+	Env       map[string]string
 }
 
 const (
 	DefaultSteps     = 4 // the Python worker's default
 	DefaultIdleAfter = 5 * time.Minute
 )
-
-// Bounds is how many processes the group runs: min and max, equal for a
-// fixed count (replicas, default 1).
-func (w Worker) Bounds() (lo, hi int) {
-	if w.Min != nil || w.Max != nil {
-		lo, hi = 0, 1
-		if w.Min != nil {
-			lo = *w.Min
-		}
-		if w.Max != nil {
-			hi = *w.Max
-		} else {
-			hi = max(lo, 1)
-		}
-		return lo, hi
-	}
-	if w.Replicas == nil {
-		return 1, 1
-	}
-	return *w.Replicas, *w.Replicas
-}
-
-// Count is the number of processes started for a fixed group, and by
-// moksha workers, which can't scale (it doesn't see the queues): max.
-func (w Worker) Count() int {
-	_, hi := w.Bounds()
-	return hi
-}
 
 // Launcher values.
 const (
@@ -238,21 +260,7 @@ const (
 	LauncherKubernetes = "kubernetes"
 )
 
-// Scaled reports whether the server scales the group: min below max, or
-// started by an external launcher (it publishes the desired count).
-func (w Worker) Scaled() bool {
-	lo, hi := w.Bounds()
-	return lo < hi || w.External()
-}
-
-// External reports whether the group's worker count is a desired count
-// for something else to apply (external), or that the server applies to a
-// Deployment (kubernetes), rather than processes moksha runs.
-func (w Worker) External() bool {
-	return w.Launcher == LauncherExternal || w.Launcher == LauncherKubernetes
-}
-
-// QueueList is the queues the group's workers poll.
+// QueueList is the queues the workers poll.
 func (w Worker) QueueList() []string {
 	if len(w.Queues) == 0 {
 		return []string{"default"}
@@ -266,14 +274,6 @@ func (w Worker) StepCount() int {
 		return DefaultSteps
 	}
 	return *w.Steps
-}
-
-// Idle is how long a worker above min may have nothing to run.
-func (w Worker) Idle() time.Duration {
-	if w.IdleAfter == 0 {
-		return DefaultIdleAfter
-	}
-	return time.Duration(w.IdleAfter)
 }
 
 // Duration is a time.Duration written as in Go ("5m", "90s").
@@ -375,80 +375,58 @@ func Parse(data []byte, dir string) (*Config, error) {
 	if r := c.Projects.Runtime; r != "" && r != "docker" && r != "podman" {
 		add("projects.runtime: must be docker or podman, got %q", r)
 	}
+	if c.OldWorkers.Kind != 0 {
+		add("line %d: workers: is gone (docs/projects.md). A project's workers come from its project file, "+
+			"a moksha.yaml with kind: Project and pools: [{name: default, min: 1, max: 3}]: moksha dev in its directory "+
+			"deploys it, moksha deploy hands it to a server. Pools started elsewhere (launcher: external or kubernetes) "+
+			"go under pools: here", c.OldWorkers.Line)
+	}
 	seen := map[string]bool{}
-	for i, w := range c.Workers {
-		at := fmt.Sprintf("workers[%d]", i)
+	for i, p := range c.Pools {
+		at := fmt.Sprintf("pools[%d]", i)
 		switch {
-		case w.Name == "":
+		case p.Name == "":
 			add("%s.name: required", at)
-		case !workerName.MatchString(w.Name):
-			add("%s.name: %q must be lower-case letters, digits, - and _", at, w.Name)
-		case seen[w.Name]:
-			add("%s.name: %q is used twice", at, w.Name)
+		case !workerName.MatchString(p.Name):
+			add("%s.name: %q must be lower-case letters, digits, - and _", at, p.Name)
+		case seen[p.Name]:
+			add("%s.name: %q is used twice", at, p.Name)
 		}
-		seen[w.Name] = true
-		switch w.Launcher {
-		case "", LauncherProcess:
-			if len(w.Command) == 0 || w.Command[0] == "" {
-				add("%s.command: required, e.g. [python3, -m, moksha.worker, app.pipelines]", at)
-			}
-		case LauncherContainer:
-			if w.Image == "" {
-				add("%s.image: required with launcher: container", at)
-			}
-			if w.Runtime != "" && w.Runtime != "docker" && w.Runtime != "podman" {
-				add("%s.runtime: must be docker or podman, got %q", at, w.Runtime)
-			}
-		case LauncherExternal, LauncherKubernetes:
-			if len(w.Command) > 0 || len(w.Env) > 0 {
-				add("%s: with launcher: %s its workers are started elsewhere: no command or env", at, w.Launcher)
-			}
-			if w.Launcher == LauncherKubernetes && w.Deployment == "" {
+		seen[p.Name] = true
+		switch p.Launcher {
+		case LauncherExternal:
+		case LauncherKubernetes:
+			if p.Deployment == "" {
 				add("%s.deployment: required with launcher: kubernetes (the Deployment that runs its workers)", at)
 			}
+		case "", LauncherProcess, LauncherContainer:
+			add("%s.launcher: must be external or kubernetes; pools of processes or containers come from a project's file (kind: Project, docs/projects.md)", at)
 		default:
-			add("%s.launcher: must be process, container, kubernetes or external, got %q", at, w.Launcher)
+			add("%s.launcher: must be external or kubernetes, got %q", at, p.Launcher)
 		}
-		if w.Launcher != LauncherContainer && (w.Image != "" || w.Runtime != "" || w.ServerURL != "" || w.AuthFile != "") {
-			add("%s: image, runtime, server_url and auth_file are for launcher: container", at)
-		}
-		if w.Launcher != LauncherKubernetes && (w.Deployment != "" || w.Namespace != "") {
+		if p.Launcher != LauncherKubernetes && (p.Deployment != "" || p.Namespace != "") {
 			add("%s: deployment and namespace are for launcher: kubernetes", at)
 		}
-		lo, hi := w.Bounds()
+		lo, hi := p.Bounds()
 		switch {
-		case w.Replicas != nil && (w.Min != nil || w.Max != nil):
-			add("%s: give replicas (a fixed count) or min and max, not both", at)
-		case w.Replicas != nil && *w.Replicas < 0:
-			add("%s.replicas: must be 0 or more", at)
 		case lo < 0 || hi < 0:
 			add("%s: min and max must be 0 or more", at)
 		case lo > hi:
 			add("%s: min %d is more than max %d", at, lo, hi)
 		}
-		if w.StepCount() < 1 {
+		if p.StepCount() < 1 {
 			add("%s.steps: must be 1 or more", at)
 		}
-		if w.IdleAfter < 0 {
+		if p.IdleAfter < 0 {
 			add("%s.idle_after: must be positive", at)
 		}
-		for j, d := range w.Queues {
+		for j, d := range p.Queues {
 			if d == "" {
 				add("%s.queues[%d]: empty", at, j)
 			}
 		}
-		for k := range w.Env {
-			if k == EnvServer || k == EnvWorkerID || k == EnvSupervisorPID || k == EnvQueues || k == EnvSteps {
-				add("%s.env.%s: set by moksha", at, k)
-			}
-		}
 	}
 	c.resolve(dir)
-	for i, w := range c.Workers {
-		if st, err := os.Stat(w.Dir); err != nil || !st.IsDir() {
-			add("workers[%d].dir: %s is not a directory", i, w.Dir)
-		}
-	}
 	if len(errs) > 0 {
 		return nil, errors.New(strings.Join(errs, "\n"))
 	}
@@ -489,12 +467,6 @@ func (c *Config) resolve(dir string) {
 	for _, p := range []*string{&c.Bucket.AccessKeyIDFile, &c.Bucket.SecretAccessKeyFile} {
 		if *p != "" {
 			*p = abs(dir, *p)
-		}
-	}
-	for i := range c.Workers {
-		c.Workers[i].Dir = abs(dir, c.Workers[i].Dir)
-		if c.Workers[i].AuthFile != "" {
-			c.Workers[i].AuthFile = abs(dir, c.Workers[i].AuthFile)
 		}
 	}
 	for _, p := range []*string{&c.Projects.AuthFile, &c.Projects.SecretsDir} {

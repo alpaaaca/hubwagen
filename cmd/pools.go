@@ -26,52 +26,7 @@ import (
 	"github.com/alper/moksha/internal/supervise"
 )
 
-var (
-	configPath    string
-	workersServer string
-)
-
-var workersCmd = &cobra.Command{
-	Use:   "workers",
-	Short: "Run the workers from moksha.yaml against a running server",
-	Long: `Workers starts the worker processes listed under workers: in moksha.yaml,
-the same ones moksha dev starts, but without a server: they connect to
---server (default: the config's server.listen). Use it to restart the server
-while the workers keep running, or to run workers on another machine.
-
-Each process gets MOKSHA_SERVER, MOKSHA_WORKER_ID (<name>-<n>) and
-MOKSHA_SUPERVISOR_PID (this process; workers stop when it is gone). One
-that exits is restarted with backoff; Ctrl-C stops them all.`,
-	Args:         cobra.NoArgs,
-	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		cfg, err := loadConfig(cmd)
-		if err != nil {
-			return err
-		}
-		procs := workerProcesses(cfg, workersServer)
-		if len(procs) == 0 {
-			return fmt.Errorf("no workers configured (%s)", configName(cfg))
-		}
-		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-		defer stop()
-		fmt.Printf("moksha workers: %d processes against %s; Ctrl-C to stop\n", len(procs), workersServer)
-		kill := make(chan struct{})
-		go func() {
-			<-ctx.Done()
-			fmt.Println("stopping: running steps finish, polls end within their wait; Ctrl-C again to kill them")
-			killOnSignal(kill)
-		}()
-		supervise.Run(ctx, procs, supervise.Options{Out: os.Stdout, Kill: kill})
-		return nil
-	},
-}
-
-func init() {
-	addConfigFlag(workersCmd)
-	workersCmd.Flags().StringVar(&workersServer, "server", "", "moksha API the workers connect to (default: from the config)")
-	rootCmd.AddCommand(workersCmd)
-}
+var configPath string
 
 func addConfigFlag(c *cobra.Command) {
 	c.Flags().StringVar(&configPath, "config", "", "config file (default: $MOKSHA_CONFIG, else ./"+config.FileName+" if present)")
@@ -100,9 +55,6 @@ func applyFlags(cmd *cobra.Command, cfg *config.Config) {
 	if f.Changed("listen") {
 		cfg.Server.Listen = listenAddr
 	}
-	if f.Lookup("server") != nil && !f.Changed("server") {
-		workersServer = config.ServerURL(cfg.Server.Listen)
-	}
 }
 
 func configName(cfg *config.Config) string {
@@ -112,24 +64,8 @@ func configName(cfg *config.Config) string {
 	return cfg.Path
 }
 
-// workerProcesses expands the config's worker groups into processes, max
-// of each: without a server, nothing scales them.
-func workerProcesses(cfg *config.Config, server string, extraEnv ...string) []supervise.Process {
-	removeLeftovers(context.Background(), cfg, slog.Default())
-	var procs []supervise.Process
-	for _, w := range cfg.Workers {
-		if w.External() {
-			continue // started by its own launcher
-		}
-		for n := 1; n <= w.Count(); n++ {
-			procs = append(procs, workerProcess(w, w.Name+"-"+strconv.Itoa(n), server, cfg.DataDir, extraEnv...))
-		}
-	}
-	return procs
-}
-
-// workerProcess is one process of a worker group: the group's command,
-// or for launcher: container, a container of its image.
+// workerProcess is one worker of a deployed pool: a process of its
+// command, or for launcher: container, a container of its image.
 func workerProcess(w config.Worker, id, server, dataDir string, extraEnv ...string) supervise.Process {
 	var env []string
 	for k, v := range w.Env {
@@ -148,19 +84,18 @@ func workerProcess(w config.Worker, id, server, dataDir string, extraEnv ...stri
 	return supervise.Process{ID: id, Command: w.Command, Dir: w.Dir, Env: append(os.Environ(), env...)}
 }
 
-// startWorkers starts the config's worker groups in g for a server: fixed
-// groups at their count, and scaled ones (min below max) from min, then by
-// a scaler that runs until ctx ends. The scaler also runs the projects
-// deployed to the server (followProjects). It returns how many groups the
-// config has. Kubernetes pools need the cluster: an error if it can't be
-// reached, before anything starts.
-func startWorkers(ctx context.Context, g *supervise.Group, cfg *config.Config, c *core.Core, server string, log *slog.Logger, extraEnv ...string) (int, error) {
+// startWorkers scales the config's pools (launcher: external or
+// kubernetes) and runs the projects deployed to the server
+// (followProjects), their workers in g, until ctx ends. Kubernetes pools
+// need the cluster: an error if it can't be reached, before anything
+// starts.
+func startWorkers(ctx context.Context, g *supervise.Group, cfg *config.Config, c *core.Core, server string, log *slog.Logger, extraEnv ...string) error {
 	var kube *launch.Kube
-	for _, w := range cfg.Workers { // the cluster first: an error starts nothing
-		if w.Launcher == config.LauncherKubernetes && kube == nil {
+	for _, p := range cfg.Pools { // the cluster first: an error starts nothing
+		if p.Launcher == config.LauncherKubernetes && kube == nil {
 			k, err := launch.NewKube(cfg.Kubernetes, launch.ServiceAccountDir)
 			if err != nil {
-				return 0, fmt.Errorf("workers %s: %w", w.Name, err)
+				return fmt.Errorf("pools %s: %w", p.Name, err)
 			}
 			kube = k
 		}
@@ -168,38 +103,24 @@ func startWorkers(ctx context.Context, g *supervise.Group, cfg *config.Config, c
 	removeLeftovers(ctx, cfg, log)
 	launcher := &groupLauncher{g: g, log: log, start: map[string]func(id string) (supervise.Process, error){}}
 	var static []pools.Pool
-	for _, w := range cfg.Workers {
-		lo, hi := w.Bounds()
-		if !w.Scaled() {
-			for n := 1; n <= hi; n++ {
-				g.Start(workerProcess(w, w.Name+"-"+strconv.Itoa(n), server, cfg.DataDir, extraEnv...))
-			}
-			continue
-		}
-		p := pools.Pool{Name: w.Name, Queues: w.QueueList(), Steps: w.StepCount(), Min: lo, Max: hi,
-			IdleAfter: w.Idle(), External: w.External()}
-		msg := "scaled by the work waiting on its queues"
-		switch w.Launcher {
-		case config.LauncherExternal:
-			msg = "started elsewhere; its desired count is at GET /v1/pools/" + w.Name
-		case config.LauncherKubernetes:
-			ns, deployment := w.Namespace, w.Deployment
+	for _, cp := range cfg.Pools {
+		lo, hi := cp.Bounds()
+		p := pools.Pool{Name: cp.Name, Queues: cp.QueueList(), Steps: cp.StepCount(), Min: lo, Max: hi,
+			IdleAfter: cp.Idle(), External: true}
+		msg := "started elsewhere; its desired count is at GET /v1/pools/" + cp.Name
+		if cp.Launcher == config.LauncherKubernetes {
+			ns, deployment := cp.Namespace, cp.Deployment
 			p.Apply = func(ctx context.Context, n int) error { return kube.Scale(ctx, ns, deployment, n) }
 			msg = "the replicas of Deployment " + or(ns, kube.Namespace) + "/" + deployment
-		case config.LauncherContainer:
-			msg = "containers of " + w.Image + ", scaled by the work waiting on its queues"
 		}
 		static = append(static, p)
-		launcher.set(w.Name, func(id string) (supervise.Process, error) {
-			return workerProcess(w, id, server, cfg.DataDir, extraEnv...), nil
-		})
-		log.Info("worker pool "+w.Name+": "+msg, "pool", w.Name, "min", lo, "max", hi,
-			"queues", strings.Join(w.QueueList(), ","), "idle_after", w.Idle())
+		log.Info("worker pool "+cp.Name+": "+msg, "pool", cp.Name, "min", lo, "max", hi,
+			"queues", strings.Join(cp.QueueList(), ","), "idle_after", cp.Idle())
 	}
 	sc := pools.New(static, launcher, c, clock.Real{}, log)
 	go sc.Run(ctx)
 	go followProjects(ctx, c, sc, static, launcher, cfg, server, log, extraEnv)
-	return len(cfg.Workers), nil
+	return nil
 }
 
 // followProjects runs the projects deployed to the server (docs/projects.md).
@@ -357,26 +278,19 @@ func killOnSignal(kill chan struct{}) {
 }
 
 // removeLeftovers removes the containers an earlier moksha on the same
-// data directory left running (it was killed): nothing else would stop
-// them. With a container runtime on PATH (the projects' or a container
-// pool's), before any pool starts.
+// data directory left running for its projects (it was killed): nothing
+// else would stop them. With the projects' container runtime on PATH,
+// before any pool starts.
 func removeLeftovers(ctx context.Context, cfg *config.Config, log *slog.Logger) {
-	runtimes := map[string]bool{launch.Runtime(config.Worker{Runtime: cfg.Projects.Runtime}): true}
-	for _, w := range cfg.Workers {
-		if w.Launcher == config.LauncherContainer {
-			runtimes[launch.Runtime(w)] = true
-		}
+	rt := launch.Runtime(config.Worker{Runtime: cfg.Projects.Runtime})
+	if _, err := exec.LookPath(rt); err != nil {
+		return
 	}
-	for _, rt := range slices.Sorted(maps.Keys(runtimes)) {
-		if _, err := exec.LookPath(rt); err != nil {
-			continue
-		}
-		n, err := launch.RemoveLeftovers(ctx, rt, cfg.DataDir, "")
-		switch {
-		case err != nil:
-			log.Warn("can't look for containers left running", "runtime", rt, "err", err)
-		case n > 0:
-			log.Info(fmt.Sprintf("removed %d container(s) an earlier moksha left running", n), "runtime", rt)
-		}
+	n, err := launch.RemoveLeftovers(ctx, rt, cfg.DataDir, "")
+	switch {
+	case err != nil:
+		log.Warn("can't look for containers left running", "runtime", rt, "err", err)
+	case n > 0:
+		log.Info(fmt.Sprintf("removed %d container(s) an earlier moksha left running", n), "runtime", rt)
 	}
 }

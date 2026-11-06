@@ -23,20 +23,22 @@ server:
 bucket:
   url: ${DEMO_BUCKET:-}          # unset with an empty default: no bucket
   endpoint: ${DEMO_EMPTY}        # set, empty
-workers:
+pools:
   - name: py
-    replicas: ${DEMO_WORKERS}
-    command: [sh, -c, "echo $HOME $${NOT_A_VARIABLE}"]
-    env: {WHERE: "${DEMO_DIR:-/srv/app}"}
+    launcher: kubernetes
+    max: ${DEMO_WORKERS}
+    deployment: ${DEMO_DEPLOYMENT:-revenue-workers}
+    queues: ["$HOME", "$${NOT_A_VARIABLE}"]
 `), dir)
 	require.NoError(t, err)
 	assert.Equal(t, "127.0.0.1:7171", c.Server.Listen)
 	assert.Equal(t, Bucket{}, c.Bucket)
 	assert.Equal(t, dir+"/state", c.DataDir)
-	require.Len(t, c.Workers, 1)
-	assert.Equal(t, 2, c.Workers[0].Count(), "a number after expansion is a number")
-	assert.Equal(t, []string{"sh", "-c", "echo $HOME ${NOT_A_VARIABLE}"}, c.Workers[0].Command)
-	assert.Equal(t, map[string]string{"WHERE": "/srv/app"}, c.Workers[0].Env)
+	require.Len(t, c.Pools, 1)
+	_, hi := c.Pools[0].Bounds()
+	assert.Equal(t, 2, hi, "a number after expansion is a number")
+	assert.Equal(t, "revenue-workers", c.Pools[0].Deployment)
+	assert.Equal(t, []string{"$HOME", "${NOT_A_VARIABLE}"}, c.Pools[0].Queues, "only ${…} is a variable; $${ is a literal ${")
 }
 
 func TestExpandReportsAllProblemsByLine(t *testing.T) {

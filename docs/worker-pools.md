@@ -1,6 +1,11 @@
 # Worker pools: the leader starts the workers its work needs
 
-> **Status:** design note; steps 1–4 are built (processes, containers, Kubernetes Deployments, desired counts for external scalers); step 5 is not. Builds on `moksha.yaml`'s
+> **Status:** design note; steps 1–4 are built (processes, containers, Kubernetes Deployments, desired counts for external scalers); step 5 is not.
+> Since M6 ([projects.md](projects.md#one-worker-pools-in-one-place)),
+> pools of processes and containers come from a project's file and its
+> deployment; the server's config keeps `pools:` (renamed from `workers:`)
+> for `launcher: external` and `kubernetes`, and `moksha workers` is gone.
+> The steps below describe how they were built. Builds on `moksha.yaml`'s
 > `workers:` ([config.md](config.md)), `internal/supervise`, the core's
 > record of workers seen lately (`internal/core/workers.go`) and the node
 > design in [failover.md](failover.md). Decision requested: steps 1 and 2

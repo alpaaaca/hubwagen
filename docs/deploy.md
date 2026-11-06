@@ -94,9 +94,10 @@ make down
   ignores `deploy.replicas` and runs one).
 
 Compose runs a fixed number of workers. For workers that come and go
-with the work, run the server outside a container with a `container`
-pool ([config.md](config.md#container-pools-one-container-per-worker)),
-or use Kubernetes.
+with the work, run the server outside a container and `moksha deploy`
+your project's image to it
+([config.md](config.md#deployed-images-one-container-per-worker)), or use
+Kubernetes.
 
 ## Kubernetes: the Helm chart
 
@@ -142,7 +143,7 @@ What it creates:
 - **The server**: one replica (a single leader on SQLite) with `Recreate`,
   so two never share the data; `/data` on a PVC; `/healthz` as its
   probes; a ClusterIP Service.
-- **A ConfigMap** with `moksha.yaml`: the bucket, and a `workers:` group
+- **A ConfigMap** with `moksha.yaml`: the bucket, and a `pools:` entry
   per pool with `launcher: kubernetes`. A change restarts the server.
 - **A Role** that lets the server's service account patch
   `deployments/scale` of the pools' Deployments, and nothing else.

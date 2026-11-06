@@ -296,9 +296,9 @@ its queue, the connected workers' code doesn't define the pipeline or step
 If the server is down when a step finishes, the worker keeps the result,
 and keeps the attempt's heartbeats going, until the server takes it. A
 restarted leader therefore doesn't rerun the step. Ctrl-C stops polling and
-lets running steps finish. Started by `moksha dev`, `server` or `workers`,
-the worker takes its queues and steps from the worker group in
-`moksha.yaml` (`$MOKSHA_QUEUES`, `$MOKSHA_STEPS`; flags win), and also
+lets running steps finish. Started by `moksha dev` or `server` for a deployed project,
+the worker takes its queues and steps from its pool in the project file
+(`$MOKSHA_QUEUES`, `$MOKSHA_STEPS`; flags win), and also
 stops that way when that process is gone (`$MOKSHA_SUPERVISOR_PID`). `--worker-id` (or `$MOKSHA_WORKER_ID`) names
 the worker in a run's history; the default is `<hostname>-<pid>`. `--build-json` prints what
 the worker registers (its pipelines, steps' code versions, schedules), as
