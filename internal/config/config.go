@@ -143,6 +143,11 @@ func secret(field, path string) (string, error) {
 
 // Projects is how deployed projects' workers run.
 type Projects struct {
+	// Launcher: "" runs a deployment's workers on this machine (containers
+	// of its image, or processes in its directory); "kubernetes" runs each
+	// pool as a Deployment in the kubernetes section's cluster, which needs
+	// an image and ServerURL.
+	Launcher  string `yaml:"launcher"`
 	Runtime   string `yaml:"runtime"`
 	ServerURL string `yaml:"server_url"`
 	// AuthFile: the registry credentials the runtime pulls their images
@@ -159,6 +164,24 @@ type Projects struct {
 type Kubernetes struct {
 	APIURL    string `yaml:"api_url"`
 	Namespace string `yaml:"namespace"` // default: the service account's, else default
+	// Instance labels the Deployments this server makes (moksha.dev/instance),
+	// so it removes only its own; default moksha. Two servers in one
+	// namespace need different ones.
+	Instance string `yaml:"instance"`
+	// ImagePullSecrets are Secrets for pulling projects' images, named in
+	// their pods.
+	ImagePullSecrets []string `yaml:"image_pull_secrets"`
+}
+
+// DefaultInstance is kubernetes.instance's default.
+const DefaultInstance = "moksha"
+
+// InstanceName is the server's kubernetes.instance.
+func (k Kubernetes) InstanceName() string {
+	if k.Instance == "" {
+		return DefaultInstance
+	}
+	return k.Instance
 }
 
 type Server struct {
@@ -341,6 +364,8 @@ func Defaults(dir string) *Config {
 	return c
 }
 
+var labelValue = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9._-]{0,61}[A-Za-z0-9])?$`)
+
 var workerName = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 
 // Parse decodes and validates a config file, after replacing its
@@ -374,6 +399,18 @@ func Parse(data []byte, dir string) (*Config, error) {
 	c.Bucket.validate(add)
 	if r := c.Projects.Runtime; r != "" && r != "docker" && r != "podman" {
 		add("projects.runtime: must be docker or podman, got %q", r)
+	}
+	switch c.Projects.Launcher {
+	case "":
+	case LauncherKubernetes:
+		if c.Projects.ServerURL == "" {
+			add("projects.server_url: required with projects.launcher: kubernetes (the server's Service as pods reach it, e.g. http://moksha.moksha.svc:7070)")
+		}
+	default:
+		add("projects.launcher: must be kubernetes, or none for this machine, got %q", c.Projects.Launcher)
+	}
+	if i := c.Kubernetes.Instance; i != "" && !labelValue.MatchString(i) {
+		add("kubernetes.instance: %q: at most 63 letters, digits, '-', '_' and '.', starting and ending with a letter or digit", i)
 	}
 	if c.OldWorkers.Kind != 0 {
 		add("line %d: workers: is gone (docs/projects.md). A project's workers come from its project file, "+

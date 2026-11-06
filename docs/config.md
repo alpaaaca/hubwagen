@@ -296,9 +296,64 @@ runs each worker as a container of it, with Docker or Podman
   `MOKSHA_QUEUES`, `MOKSHA_STEPS`) go in with `-e NAME`, so their values
   aren't on the command line.
 
+#### Projects on Kubernetes: a Deployment per pool
+
+With `projects.launcher: kubernetes`, a server in a cluster runs each
+deployed project's pools as Deployments it creates, scales and deletes
+itself. `moksha deploy` pushes the project's image and deploys it by
+digest; nothing else to install per project:
+
+```yaml
+kubernetes:
+  namespace: moksha                # default: the service account's
+  instance: moksha                 # labels this server's Deployments; default moksha
+  image_pull_secrets: [ghcr]       # Secrets for pulling projects' images, if private
+projects:
+  launcher: kubernetes
+  server_url: http://moksha.moksha.svc:7070   # the server's Service, as pods reach it
+```
+
+- **A Deployment per pool and version**, `moksha-<project>-<pool>-v<version>`,
+  labelled `app.kubernetes.io/managed-by: moksha` and `moksha.dev/instance`.
+  It is created at the pool's `min` and its replicas are set from the work
+  waiting, as for any pool. A new version is a new Deployment; the old
+  one's is deleted, so its pods get SIGTERM and finish what they run
+  within `terminationGracePeriodSeconds` (600). Deleting the project
+  deletes its Deployments. At start the server deletes Deployments of
+  its instance that no project needs any more.
+- **Pods**: the image, its own command, `MOKSHA_SERVER` (`server_url`),
+  `MOKSHA_WORKER_ID` (the pod's name), the pool's queues and steps,
+  `MOKSHA_DATA=remote` (data goes through the server), the project's `env`,
+  and no service account token.
+- **Secrets**: a project's `env: {DB_URL: {secret: revenue-db}}` reads
+  key `value` of the Kubernetes Secret `revenue-db` in the namespace
+  (`kubectl create secret generic revenue-db --from-literal=value=…`). The
+  server doesn't read Secrets, so a deploy isn't checked for them: a
+  missing one shows on the pods (`CreateContainerConfigError`).
+- **Images by digest only**: a deploy of code in place is refused, and
+  so is an image by tag. Through `kubectl port-forward` the server looks
+  local to `moksha deploy`, so use `moksha deploy --push`: it pushes the
+  image and deploys it by digest.
+- **Its service account** needs:
+
+  ```yaml
+  apiVersion: rbac.authorization.k8s.io/v1
+  kind: Role
+  metadata: {name: moksha-projects, namespace: moksha}
+  rules:
+    - apiGroups: [apps]
+      resources: [deployments]
+      verbs: [get, list, create, delete]
+    - apiGroups: [apps]
+      resources: [deployments/scale]
+      verbs: [get, patch]
+  ```
+
 #### Kubernetes pools: a Deployment's replicas
 
-With `launcher: kubernetes` in `pools:`, the server sets the replicas of a Deployment
+With `launcher: kubernetes` in `pools:`, for a Deployment someone else
+manages (the Helm chart's pools, until it moves to `projects.launcher:
+kubernetes`), the server sets the replicas of a Deployment
 that runs the workers, to the same desired count an external pool
 publishes. No KEDA needed:
 
@@ -339,8 +394,8 @@ pools:
   `api_url`) doesn't start.
 
 This doesn't break "the control plane never runs user code". The leader
-still runs none: workers are separate processes, and dev's supervisor is a
-convenience for one machine. `moksha server` supervises them the same
+still runs none: workers are separate processes or pods, and dev's
+supervisor is a convenience for one machine. `moksha server` supervises them the same
 way, so a server that starts with queued runs starts the workers to run
 them. Workers on other machines, or run by the service manager itself (a
 Deployment), run with `--no-workers` on the server. Proposed next: scale

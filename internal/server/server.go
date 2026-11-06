@@ -26,6 +26,7 @@ import (
 	"github.com/oklog/ulid/v2"
 
 	"github.com/alper/moksha/internal/api"
+	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
 	"github.com/alper/moksha/internal/blob"
 	"github.com/alper/moksha/internal/clock"
 	"github.com/alper/moksha/internal/core"
@@ -50,7 +51,11 @@ type Config struct {
 	Listen string
 	// SecretsDir holds the secrets deployed projects name (launch.Secrets).
 	SecretsDir string
-	Logger     *slog.Logger
+	// ProjectsOnKubernetes: deployed projects run as Deployments
+	// (projects.launcher: kubernetes), so a deployment needs an image, and
+	// its secrets are the cluster's.
+	ProjectsOnKubernetes bool
+	Logger               *slog.Logger
 }
 
 // HeartbeatTimeout is how long a worker's task survives without a heartbeat.
@@ -71,6 +76,7 @@ type Engine struct {
 	api        *http.Server
 	serveData  bool
 	secretsDir string
+	onKube     bool
 	lock       *os.File
 	cancel     context.CancelFunc
 	done       chan error
@@ -134,6 +140,7 @@ func Start(ctx context.Context, cfg Config) (*Engine, error) {
 	}
 	e.serveData = cfg.ServeData
 	e.secretsDir = cfg.SecretsDir
+	e.onKube = cfg.ProjectsOnKubernetes
 	if e.Logs, err = runlog.Open(filepath.Join(dir, "logs")); err != nil {
 		return fail(err)
 	}
@@ -203,7 +210,7 @@ func (e *Engine) serveAPI(addr string, log *slog.Logger) error {
 	mux.Handle("/", webui.Handler()) // the Connect services' paths above are more specific
 	path, h = api.NewCatalogHandler(e.Core, e.Store, manifests)
 	mux.Handle(path, h)
-	path, h = api.NewDeployHandler(e.Core, launch.Secrets{Dir: e.secretsDir}.Check)
+	path, h = api.NewDeployHandler(e.Core, e.canDeploy)
 	mux.Handle(path, h)
 	e.api = &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	e.APIAddr = ln.Addr().String()
@@ -213,6 +220,30 @@ func (e *Engine) serveAPI(addr string, log *slog.Logger) error {
 		}
 	}()
 	return nil
+}
+
+// canDeploy says whether this server can run m's workers: on Kubernetes,
+// containers of an image (its secrets are the cluster's: a missing one
+// shows on its pods); else the secrets it names must be in its secrets
+// directory.
+func (e *Engine) canDeploy(m *mokshav1.DeployRequest) error {
+	if e.onKube {
+		if m.Image == "" {
+			return errors.New("this server runs projects on Kubernetes (projects.launcher: kubernetes): deploy an image " +
+				"(build.dockerfile, without --local), not code in place")
+		}
+		if !strings.Contains(m.Image, "@sha256:") {
+			// A port-forwarded server looks local to moksha deploy, which
+			// then doesn't push: the cluster couldn't pull the image.
+			return fmt.Errorf("image %s: this server runs projects on Kubernetes, which pull them from a registry: "+
+				"deploy with --push, so the image is pushed and deployed by digest", m.Image)
+		}
+		return nil
+	}
+	if len(m.Secrets) == 0 {
+		return nil
+	}
+	return launch.Secrets{Dir: e.secretsDir}.Check(m.Secrets)
 }
 
 // health answers /healthz: 200 while the core runs, 503 once it has

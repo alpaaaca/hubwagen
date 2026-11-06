@@ -91,7 +91,14 @@ func workerProcess(w config.Worker, id, server, dataDir string, extraEnv ...stri
 // starts.
 func startWorkers(ctx context.Context, g *supervise.Group, cfg *config.Config, c *core.Core, server string, log *slog.Logger, extraEnv ...string) error {
 	var kube *launch.Kube
-	for _, p := range cfg.Pools { // the cluster first: an error starts nothing
+	if cfg.Projects.Launcher == config.LauncherKubernetes { // the cluster first: an error starts nothing
+		k, err := launch.NewKube(cfg.Kubernetes, launch.ServiceAccountDir)
+		if err != nil {
+			return fmt.Errorf("projects.launcher: %w", err)
+		}
+		kube = k
+	}
+	for _, p := range cfg.Pools {
 		if p.Launcher == config.LauncherKubernetes && kube == nil {
 			k, err := launch.NewKube(cfg.Kubernetes, launch.ServiceAccountDir)
 			if err != nil {
@@ -119,7 +126,11 @@ func startWorkers(ctx context.Context, g *supervise.Group, cfg *config.Config, c
 	}
 	sc := pools.New(static, launcher, c, clock.Real{}, log)
 	go sc.Run(ctx)
-	go followProjects(ctx, c, sc, static, launcher, cfg, server, log, extraEnv)
+	var onKube *kubeProjects
+	if cfg.Projects.Launcher == config.LauncherKubernetes {
+		onKube = &kubeProjects{kube: kube, cfg: cfg, log: log, created: map[string]bool{}}
+	}
+	go followProjects(ctx, c, sc, static, launcher, onKube, cfg, server, log, extraEnv)
 	return nil
 }
 
@@ -127,13 +138,13 @@ func startWorkers(ctx context.Context, g *supervise.Group, cfg *config.Config, c
 // Every pass, each live project's current version becomes pools of the
 // scaler, named <project>-<pool>-v<version>, next to the config's own: a new
 // version is a new pool, and the old version's goes (its workers stop and
-// finish what they run).
+// finish what they run). With onKube, the pools are Deployments.
 func followProjects(ctx context.Context, c *core.Core, sc *pools.Scaler, static []pools.Pool, launcher *groupLauncher,
-	cfg *config.Config, server string, log *slog.Logger, extraEnv []string) {
+	onKube *kubeProjects, cfg *config.Config, server string, log *slog.Logger, extraEnv []string) {
 	t := time.NewTicker(pools.Every)
 	defer t.Stop()
 	running := map[string]int{} // project → version its pools run
-	first := true
+	first, prune := true, false // prune: Deployments to delete (onKube)
 	for {
 		ps, err := c.Projects(ctx)
 		if err != nil && ctx.Err() == nil {
@@ -141,6 +152,7 @@ func followProjects(ctx context.Context, c *core.Core, sc *pools.Scaler, static 
 		}
 		want := map[string]int{}
 		all := slices.Clone(static)
+		deployments := map[string]bool{} // onKube: the Deployments the pools are
 		for _, p := range ps {
 			if p.DeletedAt != nil {
 				continue
@@ -148,6 +160,11 @@ func followProjects(ctx context.Context, c *core.Core, sc *pools.Scaler, static 
 			want[p.Project] = p.Version
 			for _, dp := range p.Pools {
 				name := fmt.Sprintf("%s-%s-v%d", p.Project, dp.Name, p.Version)
+				if onKube != nil {
+					all = append(all, onKube.pool(p, dp, name))
+					deployments[launch.DeploymentName(p.Project, dp.Name, p.Version)] = true
+					continue
+				}
 				w, secrets := projectWorker(p, dp, name, cfg), p.Secrets
 				launcher.set(name, func(id string) (supervise.Process, error) {
 					// Secrets are read now, as the worker starts: their values
@@ -189,7 +206,10 @@ func followProjects(ctx context.Context, c *core.Core, sc *pools.Scaler, static 
 			}
 			sc.SetPools(all)
 			launcher.keep(all)
-			running, first = want, false
+			running, first, prune = want, false, onKube != nil
+		}
+		if prune && err == nil {
+			prune = !onKube.prune(ctx, deployments) // again on the next pass if it failed
 		}
 		select {
 		case <-ctx.Done():
@@ -197,6 +217,71 @@ func followProjects(ctx context.Context, c *core.Core, sc *pools.Scaler, static 
 		case <-t.C:
 		}
 	}
+}
+
+// kubeProjects runs deployed projects' pools as Deployments
+// (projects.launcher: kubernetes; internal/launch/deployments.go).
+type kubeProjects struct {
+	kube *launch.Kube
+	cfg  *config.Config
+	log  *slog.Logger
+
+	mu      sync.Mutex
+	created map[string]bool // Deployments this server made or found
+}
+
+// pool is a deployed pool for the scaler: external, its desired count
+// applied to its Deployment, which the first count creates.
+func (k *kubeProjects) pool(p state.Project, dp state.DeployedPool, name string) pools.Pool {
+	d := launch.WorkerDeployment{Name: launch.DeploymentName(p.Project, dp.Name, p.Version), Instance: k.cfg.Kubernetes.InstanceName(),
+		Project: p.Project, Pool: name, Image: p.Image, Server: k.cfg.Projects.ServerURL, Queues: dp.Queues, Steps: dp.Steps,
+		Env: p.Env, Secrets: p.Secrets, PullSecrets: k.cfg.Kubernetes.ImagePullSecrets}
+	return pools.Pool{Name: name, Queues: dp.Queues, Steps: dp.Steps, Min: dp.Min, Max: dp.Max, IdleAfter: dp.IdleAfter,
+		External: true, Registered: true, // deploying registered its build
+		Apply: func(ctx context.Context, n int) error {
+			k.mu.Lock()
+			made := k.created[d.Name]
+			k.mu.Unlock()
+			if !made {
+				d.Replicas = n
+				if err := k.kube.CreateDeployment(ctx, "", d); err != nil {
+					return err
+				}
+				k.mu.Lock()
+				k.created[d.Name] = true
+				k.mu.Unlock()
+				k.log.Info("worker pool "+name+": Deployment "+k.kube.Namespace+"/"+d.Name, "pool", name, "replicas", n)
+			}
+			return k.kube.Scale(ctx, "", d.Name, n) // it may have existed, at another count
+		}}
+}
+
+// prune deletes the Deployments this server made that aren't in keep
+// (old versions, deleted projects, leftovers from before a restart):
+// their pods get SIGTERM and finish what they run. It reports whether
+// it could do all of it.
+func (k *kubeProjects) prune(ctx context.Context, keep map[string]bool) bool {
+	names, err := k.kube.WorkerDeployments(ctx, "", k.cfg.Kubernetes.InstanceName())
+	if err != nil {
+		k.log.Warn("can't list the projects' Deployments", "err", err)
+		return false
+	}
+	ok := true
+	for _, name := range names {
+		if keep[name] {
+			continue
+		}
+		if err := k.kube.DeleteDeployment(ctx, "", name); err != nil {
+			k.log.Warn("can't delete Deployment "+name, "err", err)
+			ok = false
+			continue
+		}
+		k.mu.Lock()
+		delete(k.created, name)
+		k.mu.Unlock()
+		k.log.Info("deleted Deployment "+k.kube.Namespace+"/"+name+": its workers finish what they run and stop", "deployment", name)
+	}
+	return ok
 }
 
 // projectWorker is the worker group a deployed pool runs as: containers of

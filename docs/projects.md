@@ -260,6 +260,15 @@ scales them, as processes on one machine or as pods on Kubernetes.
    per pool of a project and version (old versions drain), `{secret:}`
    from Kubernetes Secrets; the Helm chart shrinks to the server and the
    RBAC to manage Deployments in its namespace.
+   ✅ The server's side: `projects.launcher: kubernetes` runs each pool
+   as `moksha-<project>-<pool>-v<version>`, created at `min`, scaled from
+   the work waiting, deleted when its version is replaced or the project
+   deleted, and leftovers of its `kubernetes.instance` deleted at start;
+   `{secret: name}` is key `value` of the Secret `name` (not checked at
+   deploy: the server doesn't read Secrets); code in place is refused
+   ([config.md](config.md#projects-on-kubernetes-a-deployment-per-pool)).
+   Next: the chart installs only the server, with that config and RBAC,
+   and `launcher: kubernetes` in the server's `pools:` goes.
 7. **The web UI**: projects, versions and what each deploy changed.
 
 ## Open questions

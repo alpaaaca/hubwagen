@@ -212,3 +212,24 @@ pools:
 	_, err = Parse([]byte("apiVersion: moksha.dev/v1alpha1\nkind: Config\npools:\n  - {name: a, launcher: external, idle_after: soon}\n"), t.TempDir())
 	assert.ErrorContains(t, err, `"soon": want a duration such as 5m or 90s`)
 }
+
+func TestProjectsOnKubernetes(t *testing.T) {
+	c, err := Parse([]byte(`
+apiVersion: moksha.dev/v1alpha1
+kind: Config
+kubernetes: {namespace: jobs, instance: prod, image_pull_secrets: [ghcr]}
+projects: {launcher: kubernetes, server_url: "http://moksha.jobs.svc:7070"}
+`), t.TempDir())
+	require.NoError(t, err)
+	assert.Equal(t, LauncherKubernetes, c.Projects.Launcher)
+	assert.Equal(t, "prod", c.Kubernetes.InstanceName())
+	assert.Equal(t, []string{"ghcr"}, c.Kubernetes.ImagePullSecrets)
+	assert.Equal(t, DefaultInstance, Kubernetes{}.InstanceName())
+
+	_, err = Parse([]byte("apiVersion: moksha.dev/v1alpha1\nkind: Config\nkubernetes: {instance: -bad}\nprojects: {launcher: kubernetes}\n"), t.TempDir())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "projects.server_url: required with projects.launcher: kubernetes")
+	assert.Contains(t, err.Error(), `kubernetes.instance: "-bad"`)
+	_, err = Parse([]byte("apiVersion: moksha.dev/v1alpha1\nkind: Config\nprojects: {launcher: nomad}\n"), t.TempDir())
+	assert.ErrorContains(t, err, `projects.launcher: must be kubernetes, or none for this machine, got "nomad"`)
+}

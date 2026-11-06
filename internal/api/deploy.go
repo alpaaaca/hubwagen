@@ -16,24 +16,24 @@ import (
 
 // DeployServer implements DeployService: projects (docs/projects.md).
 type DeployServer struct {
-	core    *core.Core
-	secrets func(names map[string]string) error
+	core  *core.Core
+	check func(*mokshav1.DeployRequest) error
 }
 
 // NewDeployHandler returns the path and handler to mount DeployService at.
-// secrets checks that the server holds the secrets a deployment names.
-func NewDeployHandler(c *core.Core, secrets func(names map[string]string) error) (string, http.Handler) {
-	return mokshav1connect.NewDeployServiceHandler(&DeployServer{core: c, secrets: secrets})
+// check says whether this server can run a deployment: that it holds the
+// secrets it names, that it can run its workers in place or needs an
+// image.
+func NewDeployHandler(c *core.Core, check func(*mokshav1.DeployRequest) error) (string, http.Handler) {
+	return mokshav1connect.NewDeployServiceHandler(&DeployServer{core: c, check: check})
 }
 
 var _ mokshav1connect.DeployServiceHandler = (*DeployServer)(nil)
 
 func (s *DeployServer) Deploy(ctx context.Context, req *connect.Request[mokshav1.DeployRequest]) (*connect.Response[mokshav1.DeployResponse], error) {
 	m := req.Msg
-	if len(m.Secrets) > 0 {
-		if err := s.secrets(m.Secrets); err != nil {
-			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
-		}
+	if err := s.check(m); err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 	r := core.DeployRequest{Project: m.Project, Build: buildRequest(m.Build), Image: m.Image, Dir: m.Dir, Python: m.Python,
 		Env: m.Env, Secrets: m.Secrets, By: m.By}
