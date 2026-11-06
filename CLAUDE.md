@@ -21,7 +21,7 @@ reuse; the SDK has a linter and testing tools. The bucket is a local
 directory or `s3://` (`bucket:` in moksha.yaml); only the server opens it,
 and workers on other machines move data through URLs it hands out. The v1 engine (compiled YAML pipelines) was
 removed in M3c; it is in git history up to commit 33ca1ba. **Next:** M6
-(projects everywhere: Kubernetes deploys next, then the demo), then the rest of M5 (the catalog in the web UI); the
+(projects everywhere: the demo as one project next), then the rest of M5 (the catalog in the web UI); the
 reuse-by-default decision in docs/api-simplification.md.
 
 Read before larger changes:
@@ -61,7 +61,7 @@ spec-kit.
 | `internal/schedule` | Calendar and cron math (DST-correct intervals, what is due since a cursor); the core's run schedules use it |
 | `internal/clock`, `internal/layout` | Real/fake clock; bucket paths (step staging under dataset and partition, data version manifests) |
 | `internal/blob` | The bucket: `file://` and `s3://` (minio-go; conditional writes for atomic create-if-absent, presigned URLs); `s3fake/` is an S3-compatible server in memory for tests |
-| `internal/config` | `moksha.yaml`: data dir, listen address, bucket, `pools:` started elsewhere (external, kubernetes); project files (`kind: Project`) |
+| `internal/config` | `moksha.yaml`: data dir, listen address, bucket, `pools:` started elsewhere (external); project files (`kind: Project`) |
 | `internal/supervise` | Runs and restarts worker processes for `dev` and `server` (prefixed output, SIGTERM then kill); a group that grows and shrinks |
 | `internal/launch` | What starts a pool's workers besides processes: a container per worker (`docker`/`podman run`), Kubernetes Deployments for deployed projects (created, scaled, deleted; plain HTTP; `kubefake/` is the API in memory for tests); the server's secrets (a file each) |
 | `internal/pools` | Scales worker pools (`min`/`max`) from the work waiting on their queues (`core.Demand`), or works out the desired count of external ones (`GET /v1/pools`); reports to the core (`SetPools`) |

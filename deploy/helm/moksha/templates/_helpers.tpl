@@ -20,11 +20,12 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/component: server
 {{- end -}}
 
-{{/* The Deployment of a pool: <fullname>-<pool name>. */}}
-{{- define "moksha.poolName" -}}
-{{- printf "%s-%s" (include "moksha.fullname" .root) .pool.name | trunc 63 | trimSuffix "-" -}}
+{{/* The server's kubernetes.instance: the label on the Deployments it makes. */}}
+{{- define "moksha.instance" -}}
+{{- .Values.projects.instance | default (include "moksha.fullname" .) -}}
 {{- end -}}
 
+{{/* The API as pods in any namespace reach it. */}}
 {{- define "moksha.serverURL" -}}
-{{- printf "http://%s:%d" (include "moksha.fullname" .) (int .Values.server.port) -}}
+{{- printf "http://%s.%s.svc:%d" (include "moksha.fullname" .) .Release.Namespace (int .Values.server.port) -}}
 {{- end -}}

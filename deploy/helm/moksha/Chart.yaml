@@ -1,6 +1,6 @@
 apiVersion: v2
 name: moksha
-description: moksha server and worker pools that it scales from the work waiting
+description: moksha server; it runs the projects deployed to it as Deployments it scales from the work waiting
 type: application
 version: 0.1.1
 appVersion: "0.1.1"

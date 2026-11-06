@@ -163,10 +163,9 @@ func TestPools(t *testing.T) {
 	c, err := Parse([]byte(`
 apiVersion: moksha.dev/v1alpha1
 kind: Config
-kubernetes: {api_url: "http://127.0.0.1:8001", namespace: jobs}
 pools:
   - {name: gpu, launcher: external, max: 3, queues: [gpu, default], steps: 1, idle_after: 90s}
-  - {name: k, launcher: kubernetes, deployment: revenue-workers, min: 2}
+  - {name: k, launcher: external, min: 2}
 `), t.TempDir())
 	require.NoError(t, err)
 	type bounds struct{ lo, hi int }
@@ -179,8 +178,6 @@ pools:
 	assert.Equal(t, DefaultSteps, c.Pools[1].StepCount())
 	assert.Equal(t, 90*time.Second, c.Pools[0].Idle())
 	assert.Equal(t, DefaultIdleAfter, c.Pools[1].Idle())
-	assert.Equal(t, "revenue-workers", c.Pools[1].Deployment)
-	assert.Equal(t, Kubernetes{APIURL: "http://127.0.0.1:8001", Namespace: "jobs"}, c.Kubernetes)
 
 	_, err = Parse([]byte(`
 apiVersion: moksha.dev/v1alpha1
@@ -190,22 +187,23 @@ pools:
   - {name: b, launcher: container}
   - {name: c, launcher: docker}
   - {name: d, launcher: kubernetes}
-  - {name: e, launcher: external, deployment: y, min: 3, max: 2}
+  - {name: e, launcher: external, min: 3, max: 2}
   - {name: f, launcher: external, steps: 0, queues: [""]}
 `), t.TempDir())
 	require.Error(t, err)
 	for _, want := range []string{
-		"pools[0].launcher: must be external or kubernetes; pools of processes or containers come from a project's file",
-		"pools[1].launcher: must be external or kubernetes; pools of processes",
-		`pools[2].launcher: must be external or kubernetes, got "docker"`,
-		"pools[3].deployment: required with launcher: kubernetes",
-		"pools[4]: deployment and namespace are for launcher: kubernetes",
+		"pools[0].launcher: must be external; pools of processes, containers or Deployments come from a project's file",
+		"pools[1].launcher: must be external; pools of processes",
+		`pools[2].launcher: must be external, got "docker"`,
+		"pools[3].launcher: must be external; pools of processes, containers or Deployments come from a project's file (kind: Project, docs/projects.md), on Kubernetes with projects.launcher: kubernetes",
 		"pools[4]: min 3 is more than max 2",
 		"pools[5].steps: must be 1 or more",
 		"pools[5].queues[0]: empty",
 	} {
 		assert.Contains(t, err.Error(), want)
 	}
+	_, err = Parse([]byte("apiVersion: moksha.dev/v1alpha1\nkind: Config\npools:\n  - {name: a, launcher: external, deployment: w}\n"), t.TempDir())
+	assert.ErrorContains(t, err, "field deployment not found", "the server makes Deployments only for projects")
 	_, err = Parse([]byte("apiVersion: moksha.dev/v1alpha1\nkind: Config\npools:\n  - {name: a, launcher: external, command: [w]}\n"), t.TempDir())
 	assert.ErrorContains(t, err, "field command not found", "a pool here has no command: it is started elsewhere")
 

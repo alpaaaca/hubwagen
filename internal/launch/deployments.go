@@ -52,11 +52,12 @@ type WorkerDeployment struct {
 	PullSecrets []string
 }
 
-// DeploymentName is the Deployment of pool's version of project:
-// moksha-<project>-<pool>-v<version>, with _ as -, shortened with a hash
-// when it would be too long for a label.
-func DeploymentName(project, pool string, version int) string {
-	name := strings.ReplaceAll(fmt.Sprintf("moksha-%s-%s-v%d", project, pool, version), "_", "-")
+// DeploymentName is the Deployment of pool's version of project, made by
+// the server instance: <instance>-<project>-<pool>-v<version> (two
+// instances in one namespace stay apart), lower case with _ and . as -,
+// shortened with a hash when it would be too long for a label.
+func DeploymentName(instance, project, pool string, version int) string {
+	name := strings.NewReplacer("_", "-", ".", "-").Replace(strings.ToLower(fmt.Sprintf("%s-%s-%s-v%d", instance, project, pool, version)))
 	if len(name) <= 52 { // room for the ReplicaSet's and pod's suffixes in 63
 		return name
 	}

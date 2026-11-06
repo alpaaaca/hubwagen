@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -11,7 +10,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -119,26 +117,6 @@ func TestServerStartsAScaledPoolAtItsMin(t *testing.T) {
 	time.Sleep(3 * time.Second) // a scaler pass: nothing waits, so no more start
 	assert.Equal(t, "http://"+listen+" revenue-default-v1-1 gpu,default 2\n", read())
 	stopServerCmd(t, done)
-}
-
-func TestServerScalesAKubernetesDeployment(t *testing.T) {
-	var mu sync.Mutex
-	var patches []string
-	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		b, _ := io.ReadAll(r.Body)
-		mu.Lock()
-		patches = append(patches, r.Method+" "+r.URL.Path+" "+string(b))
-		mu.Unlock()
-		_, _ = w.Write([]byte(`{}`))
-	}))
-	defer api.Close()
-	done := runServerConfig(t, freeListen(t), fmt.Sprintf(
-		"kubernetes: {api_url: %q, namespace: jobs}\npools:\n  - {name: k8s, launcher: kubernetes, deployment: revenue-workers, min: 1, max: 4}\n", api.URL))
-	require.Eventually(t, func() bool { mu.Lock(); defer mu.Unlock(); return len(patches) > 0 }, 10*time.Second, 20*time.Millisecond)
-	stopServerCmd(t, done)
-	mu.Lock()
-	defer mu.Unlock()
-	assert.Equal(t, `PATCH /apis/apps/v1/namespaces/jobs/deployments/revenue-workers/scale {"spec":{"replicas":1}}`, patches[0], "min")
 }
 
 // A project deployed with an image runs as containers of it.

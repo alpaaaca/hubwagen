@@ -25,9 +25,8 @@ bucket:
   endpoint: ${DEMO_EMPTY}        # set, empty
 pools:
   - name: py
-    launcher: kubernetes
+    launcher: ${DEMO_LAUNCHER:-external}
     max: ${DEMO_WORKERS}
-    deployment: ${DEMO_DEPLOYMENT:-revenue-workers}
     queues: ["$HOME", "$${NOT_A_VARIABLE}"]
 `), dir)
 	require.NoError(t, err)
@@ -37,7 +36,7 @@ pools:
 	require.Len(t, c.Pools, 1)
 	_, hi := c.Pools[0].Bounds()
 	assert.Equal(t, 2, hi, "a number after expansion is a number")
-	assert.Equal(t, "revenue-workers", c.Pools[0].Deployment)
+	assert.Equal(t, LauncherExternal, c.Pools[0].Launcher)
 	assert.Equal(t, []string{"$HOME", "${NOT_A_VARIABLE}"}, c.Pools[0].Queues, "only ${…} is a variable; $${ is a literal ${")
 }
 

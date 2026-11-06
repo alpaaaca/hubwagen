@@ -28,16 +28,10 @@ data:
     {{- end }}
     kubernetes:
       namespace: {{ .Release.Namespace }}
-    {{- if .Values.pools }}
-    pools:
-    {{- range .Values.pools }}
-      - name: {{ .name }}
-        launcher: kubernetes
-        deployment: {{ include "moksha.poolName" (dict "root" $ "pool" .) }}
-        min: {{ .min | default 0 }}
-        max: {{ required (printf "pools[%s].max is required" .name) .max }}
-        steps: {{ .steps | default 4 }}
-        queues: {{ .queues | default (list "default") | toJson }}
-        idle_after: {{ .idleAfter | default "5m" }}
-    {{- end }}
-    {{- end }}
+      instance: {{ include "moksha.instance" . }}
+      {{- with .Values.projects.imagePullSecrets }}
+      image_pull_secrets: {{ toJson . }}
+      {{- end }}
+    projects:
+      launcher: kubernetes
+      server_url: {{ include "moksha.serverURL" . }}

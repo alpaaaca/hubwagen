@@ -15,11 +15,12 @@ import (
 )
 
 func TestDeploymentName(t *testing.T) {
-	assert.Equal(t, "moksha-revenue-default-v3", DeploymentName("revenue", "default", 3))
-	assert.Equal(t, "moksha-my-proj-gpu-pool-v1", DeploymentName("my_proj", "gpu_pool", 1), "_ isn't allowed in a name")
-	long := DeploymentName(strings.Repeat("p", 40), strings.Repeat("q", 20), 12)
+	assert.Equal(t, "moksha-revenue-default-v3", DeploymentName("moksha", "revenue", "default", 3))
+	assert.Equal(t, "staging-revenue-default-v3", DeploymentName("staging", "revenue", "default", 3), "instances stay apart")
+	assert.Equal(t, "eu-1-my-proj-gpu-pool-v1", DeploymentName("EU.1", "my_proj", "gpu_pool", 1), "_, . and capitals aren't allowed in a name")
+	long := DeploymentName("moksha", strings.Repeat("p", 40), strings.Repeat("q", 20), 12)
 	assert.LessOrEqual(t, len(long), 52)
-	assert.NotEqual(t, long, DeploymentName(strings.Repeat("p", 40), strings.Repeat("q", 20), 13), "versions stay apart")
+	assert.NotEqual(t, long, DeploymentName("moksha", strings.Repeat("p", 40), strings.Repeat("q", 20), 13), "versions stay apart")
 }
 
 func TestKubeCreatesListsAndDeletesWorkerDeployments(t *testing.T) {
