@@ -1,5 +1,5 @@
-"""The M3c demo: the example project in pipelines/examples/revenue, run by a
-real worker against `moksha dev`, replayed with the `moksha replay`
+"""The M3c demo: the revenue project in projects/revenue (as in moksha-demo),
+run by a real worker against `moksha dev`, replayed with the `moksha replay`
 command. The second replay reuses what didn't change; changing a step's
 code or the source data reruns exactly what depends on it."""
 
@@ -7,14 +7,15 @@ import re
 import shutil
 import signal
 import subprocess
+from pathlib import Path
 
 import pytest
 
 import moksha as mk
 
-from conftest import REPO, start_dev, start_worker, stop
+from conftest import start_dev, start_worker, stop
 
-EXAMPLE = REPO / "pipelines" / "examples" / "revenue"
+EXAMPLE = Path(__file__).parent / "projects" / "revenue"
 
 
 def normalize(report: str) -> str:

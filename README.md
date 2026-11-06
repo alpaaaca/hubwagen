@@ -75,20 +75,16 @@ binary downloaded with a browser (not `curl`) is quarantined:
 
 ## Quick start
 
-Requires Python 3.12+ for the workers. From a clone of this repository:
+The example project, a daily revenue pipeline (extract → transform →
+report), lives in [moksha-demo](https://github.com/alpaaaca/moksha-demo):
+a server, and workers that share no files with it. Its README has the
+setup (Go, Node and Python 3.12+, a clone of this repository next to it):
 
 ```bash
-moksha dev --config pipelines/examples/revenue/moksha.yaml
-```
-
-That starts the server and three Python workers for the
-[example project](pipelines/examples/revenue). The web UI is at
-http://127.0.0.1:7070/. In another terminal:
-
-```bash
-moksha replay daily --param day=2026-10-01..2026-10-03
-moksha replay daily --param day=2026-10-01..2026-10-03   # again: what's unchanged is reused
-moksha start daily --param day=2026-10-04 --wait
+./demo server             # terminal 1: the server; the web UI is at http://127.0.0.1:7171/
+./demo workers            # terminal 2: the workers
+./demo replay 2026-10-01..2026-10-03
+./demo replay 2026-10-01..2026-10-03   # again: what's unchanged is reused
 ```
 
 `replay` reports, per step, what ran and what was reused:
@@ -101,7 +97,8 @@ moksha start daily --param day=2026-10-04 --wait
 3 completed
 ```
 
-`moksha dev` shows each run as it goes, with what its steps print and log:
+`moksha dev` (the server and the workers in one terminal) shows each run
+as it goes, with what its steps print and log:
 
 ```
 ▶ Daily revenue day=2026-10-01 started

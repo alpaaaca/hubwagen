@@ -136,7 +136,9 @@ reuse.
    ✅ Dataframes: steps return pandas/Polars frames and Arrow tables (written
    as Parquet into a data version, in the step's implicit dataset `step:<name>`
    when it has no output) and take them as arguments, loaded by annotation.
-3. ✅ **Example** in `pipelines/examples/revenue/`: a small Python project with
+3. ✅ **Example** in `pipelines/examples/revenue/` (since moved to
+   [moksha-demo](https://github.com/alpaaaca/moksha-demo); the tests run
+   their copy in `sdk/python/tests/projects/revenue/`): a small Python project with
    an extract → transform → report run that writes CSV, and the demo test
    (`sdk/python/tests/test_example.py`): `moksha dev` + a worker, replays
    over a date range, a code change and a data change, each reporting what
@@ -327,7 +329,7 @@ each is one PR:
    because their code changed, new ones, ones no longer in the code
    (`ListCode`).
    ✅ **Container images and a Helm chart**: images for the server and
-   the worker base (plus the example's), `deploy/compose.yaml` for one
+   the worker base, `deploy/compose.yaml` for one
    machine, and `deploy/helm/moksha` (server on a PVC, a Deployment per
    pool scaled by the server); [deploy.md](deploy.md). Not yet: CI that
    publishes the images.

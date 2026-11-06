@@ -6,9 +6,9 @@ VERSION   ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo de
 COMMIT    ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 TAG       ?= dev
 
-.PHONY: images server-image worker-image example-image up down
+.PHONY: images server-image worker-image up down
 
-images: server-image worker-image example-image ## build all three images
+images: server-image worker-image ## build both images
 
 server-image: ## moksha:$(TAG): the server, with the web UI
 	$(CONTAINER) build -t moksha:$(TAG) --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) \
@@ -17,11 +17,8 @@ server-image: ## moksha:$(TAG): the server, with the web UI
 worker-image: ## moksha-worker:$(TAG): Python and the SDK, the base of project images
 	$(CONTAINER) build -t moksha-worker:$(TAG) sdk/python
 
-example-image: worker-image ## revenue-worker:$(TAG): the revenue example's workers
-	$(CONTAINER) build -t revenue-worker:$(TAG) --build-arg WORKER_IMAGE=moksha-worker:$(TAG) pipelines/examples/revenue
-
-up: ## run the server and the example's workers (deploy/compose.yaml)
+up: ## run the server (deploy/compose.yaml)
 	$(COMPOSE) -f deploy/compose.yaml up
 
-down: ## stop them; add -v to the compose command to drop the data volume
+down: ## stop it; add -v to the compose command to drop the data volume
 	$(COMPOSE) -f deploy/compose.yaml down

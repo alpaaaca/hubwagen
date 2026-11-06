@@ -1,4 +1,4 @@
-"""moksha lint on small modules, and on the example project."""
+"""moksha lint on small modules, and on the revenue test project."""
 
 import subprocess
 import sys
@@ -7,7 +7,7 @@ from pathlib import Path
 
 from moksha.lint import lint_source, main
 
-from conftest import REPO, SDK
+from conftest import SDK
 
 
 def codes(src: str) -> list[tuple[int, str]]:
@@ -94,7 +94,7 @@ def test_messages_name_the_place():
 
 
 def test_example_project_is_clean(monkeypatch, capsys):
-    monkeypatch.chdir(REPO / "pipelines" / "examples" / "revenue")
+    monkeypatch.chdir(Path(__file__).parent / "projects" / "revenue")
     assert main([]) == 0, capsys.readouterr().out  # its modules come from pyproject.toml
 
 

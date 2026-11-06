@@ -1,7 +1,7 @@
 """Daily revenue: extract → transform → report, one run per day.
 
     moksha dev
-    python -m moksha.worker revenue.pipelines        # from pipelines/examples/revenue
+    python -m moksha.worker revenue.pipelines        # from this directory
     moksha replay daily --param day=2026-10-01..2026-10-07
 
 extract_orders reads a source that can change, so it is not memoized: it
