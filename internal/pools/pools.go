@@ -42,6 +42,11 @@ type Pool struct {
 	// scaler only works out how many it wants (Desired), from the workers
 	// that poll its queues and the work waiting there.
 	External bool
+	// WorkerPrefix, if set (an external pool), counts only the workers
+	// whose ID starts with it: a Deployment's pods are named after it, so
+	// another version's draining pods on the same queues aren't its own.
+	// Empty: every worker polling its queues.
+	WorkerPrefix string
 	// Apply, if set (an external pool), makes the desired count so: it
 	// sets a Kubernetes Deployment's replicas. It is called when the count
 	// changes, and again on the next pass while it fails.
@@ -279,7 +284,7 @@ func (s *Scaler) external(ctx context.Context, p Pool, st *poolState, seen []cor
 	var ids []string
 	active := 0
 	for _, w := range seen {
-		if counted[w.ID] || !overlaps(w.Queues, p.Queues) {
+		if counted[w.ID] || !overlaps(w.Queues, p.Queues) || !strings.HasPrefix(w.ID, p.WorkerPrefix) {
 			continue
 		}
 		counted[w.ID] = true

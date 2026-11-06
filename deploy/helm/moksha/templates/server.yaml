@@ -7,6 +7,36 @@ metadata:
   annotations: {{- toYaml . | nindent 4 }}
   {{- end }}
 ---
+# The server runs deployed projects as Deployments in this namespace
+# (projects.launcher: kubernetes): it creates, lists and deletes them, and
+# sets their replicas. Nothing else.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "moksha.fullname" . }}
+  labels: {{- include "moksha.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [get, list, create, delete]
+  - apiGroups: [apps]
+    resources: [deployments/scale]
+    verbs: [get, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "moksha.fullname" . }}
+  labels: {{- include "moksha.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "moksha.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "moksha.fullname" . }}
+    namespace: {{ .Release.Namespace }}
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

@@ -101,9 +101,13 @@ Kubernetes.
 
 ## Kubernetes: the Helm chart
 
-[deploy/helm/moksha](../deploy/helm/moksha) installs the server and a
-Deployment per worker pool, whose replicas the server sets from the work
-waiting (`launcher: kubernetes`, [config.md](config.md#kubernetes-pools-a-deployments-replicas)):
+[deploy/helm/moksha](../deploy/helm/moksha) installs the server, and the
+server runs your projects: `moksha deploy --push` hands it a project's
+image by digest, and it runs each pool as a Deployment it creates,
+scales from the work waiting and deletes when a new version replaces it
+(`projects.launcher: kubernetes`,
+[config.md](config.md#projects-on-kubernetes-a-deployment-per-pool)).
+Nothing per project goes in the values:
 
 ```yaml
 # values.yaml
@@ -114,46 +118,48 @@ server:
     url: s3://acme-moksha/prod
     region: eu-central-1
     existingSecret: moksha-s3     # keys access_key_id, secret_access_key; or a pod role
-pools:
-  - name: revenue
-    image: ghcr.io/acme/revenue:2026-10-30
-    min: 0
-    max: 5
-    steps: 2
-  - name: gpu
-    image: ghcr.io/acme/train:2026-10-30
-    max: 2
-    queues: [gpu]
-    steps: 1
-    resources: {limits: {nvidia.com/gpu: 1}}
+projects:
+  imagePullSecrets: [ghcr]        # if projects' images are private
 ```
 
 ```bash
 helm install moksha deploy/helm/moksha -n moksha --create-namespace -f values.yaml
 kubectl -n moksha port-forward svc/moksha 7070
-moksha start my_pipeline --wait  # once your workers are up
 ```
 
-The server runs only pipelines some worker has registered, so when it
-starts, a pool with `min: 0` runs one worker briefly to register its code
-([worker-pools.md](worker-pools.md#scaling-from-zero)).
+Then, in a project's directory (a `moksha.yaml` with `kind: Project` and
+a `build:` whose `image` is in a registry the cluster pulls from):
+
+```bash
+moksha deploy --push             # build, push, deploy by digest
+kubectl -n moksha get deployments -l app.kubernetes.io/managed-by=moksha
+moksha start daily --wait
+```
+
+`moksha deploy` again with changed code is a new version: its
+Deployments start at each pool's `min`, and the old version's are
+deleted, their pods finishing what they run. A project's
+`{secret: revenue-db}` is key `value` of the Secret `revenue-db` in the
+release's namespace.
 
 What it creates:
 
 - **The server**: one replica (a single leader on SQLite) with `Recreate`,
   so two never share the data; `/data` on a PVC; `/healthz` as its
-  probes; a ClusterIP Service.
-- **A ConfigMap** with `moksha.yaml`: the bucket, and a `pools:` entry
-  per pool with `launcher: kubernetes`. A change restarts the server.
-- **A Role** that lets the server's service account patch
-  `deployments/scale` of the pools' Deployments, and nothing else.
-- **A Deployment per pool** whose replicas the server sets between `min`
-  and `max`: it is created with `min`, and `helm upgrade` keeps the count
-  the server last set (the chart looks it up). Its pods get
-  `MOKSHA_SERVER`, the pool's queues and steps, and no service account
-  token. Give `terminationGracePeriodSeconds` (default 600) more time than
-  your steps take: Kubernetes picks which pod to remove when it scales
-  down, and a stopped worker finishes what it runs.
+  probes; a ClusterIP Service. Without a bucket, data versions are on the
+  PVC and workers move them through the server.
+- **A ConfigMap** with `moksha.yaml`: the bucket, `projects.launcher:
+  kubernetes`, the Service as pods reach it
+  (`http://<release>.<namespace>.svc:7070`) and the instance that labels
+  the server's Deployments (`projects.instance`, default the release's
+  full name, so two releases in a namespace stay apart). A change
+  restarts the server.
+- **A Role** for the server's service account: get, list, create and
+  delete Deployments in the namespace, and set their scale. Nothing else.
+- **No worker Deployments**: those are the server's, not Helm's, so
+  `helm uninstall` leaves them. `moksha delete <project>` first, or
+  `kubectl delete deployments -l app.kubernetes.io/managed-by=moksha,moksha.dev/instance=<instance>`
+  after.
 
 The API has no authentication yet: keep the Service a ClusterIP and reach
 it with a port-forward, or behind something that authenticates.

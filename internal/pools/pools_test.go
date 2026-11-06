@@ -280,6 +280,25 @@ func TestAnExternalPoolDoesntCountAProcessPoolsWorkers(t *testing.T) {
 	assert.Empty(t, e.pool("k8s").Workers)
 }
 
+// A new version's Deployment doesn't count the old one's draining pods,
+// which poll the same queues: with them it would want one more each pass,
+// up to max, while nothing waits.
+func TestAnExternalPoolWithAPrefixCountsOnlyItsOwnWorkers(t *testing.T) {
+	e := newEnv(t)
+	v2 := Pool{Name: "revenue-default-v2", Queues: []string{core.DefaultQueue}, Steps: 1, Max: 3, IdleAfter: time.Minute,
+		External: true, Registered: true, WorkerPrefix: "moksha-revenue-default-v2-"}
+	s := e.registered(v2)
+	e.idle("moksha-revenue-default-v1-7c9d-abcde") // v1's pod, finishing up
+	e.tick(s)
+	e.tick(s)
+	assert.Equal(t, 0, e.pool("revenue-default-v2").Desired)
+	assert.Empty(t, e.pool("revenue-default-v2").Workers)
+
+	e.idle("moksha-revenue-default-v2-5f6b-fghij")
+	e.tick(s)
+	assert.Equal(t, []string{"moksha-revenue-default-v2-5f6b-fghij"}, e.pool("revenue-default-v2").Workers)
+}
+
 func TestAKubernetesPoolAppliesItsDesiredCount(t *testing.T) {
 	e := newEnv(t)
 	var applied []int

@@ -84,11 +84,10 @@ func workerProcess(w config.Worker, id, server, dataDir string, extraEnv ...stri
 	return supervise.Process{ID: id, Command: w.Command, Dir: w.Dir, Env: append(os.Environ(), env...)}
 }
 
-// startWorkers scales the config's pools (launcher: external or
-// kubernetes) and runs the projects deployed to the server
-// (followProjects), their workers in g, until ctx ends. Kubernetes pools
-// need the cluster: an error if it can't be reached, before anything
-// starts.
+// startWorkers scales the config's pools (launcher: external) and runs
+// the projects deployed to the server (followProjects), their workers in
+// g, until ctx ends. Projects on Kubernetes need the cluster: an error if
+// it can't be reached, before anything starts.
 func startWorkers(ctx context.Context, g *supervise.Group, cfg *config.Config, c *core.Core, server string, log *slog.Logger, extraEnv ...string) error {
 	var kube *launch.Kube
 	if cfg.Projects.Launcher == config.LauncherKubernetes { // the cluster first: an error starts nothing
@@ -98,15 +97,6 @@ func startWorkers(ctx context.Context, g *supervise.Group, cfg *config.Config, c
 		}
 		kube = k
 	}
-	for _, p := range cfg.Pools {
-		if p.Launcher == config.LauncherKubernetes && kube == nil {
-			k, err := launch.NewKube(cfg.Kubernetes, launch.ServiceAccountDir)
-			if err != nil {
-				return fmt.Errorf("pools %s: %w", p.Name, err)
-			}
-			kube = k
-		}
-	}
 	removeLeftovers(ctx, cfg, log)
 	launcher := &groupLauncher{g: g, log: log, start: map[string]func(id string) (supervise.Process, error){}}
 	var static []pools.Pool
@@ -114,14 +104,8 @@ func startWorkers(ctx context.Context, g *supervise.Group, cfg *config.Config, c
 		lo, hi := cp.Bounds()
 		p := pools.Pool{Name: cp.Name, Queues: cp.QueueList(), Steps: cp.StepCount(), Min: lo, Max: hi,
 			IdleAfter: cp.Idle(), External: true}
-		msg := "started elsewhere; its desired count is at GET /v1/pools/" + cp.Name
-		if cp.Launcher == config.LauncherKubernetes {
-			ns, deployment := cp.Namespace, cp.Deployment
-			p.Apply = func(ctx context.Context, n int) error { return kube.Scale(ctx, ns, deployment, n) }
-			msg = "the replicas of Deployment " + or(ns, kube.Namespace) + "/" + deployment
-		}
 		static = append(static, p)
-		log.Info("worker pool "+cp.Name+": "+msg, "pool", cp.Name, "min", lo, "max", hi,
+		log.Info("worker pool "+cp.Name+": started elsewhere; its desired count is at GET /v1/pools/"+cp.Name, "pool", cp.Name, "min", lo, "max", hi,
 			"queues", strings.Join(cp.QueueList(), ","), "idle_after", cp.Idle())
 	}
 	sc := pools.New(static, launcher, c, clock.Real{}, log)
@@ -162,7 +146,7 @@ func followProjects(ctx context.Context, c *core.Core, sc *pools.Scaler, static 
 				name := fmt.Sprintf("%s-%s-v%d", p.Project, dp.Name, p.Version)
 				if onKube != nil {
 					all = append(all, onKube.pool(p, dp, name))
-					deployments[launch.DeploymentName(p.Project, dp.Name, p.Version)] = true
+					deployments[launch.DeploymentName(cfg.Kubernetes.InstanceName(), p.Project, dp.Name, p.Version)] = true
 					continue
 				}
 				w, secrets := projectWorker(p, dp, name, cfg), p.Secrets
@@ -233,11 +217,12 @@ type kubeProjects struct {
 // pool is a deployed pool for the scaler: external, its desired count
 // applied to its Deployment, which the first count creates.
 func (k *kubeProjects) pool(p state.Project, dp state.DeployedPool, name string) pools.Pool {
-	d := launch.WorkerDeployment{Name: launch.DeploymentName(p.Project, dp.Name, p.Version), Instance: k.cfg.Kubernetes.InstanceName(),
+	d := launch.WorkerDeployment{Name: launch.DeploymentName(k.cfg.Kubernetes.InstanceName(), p.Project, dp.Name, p.Version), Instance: k.cfg.Kubernetes.InstanceName(),
 		Project: p.Project, Pool: name, Image: p.Image, Server: k.cfg.Projects.ServerURL, Queues: dp.Queues, Steps: dp.Steps,
 		Env: p.Env, Secrets: p.Secrets, PullSecrets: k.cfg.Kubernetes.ImagePullSecrets}
 	return pools.Pool{Name: name, Queues: dp.Queues, Steps: dp.Steps, Min: dp.Min, Max: dp.Max, IdleAfter: dp.IdleAfter,
 		External: true, Registered: true, // deploying registered its build
+		WorkerPrefix: d.Name + "-", // its pods, not another version's (MOKSHA_WORKER_ID is the pod's name)
 		Apply: func(ctx context.Context, n int) error {
 			k.mu.Lock()
 			made := k.created[d.Name]

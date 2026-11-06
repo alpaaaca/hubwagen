@@ -83,10 +83,9 @@ bucket:
 kubernetes:
   namespace: ${MOKSHA_NAMESPACE}   # must be set
 pools:
-  - name: revenue
-    launcher: kubernetes
-    deployment: revenue-workers
-    max: ${WORKERS:-3}             # still a number
+  - name: gpu
+    launcher: external
+    max: ${GPU_WORKERS:-3}         # still a number
 ```
 
 - **`${NAME}` must be set**, even if empty; an unset one is an error with
@@ -301,7 +300,8 @@ runs each worker as a container of it, with Docker or Podman
 With `projects.launcher: kubernetes`, a server in a cluster runs each
 deployed project's pools as Deployments it creates, scales and deletes
 itself. `moksha deploy` pushes the project's image and deploys it by
-digest; nothing else to install per project:
+digest; nothing else to install per project. The Helm chart sets all of
+this up ([deploy.md](deploy.md#kubernetes-the-helm-chart)):
 
 ```yaml
 kubernetes:
@@ -313,10 +313,11 @@ projects:
   server_url: http://moksha.moksha.svc:7070   # the server's Service, as pods reach it
 ```
 
-- **A Deployment per pool and version**, `moksha-<project>-<pool>-v<version>`,
-  labelled `app.kubernetes.io/managed-by: moksha` and `moksha.dev/instance`.
+- **A Deployment per pool and version**, `<instance>-<project>-<pool>-v<version>`
+  (`moksha-revenue-default-v3`), labelled `app.kubernetes.io/managed-by: moksha` and `moksha.dev/instance`.
   It is created at the pool's `min` and its replicas are set from the work
-  waiting, as for any pool. A new version is a new Deployment; the old
+  waiting, as for any pool, counting only its own pods (their names start
+  with the Deployment's). A new version is a new Deployment; the old
   one's is deleted, so its pods get SIGTERM and finish what they run
   within `terminationGracePeriodSeconds` (600). Deleting the project
   deletes its Deployments. At start the server deletes Deployments of
@@ -349,49 +350,10 @@ projects:
       verbs: [get, patch]
   ```
 
-#### Kubernetes pools: a Deployment's replicas
-
-With `launcher: kubernetes` in `pools:`, for a Deployment someone else
-manages (the Helm chart's pools, until it moves to `projects.launcher:
-kubernetes`), the server sets the replicas of a Deployment
-that runs the workers, to the same desired count an external pool
-publishes. No KEDA needed:
-
-```yaml
-kubernetes:
-  # api_url: http://127.0.0.1:8001   # kubectl proxy, from outside the cluster;
-  #                                  # default: the pod's service account
-  namespace: moksha                # default: the service account's
-pools:
-  - name: revenue
-    launcher: kubernetes
-    deployment: revenue-workers      # runs python -m moksha.worker
-    min: 0
-    max: 10
-    steps: 2
-```
-
-- **It patches** `deployments/<name>/scale` when the count changes (and
-  sets `min` at start), retrying on the next pass if the API refuses.
-  In a pod it uses its service account, which needs:
-
-  ```yaml
-  apiVersion: rbac.authorization.k8s.io/v1
-  kind: Role
-  metadata: {name: moksha-scaler, namespace: moksha}
-  rules:
-    - apiGroups: [apps]
-      resources: [deployments/scale]
-      verbs: [get, patch]
-  ```
-
-- **The Deployment** sets `MOKSHA_SERVER` (the server's Service) and the
-  group's queues and steps (`MOKSHA_QUEUES`, `MOKSHA_STEPS`). As with KEDA,
-  Kubernetes picks the pod it removes: give the pods a
-  `terminationGracePeriodSeconds` longer than your steps.
 - **No client library**: plain HTTP to the API server, so the binary stays
-  pure Go. A server that can't reach the cluster (no service account, no
-  `api_url`) doesn't start.
+  pure Go. In a pod the server uses its service account; from outside the
+  cluster, `kubernetes.api_url: http://127.0.0.1:8001` (`kubectl proxy`).
+  A server that can't reach the cluster doesn't start.
 
 This doesn't break "the control plane never runs user code". The leader
 still runs none: workers are separate processes or pods, and dev's

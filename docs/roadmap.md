@@ -380,17 +380,17 @@ order; each is one PR (projects steps 4–6):
    (`test_dev_deploys_the_project_and_its_changes`).
 2. ✅ **No `moksha workers`; `workers:` becomes `pools:`**: the command
    goes; the server's config keeps only pools it doesn't start
-   (`launcher: external`, and `kubernetes` until step 3), under `pools:`;
+   (`launcher: external`), under `pools:`;
    `workers:` is an error that says what to write instead. README,
    config.md and deploy.md lead with one machine, then Kubernetes.
-3. **Kubernetes deploys**: `moksha deploy` to a server in a cluster
+3. ✅ **Kubernetes deploys**: `moksha deploy` to a server in a cluster
    creates, updates and drains a Deployment per pool and version;
    `{secret:}` from Kubernetes Secrets; the Helm chart installs only the
    server and its RBAC. Two PRs:
    ✅ the server's side (`projects.launcher: kubernetes`,
    `internal/launch/deployments.go`, tested against `launch/kubefake`);
-   next, the chart, and `launcher: kubernetes` leaves the server's
-   `pools:`.
+   ✅ the chart (server, ConfigMap and RBAC only; tried on a kind
+   cluster), and the server's `pools:` are `launcher: external` only.
 4. **moksha-demo**: one project (no `server/` and `elsewhere/` split):
    `moksha dev` first, then a Kubernetes section (a kind cluster,
    `helm install`, `moksha deploy`, pods scaling from zero for a

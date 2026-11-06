@@ -57,14 +57,14 @@ type Config struct {
 	Bucket     Bucket `yaml:"bucket"`
 	Server     Server `yaml:"server"`
 	// Pools are worker pools the server scales but doesn't start
-	// (launcher: external or kubernetes). Pools of a project's own workers
+	// (launcher: external). Pools of a project's own workers
 	// come from its project file (docs/projects.md).
 	Pools []Pool `yaml:"pools"`
 	// OldWorkers is the workers: section of configs before pools:, kept
 	// only to say what to write instead.
 	OldWorkers yaml.Node `yaml:"workers"`
 	// Kubernetes is how the server reaches the cluster that runs
-	// launcher: kubernetes pools.
+	// deployed projects with projects.launcher: kubernetes.
 	Kubernetes Kubernetes `yaml:"kubernetes"`
 	// Projects is how the server runs deployed projects' workers
 	// (docs/projects.md): containers of their image with Runtime, reaching
@@ -190,20 +190,15 @@ type Server struct {
 
 // Pool is a worker pool in the server's config: between min and max
 // workers, a count the server works out from the work waiting on its
-// queues (internal/pools), and that something else applies (external:
-// KEDA, an HPA, from GET /v1/pools/<name>) or the server sets as a
-// Deployment's replicas (kubernetes).
+// queues (internal/pools), and that something else applies (KEDA, an
+// HPA, from GET /v1/pools/<name>).
 type Pool struct {
-	Name     string `yaml:"name"`
-	Launcher string `yaml:"launcher"` // external or kubernetes
-	// Kubernetes: the Deployment that runs the pool's workers, in
-	// Namespace (default: the kubernetes section's).
-	Deployment string   `yaml:"deployment"`
-	Namespace  string   `yaml:"namespace"`
-	Min        *int     `yaml:"min"`    // default 0
-	Max        *int     `yaml:"max"`    // default max(min, 1)
-	Queues     []string `yaml:"queues"` // default [default]
-	Steps      *int     `yaml:"steps"`  // steps one worker runs at once; default 4
+	Name     string   `yaml:"name"`
+	Launcher string   `yaml:"launcher"` // external
+	Min      *int     `yaml:"min"`      // default 0
+	Max      *int     `yaml:"max"`      // default max(min, 1)
+	Queues   []string `yaml:"queues"`   // default [default]
+	Steps    *int     `yaml:"steps"`    // steps one worker runs at once; default 4
 	// IdleAfter: a worker above min that had nothing to run for this long
 	// isn't counted. Default DefaultIdleAfter.
 	IdleAfter Duration `yaml:"idle_after"`
@@ -432,17 +427,11 @@ func Parse(data []byte, dir string) (*Config, error) {
 		seen[p.Name] = true
 		switch p.Launcher {
 		case LauncherExternal:
-		case LauncherKubernetes:
-			if p.Deployment == "" {
-				add("%s.deployment: required with launcher: kubernetes (the Deployment that runs its workers)", at)
-			}
-		case "", LauncherProcess, LauncherContainer:
-			add("%s.launcher: must be external or kubernetes; pools of processes or containers come from a project's file (kind: Project, docs/projects.md)", at)
+		case "", LauncherProcess, LauncherContainer, LauncherKubernetes:
+			add("%s.launcher: must be external; pools of processes, containers or Deployments come from a project's file "+
+				"(kind: Project, docs/projects.md), on Kubernetes with projects.launcher: kubernetes", at)
 		default:
-			add("%s.launcher: must be external or kubernetes, got %q", at, p.Launcher)
-		}
-		if p.Launcher != LauncherKubernetes && (p.Deployment != "" || p.Namespace != "") {
-			add("%s: deployment and namespace are for launcher: kubernetes", at)
+			add("%s.launcher: must be external, got %q", at, p.Launcher)
 		}
 		lo, hi := p.Bounds()
 		switch {

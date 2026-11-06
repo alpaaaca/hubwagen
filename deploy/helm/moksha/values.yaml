@@ -25,22 +25,16 @@ server:
 service:
   type: ClusterIP         # the API has no authentication yet: keep it inside the cluster
 
-# Worker pools: a Deployment each, whose replicas the server sets between
-# min and max from the work waiting on the pool's queues (launcher:
-# kubernetes). The image is a project's: FROM ghcr.io/alpaaaca/moksha-worker
-# plus its code.
-pools: []
-#  - name: revenue
-#    image: ghcr.io/acme/revenue:2026-10-30
-#    min: 0
-#    max: 5
-#    steps: 2              # steps one worker runs at once
-#    queues: [default]
-#    idleAfter: 5m         # a worker with nothing to run this long goes
-#    command: []           # default: the image's
-#    env: {}
-#    resources: {}
-#    terminationGracePeriodSeconds: 600   # longer than your steps: a stopped worker finishes them
+# Deployed projects (moksha deploy --push): the server runs each pool of a
+# project's current version as a Deployment in this namespace,
+# <instance>-<project>-<pool>-v<version>, and sets its replicas between the
+# pool's min and max from the work waiting. A new version is a new
+# Deployment; the old one is deleted and its pods finish what they run.
+projects:
+  instance: ""            # moksha.dev/instance on those Deployments; default: the release's full name
+  imagePullSecrets: []    # Secrets for pulling projects' images, e.g. [ghcr]
+  # A project's {secret: name} is the key "value" of the Secret called name
+  # in this namespace: kubectl create secret generic revenue-db --from-literal=value=…
 
 podSecurityContext:
   runAsNonRoot: true
