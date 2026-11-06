@@ -63,7 +63,7 @@ Download the archive for your machine from the
 `moksha` on your `PATH`:
 
 ```bash
-curl -fsSL https://github.com/alpaaaca/moksha/releases/download/v0.1.0/moksha_0.1.0_darwin_arm64.tar.gz | tar -xz moksha
+curl -fsSL https://github.com/alpaaaca/moksha/releases/download/v0.1.1/moksha_0.1.1_darwin_arm64.tar.gz | tar -xz moksha
 sudo mv moksha /usr/local/bin/
 moksha version
 ```

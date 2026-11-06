@@ -52,8 +52,8 @@ To try a pull request's images: label it `build`, then
 `helm upgrade … --set image.tag=pr-123`. Remove the label to stop
 rebuilding. Pull requests from forks are never built (they can't push).
 
-The Helm chart's default `image.tag` is its `appVersion` (`0.1.0`), which
-exists once the release `v0.1.0` is published; until then use a `pr-…`
+The Helm chart's default `image.tag` is its `appVersion` (`0.1.1`), which
+exists once the release `v0.1.1` is published; until then use a `pr-…`
 image or run the workflow by hand. The server image cross-compiles (`--platform=$BUILDPLATFORM`),
 so arm64 needs no emulation; the worker image's arm64 build runs `pip`
 under QEMU. GHCR makes a new package private: make both public in their
