@@ -78,13 +78,14 @@ binary downloaded with a browser (not `curl`) is quarantined:
 The example project, a daily revenue pipeline (extract → transform →
 report), lives in [moksha-demo](https://github.com/alpaaaca/moksha-demo):
 a server, and workers that share no files with it. Its README has the
-setup (Go, Node and Python 3.12+, a clone of this repository next to it):
+setup (Go, Node and Python 3.12+, a clone of this repository next to it).
+In that clone, `./moksha` is moksha with the demo's settings:
 
 ```bash
-./demo server             # terminal 1: the server; the web UI is at http://127.0.0.1:7171/
-./demo workers            # terminal 2: the workers
-./demo replay 2026-10-01..2026-10-03
-./demo replay 2026-10-01..2026-10-03   # again: what's unchanged is reused
+./moksha server             # terminal 1: the server; the web UI is at http://127.0.0.1:7171/
+./moksha workers            # terminal 2: the workers
+./moksha replay 2026-10-01..2026-10-03
+./moksha replay 2026-10-01..2026-10-03   # again: what's unchanged is reused
 ```
 
 `replay` reports, per step, what ran and what was reused:
