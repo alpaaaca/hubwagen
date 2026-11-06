@@ -75,6 +75,19 @@ func BuildVersions(ctx context.Context, p *config.Project, opts Options) (Versio
 	return v, Source{Image: image}, err
 }
 
+// VersionsOf is a build's versions from its registration (Registration),
+// without asking the worker again.
+func VersionsOf(reg *mokshav1.RegisterBuildRequest) Versions {
+	v := Versions{Build: reg.BuildId, Pipelines: map[string]codeOf{}, Steps: map[string]codeOf{}}
+	for _, name := range reg.Pipelines {
+		v.Pipelines[name] = codeOf{}
+	}
+	for name, version := range reg.StepVersions {
+		v.Steps[name] = codeOf{Version: version}
+	}
+	return v
+}
+
 func run(cmd *exec.Cmd, stderr io.Writer) (Versions, error) {
 	var out bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, stderr

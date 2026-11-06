@@ -87,6 +87,12 @@ func loadConfig(cmd *cobra.Command) (*config.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	applyFlags(cmd, cfg)
+	return cfg, nil
+}
+
+// applyFlags puts the command's flags that were passed on top of cfg.
+func applyFlags(cmd *cobra.Command, cfg *config.Config) {
 	f := cmd.Flags()
 	if f.Changed("data-dir") {
 		cfg.DataDir = dataDir
@@ -97,7 +103,6 @@ func loadConfig(cmd *cobra.Command) (*config.Config, error) {
 	if f.Lookup("server") != nil && !f.Changed("server") {
 		workersServer = config.ServerURL(cfg.Server.Listen)
 	}
-	return cfg, nil
 }
 
 func configName(cfg *config.Config) string {

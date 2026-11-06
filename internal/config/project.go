@@ -130,19 +130,24 @@ func FindProject(explicit, dir string) (string, error) {
 		return explicit, nil
 	}
 	for _, name := range ProjectFiles {
-		p := filepath.Join(dir, name)
-		data, err := os.ReadFile(p)
-		if err != nil {
-			continue
-		}
-		var head struct {
-			Kind string `yaml:"kind"`
-		}
-		if yaml.Unmarshal(data, &head) == nil && head.Kind == KindProject {
+		if p := filepath.Join(dir, name); IsProject(p) {
 			return p, nil
 		}
 	}
 	return "", fmt.Errorf("no project file in %s: %s with kind: %s (docs/projects.md)", dir, strings.Join(ProjectFiles, " or "), KindProject)
+}
+
+// IsProject reports whether the file at path is a project file (kind:
+// Project), not a server's config.
+func IsProject(path string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	var head struct {
+		Kind string `yaml:"kind"`
+	}
+	return yaml.Unmarshal(data, &head) == nil && head.Kind == KindProject
 }
 
 // LoadProject reads and checks a project file. Like a config, it may use

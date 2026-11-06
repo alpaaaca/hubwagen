@@ -31,7 +31,7 @@ that only matters at scale waits.
 | M3c: Worker API + minimal Python SDK | **Done** |
 | M4: Full run surface (fan-out, signals, triggers, testing) | **Done** |
 | M5: Catalog in the UI, invalidation, staleness | **In progress** |
-| M6: Projects everywhere, native on Kubernetes | **Next** |
+| M6: Projects everywhere, native on Kubernetes | **In progress** |
 | Remote storage: object-store buckets, remote workers | **In progress** |
 | Later | — |
 
@@ -372,11 +372,12 @@ called a worker and pools are declared in two places
 ([projects.md](projects.md#one-worker-pools-in-one-place)). Steps, in
 order; each is one PR (projects steps 4–6):
 
-1. **`moksha dev` on deploy**: in a directory with a project file,
+1. ✅ **`moksha dev` on deploy**: in a directory with a project file,
    dev starts the server and deploys the directory in place (process
-   launcher), redeploying when the code changes. The test project
-   (`sdk/python/tests/projects/revenue`) gets a project file instead of
-   `workers:`.
+   launcher), redeploying when the code changes; nothing when the server
+   already runs it as it is. The test project
+   (`sdk/python/tests/projects/revenue`) has a project file
+   (`test_dev_deploys_the_project_and_its_changes`).
 2. **No `moksha workers`; `workers:` becomes `pools:`**: the command
    goes; the server's config keeps only pools it doesn't start
    (`launcher: external`, and `kubernetes` until step 3), under `pools:`;

@@ -138,7 +138,9 @@ The design is in [docs/architecture.md](docs/architecture.md).
 
 ## Running it
 
-- `moksha dev`: server, API, web UI and workers in one terminal
+- `moksha dev`: server, API, web UI and workers in one terminal; in a
+  project's directory it deploys the project to itself and again when the
+  code changes ([docs/projects.md](docs/projects.md))
 - `moksha server`: the same as a service, with JSON logs; it starts the
   config's workers, or `--no-workers` and `moksha workers` elsewhere
 - Containers: `make images && make up` ([deploy/compose.yaml](deploy/compose.yaml))

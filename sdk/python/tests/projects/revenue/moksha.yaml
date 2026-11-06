@@ -1,0 +1,13 @@
+# The revenue project: `moksha dev` here deploys it to itself, its code
+# in place, and again when the code changes; `moksha deploy` hands it to
+# a server (docs/projects.md). The pipelines are the modules in
+# pyproject.toml.
+apiVersion: moksha.dev/v1alpha1
+kind: Project
+name: revenue
+
+pools:
+  - name: default
+    min: 1
+    max: 2
+    steps: 2

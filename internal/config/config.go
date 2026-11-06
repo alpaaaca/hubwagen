@@ -315,9 +315,7 @@ func Load(path string) (*Config, error) {
 		if err != nil {
 			return nil, err
 		}
-		c := &Config{APIVersion: APIVersion, Kind: Kind}
-		c.resolve(wd)
-		return c, nil
+		return Defaults(wd), nil
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -333,6 +331,14 @@ func Load(path string) (*Config, error) {
 	}
 	c.Path = abs
 	return c, nil
+}
+
+// Defaults is the config without a file, its paths relative to dir: for
+// moksha dev in a project's directory, the data in dir/.moksha.
+func Defaults(dir string) *Config {
+	c := &Config{APIVersion: APIVersion, Kind: Kind}
+	c.resolve(dir)
+	return c
 }
 
 var workerName = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)

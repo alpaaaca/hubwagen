@@ -23,9 +23,16 @@ def daily_revenue(ctx, day: str):
     return ctx.step(revenue, orders, day).id
 ```
 
+```yaml
+# moksha.yaml, next to pyproject.toml: the project file
+apiVersion: moksha.dev/v1alpha1
+kind: Project
+name: revenue
+pools: [{name: default, min: 1, max: 2}]
+```
+
 ```bash
-moksha dev                                            # server + worker API on 127.0.0.1:7070
-python -m moksha.worker                               # modules from pyproject.toml; registers the build, polls
+moksha dev                                            # server on 127.0.0.1:7070; deploys this directory, again on each change
 moksha start daily_revenue --param day=2026-10-24 --wait
 moksha replay daily_revenue --param day=2026-10-01..2026-10-24
 ```

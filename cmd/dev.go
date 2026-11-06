@@ -6,7 +6,9 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -21,7 +23,11 @@ var (
 	listenAddr string
 	noWorkers  bool
 	devEvents  bool
+	devPython  string
 )
+
+// devWatchEvery is how often dev looks for changes to a project's code.
+var devWatchEvery = time.Second
 
 var devCmd = &cobra.Command{
 	Use:   "dev",
@@ -30,11 +36,21 @@ var devCmd = &cobra.Command{
 data_versions in --data-dir, and serves the API on --listen. Workers connect to it
 and run the runs that moksha start and moksha replay start.
 
+In a project's directory (a moksha.yaml or moksha.project.yaml with
+kind: Project, docs/projects.md), dev deploys the project to itself in
+place: its pools' workers run python3 -m moksha.worker (--python) in that
+directory, with PYTHONPATH as it is here. When the project's Python files,
+pyproject.toml or project file change, it deploys again: the new version's
+workers start and the old ones finish what they run. A deploy that fails
+(a syntax error) is printed, and the next change tries again.
+
 Settings come from moksha.yaml (--config, $MOKSHA_CONFIG, else
-./moksha.yaml if present); flags override it. The worker processes listed
-under workers: are started next to the server, their output prefixed with
-their ID, and restarted if they exit. --no-workers starts the server alone
-(run them with moksha workers, or by hand:
+./moksha.yaml if present); flags override it. When that file is the
+project file, the server's settings are the defaults, with its data in
+.moksha next to it. The worker processes listed under workers: in a
+server's config are started next to the server, their output prefixed
+with their ID, and restarted if they exit. --no-workers starts the server
+alone and deploys nothing (run workers by hand:
 python -m moksha.worker app.pipelines).
 
 It prints a line when a run starts and when it ends, and in between what
@@ -55,13 +71,14 @@ func init() {
 	devCmd.Flags().StringVar(&dataDir, "data-dir", config.DefaultDataDir, "directory for the server's state, event logs and data versions (default: from the config)")
 	devCmd.Flags().StringVar(&listenAddr, "listen", config.DefaultListen, "address to serve the API on (default: from the config)")
 	devCmd.Flags().BoolVar(&noWorkers, "no-workers", false, "don't start the workers from the config")
+	devCmd.Flags().StringVar(&devPython, "python", "python3", "the interpreter a project's workers run in")
 	devCmd.Flags().BoolVar(&devEvents, "events", false, "print the engine's events (steps scheduled, dispatched, ...) instead of runs, for debugging moksha")
 	addConfigFlag(devCmd)
 	rootCmd.AddCommand(devCmd)
 }
 
 func runDev(cmd *cobra.Command, _ []string) error {
-	cfg, err := loadConfig(cmd)
+	cfg, project, err := devConfig(cmd)
 	if err != nil {
 		return err
 	}
@@ -78,7 +95,11 @@ func runDev(cmd *cobra.Command, _ []string) error {
 	}
 	defer e.Close()
 	from := e.LastSeq(ctx)
-	fmt.Printf("moksha dev: config %s\n", configName(cfg))
+	if project != "" && cfg.Path == "" {
+		fmt.Printf("moksha dev: project %s (server settings: the defaults)\n", project)
+	} else {
+		fmt.Printf("moksha dev: config %s\n", configName(cfg))
+	}
 	fmt.Printf("moksha dev: data in %s; Ctrl-C to stop\n", e.DataDir)
 	if scfg.S3 != nil {
 		fmt.Printf("moksha dev: bucket %s\n", e.Bucket.Base())
@@ -108,6 +129,16 @@ func runDev(cmd *cobra.Command, _ []string) error {
 		defer close(workersDone)
 		g.Wait()
 	}()
+	if project != "" && noWorkers {
+		fmt.Printf("moksha dev: not deploying %s (--no-workers)\n", project)
+	} else if project != "" {
+		d := &devmode.Deployer{Path: project, Server: config.ServerURL(e.APIAddr), Python: devPython, By: deployer(),
+			Print: func(line string) { fmt.Println("moksha dev: " + line) }, Log: os.Stdout}
+		if err := d.Deploy(ctx); err != nil && ctx.Err() == nil {
+			fmt.Printf("moksha dev: can't deploy %s: %v (dev tries again when it changes)\n", project, err)
+		}
+		go d.Watch(ctx, devWatchEvery)
+	}
 	defer func() {
 		stopWorkers()
 		<-workersDone
@@ -126,4 +157,37 @@ func runDev(cmd *cobra.Command, _ []string) error {
 	case err := <-e.Done():
 		return fmt.Errorf("server stopped: %w", err)
 	}
+}
+
+// devConfig is dev's config and the project it deploys, if any: the
+// config file itself when it is a project file (then the server's settings
+// are the defaults next to it), else a project file in the current
+// directory.
+func devConfig(cmd *cobra.Command) (*config.Config, string, error) {
+	path, err := config.Find(configPath)
+	if err != nil {
+		return nil, "", err
+	}
+	if path != "" && config.IsProject(path) {
+		abs, err := filepath.Abs(path)
+		if err != nil {
+			return nil, "", err
+		}
+		cfg := config.Defaults(filepath.Dir(abs))
+		applyFlags(cmd, cfg)
+		return cfg, abs, nil
+	}
+	cfg, err := loadConfig(cmd)
+	if err != nil {
+		return nil, "", err
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, "", err
+	}
+	project, err := config.FindProject("", wd)
+	if err != nil {
+		project = "" // no project here: the config's workers only
+	}
+	return cfg, project, nil
 }
