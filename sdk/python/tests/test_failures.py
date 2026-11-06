@@ -49,19 +49,19 @@ def test_a_result_waits_for_the_leader_to_come_back(moksha_bin, tmp_path):
 
 def test_workers_stop_when_their_supervisor_is_killed(moksha_bin, tmp_path):
     port = _free_port()
-    (tmp_path / "moksha.yaml").write_text(f"""
+    # A project of tests/example_pipelines.py, which moksha dev deploys:
+    # two workers, processes of this Python.
+    (tmp_path / "moksha.yaml").write_text("""
 apiVersion: moksha.dev/v1alpha1
-kind: Config
-server: {{listen: "127.0.0.1:{port}"}}
-workers:
-  - name: py
-    replicas: 2
-    command: [{sys.executable}, -m, moksha.worker, example_pipelines, --poll-wait, 1s]
-    dir: {SDK / "tests"}
-    env: {{PYTHONPATH: "{SDK / "src"}"}}
+kind: Project
+name: failures
+pools: [{name: default, min: 2, max: 2}]
 """)
+    (tmp_path / "pyproject.toml").write_text('[tool.moksha]\nmodules = ["example_pipelines"]\n')
     out = tmp_path / "dev.out"
-    dev = subprocess.Popen([moksha_bin, "dev"], cwd=tmp_path, stdout=open(out, "w"), stderr=subprocess.STDOUT)
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(SDK / "src"), str(SDK / "tests")])}
+    dev = subprocess.Popen([moksha_bin, "dev", "--listen", f"127.0.0.1:{port}", "--python", sys.executable],
+                           cwd=tmp_path, env=env, stdout=open(out, "w"), stderr=subprocess.STDOUT)
     try:
         until(lambda: out.read_text().count("polling default") == 2, 20, "two workers polling")
         pids = [int(p) for p in re.findall(r"started \(pid (\d+)\)", out.read_text())]

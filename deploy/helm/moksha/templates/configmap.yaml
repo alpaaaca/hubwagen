@@ -29,7 +29,7 @@ data:
     kubernetes:
       namespace: {{ .Release.Namespace }}
     {{- if .Values.pools }}
-    workers:
+    pools:
     {{- range .Values.pools }}
       - name: {{ .name }}
         launcher: kubernetes

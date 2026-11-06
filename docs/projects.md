@@ -1,8 +1,8 @@
 # Projects: `moksha deploy` instead of hand-run workers
 
-> **Status:** design note; steps 1–4 are built (the dry run, deployments,
-> registries and secrets, `moksha dev` on deploy); 5–7 are not, and are
-> next, in the order below (roadmap: M6). Builds on worker pools
+> **Status:** design note; steps 1–5 are built (the dry run, deployments,
+> registries and secrets, `moksha dev` on deploy, no `moksha workers`);
+> 6–7 are not, and are next (roadmap: M6). Builds on worker pools
 > ([worker-pools.md](worker-pools.md), steps 1–4 built), container images
 > ([deploy.md](deploy.md)) and builds (`RegisterBuild`). Decided
 > (2026-11-06): one worker, and pools declared in one place, the project
@@ -10,7 +10,7 @@
 
 ## Problem
 
-Today one `moksha.yaml` mixes two things:
+Before projects, one `moksha.yaml` mixed two things:
 
 - **The instance**: where the server keeps its data, its bucket, what it
   listens on. That belongs to whoever runs the server.
@@ -251,7 +251,7 @@ scales them, as processes on one machine or as pods on Kubernetes.
    pools and secrets) deploys nothing. `--no-workers` deploys nothing. The
    test project (`sdk/python/tests/projects/revenue`) has a project file;
    moksha-demo follows in M6 step 4.
-5. **No `moksha workers`; `workers:` becomes `pools:`**: the command is
+5. ✅ **No `moksha workers`; `workers:` becomes `pools:`**: the command is
    removed; the server's config takes `pools:`, `launcher: external`
    only (and `kubernetes` until step 6), and rejects `workers:` with what
    to write instead. Docs (README, config.md, deploy.md) lead with one

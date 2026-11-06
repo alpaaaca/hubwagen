@@ -27,11 +27,12 @@ container): it prints no runs, only its logs (stderr; --log-format json
 for a log collector), with the workers' output in them.
 
 Settings come from moksha.yaml (--config, $MOKSHA_CONFIG, else
-./moksha.yaml if present); flags override it. The worker processes listed
-under workers: are started once the API is up and restarted if they exit,
-as moksha dev does, so queued runs don't wait for workers nobody starts.
---no-workers starts the server alone, for workers run elsewhere (moksha
-workers --server URL, the service manager, another machine).
+./moksha.yaml if present); flags override it. Once the API is up it runs
+the workers of the projects deployed to it (moksha deploy), as processes
+or containers, restarted if they exit and scaled from the work waiting,
+and works out the desired count of the config's pools: (launcher:
+external or kubernetes). --no-workers starts the server alone, for
+workers something else runs (a service manager, another machine).
 
 GET /healthz answers 200 while the server runs and 503 once it has
 stopped. SIGTERM or Ctrl-C stops the workers first (running steps finish,
@@ -53,7 +54,7 @@ Only one process can use a data directory at a time.`,
 func init() {
 	serverCmd.Flags().StringVar(&dataDir, "data-dir", config.DefaultDataDir, "directory for the server's state, event logs and data versions (default: from the config)")
 	serverCmd.Flags().StringVar(&listenAddr, "listen", config.DefaultListen, "address to serve the API on (default: from the config)")
-	serverCmd.Flags().BoolVar(&noWorkers, "no-workers", false, "don't start the workers from the config (they run elsewhere)")
+	serverCmd.Flags().BoolVar(&noWorkers, "no-workers", false, "start no workers and scale no pools (they run elsewhere)")
 	addConfigFlag(serverCmd)
 	rootCmd.AddCommand(serverCmd)
 }
@@ -94,15 +95,14 @@ func runServer(cmd *cobra.Command, _ []string) error {
 		}
 		log.Info(text, "worker", id)
 	}})
-	groups := 0
 	if !noWorkers {
 		// Step output is kept by the server (the web UI shows it): the
 		// workers' own logs are enough here.
-		if groups, err = startWorkers(workersCtx, g, cfg, e.Core, config.ServerURL(e.APIAddr), log, "MOKSHA_ECHO_LOGS=0"); err != nil {
+		if err = startWorkers(workersCtx, g, cfg, e.Core, config.ServerURL(e.APIAddr), log, "MOKSHA_ECHO_LOGS=0"); err != nil {
 			return err // it started none
 		}
-	} else if len(cfg.Workers) > 0 {
-		log.Info("starting no workers (--no-workers); run them with moksha workers", "groups", len(cfg.Workers))
+	} else {
+		log.Info("starting no workers and scaling no pools (--no-workers): they run elsewhere")
 	}
 	workersDone := make(chan struct{})
 	go func() {
@@ -112,7 +112,7 @@ func runServer(cmd *cobra.Command, _ []string) error {
 
 	select {
 	case <-ctx.Done():
-		if groups > 0 {
+		if !noWorkers {
 			log.Info("stopping workers: running steps finish, polls end within their wait; signal again to kill them")
 			killOnSignal(kill)
 		}

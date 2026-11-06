@@ -14,35 +14,21 @@ import (
 
 func TestParse(t *testing.T) {
 	dir := t.TempDir()
-	require.NoError(t, os.Mkdir(filepath.Join(dir, "app"), 0o755))
 	c, err := Parse([]byte(`
 apiVersion: moksha.dev/v1alpha1
 kind: Config
 data_dir: state
 server:
   listen: 0.0.0.0:7171
-workers:
-  - name: py
-    command: [python3, -m, moksha.worker, app.pipelines]
-    replicas: 3
-    dir: app
-    env: {PYTHONPATH: src}
-  - name: off
-    command: [true]
-    replicas: 0
-  - name: one
-    command: [true]
+pools:
+  - {name: revenue, launcher: external, min: 0, max: 5, queues: [gpu]}
 `), dir)
 	require.NoError(t, err)
 	assert.Equal(t, filepath.Join(dir, "state"), c.DataDir)
 	assert.Equal(t, "0.0.0.0:7171", c.Server.Listen)
-	require.Len(t, c.Workers, 3)
-	assert.Equal(t, 3, c.Workers[0].Count())
-	assert.Equal(t, filepath.Join(dir, "app"), c.Workers[0].Dir)
-	assert.Equal(t, map[string]string{"PYTHONPATH": "src"}, c.Workers[0].Env)
-	assert.Equal(t, 0, c.Workers[1].Count())
-	assert.Equal(t, 1, c.Workers[2].Count(), "one replica by default")
-	assert.Equal(t, dir, c.Workers[2].Dir, "the config's directory by default")
+	require.Len(t, c.Pools, 1)
+	assert.Equal(t, LauncherExternal, c.Pools[0].Launcher)
+	assert.Equal(t, []string{"gpu"}, c.Pools[0].QueueList())
 }
 
 func TestDefaults(t *testing.T) {
@@ -50,7 +36,7 @@ func TestDefaults(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "/srv/.moksha", c.DataDir)
 	assert.Equal(t, DefaultListen, c.Server.Listen)
-	assert.Empty(t, c.Workers)
+	assert.Empty(t, c.Pools)
 }
 
 func TestParseReportsAllProblems(t *testing.T) {
@@ -58,31 +44,29 @@ func TestParseReportsAllProblems(t *testing.T) {
 apiVersion: v0
 kind: Config
 server: {listen: "7070"}
-workers:
-  - name: Py
-    command: []
-  - name: w
-    command: [x]
-    replicas: -1
-    dir: nowhere
-  - name: w
-    command: [x]
-    env: {MOKSHA_SERVER: x, MOKSHA_SUPERVISOR_PID: "1"}
+pools:
+  - {name: Py, launcher: external}
+  - {name: w, launcher: external, min: -1}
+  - {name: w, launcher: external}
 `), t.TempDir())
 	require.Error(t, err)
 	for _, want := range []string{
 		`apiVersion: must be moksha.dev/v1alpha1, got "v0"`,
 		"server.listen:",
-		`workers[0].name: "Py" must be lower-case`,
-		"workers[0].command: required",
-		"workers[1].replicas: must be 0 or more",
-		"workers[1].dir:",
-		`workers[2].name: "w" is used twice`,
-		"workers[2].env.MOKSHA_SERVER: set by moksha",
-		"workers[2].env.MOKSHA_SUPERVISOR_PID: set by moksha",
+		`pools[0].name: "Py" must be lower-case`,
+		"pools[1]: min and max must be 0 or more",
+		`pools[2].name: "w" is used twice`,
 	} {
 		assert.Contains(t, err.Error(), want)
 	}
+}
+
+// A config from before pools: says what to write instead of workers:.
+func TestParseSaysWorkersIsGone(t *testing.T) {
+	_, err := Parse([]byte("apiVersion: moksha.dev/v1alpha1\nkind: Config\nworkers:\n  - {name: py, command: [python3, -m, moksha.worker]}\n"), t.TempDir())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "line 4: workers: is gone")
+	assert.Contains(t, err.Error(), "kind: Project and pools: [{name: default, min: 1, max: 3}]: moksha dev in its directory deploys it")
 }
 
 func TestParseIsStrict(t *testing.T) {
@@ -176,109 +160,55 @@ bucket:
 }
 
 func TestPools(t *testing.T) {
-	dir := t.TempDir()
-	c, err := Parse([]byte(`
-apiVersion: moksha.dev/v1alpha1
-kind: Config
-workers:
-  - name: fixed
-    command: [w]
-    replicas: 2
-  - name: gpu
-    command: [w]
-    min: 0
-    max: 3
-    queues: [gpu, default]
-    steps: 1
-    idle_after: 90s
-  - name: atleast
-    command: [w]
-    min: 2
-`), dir)
-	require.NoError(t, err)
-	type bounds struct {
-		lo, hi int
-		scaled bool
-	}
-	b := func(i int) bounds { lo, hi := c.Workers[i].Bounds(); return bounds{lo, hi, c.Workers[i].Scaled()} }
-	assert.Equal(t, bounds{2, 2, false}, b(0))
-	assert.Equal(t, bounds{0, 3, true}, b(1))
-	assert.Equal(t, bounds{2, 2, false}, b(2), "max defaults to min")
-	assert.Equal(t, 3, c.Workers[1].Count(), "moksha workers runs max")
-	assert.Equal(t, []string{"gpu", "default"}, c.Workers[1].QueueList())
-	assert.Equal(t, []string{"default"}, c.Workers[0].QueueList())
-	assert.Equal(t, 1, c.Workers[1].StepCount())
-	assert.Equal(t, DefaultSteps, c.Workers[0].StepCount())
-	assert.Equal(t, 90*time.Second, c.Workers[1].Idle())
-	assert.Equal(t, DefaultIdleAfter, c.Workers[0].Idle())
-
-	_, err = Parse([]byte(`
-apiVersion: moksha.dev/v1alpha1
-kind: Config
-workers:
-  - {name: a, command: [w], replicas: 1, max: 2}
-  - {name: b, command: [w], min: 3, max: 2}
-  - {name: c, command: [w], steps: 0, queues: [""]}
-  - {name: d, command: [w], env: {MOKSHA_QUEUES: x}}
-`), dir)
-	require.Error(t, err)
-	for _, want := range []string{
-		"workers[0]: give replicas (a fixed count) or min and max, not both",
-		"workers[1]: min 3 is more than max 2",
-		"workers[2].steps: must be 1 or more",
-		"workers[2].queues[0]: empty",
-		"workers[3].env.MOKSHA_QUEUES: set by moksha",
-	} {
-		assert.Contains(t, err.Error(), want)
-	}
-
-	_, err = Parse([]byte("apiVersion: moksha.dev/v1alpha1\nkind: Config\nworkers:\n  - {name: a, command: [w], idle_after: soon}\n"), dir)
-	assert.ErrorContains(t, err, `"soon": want a duration such as 5m or 90s`)
-}
-
-func TestExternalPools(t *testing.T) {
-	c, err := Parse([]byte("apiVersion: moksha.dev/v1alpha1\nkind: Config\nworkers:\n  - {name: k8s, launcher: external, min: 0, max: 5, queues: [gpu]}\n"), t.TempDir())
-	require.NoError(t, err)
-	assert.True(t, c.Workers[0].External())
-	assert.True(t, c.Workers[0].Scaled())
-
-	_, err = Parse([]byte("apiVersion: moksha.dev/v1alpha1\nkind: Config\nworkers:\n"+
-		"  - {name: a, launcher: external, command: [w]}\n  - {name: b, launcher: docker, command: [w]}\n"), t.TempDir())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "workers[0]: with launcher: external its workers are started elsewhere: no command or env")
-	assert.Contains(t, err.Error(), `workers[1].launcher: must be process, container, kubernetes or external, got "docker"`)
-}
-
-func TestContainerAndKubernetesPools(t *testing.T) {
 	c, err := Parse([]byte(`
 apiVersion: moksha.dev/v1alpha1
 kind: Config
 kubernetes: {api_url: "http://127.0.0.1:8001", namespace: jobs}
-workers:
-  - {name: c, launcher: container, image: "ghcr.io/acme/revenue:1", min: 0, max: 2}
-  - {name: k, launcher: kubernetes, deployment: revenue-workers, min: 0, max: 5}
+pools:
+  - {name: gpu, launcher: external, max: 3, queues: [gpu, default], steps: 1, idle_after: 90s}
+  - {name: k, launcher: kubernetes, deployment: revenue-workers, min: 2}
 `), t.TempDir())
 	require.NoError(t, err)
-	assert.False(t, c.Workers[0].External(), "moksha runs the containers")
-	assert.True(t, c.Workers[1].External(), "a desired count, applied to the Deployment")
+	type bounds struct{ lo, hi int }
+	b := func(i int) bounds { lo, hi := c.Pools[i].Bounds(); return bounds{lo, hi} }
+	assert.Equal(t, bounds{0, 3}, b(0))
+	assert.Equal(t, bounds{2, 2}, b(1), "max defaults to min")
+	assert.Equal(t, []string{"gpu", "default"}, c.Pools[0].QueueList())
+	assert.Equal(t, []string{"default"}, c.Pools[1].QueueList())
+	assert.Equal(t, 1, c.Pools[0].StepCount())
+	assert.Equal(t, DefaultSteps, c.Pools[1].StepCount())
+	assert.Equal(t, 90*time.Second, c.Pools[0].Idle())
+	assert.Equal(t, DefaultIdleAfter, c.Pools[1].Idle())
+	assert.Equal(t, "revenue-workers", c.Pools[1].Deployment)
 	assert.Equal(t, Kubernetes{APIURL: "http://127.0.0.1:8001", Namespace: "jobs"}, c.Kubernetes)
 
 	_, err = Parse([]byte(`
 apiVersion: moksha.dev/v1alpha1
 kind: Config
-workers:
-  - {name: a, launcher: container, runtime: lxc}
-  - {name: b, launcher: kubernetes}
-  - {name: c, command: [w], image: x, deployment: y}
+pools:
+  - {name: a}
+  - {name: b, launcher: container}
+  - {name: c, launcher: docker}
+  - {name: d, launcher: kubernetes}
+  - {name: e, launcher: external, deployment: y, min: 3, max: 2}
+  - {name: f, launcher: external, steps: 0, queues: [""]}
 `), t.TempDir())
 	require.Error(t, err)
 	for _, want := range []string{
-		"workers[0].image: required with launcher: container",
-		`workers[0].runtime: must be docker or podman, got "lxc"`,
-		"workers[1].deployment: required with launcher: kubernetes",
-		"workers[2]: image, runtime, server_url and auth_file are for launcher: container",
-		"workers[2]: deployment and namespace are for launcher: kubernetes",
+		"pools[0].launcher: must be external or kubernetes; pools of processes or containers come from a project's file",
+		"pools[1].launcher: must be external or kubernetes; pools of processes",
+		`pools[2].launcher: must be external or kubernetes, got "docker"`,
+		"pools[3].deployment: required with launcher: kubernetes",
+		"pools[4]: deployment and namespace are for launcher: kubernetes",
+		"pools[4]: min 3 is more than max 2",
+		"pools[5].steps: must be 1 or more",
+		"pools[5].queues[0]: empty",
 	} {
 		assert.Contains(t, err.Error(), want)
 	}
+	_, err = Parse([]byte("apiVersion: moksha.dev/v1alpha1\nkind: Config\npools:\n  - {name: a, launcher: external, command: [w]}\n"), t.TempDir())
+	assert.ErrorContains(t, err, "field command not found", "a pool here has no command: it is started elsewhere")
+
+	_, err = Parse([]byte("apiVersion: moksha.dev/v1alpha1\nkind: Config\npools:\n  - {name: a, launcher: external, idle_after: soon}\n"), t.TempDir())
+	assert.ErrorContains(t, err, `"soon": want a duration such as 5m or 90s`)
 }

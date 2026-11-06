@@ -21,8 +21,7 @@ reuse; the SDK has a linter and testing tools. The bucket is a local
 directory or `s3://` (`bucket:` in moksha.yaml); only the server opens it,
 and workers on other machines move data through URLs it hands out. The v1 engine (compiled YAML pipelines) was
 removed in M3c; it is in git history up to commit 33ca1ba. **Next:** M6
-(projects everywhere: `moksha dev` deploys, no `moksha workers`,
-Kubernetes deploys), then the rest of M5 (the catalog in the web UI); the
+(projects everywhere: Kubernetes deploys next, then the demo), then the rest of M5 (the catalog in the web UI); the
 reuse-by-default decision in docs/api-simplification.md.
 
 Read before larger changes:
@@ -62,11 +61,11 @@ spec-kit.
 | `internal/schedule` | Calendar and cron math (DST-correct intervals, what is due since a cursor); the core's run schedules use it |
 | `internal/clock`, `internal/layout` | Real/fake clock; bucket paths (step staging under dataset and partition, data version manifests) |
 | `internal/blob` | The bucket: `file://` and `s3://` (minio-go; conditional writes for atomic create-if-absent, presigned URLs); `s3fake/` is an S3-compatible server in memory for tests |
-| `internal/config` | `moksha.yaml`: data dir, listen address, worker processes |
-| `internal/supervise` | Runs and restarts worker processes for `dev`, `server` and `workers` (prefixed output, SIGTERM then kill); a group that grows and shrinks |
+| `internal/config` | `moksha.yaml`: data dir, listen address, bucket, `pools:` started elsewhere (external, kubernetes); project files (`kind: Project`) |
+| `internal/supervise` | Runs and restarts worker processes for `dev` and `server` (prefixed output, SIGTERM then kill); a group that grows and shrinks |
 | `internal/launch` | What starts a pool's workers besides processes: a container per worker (`docker`/`podman run`), a Kubernetes Deployment's replicas (scale subresource, plain HTTP); the server's secrets (a file each) |
 | `internal/pools` | Scales worker pools (`min`/`max`) from the work waiting on their queues (`core.Demand`), or works out the desired count of external ones (`GET /v1/pools`); reports to the core (`SetPools`) |
-| `cmd/` | `dev`, `server`, `workers`, `deploy` (`--dry-run`), `projects`, `delete`, `start`, `replay`, `signal`, `schedules`, `datasets`, `versions`, `data` (and `data invalidate`), `stale`, `gc`, `version` |
+| `cmd/` | `dev`, `server`, `deploy` (`--dry-run`), `projects`, `delete`, `start`, `replay`, `signal`, `schedules`, `datasets`, `versions`, `data` (and `data invalidate`), `stale`, `gc`, `version` |
 | `internal/webui` | Serves the web UI from the binary (embedded `dist/`, filled by `go generate ./internal/webui`; a placeholder page without it) |
 | `ui/` | Web UI: React + TypeScript + Vite on the Connect services (clients generated from `proto/` into `ui/src/gen`); vitest tests |
 | `sdk/python/` | Python SDK (stdlib only, Python ≥ 3.12): `@pipeline`, `@step`, replay engine, worker; pytest runs it against a real `moksha dev` |
@@ -143,7 +142,7 @@ MOKSHA_TEST_S3=http://key:secret@127.0.0.1:9000/bucket go test ./internal/blob  
 (cd sdk/python/tests/projects/revenue && PYTHONPATH=../../../src python3 -m moksha.lint)   # lint pipeline code
 
 ./moksha dev --config path/to/moksha.yaml   # server + the config's workers; API on 127.0.0.1:7070 (moksha-demo has a project to run)
-./moksha server --config path/to/moksha.yaml --log-format json   # for a service manager, with the config's workers (--no-workers: ./moksha workers --config …)
+./moksha server --config path/to/moksha.yaml --log-format json   # for a service manager; runs deployed projects' workers (--no-workers: none)
 ./moksha replay daily --param day=2026-10-01..2026-10-03   # start runs, report what was reused
 make images && make up    # the server in a container (deploy/compose.yaml); CONTAINER=podman to choose
 ```

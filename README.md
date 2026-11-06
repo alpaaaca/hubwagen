@@ -141,8 +141,8 @@ The design is in [docs/architecture.md](docs/architecture.md).
 - `moksha dev`: server, API, web UI and workers in one terminal; in a
   project's directory it deploys the project to itself and again when the
   code changes ([docs/projects.md](docs/projects.md))
-- `moksha server`: the same as a service, with JSON logs; it starts the
-  config's workers, or `--no-workers` and `moksha workers` elsewhere
+- `moksha server`: the same as a service, with JSON logs; it runs the
+  workers of the projects deployed to it (`moksha deploy`)
 - Containers: `make images && make up` ([deploy/compose.yaml](deploy/compose.yaml))
 - Kubernetes: the Helm chart in [deploy/helm/moksha](deploy/helm/moksha),
   which scales worker Deployments from the work waiting

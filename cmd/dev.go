@@ -47,11 +47,10 @@ workers start and the old ones finish what they run. A deploy that fails
 Settings come from moksha.yaml (--config, $MOKSHA_CONFIG, else
 ./moksha.yaml if present); flags override it. When that file is the
 project file, the server's settings are the defaults, with its data in
-.moksha next to it. The worker processes listed under workers: in a
-server's config are started next to the server, their output prefixed
-with their ID, and restarted if they exit. --no-workers starts the server
-alone and deploys nothing (run workers by hand:
-python -m moksha.worker app.pipelines).
+.moksha next to it. Deployed workers' output is prefixed with their ID;
+one that exits is restarted. --no-workers starts the server alone and
+deploys nothing (run workers by hand:
+python -m moksha.worker app.pipelines, with MOKSHA_SERVER set).
 
 It prints a line when a run starts and when it ends, and in between what
 its steps print and log, each line marked with the run's inputs and the
@@ -70,7 +69,7 @@ Only one process can use a data directory at a time.`,
 func init() {
 	devCmd.Flags().StringVar(&dataDir, "data-dir", config.DefaultDataDir, "directory for the server's state, event logs and data versions (default: from the config)")
 	devCmd.Flags().StringVar(&listenAddr, "listen", config.DefaultListen, "address to serve the API on (default: from the config)")
-	devCmd.Flags().BoolVar(&noWorkers, "no-workers", false, "don't start the workers from the config")
+	devCmd.Flags().BoolVar(&noWorkers, "no-workers", false, "start no workers and deploy nothing (they run elsewhere)")
 	devCmd.Flags().StringVar(&devPython, "python", "python3", "the interpreter a project's workers run in")
 	devCmd.Flags().BoolVar(&devEvents, "events", false, "print the engine's events (steps scheduled, dispatched, ...) instead of runs, for debugging moksha")
 	addConfigFlag(devCmd)
@@ -117,10 +116,9 @@ func runDev(cmd *cobra.Command, _ []string) error {
 	workersDone := make(chan struct{})
 	kill := make(chan struct{})
 	g := supervise.NewGroup(workersCtx, supervise.Options{Out: os.Stdout, Kill: kill})
-	groups := 0
 	if !noWorkers {
 		// dev prints what steps print, from the server: workers needn't echo it.
-		if groups, err = startWorkers(workersCtx, g, cfg, e.Core, config.ServerURL(e.APIAddr), slog.Default(), "MOKSHA_ECHO_LOGS=0"); err != nil {
+		if err = startWorkers(workersCtx, g, cfg, e.Core, config.ServerURL(e.APIAddr), slog.Default(), "MOKSHA_ECHO_LOGS=0"); err != nil {
 			stopWorkers() // it started none
 			return err
 		}
@@ -146,7 +144,7 @@ func runDev(cmd *cobra.Command, _ []string) error {
 
 	select {
 	case <-ctx.Done():
-		if groups > 0 {
+		if !noWorkers {
 			fmt.Println("stopping workers: running steps finish, polls end within their wait; Ctrl-C again to kill them")
 			killOnSignal(kill)
 		}

@@ -12,7 +12,7 @@ What a step prints and logs is captured and sent to the server as it runs
 
 A step's result is kept, and its attempt heartbeated, until the server
 accepts it: if the leader is down when the step finishes, the worker retries
-until it is back. Started by `moksha dev` or `moksha workers`
+until it is back. Started by `moksha dev` or `moksha server` for a deployed project
 ($MOKSHA_SUPERVISOR_PID set), the worker stops the same way when that
 process is gone, so a killed supervisor leaves no workers behind.
 """
