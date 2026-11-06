@@ -53,7 +53,7 @@ To try a pull request's images: label it `build`, then
 rebuilding. Pull requests from forks are never built (they can't push).
 
 The Helm chart's default `image.tag` is its `appVersion` (the published
-chart's is the release's; in a checkout, `0.1.1`), which exists once that
+chart's is the release's; in a checkout, `0.2.0`), which exists once that
 release is published; until then use a `pr-…`
 image or run the workflow by hand. The server image cross-compiles (`--platform=$BUILDPLATFORM`),
 so arm64 needs no emulation; the worker image's arm64 build runs `pip`

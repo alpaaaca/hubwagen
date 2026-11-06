@@ -63,7 +63,7 @@ Download the archive for your machine from the
 `moksha` on your `PATH`:
 
 ```bash
-curl -fsSL https://github.com/alpaaaca/moksha/releases/download/v0.1.1/moksha_0.1.1_darwin_arm64.tar.gz | tar -xz moksha
+curl -fsSL https://github.com/alpaaaca/moksha/releases/download/v0.2.0/moksha_0.2.0_darwin_arm64.tar.gz | tar -xz moksha
 sudo mv moksha /usr/local/bin/
 moksha version
 ```
@@ -76,16 +76,23 @@ binary downloaded with a browser (not `curl`) is quarantined:
 ## Quick start
 
 The example project, a daily revenue pipeline (extract → transform →
-report), lives in [moksha-demo](https://github.com/alpaaaca/moksha-demo):
-a server, and workers that share no files with it. Its README has the
-setup (Go, Node and Python 3.12+, a clone of this repository next to it).
-In that clone, `./moksha.sh` runs moksha with the demo's settings:
+report), lives in [moksha-demo](https://github.com/alpaaaca/moksha-demo).
+With `moksha` on your `PATH` and Python 3.12+:
 
 ```bash
-./moksha.sh server                          # terminal 1: the server; the web UI is at http://127.0.0.1:7171/
-./moksha.sh workers                         # terminal 2: the workers
-./moksha.sh replay 2026-10-01..2026-10-03
-./moksha.sh replay 2026-10-01..2026-10-03   # again: what's unchanged is reused
+git clone https://github.com/alpaaaca/moksha-demo && cd moksha-demo
+python3 -m venv .venv && . .venv/bin/activate
+pip install "git+https://github.com/alpaaaca/moksha@v0.2.0#subdirectory=sdk/python"
+moksha dev                                  # the server, web UI on http://127.0.0.1:7070/; it deploys the project
+```
+
+`moksha dev` reads the project file (`moksha.yaml`, `kind: Project`),
+runs its code in place, and deploys it again when you change it. In
+another terminal:
+
+```bash
+moksha replay daily --param day=2026-10-01..2026-10-03
+moksha replay daily --param day=2026-10-01..2026-10-03   # again: what's unchanged is reused
 ```
 
 `replay` reports, per step, what ran and what was reused:
@@ -98,8 +105,8 @@ In that clone, `./moksha.sh` runs moksha with the demo's settings:
 3 completed
 ```
 
-`moksha dev` (the server and the workers in one terminal) shows each run
-as it goes, with what its steps print and log:
+`moksha dev` shows each run as it goes, with what its steps print and
+log:
 
 ```
 ▶ Daily revenue day=2026-10-01 started
@@ -109,6 +116,9 @@ as it goes, with what its steps print and log:
   day=2026-10-01 › revenue_report ↺ reused: same inputs and code, nothing ran
 ✓ Daily revenue day=2026-10-01 completed in 23ms
 ```
+
+The demo's README goes on to a kind cluster: `helm install` the chart,
+`moksha deploy --push`, and pods that scale from zero for a backfill.
 
 ## How it works
 
