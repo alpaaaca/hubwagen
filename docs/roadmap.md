@@ -31,11 +31,15 @@ that only matters at scale waits.
 | M3c: Worker API + minimal Python SDK | **Done** |
 | M4: Full run surface (fan-out, signals, triggers, testing) | **Done** |
 | M5: Catalog in the UI, invalidation, staleness | **In progress** |
+| M6: Projects everywhere, native on Kubernetes | **Next** |
 | Remote storage: object-store buckets, remote workers | **In progress** |
 | Later | — |
 
 M3a → M3b → M3c are sequential; the end of M3c is the first demo. M4 and M5
-can run in parallel.
+can run in parallel. M6 comes before M5's last step (the catalog in the
+web UI): teams adopt moksha by running it on Kubernetes, so deploying and
+operating it there should be the native way, and that starts with one way
+to run workers.
 
 ## M1–M2: v1 engine (done)
 
@@ -359,6 +363,41 @@ Open questions, to settle in the step that needs them:
   the step; a stale data version from an old build may still be what an older
   worker would produce.
 
+## M6: Projects everywhere, native on Kubernetes
+
+Goal: one way to run workers, the same on a laptop and on a cluster. A
+project has pools, a pool runs workers, and moksha starts and scales them:
+processes on one machine, pods on Kubernetes. Today three things are
+called a worker and pools are declared in two places
+([projects.md](projects.md#one-worker-pools-in-one-place)). Steps, in
+order; each is one PR (projects steps 4–6):
+
+1. **`moksha dev` on deploy**: in a directory with a project file,
+   dev starts the server and deploys the directory in place (process
+   launcher), redeploying when the code changes. The test project
+   (`sdk/python/tests/projects/revenue`) gets a project file instead of
+   `workers:`.
+2. **No `moksha workers`; `workers:` becomes `pools:`**: the command
+   goes; the server's config keeps only pools it doesn't start
+   (`launcher: external`, and `kubernetes` until step 3), under `pools:`;
+   `workers:` is an error that says what to write instead. README,
+   config.md and deploy.md lead with one machine, then Kubernetes.
+3. **Kubernetes deploys**: `moksha deploy` to a server in a cluster
+   creates, updates and drains a Deployment per pool and version;
+   `{secret:}` from Kubernetes Secrets; the Helm chart installs only the
+   server and its RBAC.
+4. **moksha-demo**: one project (no `server/` and `elsewhere/` split):
+   `moksha dev` first, then a Kubernetes section (a kind cluster,
+   `helm install`, `moksha deploy`, pods scaling from zero for a
+   backfill).
+
+Done when: the demo runs from the release binary with `moksha dev`, and
+on a kind cluster with `helm install` and `moksha deploy`, with no
+`workers:` anywhere and the same project file for both.
+
+After M6, before a team shares a cluster: authentication (`server.auth`,
+see Later).
+
 ## Remote storage
 
 Goal: workers run anywhere, with no filesystem shared with the server, and
@@ -409,9 +448,8 @@ Roughly in order of expected need:
 - Auth (tokens for workers and users, `server.auth`; `moksha server` warns
   until then; it also guards the transfer URLs), tenants and per-queue budgets; Litestream replication and failover
   (design: [failover.md](failover.md)).
-- `moksha deploy` and projects, with `--dry-run` as the rebuild preview
-  ([projects.md](projects.md)); `moksha verify`,
-  `keep_fresh`, data modes, build pinning.
+- `moksha verify`, `keep_fresh`, data modes, build pinning (`moksha
+  deploy` and projects: M6).
 - Go SDK.
 - Sharding, Postgres, Kubernetes Lease election.
 
@@ -435,7 +473,7 @@ Roughly in order of expected need:
 | dbt integration | One step per project, one data version per model | Later |
 | Catalog interoperability | OpenLineage export first; Iceberg REST catalog later, if at all | Later |
 | Failover | Nodes that supervise workers and can lead; bucket lease + Litestream first, embedded Raft if no-loss is needed ([failover.md](failover.md)) | Failover |
-| Projects | A repo's `moksha.yaml` (`kind: Project`: build, pools, env) and `moksha deploy`: build and push an image, show what reruns, the server runs and scales its workers; `moksha delete` ([projects.md](projects.md)) | Before production use |
+| Projects | A repo's `moksha.yaml` (`kind: Project`: build, pools, env) and `moksha deploy`: build and push an image, show what reruns, the server runs and scales its workers; `moksha delete` ([projects.md](projects.md)). Decided: pools only from the project file, no `moksha workers`, the server's `workers:` becomes `pools:` for external pools (M6) | Before production use |
 | Worker pools | The leader starts and scales workers per pool (`min`/`max`, queues, capacity) from queued work; `moksha server` supervises `workers:` (step 1, done); pools of processes with `min`/`max` (step 2, done); desired counts for KEDA (step 3, done); container and Kubernetes launchers (step 4, done) ([worker-pools.md](worker-pools.md)) | Before production use |
 | `standalone` profile | Decided: no separate profile; `moksha server` runs the single-node server (no auth yet) | Done |
 | Load target for one leader | 100 step transitions/s sustained, 2,000 running steps | S3 |

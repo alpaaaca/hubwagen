@@ -19,9 +19,10 @@ dataset subscriptions; `moksha start`/`replay` start them and report
 reuse; the SDK has a linter and testing tools. The bucket is a local
 directory or `s3://` (`bucket:` in moksha.yaml); only the server opens it,
 and workers on other machines move data through URLs it hands out. The v1 engine (compiled YAML pipelines) was
-removed in M3c; it is in git history up to commit 33ca1ba. **Next:** M5
-(catalog UI, invalidation, staleness); the reuse-by-default decision in
-docs/api-simplification.md.
+removed in M3c; it is in git history up to commit 33ca1ba. **Next:** M6
+(projects everywhere: `moksha dev` deploys, no `moksha workers`,
+Kubernetes deploys), then the rest of M5 (the catalog in the web UI); the
+reuse-by-default decision in docs/api-simplification.md.
 
 Read before larger changes:
 

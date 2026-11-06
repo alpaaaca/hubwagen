@@ -1,10 +1,12 @@
 # Projects: `moksha deploy` instead of hand-run workers
 
 > **Status:** design note; steps 1–3 are built (the dry run, deployments,
-> registries and secrets); 4–6 are not. Builds on worker pools
+> registries and secrets); 4–7 are not, and are next, in the order below
+> (roadmap: M6). Builds on worker pools
 > ([worker-pools.md](worker-pools.md), steps 1–4 built), container images
-> ([deploy.md](deploy.md)) and builds (`RegisterBuild`). Decision
-> requested: the shape below, and steps 1–2 first.
+> ([deploy.md](deploy.md)) and builds (`RegisterBuild`). Decided
+> (2026-11-06): one worker, and pools declared in one place, the project
+> file ([below](#one-worker-pools-in-one-place)).
 
 ## Problem
 
@@ -43,7 +45,7 @@ to a server; the server runs and scales its workers.
 
 The project file is the repo's `moksha.yaml`, with `kind: Project`
 (the server's file stays `kind: Config`). Until `moksha dev` reads
-project files (step 5), a repo whose `moksha.yaml` is still a server
+project files (step 4), a repo whose `moksha.yaml` is still a server
 config keeps its project in `moksha.project.yaml`; `deploy` takes whichever of the two is `kind: Project`. It is not the pipelines: those
 are code, found the way they are today, from the modules listed in
 `pyproject.toml` (`[tool.moksha] modules`). The project file says how to
@@ -159,10 +161,41 @@ nobody writes `workers:` any more.
 
 Only the instance: data, bucket, listen address, and how to launch
 (`launcher: container | kubernetes | process`, with its settings: the
-runtime, the namespace, pull secrets, the secrets directory). The
-`workers:` section stays for static workers someone else runs and for
-pools not tied to a project (`launcher: external`); a project's pools
-come from its deployment.
+runtime, the namespace, pull secrets, the secrets directory). A
+project's pools come from its deployment. The section for pools the
+server doesn't start (`launcher: external`, for KEDA) is renamed from
+`workers:` to `pools:`, and is the only kind left there.
+
+### One worker, pools in one place
+
+Today three things are called a worker, and pools are declared in two
+places:
+
+| Today | What it is |
+|---|---|
+| `python3 -m moksha.worker` | the worker: one process that pulls work and runs pipelines and steps; the worker image's `CMD`, so what a Kubernetes pod runs |
+| `moksha workers` | a supervisor that starts the config's `workers:` without a server, for workers on another machine |
+| `workers:` in the server's `moksha.yaml` | pools, declared by the instance |
+| `pools:` in a `kind: Project` file | pools, declared by the project |
+
+Decided: a project has pools, a pool runs workers, and moksha starts and
+scales them, as processes on one machine or as pods on Kubernetes.
+
+- **One worker**: `python -m moksha.worker` is the only thing called a
+  worker.
+- **Pools come from the project file.** `moksha dev` deploys the
+  current directory (step 4), so nobody writes `workers:` for their own
+  code; `moksha deploy` does the same against a server.
+- **No `moksha workers`.** Kubernetes doesn't use it (pods run the
+  worker directly) and one machine won't need it once dev deploys. What
+  goes with it: restarting the server while its workers keep running.
+  Deployed workers stop and start with the server; on Kubernetes the
+  pods keep running anyway. Workers someone else runs elsewhere still
+  work (`python -m moksha.worker` with `MOKSHA_SERVER`); the docs no
+  longer lead with them.
+- **The server's config says `pools:`**, and holds only pools the server
+  doesn't start (`launcher: external`). It is v0.1: the rename breaks
+  configs now, with an error that says what to write instead.
 
 ### What it builds on
 
@@ -205,12 +238,21 @@ come from its deployment.
    `DOCKER_CONFIG`). `{secret: name}` env travels as the name; the server
    checks it has the secret at deploy (`projects.secrets_dir`, a file per
    secret) and reads the value only when a worker starts. Kubernetes
-   Secrets come with step 4.
-4. **Kubernetes**: the server creates, updates and deletes a Deployment
-   per pool of a project; the Helm chart shrinks to the server.
-5. **`moksha dev` on deploy**: a local server, the process launcher,
-   redeploy on change; `workers:` in the examples goes away.
-6. **The web UI**: projects, versions and what each deploy changed.
+   Secrets come with step 6.
+4. **`moksha dev` on deploy**: in a directory with a project file, dev
+   starts the server and deploys the directory in place (the process
+   launcher), and redeploys when the code changes; `workers:` in the test
+   project and moksha-demo go away.
+5. **No `moksha workers`; `workers:` becomes `pools:`**: the command is
+   removed; the server's config takes `pools:`, `launcher: external`
+   only (and `kubernetes` until step 6), and rejects `workers:` with what
+   to write instead. Docs (README, config.md, deploy.md) lead with one
+   machine, then Kubernetes.
+6. **Kubernetes**: the server creates, updates and deletes a Deployment
+   per pool of a project and version (old versions drain), `{secret:}`
+   from Kubernetes Secrets; the Helm chart shrinks to the server and the
+   RBAC to manage Deployments in its namespace.
+7. **The web UI**: projects, versions and what each deploy changed.
 
 ## Open questions
 
