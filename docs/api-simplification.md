@@ -1,6 +1,8 @@
 # Simplifying the authoring API
 
 Design note; steps 1 and 2 are built (see Steps), the rest is not.
+Decided (2026-11-07): reuse across runs stays opt-in, as `reuse=`
+([section 4](#4-reuse-opt-in-as-reuse-with-moksha-pointing-out-where-it-helps)).
 Proposes how the Python SDK can drop most of the
 ceremony around steps, memoization and outputs while the core keeps its
 guarantees. Decisions here would change [architecture.md](architecture.md)
@@ -41,8 +43,10 @@ needed.
   `@mk.step`, and no other required options.
 - Steps take and return ordinary values: JSON-able values, dataframes,
   Arrow tables, or references to tables that live elsewhere.
-- Reuse across runs is safe by default and needs at most one annotation, on
-  the rare step that reads a live source.
+- Reuse across runs is one annotation, `reuse=True`, on the steps that
+  read nothing but their inputs and arguments, and moksha points out the
+  steps where it would help. A step without it is never wrong, only
+  slower.
 - The core rules stay: the server never runs user code, data never passes
   through the server, a step is reused only when what it would return can
   still be read.
@@ -82,15 +86,15 @@ A downstream step gets the value, not a handle:
 import polars as pl
 import moksha as mk
 
-@mk.step(live=True)                               # reads a source that changes
+@mk.step                                          # reads a source that changes: runs every time
 def extract_orders(day: str) -> pl.DataFrame:
     return pl.read_database(QUERY, conn, execute_options={"parameters": [day]})
 
-@mk.step(output=mk.Dataset("mart.daily_revenue", partition="day"))
+@mk.step(reuse=True, output=mk.Dataset("mart.daily_revenue", partition="day"))
 def daily_revenue(orders: pl.DataFrame, day: str) -> pl.DataFrame:
     return orders.group_by("region").agg(pl.col("amount").sum())
 
-@mk.step
+@mk.step(reuse=True)
 def revenue_report(revenue: pl.DataFrame, day: str) -> str:
     return render(revenue, day)
 
@@ -143,42 +147,63 @@ A Spark `DataFrame` returned directly is written as Parquet into the
 staging prefix by the executors (`df.write.parquet(staging)`), never
 collected to the driver.
 
-### 4. Reuse: on by default, `live=True` to opt out
+### 4. Reuse: opt-in, as `reuse=`, with moksha pointing out where it helps
 
-Today memoization is opt-in per step because the server can't tell a pure
-transform from a step that also reads an API. The proposal flips the
-annotation to the case that is rarer and easier to spot: **a step that
-reads something the fingerprint doesn't cover says so.**
+**Decided** (2026-11-07). The alternative was reuse by default with
+`live=True` to opt out; it is not taken, for these reasons:
 
-- `@mk.step` (default): reused when code version, input content hashes and
-  arguments match.
-- `@mk.step(live=True)`: reads a live source (a table that changes, an API,
-  "now"). Never reused; runs every time. Downstream steps are still reused
-  when it returns the same content, because their fingerprints use its
-  content hash.
-- `@mk.step(live="1h")`: reused up to that age (today's `memo="ttl:1h"`).
+- **The two mistakes aren't alike.** Under opt-in, a forgotten
+  annotation reruns a step that could have been reused: slower, never
+  wrong. Under reuse by default, a forgotten `live=True` reuses a result
+  that is out of date, and nothing says so. For a data tool the second is
+  the one that hurts, and "never reuse what can't be read; when unsure,
+  rerun" already says which way moksha leans.
+- **The fingerprint can't see what a step reads.** It covers code,
+  packages, input data versions and arguments, not a file opened by path,
+  a database, `now()`, the environment or a config file. The example
+  project's own `extract_orders` reads `data/orders.csv`: with reuse by
+  default and no `live=True`, a new row in the file would change nothing.
+- **The mitigations can't close it.** Lint and the runtime guards see
+  Python, but database drivers (libpq) and readers (Polars, Arrow) do
+  their I/O in C or Rust, where neither looks.
+- **It's what teams know.** Prefect, Flyte, Dagster and Hamilton cache
+  across runs only when asked.
 
-Which steps are live is usually obvious: the ones at the edge that read
-from outside. In the example above, only `extract_orders`.
+What the opt-in model keeps from the proposal, and what it fixes in
+today's API:
 
-The cost is the risk the opt-in model avoided: a forgotten `live=True` is
-a wrong reuse, not a needless rerun. The mitigations:
-
-- **Inputs make most steps safe by construction.** A step whose only
-  inputs are other steps' results and its arguments is reusable. The risky
-  step is one that reads from outside *and* isn't marked, and those are
-  the ones at the edges.
+- **`reuse=` instead of `memo=`.** `memo=True` looked like what makes a
+  pipeline durable (problem 1); `reuse=` says what it does: across runs,
+  a step that comes again with the same code, inputs and arguments isn't
+  run, its earlier result is used. `@mk.step(reuse=True)`, or
+  `reuse="1h"` for results up to that age (today's `memo="ttl:1h"`).
+  `memo=` keeps working for a release, with a deprecation warning that
+  says what to write. Inside a run nothing changes: a completed step is
+  never rerun, with or without it.
+- **Moksha points out where it would help.** The server fingerprints
+  every step, not just those with `reuse=`, and records it; nothing is
+  looked up for a step without `reuse=`, so it still runs every time.
+  When a step without it has run again with a fingerprint it ran with
+  before and returned the same content, the replay report and the web UI
+  say so, once per step: "daily_revenue ran 3 times with the same code,
+  inputs and arguments and returned the same result each time. If it
+  reads nothing but those, `@mk.step(reuse=True)` would reuse it." The
+  same result isn't proof (the CSV may just not have changed yet), so it
+  is a hint, never automatic. A step turned to `reuse=True` is reused
+  from its earlier runs right away, since they carry the fingerprint.
 - **The run decides too.** `moksha start` and `replay` take
-  `--reuse=auto|none`, `none` for a run that must recompute everything.
-- **Lint and guards.** Lint (`python -m moksha.lint`) would flag steps
-  that open connections or call HTTP clients without `live=`; the runtime
-  guards from #25 can do the same while a step runs, as a warning.
-- **Reports.** Every reuse is in the event log and the replay report, and
-  `moksha replay --dry-run` shows what would be reused before anything
-  runs.
-
-This is the decision in this note most worth arguing about; see Open
-questions.
+  `--reuse=auto|none`: `none` recomputes everything in that run (and
+  records the result, so later runs can reuse it). `moksha replay
+  --dry-run` starts nothing and says, for each run it would start, what
+  the latest earlier run with those parameters did and which of its steps
+  the current code would run again (code changed, or no `reuse=`): the
+  same comparison `moksha deploy --dry-run` makes. It can't foresee more:
+  which steps a run calls is known only when its pipeline code runs, on
+  a worker, and a step after one that returns something new runs again
+  too.
+- **Every reuse is reported**, as today: in the event log, the run's
+  history ("reused the existing version …: same inputs and same code")
+  and the replay report.
 
 ### 5. Hashing large outputs
 
@@ -199,11 +224,11 @@ way every time.
 
 | Area | Change |
 |---|---|
-| Core (`internal/core`) | Memoize steps without an output; result in the content hash; memo policy `live` / `ttl` instead of `fingerprint` / `ttl`; `--reuse` on `StartRun` |
+| Core (`internal/core`) | Memoize steps without an output; result in the content hash; a fingerprint for every step, looked up only with `reuse=`; the reuse hint; `--reuse` on `StartRun` |
 | Data versions (`internal/dataversion`) | Manifests with a result, references (URI + version) and checksum kinds |
 | Fingerprints (`internal/core/memo.go`) | Content hash now covers results: a **format change**, every existing memoized data version stops matching once |
-| Worker API (`proto/`) | Step results carry a reference; poll answers carry reuse policy; adapters' existence check |
-| Python SDK | `live=`; codecs and annotation-based loading; `mk.table`; `memo=` and `output=` path kept and deprecated for a release |
+| Worker API (`proto/`) | Step results carry a reference; `reuse` on `StartRun`; adapters' existence check |
+| Python SDK | `reuse=` (`memo=` deprecated for a release); codecs and annotation-based loading; `mk.table`; `mk.output()` kept as the escape hatch |
 | Docs | architecture.md (Core concepts, Writing pipelines and steps, Memoization, Commits), SDK README, the example project |
 
 Nothing changes in runs, replay, queues, timers, the event log's shape, or
@@ -225,9 +250,23 @@ PR-sized, in order:
    its implicit dataset `step:<name>` (unpartitioned; the prefix is
    reserved); hashing still reads the written file afterwards, not while
    writing; a frame must be returned on its own, not inside a value.
-3. **Reuse by default.** `live=` replaces `memo=`; `--reuse`; replay report
-   and `--dry-run`. Example project and docs rewritten without `memo=` and
-   `mk.output()`.
+3. **Reuse, opt-in** (decided in section 4), three PRs:
+   1. **`reuse=`**: the SDK takes `reuse=True` / `reuse="1h"` and sends
+      the same policy as today (`fingerprint`, `ttl:…`), so the core and
+      the wire don't change; `memo=` warns once per step with what to
+      write, and the linter flags it. The example project, the SDK
+      README and architecture.md say `reuse=`.
+   2. **`--reuse=none` and `replay --dry-run`**: `StartRun` takes a
+      reuse mode for the run (proto, `RunService`), recorded on the run;
+      `--dry-run` reports, from the latest earlier run with the same
+      parameters, which of its steps the current code would run again,
+      without starting runs (the server runs no pipeline code to know
+      more).
+   3. **The hint**: every step gets a fingerprint (the same
+      `fingerprintInputs`, so not a format change); a step without
+      `reuse=` is still never looked up. The replay report and the
+      pipeline's page in the web UI say when such a step returned the
+      same content for a fingerprint it had before.
 4. **References.** `mk.table`, version tokens, the adapter existence check,
    starting with Iceberg or Delta.
 5. **Object-store checksums**, with the `s3://` / `gs://` buckets.
@@ -237,10 +276,6 @@ PR-sized, in order:
 
 ## Open questions
 
-- **Reuse by default vs opt-in.** The proposal trades a needless rerun for
-  a possible wrong reuse when `live=True` is forgotten. The alternative is
-  to keep `memo=` opt-in but make it cheap (steps 1–2 only) and have
-  `moksha replay` suggest it. Decide before step 3.
 - **Names.** Authors would only meet `run` and `step`; "data version" would
   appear in the catalog and UI. Whether `run`/`step` themselves should be
   plainer (`flow`/`step`) is a separate question.
