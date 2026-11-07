@@ -19,6 +19,7 @@ import (
 
 	"github.com/alper/moksha/internal/api"
 	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
+	"github.com/alper/moksha/internal/api/gen/moksha/v1/mokshav1connect"
 	"github.com/alper/moksha/internal/blob"
 	"github.com/alper/moksha/internal/clock"
 	"github.com/alper/moksha/internal/core"
@@ -240,6 +241,35 @@ func TestReplayOverADateRange(t *testing.T) {
   report    2 ran
 2 completed
 `, s.replayRange(t, "2026-03-01..2026-03-02"))
+}
+
+func TestDryRunGoesByTheLatestEarlierRuns(t *testing.T) {
+	s := start(t)
+	s.replayRange(t, "2026-03-01..2026-03-02")
+	c := NewClient(s.url)
+	plan := func(reuse string) string {
+		t.Helper()
+		sets, err := ExpandParams([]string{"day=2026-03-01..2026-03-03"})
+		require.NoError(t, err)
+		plans, err := c.Plan(ctx, RunRequest{Tenant: "t", Name: "daily_orders", Reuse: reuse}, sets)
+		require.NoError(t, err)
+		return PlanReport(plans)
+	}
+	assert.Equal(t, `3 runs (dry run: nothing was started), going by the latest earlier run with the same inputs:
+  extract   2 would be reused
+  report    2 would run (it has no reuse=)
+1 has no earlier run, so every step runs: day=2026-03-03
+Which steps a run calls is known only once its pipeline code runs, and a step after one that runs may run too.
+`, plan(""))
+
+	require.NoError(t, s.core.RegisterBuild(ctx, core.BuildRequest{ID: "b2", Steps: map[string]string{"extract": "v2", "report": "v1"}}))
+	assert.Contains(t, plan(""), "  extract   2 would run (its code changed (v1 → v2))\n")
+	assert.Contains(t, plan("none"), "  extract   2 would run (the run would be started with --reuse=none)\n")
+	_, err := c.Plan(ctx, RunRequest{Tenant: "t", Name: "daily_orders", Reuse: "x"}, []map[string]any{{}})
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	runs, err := mokshav1connect.NewRunServiceClient(http.DefaultClient, s.url).ListRuns(ctx, connect.NewRequest(&mokshav1.ListRunsRequest{}))
+	require.NoError(t, err)
+	assert.Len(t, runs.Msg.Runs, 2, "the dry runs started nothing")
 }
 
 func TestSignal(t *testing.T) {

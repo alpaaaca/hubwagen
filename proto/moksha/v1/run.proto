@@ -49,6 +49,42 @@ service RunService {
   // version and each pipeline, from the newest build that defines it.
   // moksha deploy --dry-run compares a project's build with it.
   rpc ListCode(ListCodeRequest) returns (ListCodeResponse);
+  // PlanRuns says, for runs that would start (moksha replay --dry-run),
+  // what the latest earlier run with the same inputs did and which of its
+  // steps would run again. It starts nothing and runs no code, so which
+  // steps a new run calls isn't known: those of the earlier run stand in.
+  rpc PlanRuns(PlanRunsRequest) returns (PlanRunsResponse);
+}
+
+message PlanRunsRequest {
+  string tenant = 1;
+  string name = 2;
+  // One JSON object per run.
+  repeated string params_json = 3;
+  // As in StartRunRequest: "auto" (or empty) or "none".
+  string reuse = 4;
+}
+message PlanRunsResponse {
+  // One per params_json, in order.
+  repeated RunPlan plans = 1;
+}
+message RunPlan {
+  string params_json = 1;
+  // The latest earlier run with these inputs (a completed one if there is
+  // one); empty: none, so every step runs.
+  string earlier_run_id = 2;
+  string earlier_status = 3;
+  google.protobuf.Timestamp earlier_created_at = 4;
+  repeated StepPlan steps = 5;
+}
+message StepPlan {
+  int32 seq = 1;
+  string name = 2;
+  // It would be reused; why then says on what condition, if any.
+  bool reuse = 3;
+  // In words: why it runs again ("its code changed (v1 → v2)", "it has no
+  // reuse="), or the condition of its reuse.
+  string why = 4;
 }
 
 message ListCodeRequest {}

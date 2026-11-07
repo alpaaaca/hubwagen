@@ -19,12 +19,13 @@ import (
 
 // Flags shared by start and replay.
 var (
-	apiServer string
-	runTenant string
-	runQueue  string
-	runParams []string
-	runReuse  string
-	startWait bool
+	apiServer    string
+	runTenant    string
+	runQueue     string
+	runParams    []string
+	runReuse     string
+	startWait    bool
+	replayDryRun bool
 )
 
 func addRunFlags(c *cobra.Command) {
@@ -82,6 +83,12 @@ in a way moksha can't see).
 
   moksha replay daily_revenue --param day=2026-03-01..2026-03-31
   moksha replay daily_revenue --param day=2026-03-01..2026-03-31 --reuse=none
+  moksha replay daily_revenue --param day=2026-03-01..2026-03-31 --dry-run
+
+--dry-run starts nothing: it says what the latest earlier run with each
+set of inputs did, and which of its steps would be reused or run again
+(no reuse=, code changed since). The server runs no pipeline code, so it
+can't know more: which steps a new run calls is known only when it runs.
 
 Exits non-zero unless every run completed. Ctrl-C stops waiting; the runs
 keep running.`,
@@ -95,6 +102,14 @@ keep running.`,
 		ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		c := runcli.NewClient(apiServer)
+		if replayDryRun {
+			plans, err := c.Plan(ctx, runcli.RunRequest{Tenant: runTenant, Name: args[0], Reuse: runReuse}, sets)
+			if err != nil {
+				return serverError(err)
+			}
+			fmt.Print(runcli.PlanReport(plans))
+			return nil
+		}
 		var ids []string
 		for _, params := range sets {
 			id, err := c.Start(ctx, runcli.RunRequest{Tenant: runTenant, Name: args[0], Queue: runQueue, Params: params, Reuse: runReuse})
@@ -194,6 +209,7 @@ func init() {
 	rootCmd.AddCommand(schedulesCmd)
 	addRunFlags(startCmd)
 	startCmd.Flags().BoolVar(&startWait, "wait", false, "wait for the run to end and report what its steps did")
+	replayCmd.Flags().BoolVar(&replayDryRun, "dry-run", false, "start nothing: say what the latest earlier runs with the same inputs did and what would run again")
 	addRunFlags(replayCmd)
 	rootCmd.AddCommand(startCmd, replayCmd)
 }

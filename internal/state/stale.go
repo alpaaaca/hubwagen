@@ -112,14 +112,12 @@ func (s *Store) staleness(ctx context.Context, p DataVersion) (Stale, error) {
 			return st, err
 		}
 	}
-	var current string
-	if err := s.r.QueryRowContext(ctx, `
-		SELECT bl.code_version FROM build_steps bl JOIN builds b ON b.id = bl.build_id
-		WHERE bl.step = ? ORDER BY b.registered_at DESC, b.id DESC LIMIT 1`, step.Name).Scan(&current); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return st, nil // no build defines the step any more
-		}
+	current, err := s.currentCodeVersion(ctx, step.Name)
+	if err != nil {
 		return st, err
+	}
+	if current == "" {
+		return st, nil // no build defines the step any more
 	}
 	if built != "" && built != current {
 		st.Reasons = append(st.Reasons, fmt.Sprintf("step %s: code changed (%s → %s)", step.Name, built, current))

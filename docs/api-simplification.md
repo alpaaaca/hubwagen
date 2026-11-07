@@ -256,8 +256,8 @@ PR-sized, in order:
       the wire don't change; `memo=` warns once per step with what to
       write, and the linter flags it. The example project, the SDK
       README and architecture.md say `reuse=`.
-   2. **`--reuse=none` and `replay --dry-run`** (✅ `--reuse=none`;
-      `--dry-run` is the next PR, since it needs an RPC of its own): `StartRun` takes a
+   2. ✅ **`--reuse=none` and `replay --dry-run`** (two PRs; `--dry-run`
+      through its own RPC, `PlanRuns`): `StartRun` takes a
       reuse mode for the run (proto, `RunService`), recorded on the run;
       `--dry-run` reports, from the latest earlier run with the same
       parameters, which of its steps the current code would run again,

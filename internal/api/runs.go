@@ -367,3 +367,27 @@ func (s *RunServer) ListCode(ctx context.Context, _ *connect.Request[mokshav1.Li
 	}
 	return connect.NewResponse(out), nil
 }
+
+func (s *RunServer) PlanRuns(ctx context.Context, req *connect.Request[mokshav1.PlanRunsRequest]) (*connect.Response[mokshav1.PlanRunsResponse], error) {
+	m := req.Msg
+	out := &mokshav1.PlanRunsResponse{}
+	for i, pj := range m.ParamsJson {
+		params, err := jsonObject(fmt.Sprintf("params_json[%d]", i), pj)
+		if err != nil {
+			return nil, err
+		}
+		p, err := s.core.PlanRun(ctx, m.Tenant, m.Name, params, m.Reuse)
+		if err != nil {
+			return nil, connectError(err)
+		}
+		rp := &mokshav1.RunPlan{ParamsJson: pj}
+		if p.Earlier != nil {
+			rp.EarlierRunId, rp.EarlierStatus, rp.EarlierCreatedAt = p.Earlier.ID, p.Earlier.Status, timestamppb.New(p.Earlier.CreatedAt)
+		}
+		for _, sp := range p.Steps {
+			rp.Steps = append(rp.Steps, &mokshav1.StepPlan{Seq: int32(sp.Seq), Name: sp.Name, Reuse: sp.Reuse, Why: sp.Why})
+		}
+		out.Plans = append(out.Plans, rp)
+	}
+	return connect.NewResponse(out), nil
+}
