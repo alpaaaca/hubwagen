@@ -33,6 +33,7 @@ that only matters at scale waits.
 | M5: Catalog in the UI, invalidation, staleness | **In progress** |
 | M6: Projects everywhere, native on Kubernetes | **In progress** |
 | Remote storage: object-store buckets, remote workers | **In progress** |
+| Authoring API: values, dataframes, `reuse=` | **In progress** |
 | Later | — |
 
 M3a → M3b → M3c are sequential; the end of M3c is the first demo. M4 and M5
@@ -407,6 +408,29 @@ on a kind cluster with `helm install` and `moksha deploy`, with no
 After M6, before a team shares a cluster: authentication (`server.auth`,
 see Later).
 
+## Authoring API: values, dataframes, `reuse=`
+
+Goal: a pipeline is plain functions with `@mk.pipeline` and `@mk.step`;
+steps take and return values and dataframes; reuse across runs is one
+annotation that moksha points out. Design and decisions:
+[api-simplification.md](api-simplification.md). Steps, each one PR:
+
+1. ✅ **Result data versions**: steps without an output are memoized;
+   the content hash covers the result.
+2. ✅ **Codecs**: pandas, Polars and Arrow in and out of steps, loaded by
+   annotation.
+3. **`reuse=`** (decided: opt-in, not reuse by default): `reuse=True` /
+   `reuse="1h"` in the SDK, the same policy on the wire; `memo=` warns
+   and lint flags it; the example project and docs say `reuse=`.
+4. **`--reuse=none` and `replay --dry-run`**: recompute a run on
+   purpose; see beforehand which steps of the latest earlier runs the
+   current code would run again.
+5. **The reuse hint**: every step fingerprinted; the replay report and
+   the web UI say when a step without `reuse=` returned the same result
+   for the same fingerprint.
+6. **References** (`mk.table`, version tokens, the existence check) and
+   **object-store checksums**: api-simplification steps 4–5.
+
 ## Remote storage
 
 Goal: workers run anywhere, with no filesystem shared with the server, and
@@ -477,7 +501,7 @@ Roughly in order of expected need:
 |---|---|---|
 | CLI name | Keep `moksha`; maybe add `mk` as a short alias | M3c |
 | Python SDK packaging | `sdk/python` in this repo, published as `moksha` on PyPI | M3c |
-| Memoization default | Opt-in per step (`memo=True`); SQL steps on by default. Results and dataframes are memoized without `mk.output()`; under review: reuse by default with `live=True` to opt out ([api-simplification.md](api-simplification.md)) | Before the first release |
+| Memoization default | **Decided** (2026-11-07): opt-in per step, renamed `reuse=True` / `reuse="1h"` (`memo=` deprecated); moksha points out steps that would be reused; `--reuse=none` and `replay --dry-run` per run. Not reuse by default: a forgotten opt-out would reuse stale results silently ([api-simplification.md](api-simplification.md#4-reuse-opt-in-as-reuse-with-moksha-pointing-out-where-it-helps)) | Done |
 | Code version default | Decided ([S2](spikes/s2-code-version.md)): code the step reaches + versions of the packages it uses + Python version + `deps=`, overridable with `version=` | M3b |
 | dbt integration | One step per project, one data version per model | Later |
 | Catalog interoperability | OpenLineage export first; Iceberg REST catalog later, if at all | Later |
