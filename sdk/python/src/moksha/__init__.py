@@ -2,7 +2,7 @@
 
     import moksha as mk
 
-    @mk.step(memo=True, output=mk.Dataset("raw.orders", partition="day"))
+    @mk.step(reuse=True, output=mk.Dataset("raw.orders", partition="day"))
     def extract(day: str) -> int:
         out = mk.output()
         (out.path / "orders.csv").write_text(...)

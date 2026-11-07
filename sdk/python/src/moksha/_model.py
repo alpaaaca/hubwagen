@@ -7,7 +7,9 @@ import datetime as _dt
 import functools
 import inspect
 import json
+import re
 import urllib.parse
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
@@ -234,7 +236,7 @@ class PipelineDef:
 class StepDef:
     name: str
     fn: Callable
-    memo: str  # "", "fingerprint" or "ttl:<duration>"
+    memo: str  # its reuse= as the wire's memo policy: "", "fingerprint" or "ttl:<duration>"
     output: Dataset | None
     version: str | None
     deps: tuple[str, ...]
@@ -317,35 +319,70 @@ def _describe(f: Callable, title: str | None) -> dict[str, str]:
     return {"title": first.strip(), "description": rest.strip()}
 
 
-def _memo(memo: bool | str | None) -> str:
-    if memo is True:
+# A duration as the server reads it (Go's time.ParseDuration): 90s, 1h30m.
+_DURATION = re.compile(r"(\d+(\.\d+)?(ns|us|µs|ms|s|m|h))+")
+
+
+def _reuse(reuse: bool | str | _dt.timedelta | None) -> str:
+    """reuse= as the wire's memo policy."""
+    if reuse is True:
         return "fingerprint"
-    if memo in (False, None, "", "never"):
+    if reuse is False or reuse is None:
         return ""
-    if memo == "fingerprint" or (isinstance(memo, str) and memo.startswith("ttl:")):
-        return memo
-    raise ValueError(f"memo={memo!r}: want True, False, 'fingerprint' or 'ttl:<duration>'")
+    if isinstance(reuse, _dt.timedelta) and reuse > _dt.timedelta(0):
+        s = reuse.total_seconds()
+        return f"ttl:{int(s) if s == int(s) else s}s"
+    if isinstance(reuse, str) and _DURATION.fullmatch(reuse) and float(re.match(r"\d+(\.\d+)?", reuse)[0]) > 0:
+        return f"ttl:{reuse}"
+    raise ValueError(f"reuse={reuse!r}: want True, False, or an age such as '1h', '90m' or a timedelta")
 
 
-def step(fn: Callable | None = None, *, name: str | None = None, memo: bool | str = False,
+def _memo(memo: bool | str) -> tuple[str, str]:
+    """The deprecated memo= as the wire's policy, and what to write instead."""
+    if memo is True or memo == "fingerprint":
+        return "fingerprint", "reuse=True"
+    if memo in (False, "", "never"):
+        return "", "nothing (a step isn't reused unless it says reuse=)"
+    if isinstance(memo, str) and memo.startswith("ttl:"):
+        age = memo.removeprefix("ttl:")
+        return _reuse(age), f"reuse={age!r}"
+    raise ValueError(f"memo={memo!r}: memo= is now reuse=: True, False or an age such as '1h'")
+
+
+def step(fn: Callable | None = None, *, name: str | None = None, reuse: bool | str | _dt.timedelta = False,
          output: Dataset | None = None, version: str | None = None, deps: tuple[str, ...] | list[str] = (),
-         timeout: float | _dt.timedelta | None = None, retry: Retry | int | None = None, queue: str | None = None):
+         timeout: float | _dt.timedelta | None = None, retry: Retry | int | None = None, queue: str | None = None,
+         memo: bool | str | None = None):
     """Mark a function as a step: one unit of real work (a query, an API
     call, a computation), run on a worker and retried by policy. With
     output=, what it writes becomes a new version of that dataset: return a
-    dataframe, or write files to moksha.output().path. With memo=True, a
-    step that comes again with the same code, inputs and arguments reuses
-    what an earlier run produced instead of running: its data version, or
-    without an output, its result. The function stays callable as is, for
-    tests."""
-    memo_s = _memo(memo)
+    dataframe, or write files to moksha.output().path.
+
+    With reuse=True, a step that comes again in a later run with the same
+    code, inputs and arguments isn't run: the run gets what an earlier run
+    produced, its data version or (without an output) its result. Give it
+    only to steps that read nothing but their inputs and arguments; a step
+    that reads a file, a database or the clock runs every time without it.
+    reuse="1h" (or a timedelta) reuses results up to that age. Within one
+    run a completed step is never run again either way. memo= is the old
+    name, deprecated. The function stays callable as is, for tests."""
+    instead = None
+    if memo is not None:
+        if reuse is not False:
+            raise ValueError("step: reuse= and memo= both given; memo= is the old name of reuse=")
+        policy, instead = _memo(memo)
+    else:
+        policy = _reuse(reuse)
     if isinstance(timeout, _dt.timedelta):
         timeout = timeout.total_seconds()
     if isinstance(retry, int):
         retry = Retry(limit=retry)
 
-    def wrap(f: Callable) -> Callable:
-        d = StepDef(name=name or f.__name__, fn=f, memo=memo_s, output=output, version=version,
+    def wrap(f: Callable, _caller: int = 2) -> Callable:  # _caller: the user's frame, for the warning
+        if instead is not None:
+            warnings.warn(f"step {name or f.__name__}: memo= is now reuse=; write {instead}", FutureWarning,
+                          stacklevel=_caller)
+        d = StepDef(name=name or f.__name__, fn=f, memo=policy, output=output, version=version,
                     deps=tuple(deps), timeout=timeout, retry=retry, queue=queue)
         if output is not None and output.partition and output.partition not in inspect.signature(f).parameters:
             raise ValueError(f"step {d.name}: output partition {output.partition!r} is not one of its arguments")
@@ -353,7 +390,7 @@ def step(fn: Callable | None = None, *, name: str | None = None, memo: bool | st
         f.__moksha_step__ = d
         return f
 
-    return wrap(fn) if fn is not None else wrap
+    return wrap(fn, 3) if fn is not None else wrap
 
 
 

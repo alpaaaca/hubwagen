@@ -63,7 +63,7 @@ BASE = {
         def other_local():
             return 1
 
-        @mk.step(memo=True)
+        @mk.step(reuse=True)
         def plain(x: int) -> int:
             """The step."""
             return x + 1
@@ -172,7 +172,7 @@ def test_comments_docstrings_formatting_and_decorator_arguments_dont_count(tmp_p
         replace(f, "proj/steps.py", '"""The step."""', '"""The step, documented better."""  # and a comment')
         replace(f, "proj/steps.py", "return x + 1\n\n        @mk.step\n        def uses_local",
                 "return (x +\n                    1)\n\n        @mk.step\n        def uses_local")
-        replace(f, "proj/steps.py", "@mk.step(memo=True)", "@mk.step(memo=True, timeout=30)")
+        replace(f, "proj/steps.py", "@mk.step(reuse=True)", "@mk.step(reuse=True, timeout=30)")
     assert changed(tmp_path, edit) == set()
 
 

@@ -7,12 +7,12 @@ import polars as pl
 import moksha as mk
 
 
-@mk.step(memo=True)
+@mk.step(reuse=True)
 def frame_orders(day: str) -> pl.DataFrame:
     return pl.DataFrame({"region": ["eu", "us", "eu"], "amount": [10, 20, 5], "day": [day] * 3})
 
 
-@mk.step(memo=True)
+@mk.step(reuse=True)
 def frame_totals(orders: pl.LazyFrame) -> pl.DataFrame:
     return orders.group_by("region").agg(pl.col("amount").sum()).sort("region").collect()
 

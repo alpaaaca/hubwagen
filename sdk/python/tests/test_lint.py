@@ -93,6 +93,26 @@ def test_messages_name_the_place():
     assert lint_source("def broken(:\n", "bad.py")[0].code == "MK000"
 
 
+def test_old_memo_says_what_to_write():
+    src = """
+        import moksha as mk
+        from moksha import step
+
+        @mk.step(memo=True, output=mk.Dataset("d"))
+        def a(): ...
+
+        @step(memo="ttl:1h")
+        def b(): ...
+
+        @mk.step(reuse=True)
+        def c(): ...
+    """
+    found = lint_source(textwrap.dedent(src), "app.py")
+    assert [(f.line, f.code) for f in found] == [(5, "MK007"), (8, "MK007")]
+    assert found[0].message == "step a: memo= is now reuse=; write reuse=True"
+    assert found[1].message == "step b: memo= is now reuse=; write reuse='1h'"
+
+
 def test_example_project_is_clean(monkeypatch, capsys):
     monkeypatch.chdir(Path(__file__).parent / "projects" / "revenue")
     assert main([]) == 0, capsys.readouterr().out  # its modules come from pyproject.toml
