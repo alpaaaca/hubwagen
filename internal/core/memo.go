@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -128,11 +129,15 @@ func (c *Core) addBuild(id string, steps map[string]string, runs []string) {
 }
 
 // canRun reports whether a worker of build can take t: its build defines the
-// run or step. Pollers without a build ID, and builds recorded without
-// runs, take any run task.
+// run or step, and, for a deployed project's pipeline, isn't a version the
+// project replaced (rolledOver). Pollers without a build ID, and builds
+// recorded without runs, take any run task.
 func (c *Core) canRun(build string, t Task) bool {
 	if build == "" {
 		return true
+	}
+	if c.rolledOver(build, t) {
+		return false
 	}
 	if t.Kind == TaskRun {
 		runs := c.buildPipelines[build]
@@ -140,6 +145,36 @@ func (c *Core) canRun(build string, t Task) bool {
 	}
 	_, ok := c.builds[build][t.Name]
 	return ok
+}
+
+// rolledOver reports whether a worker of build is one of a live project's
+// replaced versions as far as t goes: once a project deploys a new build,
+// the old one's workers finish what they run and stop, and take none of
+// its new work meanwhile. New work is any run task of the project's
+// pipelines (a replay on the old code would undo the deploy for that run)
+// and the steps that the current build's replays scheduled. Steps an older
+// build scheduled stay open to any build that defines them, so they don't
+// wait for a worker that is gone.
+func (c *Core) rolledOver(build string, t Task) bool {
+	pipeline := t.Name
+	if t.Kind == TaskStep {
+		h := c.runs[t.RunID]
+		if h == nil {
+			return false
+		}
+		pipeline = h.rec.Name
+	}
+	for _, name := range slices.Sorted(maps.Keys(c.projects)) {
+		p := c.projects[name]
+		if p.DeletedAt != nil || !slices.Contains(p.Pipelines, pipeline) || p.BuildID == build {
+			continue
+		}
+		if t.Kind == TaskRun {
+			return true
+		}
+		return c.runs[t.RunID].rec.BuildID == p.BuildID
+	}
+	return false
 }
 
 func setEqual(set map[string]bool, list []string) bool {

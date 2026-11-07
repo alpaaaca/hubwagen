@@ -121,6 +121,17 @@ Run in the repo, by a person or by CI:
    scaled from waiting work); the old version's workers stop polling,
    finish their running steps and go. Runs in flight carry on: their next
    replay runs on the new code, as today when workers restart.
+   ✅ **No new work for the old version** (built): from the moment a
+   project deploys a new build, a worker of one of its earlier builds
+   gets no run task of the project's pipelines and no step that a replay
+   on the new build scheduled, even while it still polls (a pod being
+   stopped, a process finishing up). It may still take the steps its own
+   build scheduled before the deploy, so they aren't stranded when the
+   new code changed them; the new version's workers may take those too.
+   Such a worker isn't counted as connected for the new work, so a run
+   waits for "no worker" and the new version's pool scales up for it.
+   Deploying an earlier build again makes it the current one. Builds no
+   project deploys (a worker started by hand, tests) are not affected.
 
 ### Builds go through a registry
 
