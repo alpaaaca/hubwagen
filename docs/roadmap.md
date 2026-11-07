@@ -424,7 +424,10 @@ annotation that moksha points out. Design and decisions:
    and lint flags it; the example project and docs say `reuse=`.
 4. **`--reuse=none` and `replay --dry-run`**: recompute a run on
    purpose; see beforehand which steps of the latest earlier runs the
-   current code would run again.
+   current code would run again. ✅ `--reuse=none` (`StartRun.reuse`,
+   kept with the run, inherited by its children and continuations; its
+   steps don't join another run's flight). Next: `--dry-run`, which needs
+   an RPC that compares an earlier run's steps with the newest code.
 5. **The reuse hint**: every step fingerprinted; the replay report and
    the web UI say when a step without `reuse=` returned the same result
    for the same fingerprint.

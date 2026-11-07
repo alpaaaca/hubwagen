@@ -26,6 +26,7 @@ type runStartedPayload struct {
 	Trigger string         `json:"trigger"`
 	Params  map[string]any `json:"params,omitempty"`
 	Parent  string         `json:"parent,omitempty"` // a child run: the run that started it
+	Reuse   string         `json:"reuse,omitempty"`  // "none": the run reuses no step
 }
 
 type subscriptionSetPayload struct {

@@ -372,6 +372,13 @@ rerun, never correctness.
   a cursor range on an append-only source).
 - `@step(memo="ttl:1h")`: reuse a result up to that age. For APIs and live
   sources where slightly stale data is acceptable.
+- **A run can reuse nothing**: `moksha start` and `replay` with
+  `--reuse=none` (`StartRun.reuse`) run every step of the run, reused ones
+  too, after a source changed in a way the fingerprint can't see. Its
+  steps still record their fingerprints and results, so the runs after it
+  reuse what it made; its child runs and continuations reuse nothing
+  either, and it doesn't wait for another run's step with the same
+  fingerprint (single-flight).
 - A step with an output reuses a data version; one without reuses the data version it
   built in its implicit dataset (a dataframe it returned, see below) or else
   the result of a step that ran (not one that was itself reused, so a TTL counts from the

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/alper/moksha/internal/blob"
+	"github.com/alper/moksha/internal/history"
 	"github.com/alper/moksha/internal/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -176,6 +177,33 @@ func TestReusedStepCarriesTheDataVersionAndResult(t *testing.T) {
 	l := h.step(second)
 	assert.Equal(t, built[0].Fingerprint, l.Fingerprint)
 	assert.Equal(t, 0, l.Attempts)
+}
+
+// A run started with reuse none runs every step, steps with memo too, and
+// still records their fingerprints: the runs after it reuse what it made.
+func TestARunThatReusesNothingRunsEveryStep(t *testing.T) {
+	b := newBucket(t)
+	h := newHarness(t, withBucket(b, nil))
+	steps := []step{memoStep("extract", "raw"), memoStep("transform", "mart", 0)}
+	h.build("b1", map[string]string{"extract": "v1", "transform": "v1"})
+	h.runPipeline(b, "b1", steps, nil)
+
+	h.reuse = state.ReuseNone
+	id, ran := h.runPipeline(b, "b1", steps, nil)
+	assert.Equal(t, []string{"extract", "transform"}, ran)
+	assert.Equal(t, map[string]string{"extract": "run reuses nothing", "transform": "run reuses nothing"}, h.reasons(id))
+	assert.Equal(t, state.ReuseNone, h.run(id).Reuse)
+	assert.Equal(t, "its run was started with --reuse=none", history.WhyItRan(reasonReuseNone))
+
+	h.restart()
+	assert.Equal(t, state.ReuseNone, h.run(id).Reuse, "kept with the run")
+	h.reuse = ""
+	_, ran = h.runPipeline(b, "b1", steps, nil)
+	assert.Empty(t, ran, "the next run reuses")
+
+	_, err := h.core.StartRun(h.ctx, StartRunRequest{Tenant: "t", Name: "pipeline", Reuse: "some"})
+	assert.ErrorIs(t, err, ErrInvalid)
+	assert.ErrorContains(t, err, `reuse "some": want auto or none`)
 }
 
 func TestMemoTTL(t *testing.T) {

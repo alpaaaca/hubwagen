@@ -87,7 +87,7 @@ func sleep(d time.Duration) Command { return Command{Kind: CommandSleep, Duratio
 
 func (h *harness) startRun(name string) string {
 	h.t.Helper()
-	res, err := h.core.StartRun(h.ctx, StartRunRequest{Tenant: "t", Name: name, Params: map[string]any{"day": "2026-10-24"}})
+	res, err := h.core.StartRun(h.ctx, StartRunRequest{Tenant: "t", Name: name, Params: map[string]any{"day": "2026-10-24"}, Reuse: h.reuse})
 	require.NoError(h.t, err)
 	return res.RunID
 }

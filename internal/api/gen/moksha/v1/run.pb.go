@@ -1800,7 +1800,11 @@ type StartRunRequest struct {
 	// A JSON object.
 	ParamsJson string `protobuf:"bytes,4,opt,name=params_json,json=paramsJson,proto3" json:"params_json,omitempty"`
 	// Default: "manual".
-	Trigger       string `protobuf:"bytes,5,opt,name=trigger,proto3" json:"trigger,omitempty"`
+	Trigger string `protobuf:"bytes,5,opt,name=trigger,proto3" json:"trigger,omitempty"`
+	// "auto" or empty (default): steps with reuse= are reused from earlier
+	// runs. "none": every step runs; what they make is recorded, so later
+	// runs can reuse it. Its child runs and continuations do the same.
+	Reuse         string `protobuf:"bytes,6,opt,name=reuse,proto3" json:"reuse,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1866,6 +1870,13 @@ func (x *StartRunRequest) GetParamsJson() string {
 func (x *StartRunRequest) GetTrigger() string {
 	if x != nil {
 		return x.Trigger
+	}
+	return ""
+}
+
+func (x *StartRunRequest) GetReuse() string {
+	if x != nil {
+		return x.Reuse
 	}
 	return ""
 }
@@ -2667,14 +2678,15 @@ const file_moksha_v1_run_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fpayload_json\x18\x03 \x01(\tR\vpayloadJson\"0\n" +
 	"\x11SignalRunResponse\x12\x1b\n" +
-	"\tsignal_id\x18\x01 \x01(\tR\bsignalId\"\x8e\x01\n" +
+	"\tsignal_id\x18\x01 \x01(\tR\bsignalId\"\xa4\x01\n" +
 	"\x0fStartRunRequest\x12\x16\n" +
 	"\x06tenant\x18\x01 \x01(\tR\x06tenant\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
 	"\x05queue\x18\x03 \x01(\tR\x05queue\x12\x1f\n" +
 	"\vparams_json\x18\x04 \x01(\tR\n" +
 	"paramsJson\x12\x18\n" +
-	"\atrigger\x18\x05 \x01(\tR\atrigger\")\n" +
+	"\atrigger\x18\x05 \x01(\tR\atrigger\x12\x14\n" +
+	"\x05reuse\x18\x06 \x01(\tR\x05reuse\")\n" +
 	"\x10StartRunResponse\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\"&\n" +
 	"\rGetRunRequest\x12\x15\n" +
