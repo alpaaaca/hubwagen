@@ -29,7 +29,7 @@ def arithmetic(ctx, x: int):
     return {"z": z, "after_sleep": started.isoformat(), "draw": ctx.random()}
 
 
-@mk.step(memo=True)
+@mk.step(reuse=True)
 def exchange_rate(day: str) -> float:
     """A result without an output, memoized: a draw, so a rerun shows."""
     return random.random()
@@ -40,7 +40,7 @@ def rates(ctx, day: str):
     return ctx.step(exchange_rate, day)
 
 
-@mk.step(memo=True, output=mk.Dataset("raw.orders", partition="day"))
+@mk.step(reuse=True, output=mk.Dataset("raw.orders", partition="day"))
 def extract(day: str) -> dict:
     out = mk.output()
     (out.path / "orders.csv").write_text(f"order,day\n1,{day}\n")
@@ -49,7 +49,7 @@ def extract(day: str) -> dict:
     return {"rows": 1}
 
 
-@mk.step(memo=True, output=mk.Dataset("mart.revenue", partition="day"))
+@mk.step(reuse=True, output=mk.Dataset("mart.revenue", partition="day"))
 def revenue(orders: mk.DataVersion, day: str) -> dict:
     out = mk.output()
     (out.path / "revenue.csv").write_text(f"built from {orders.id}\n")

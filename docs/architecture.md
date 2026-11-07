@@ -129,13 +129,13 @@ def daily_revenue(ctx, interval: Interval):   # yesterday, midnight to midnight 
         ctx.wait_signal("approve", timeout=timedelta(hours=24))  # durable across deploys
     return ctx.step(build_revenue, orders, day)
 
-@step(memo=True)                    # a closed day's orders no longer change
+@step(reuse=True)                    # a closed day's orders no longer change
 def extract_orders(day: date) -> DataVersion: ...
 
-@step(memo=True)
+@step(reuse=True)
 def check_quality(orders: DataVersion) -> QualityReport: ...
 
-@step(memo=True, output=Dataset("marketing.daily_revenue", partition="day"))
+@step(reuse=True, output=Dataset("marketing.daily_revenue", partition="day"))
 def build_revenue(orders: DataVersion, day: date) -> DataVersion: ...
 ```
 
@@ -186,10 +186,10 @@ holds no slot. Queues' own limits apply on top.
 ### Dataframes between steps
 
 ```python
-@step(memo=True)
+@step(reuse=True)
 def orders(day: date) -> pl.DataFrame: ...
 
-@step(memo=True)
+@step(reuse=True)
 def totals(orders: pl.LazyFrame) -> pl.DataFrame: ...
 
 @pipeline
@@ -357,48 +357,54 @@ fingerprint = hash(
   be relaxed per step with `version=`; `python -m moksha.worker
   --versions` shows what a code version covers.
 
-### Which steps are memoized
+### Which steps are reused
 
 The server cannot tell from outside whether a step's output depends only on
 what the fingerprint covers. A step that reads a data version and calls an API, or
 reads a config table, looks exactly like one that reads a data version and does pure
-arithmetic. So memoization is **opt-in**: a forgotten annotation costs a
-rerun, never correctness.
+arithmetic. So reuse across runs is **opt-in**, as `reuse=`: a forgotten
+annotation costs a rerun, never correctness (decided in
+[api-simplification.md](api-simplification.md#4-reuse-opt-in-as-reuse-with-moksha-pointing-out-where-it-helps)).
+Inside one run a completed step is never run again, with or without it.
 
 - `@step` (default): never reused; runs every time.
-- `@step(memo=True)`: the author promises the output depends only on the
+- `@step(reuse=True)`: the author promises the output depends only on the
   step's code, input data versions and parameters. Use it for transforms over
   data versions, and for reads that a parameter pins down (a closed day's orders,
   a cursor range on an append-only source).
-- `@step(memo="ttl:1h")`: reuse a result up to that age. For APIs and live
+- `@step(reuse="1h")`: reuse a result up to that age. For APIs and live
   sources where slightly stale data is acceptable.
+- `memo=` is the old name: `memo=True` is `reuse=True`, `memo="ttl:1h"`
+  is `reuse="1h"`. It still works for a release, with a warning, and lint
+  flags it (MK007).
 - A step with an output reuses a data version; one without reuses the data version it
   built in its implicit dataset (a dataframe it returned, see below) or else
   the result of a step that ran (not one that was itself reused, so a TTL counts from the
-  run). On the wire a step command carries `memo: ""` (never), `fingerprint`
-  or `ttl:<duration>`; the SDK passes data versions as inputs rather than inside
+  run). On the wire a step command carries its `reuse=` as `memo: ""`
+  (never), `fingerprint` or `ttl:<duration>`; the SDK passes data versions as inputs rather than inside
   the arguments, so the fingerprint sees their content hashes.
-- **SQL steps** (`step.sql`) default to `memo=True`: moksha resolves every
+- **SQL steps** (`step.sql`) default to `reuse=True`: moksha resolves every
   `{{ input(...) }}` itself, so it knows all inputs. lint (later, with SQL steps) flags
   table references that bypass `input()`, since those are hidden inputs.
 
-`moksha replay` names steps that ran only because they are not memoized,
-with a hint, so users learn where `memo=True` would help.
+`moksha replay` will name steps that ran only because they have no
+`reuse=`, with a hint, so users learn where `reuse=True` would help
+([api-simplification.md](api-simplification.md#steps), step 3).
 
 ### Hidden inputs
 
 A file, table or API that a step reads without going through a data version or a
-parameter is a hidden input; memoizing such a step is a wrong reuse waiting
+parameter is a hidden input; giving such a step `reuse=` is a wrong reuse waiting
 to happen. Make it visible instead:
 
-- **Read it in its own step** that is not memoized and returns a data version. The
+- **Read it in its own step** without `reuse=` that returns a data version. The
   data version's content hash then carries the change downstream:
 
   ```python
   @step                                   # cheap, runs every time
   def load_fx_rates() -> DataVersion: ...
 
-  @step(memo=True)
+  @step(reuse=True)
   def convert(orders: DataVersion, rates: DataVersion) -> DataVersion: ...
   ```
 
@@ -757,8 +763,8 @@ building versioning, lineage and idempotent writes themselves.
 ## Risks
 
 - **Wrong reuse.** A code version that misses a dependency, or a hidden input
-  in a step marked `memo=True`, reuses an outdated data version. Mitigations:
-  memoization is opt-in, code versions that follow everything a step's code
+  in a step marked `reuse=True`, reuses an outdated data version. Mitigations:
+  reuse is opt-in, code versions that follow everything a step's code
   reaches (with the versions of the packages it uses), rerun reasons, the hidden-inputs pattern, lint for SQL table references, and
   later `moksha verify` (recompute a sample of reused steps and compare).
 - **Determinism burden.** Users will write non-deterministic runs.
