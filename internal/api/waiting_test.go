@@ -61,9 +61,9 @@ func TestWaitingText(t *testing.T) {
 		want string
 	}{
 		{core.Waiting{Reason: core.WaitNoWorker, Kind: core.TaskRun, Name: "daily", Queue: "default"},
-			"no worker is connected to run the pipeline's code. Start one with `python -m moksha.worker <modules>` (or `moksha workers --config moksha.yaml`)"},
+			"no worker is connected to run the pipeline's code. Deploy its project: `moksha dev` in its directory, or `moksha deploy`"},
 		{core.Waiting{Reason: core.WaitNoWorker, Kind: core.TaskStep, Name: "train", Queue: "gpu"},
-			"no worker is connected on queue \"gpu\" to run step train. Start one with `python -m moksha.worker --queue gpu <modules>` (or `moksha workers --config moksha.yaml`)"},
+			"no worker is connected on queue \"gpu\" to run step train. Deploy its project with a pool on queue gpu: `moksha dev` in its directory, or `moksha deploy`"},
 		{core.Waiting{Reason: core.WaitNoBuild, Kind: core.TaskRun, Name: "daily", Queue: "default", Workers: 1, Builds: []string{"0123456789abcdef"}},
 			"1 worker is connected, but its code doesn't define pipeline daily (build 0123456789ab). Restart a worker with code that has it"},
 		{core.Waiting{Reason: core.WaitNoBuild, Kind: core.TaskStep, Name: "load", Queue: "default", Workers: 2, Builds: []string{"b1", "b2"}},

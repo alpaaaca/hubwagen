@@ -20,14 +20,14 @@ func WaitingText(w core.Waiting) string {
 	if w.Kind == core.TaskStep {
 		what = fmt.Sprintf("step %s", w.Name)
 	}
-	queueFlag, onQueue := "", ""
+	withPool, onQueue := "", ""
 	if w.Queue != core.DefaultQueue {
-		queueFlag, onQueue = fmt.Sprintf(" --queue %s", w.Queue), fmt.Sprintf(" on queue %q", w.Queue)
+		withPool, onQueue = fmt.Sprintf(" with a pool on queue %s", w.Queue), fmt.Sprintf(" on queue %q", w.Queue)
 	}
 	switch w.Reason {
 	case core.WaitNoWorker:
-		return fmt.Sprintf("no worker is connected%s to run %s. Start one with `python -m moksha.worker%s <modules>` "+
-			"(or `moksha workers --config moksha.yaml`)", onQueue, what, queueFlag)
+		return fmt.Sprintf("no worker is connected%s to run %s. Deploy its project%s: `moksha dev` in its directory, "+
+			"or `moksha deploy`", onQueue, what, withPool)
 	case core.WaitNoBuild:
 		defines := fmt.Sprintf("pipeline %s", w.Name)
 		if w.Kind == core.TaskStep {

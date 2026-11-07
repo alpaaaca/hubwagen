@@ -246,12 +246,18 @@ func TestAnExternalPoolPublishesHowManyWorkersItWants(t *testing.T) {
 	assert.Equal(t, 1, e.pool("k8s").Desired)
 	assert.True(t, e.pool("k8s").External)
 	assert.Equal(t, "wants 1 worker (was 0): 1 run waits on default", e.pool("k8s").Decision)
+	assert.Equal(t, 1, e.pool("k8s").Starting, "wanted, not polling yet: a pod starts")
+	runs, err := e.core.Waiting(ctx, []string{"id0001"})
+	require.NoError(t, err)
+	assert.Equal(t, core.WaitStarting, runs["id0001"].Reason)
+	assert.Equal(t, "k8s", runs["id0001"].Pool)
 
 	// A pod starts and takes the run: still 1, the one that runs it.
 	task := e.take("pod-a")
 	e.tick(s)
 	assert.Equal(t, 1, e.pool("k8s").Desired)
 	assert.Equal(t, []string{"pod-a"}, e.pool("k8s").Workers)
+	assert.Equal(t, 0, e.pool("k8s").Starting)
 
 	// It finishes and waits for work: wanted until idle for IdleAfter.
 	require.NoError(t, e.core.CompleteRunTask(ctx, core.RunTaskResult{TaskID: task.ID, BuildID: "b1",
