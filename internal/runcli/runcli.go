@@ -351,3 +351,88 @@ func sortedKeys(m map[string]int) []string {
 	sort.Strings(keys)
 	return keys
 }
+
+// Plan asks what runs of r.Name, one per set of params, would do (moksha
+// replay --dry-run), from the latest earlier runs with the same inputs.
+func (c *Client) Plan(ctx context.Context, r RunRequest, sets []map[string]any) ([]*mokshav1.RunPlan, error) {
+	req := &mokshav1.PlanRunsRequest{Tenant: r.Tenant, Name: r.Name, Reuse: r.Reuse}
+	for _, p := range sets {
+		b, err := json.Marshal(p)
+		if err != nil {
+			return nil, err
+		}
+		req.ParamsJson = append(req.ParamsJson, string(b))
+	}
+	res, err := c.runs.PlanRuns(ctx, connect.NewRequest(req))
+	if err != nil {
+		return nil, err
+	}
+	return res.Msg.Plans, nil
+}
+
+// PlanReport summarises plans like Report does runs: per step, how many
+// would be reused and how many would run, and why; then the runs that have
+// no earlier run, whose every step runs.
+func PlanReport(plans []*mokshav1.RunPlan) string {
+	type counts struct{ reused, ran map[string]int } // why → count
+	var order []string
+	byStep := map[string]*counts{}
+	var fresh []string
+	for _, p := range plans {
+		if p.EarlierRunId == "" {
+			fresh = append(fresh, paramsText(p.ParamsJson))
+			continue
+		}
+		for _, s := range p.Steps {
+			c := byStep[s.Name]
+			if c == nil {
+				c = &counts{reused: map[string]int{}, ran: map[string]int{}}
+				byStep[s.Name] = c
+				order = append(order, s.Name)
+			}
+			if s.Reuse {
+				c.reused[s.Why]++
+			} else {
+				c.ran[s.Why]++
+			}
+		}
+	}
+	var b bytes.Buffer
+	fmt.Fprintf(&b, "%d run%s (dry run: nothing was started), going by the latest earlier run with the same inputs:\n",
+		len(plans), plural(len(plans)))
+	tw := tabwriter.NewWriter(&b, 0, 0, 3, ' ', 0)
+	for _, name := range order {
+		c := byStep[name]
+		var parts []string
+		for _, why := range sortedKeys(c.reused) {
+			parts = append(parts, withWhy(fmt.Sprintf("%d would be reused", c.reused[why]), why))
+		}
+		for _, why := range sortedKeys(c.ran) {
+			parts = append(parts, withWhy(fmt.Sprintf("%d would run", c.ran[why]), why))
+		}
+		fmt.Fprintf(tw, "  %s\t%s\n", name, strings.Join(parts, ", "))
+	}
+	tw.Flush()
+	if len(fresh) > 0 {
+		fmt.Fprintf(&b, "%d %s no earlier run, so every step runs: %s\n", len(fresh),
+			map[bool]string{true: "has", false: "have"}[len(fresh) == 1], strings.Join(fresh, "; "))
+	}
+	fmt.Fprintln(&b, "Which steps a run calls is known only once its pipeline code runs, and a step after one that runs may run too.")
+	return b.String()
+}
+
+func withWhy(s, why string) string {
+	if why == "" {
+		return s
+	}
+	return s + " (" + why + ")"
+}
+
+// paramsText is a run's inputs as name=value pairs.
+func paramsText(paramsJSON string) string {
+	var m map[string]any
+	if json.Unmarshal([]byte(paramsJSON), &m) != nil {
+		return paramsJSON
+	}
+	return history.Inputs(m)
+}

@@ -424,12 +424,17 @@ annotation that moksha points out. Design and decisions:
    wire; `memo=` warns (`FutureWarning`, at the decorator's line, with
    what to write) and lint flags it (MK007); the example project and docs
    say `reuse=`.
-4. **`--reuse=none` and `replay --dry-run`**: recompute a run on
+4. ✅ **`--reuse=none` and `replay --dry-run`**: recompute a run on
    purpose; see beforehand which steps of the latest earlier runs the
    current code would run again. ✅ `--reuse=none` (`StartRun.reuse`,
    kept with the run, inherited by its children and continuations; its
-   steps don't join another run's flight). Next: `--dry-run`, which needs
-   an RPC that compares an earlier run's steps with the newest code.
+   steps don't join another run's flight). ✅ `--dry-run` (`PlanRuns`):
+   per set of inputs, the latest earlier run with them (a completed one
+   if any) and its steps: reused, reused unless a step before it returns
+   something new, or run again because it has no `reuse=`, its code
+   changed since (its project's deployed build, else the newest
+   registered one), or it didn't complete;
+   nothing starts and no code runs.
 5. **The reuse hint**: every step fingerprinted; the replay report and
    the web UI say when a step without `reuse=` returned the same result
    for the same fingerprint.

@@ -23,6 +23,270 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type PlanRunsRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Tenant string                 `protobuf:"bytes,1,opt,name=tenant,proto3" json:"tenant,omitempty"`
+	Name   string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// One JSON object per run.
+	ParamsJson []string `protobuf:"bytes,3,rep,name=params_json,json=paramsJson,proto3" json:"params_json,omitempty"`
+	// As in StartRunRequest: "auto" (or empty) or "none".
+	Reuse         string `protobuf:"bytes,4,opt,name=reuse,proto3" json:"reuse,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlanRunsRequest) Reset() {
+	*x = PlanRunsRequest{}
+	mi := &file_moksha_v1_run_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlanRunsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlanRunsRequest) ProtoMessage() {}
+
+func (x *PlanRunsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_moksha_v1_run_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlanRunsRequest.ProtoReflect.Descriptor instead.
+func (*PlanRunsRequest) Descriptor() ([]byte, []int) {
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *PlanRunsRequest) GetTenant() string {
+	if x != nil {
+		return x.Tenant
+	}
+	return ""
+}
+
+func (x *PlanRunsRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *PlanRunsRequest) GetParamsJson() []string {
+	if x != nil {
+		return x.ParamsJson
+	}
+	return nil
+}
+
+func (x *PlanRunsRequest) GetReuse() string {
+	if x != nil {
+		return x.Reuse
+	}
+	return ""
+}
+
+type PlanRunsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// One per params_json, in order.
+	Plans         []*RunPlan `protobuf:"bytes,1,rep,name=plans,proto3" json:"plans,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlanRunsResponse) Reset() {
+	*x = PlanRunsResponse{}
+	mi := &file_moksha_v1_run_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlanRunsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlanRunsResponse) ProtoMessage() {}
+
+func (x *PlanRunsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_moksha_v1_run_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlanRunsResponse.ProtoReflect.Descriptor instead.
+func (*PlanRunsResponse) Descriptor() ([]byte, []int) {
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *PlanRunsResponse) GetPlans() []*RunPlan {
+	if x != nil {
+		return x.Plans
+	}
+	return nil
+}
+
+type RunPlan struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	ParamsJson string                 `protobuf:"bytes,1,opt,name=params_json,json=paramsJson,proto3" json:"params_json,omitempty"`
+	// The latest earlier run with these inputs (a completed one if there is
+	// one); empty: none, so every step runs.
+	EarlierRunId     string                 `protobuf:"bytes,2,opt,name=earlier_run_id,json=earlierRunId,proto3" json:"earlier_run_id,omitempty"`
+	EarlierStatus    string                 `protobuf:"bytes,3,opt,name=earlier_status,json=earlierStatus,proto3" json:"earlier_status,omitempty"`
+	EarlierCreatedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=earlier_created_at,json=earlierCreatedAt,proto3" json:"earlier_created_at,omitempty"`
+	Steps            []*StepPlan            `protobuf:"bytes,5,rep,name=steps,proto3" json:"steps,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *RunPlan) Reset() {
+	*x = RunPlan{}
+	mi := &file_moksha_v1_run_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunPlan) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunPlan) ProtoMessage() {}
+
+func (x *RunPlan) ProtoReflect() protoreflect.Message {
+	mi := &file_moksha_v1_run_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunPlan.ProtoReflect.Descriptor instead.
+func (*RunPlan) Descriptor() ([]byte, []int) {
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *RunPlan) GetParamsJson() string {
+	if x != nil {
+		return x.ParamsJson
+	}
+	return ""
+}
+
+func (x *RunPlan) GetEarlierRunId() string {
+	if x != nil {
+		return x.EarlierRunId
+	}
+	return ""
+}
+
+func (x *RunPlan) GetEarlierStatus() string {
+	if x != nil {
+		return x.EarlierStatus
+	}
+	return ""
+}
+
+func (x *RunPlan) GetEarlierCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EarlierCreatedAt
+	}
+	return nil
+}
+
+func (x *RunPlan) GetSteps() []*StepPlan {
+	if x != nil {
+		return x.Steps
+	}
+	return nil
+}
+
+type StepPlan struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Seq   int32                  `protobuf:"varint,1,opt,name=seq,proto3" json:"seq,omitempty"`
+	Name  string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// It would be reused; why then says on what condition, if any.
+	Reuse bool `protobuf:"varint,3,opt,name=reuse,proto3" json:"reuse,omitempty"`
+	// In words: why it runs again ("its code changed (v1 → v2)", "it has no
+	// reuse="), or the condition of its reuse.
+	Why           string `protobuf:"bytes,4,opt,name=why,proto3" json:"why,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StepPlan) Reset() {
+	*x = StepPlan{}
+	mi := &file_moksha_v1_run_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StepPlan) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StepPlan) ProtoMessage() {}
+
+func (x *StepPlan) ProtoReflect() protoreflect.Message {
+	mi := &file_moksha_v1_run_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StepPlan.ProtoReflect.Descriptor instead.
+func (*StepPlan) Descriptor() ([]byte, []int) {
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *StepPlan) GetSeq() int32 {
+	if x != nil {
+		return x.Seq
+	}
+	return 0
+}
+
+func (x *StepPlan) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *StepPlan) GetReuse() bool {
+	if x != nil {
+		return x.Reuse
+	}
+	return false
+}
+
+func (x *StepPlan) GetWhy() string {
+	if x != nil {
+		return x.Why
+	}
+	return ""
+}
+
 type ListCodeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -31,7 +295,7 @@ type ListCodeRequest struct {
 
 func (x *ListCodeRequest) Reset() {
 	*x = ListCodeRequest{}
-	mi := &file_moksha_v1_run_proto_msgTypes[0]
+	mi := &file_moksha_v1_run_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43,7 +307,7 @@ func (x *ListCodeRequest) String() string {
 func (*ListCodeRequest) ProtoMessage() {}
 
 func (x *ListCodeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[0]
+	mi := &file_moksha_v1_run_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -56,7 +320,7 @@ func (x *ListCodeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCodeRequest.ProtoReflect.Descriptor instead.
 func (*ListCodeRequest) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{0}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{4}
 }
 
 type ListCodeResponse struct {
@@ -70,7 +334,7 @@ type ListCodeResponse struct {
 
 func (x *ListCodeResponse) Reset() {
 	*x = ListCodeResponse{}
-	mi := &file_moksha_v1_run_proto_msgTypes[1]
+	mi := &file_moksha_v1_run_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -82,7 +346,7 @@ func (x *ListCodeResponse) String() string {
 func (*ListCodeResponse) ProtoMessage() {}
 
 func (x *ListCodeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[1]
+	mi := &file_moksha_v1_run_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -95,7 +359,7 @@ func (x *ListCodeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCodeResponse.ProtoReflect.Descriptor instead.
 func (*ListCodeResponse) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{1}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ListCodeResponse) GetSteps() []*Code {
@@ -124,7 +388,7 @@ type Code struct {
 
 func (x *Code) Reset() {
 	*x = Code{}
-	mi := &file_moksha_v1_run_proto_msgTypes[2]
+	mi := &file_moksha_v1_run_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -136,7 +400,7 @@ func (x *Code) String() string {
 func (*Code) ProtoMessage() {}
 
 func (x *Code) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[2]
+	mi := &file_moksha_v1_run_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -149,7 +413,7 @@ func (x *Code) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Code.ProtoReflect.Descriptor instead.
 func (*Code) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{2}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Code) GetName() string {
@@ -188,7 +452,7 @@ type ListPoolsRequest struct {
 
 func (x *ListPoolsRequest) Reset() {
 	*x = ListPoolsRequest{}
-	mi := &file_moksha_v1_run_proto_msgTypes[3]
+	mi := &file_moksha_v1_run_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -200,7 +464,7 @@ func (x *ListPoolsRequest) String() string {
 func (*ListPoolsRequest) ProtoMessage() {}
 
 func (x *ListPoolsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[3]
+	mi := &file_moksha_v1_run_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -213,7 +477,7 @@ func (x *ListPoolsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPoolsRequest.ProtoReflect.Descriptor instead.
 func (*ListPoolsRequest) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{3}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{7}
 }
 
 type ListPoolsResponse struct {
@@ -225,7 +489,7 @@ type ListPoolsResponse struct {
 
 func (x *ListPoolsResponse) Reset() {
 	*x = ListPoolsResponse{}
-	mi := &file_moksha_v1_run_proto_msgTypes[4]
+	mi := &file_moksha_v1_run_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -237,7 +501,7 @@ func (x *ListPoolsResponse) String() string {
 func (*ListPoolsResponse) ProtoMessage() {}
 
 func (x *ListPoolsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[4]
+	mi := &file_moksha_v1_run_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -250,7 +514,7 @@ func (x *ListPoolsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPoolsResponse.ProtoReflect.Descriptor instead.
 func (*ListPoolsResponse) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{4}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ListPoolsResponse) GetPools() []*Pool {
@@ -285,7 +549,7 @@ type Pool struct {
 
 func (x *Pool) Reset() {
 	*x = Pool{}
-	mi := &file_moksha_v1_run_proto_msgTypes[5]
+	mi := &file_moksha_v1_run_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -297,7 +561,7 @@ func (x *Pool) String() string {
 func (*Pool) ProtoMessage() {}
 
 func (x *Pool) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[5]
+	mi := &file_moksha_v1_run_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -310,7 +574,7 @@ func (x *Pool) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Pool.ProtoReflect.Descriptor instead.
 func (*Pool) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{5}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Pool) GetName() string {
@@ -391,7 +655,7 @@ type ListWorkersRequest struct {
 
 func (x *ListWorkersRequest) Reset() {
 	*x = ListWorkersRequest{}
-	mi := &file_moksha_v1_run_proto_msgTypes[6]
+	mi := &file_moksha_v1_run_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -403,7 +667,7 @@ func (x *ListWorkersRequest) String() string {
 func (*ListWorkersRequest) ProtoMessage() {}
 
 func (x *ListWorkersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[6]
+	mi := &file_moksha_v1_run_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -416,7 +680,7 @@ func (x *ListWorkersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWorkersRequest.ProtoReflect.Descriptor instead.
 func (*ListWorkersRequest) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{6}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{10}
 }
 
 type ListWorkersResponse struct {
@@ -428,7 +692,7 @@ type ListWorkersResponse struct {
 
 func (x *ListWorkersResponse) Reset() {
 	*x = ListWorkersResponse{}
-	mi := &file_moksha_v1_run_proto_msgTypes[7]
+	mi := &file_moksha_v1_run_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -440,7 +704,7 @@ func (x *ListWorkersResponse) String() string {
 func (*ListWorkersResponse) ProtoMessage() {}
 
 func (x *ListWorkersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[7]
+	mi := &file_moksha_v1_run_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -453,7 +717,7 @@ func (x *ListWorkersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWorkersResponse.ProtoReflect.Descriptor instead.
 func (*ListWorkersResponse) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{7}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ListWorkersResponse) GetWorkers() []*Worker {
@@ -483,7 +747,7 @@ type Worker struct {
 
 func (x *Worker) Reset() {
 	*x = Worker{}
-	mi := &file_moksha_v1_run_proto_msgTypes[8]
+	mi := &file_moksha_v1_run_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -495,7 +759,7 @@ func (x *Worker) String() string {
 func (*Worker) ProtoMessage() {}
 
 func (x *Worker) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[8]
+	mi := &file_moksha_v1_run_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -508,7 +772,7 @@ func (x *Worker) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Worker.ProtoReflect.Descriptor instead.
 func (*Worker) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{8}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *Worker) GetId() string {
@@ -568,7 +832,7 @@ type ListPipelinesRequest struct {
 
 func (x *ListPipelinesRequest) Reset() {
 	*x = ListPipelinesRequest{}
-	mi := &file_moksha_v1_run_proto_msgTypes[9]
+	mi := &file_moksha_v1_run_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -580,7 +844,7 @@ func (x *ListPipelinesRequest) String() string {
 func (*ListPipelinesRequest) ProtoMessage() {}
 
 func (x *ListPipelinesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[9]
+	mi := &file_moksha_v1_run_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -593,7 +857,7 @@ func (x *ListPipelinesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPipelinesRequest.ProtoReflect.Descriptor instead.
 func (*ListPipelinesRequest) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{9}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{13}
 }
 
 type ListPipelinesResponse struct {
@@ -605,7 +869,7 @@ type ListPipelinesResponse struct {
 
 func (x *ListPipelinesResponse) Reset() {
 	*x = ListPipelinesResponse{}
-	mi := &file_moksha_v1_run_proto_msgTypes[10]
+	mi := &file_moksha_v1_run_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -617,7 +881,7 @@ func (x *ListPipelinesResponse) String() string {
 func (*ListPipelinesResponse) ProtoMessage() {}
 
 func (x *ListPipelinesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[10]
+	mi := &file_moksha_v1_run_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -630,7 +894,7 @@ func (x *ListPipelinesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPipelinesResponse.ProtoReflect.Descriptor instead.
 func (*ListPipelinesResponse) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{10}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListPipelinesResponse) GetPipelines() []*Pipeline {
@@ -653,7 +917,7 @@ type Pipeline struct {
 
 func (x *Pipeline) Reset() {
 	*x = Pipeline{}
-	mi := &file_moksha_v1_run_proto_msgTypes[11]
+	mi := &file_moksha_v1_run_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -665,7 +929,7 @@ func (x *Pipeline) String() string {
 func (*Pipeline) ProtoMessage() {}
 
 func (x *Pipeline) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[11]
+	mi := &file_moksha_v1_run_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -678,7 +942,7 @@ func (x *Pipeline) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Pipeline.ProtoReflect.Descriptor instead.
 func (*Pipeline) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{11}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Pipeline) GetName() string {
@@ -723,7 +987,7 @@ type ListRunsRequest struct {
 
 func (x *ListRunsRequest) Reset() {
 	*x = ListRunsRequest{}
-	mi := &file_moksha_v1_run_proto_msgTypes[12]
+	mi := &file_moksha_v1_run_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -735,7 +999,7 @@ func (x *ListRunsRequest) String() string {
 func (*ListRunsRequest) ProtoMessage() {}
 
 func (x *ListRunsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[12]
+	mi := &file_moksha_v1_run_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -748,7 +1012,7 @@ func (x *ListRunsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRunsRequest.ProtoReflect.Descriptor instead.
 func (*ListRunsRequest) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{12}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ListRunsRequest) GetTenant() string {
@@ -811,7 +1075,7 @@ type CancelRunRequest struct {
 
 func (x *CancelRunRequest) Reset() {
 	*x = CancelRunRequest{}
-	mi := &file_moksha_v1_run_proto_msgTypes[13]
+	mi := &file_moksha_v1_run_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -823,7 +1087,7 @@ func (x *CancelRunRequest) String() string {
 func (*CancelRunRequest) ProtoMessage() {}
 
 func (x *CancelRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[13]
+	mi := &file_moksha_v1_run_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -836,7 +1100,7 @@ func (x *CancelRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelRunRequest.ProtoReflect.Descriptor instead.
 func (*CancelRunRequest) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{13}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CancelRunRequest) GetRunId() string {
@@ -861,7 +1125,7 @@ type CancelRunResponse struct {
 
 func (x *CancelRunResponse) Reset() {
 	*x = CancelRunResponse{}
-	mi := &file_moksha_v1_run_proto_msgTypes[14]
+	mi := &file_moksha_v1_run_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -873,7 +1137,7 @@ func (x *CancelRunResponse) String() string {
 func (*CancelRunResponse) ProtoMessage() {}
 
 func (x *CancelRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[14]
+	mi := &file_moksha_v1_run_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -886,7 +1150,7 @@ func (x *CancelRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelRunResponse.ProtoReflect.Descriptor instead.
 func (*CancelRunResponse) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{14}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{18}
 }
 
 type ResumeRunRequest struct {
@@ -898,7 +1162,7 @@ type ResumeRunRequest struct {
 
 func (x *ResumeRunRequest) Reset() {
 	*x = ResumeRunRequest{}
-	mi := &file_moksha_v1_run_proto_msgTypes[15]
+	mi := &file_moksha_v1_run_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -910,7 +1174,7 @@ func (x *ResumeRunRequest) String() string {
 func (*ResumeRunRequest) ProtoMessage() {}
 
 func (x *ResumeRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[15]
+	mi := &file_moksha_v1_run_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -923,7 +1187,7 @@ func (x *ResumeRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeRunRequest.ProtoReflect.Descriptor instead.
 func (*ResumeRunRequest) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{15}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ResumeRunRequest) GetRunId() string {
@@ -941,7 +1205,7 @@ type ResumeRunResponse struct {
 
 func (x *ResumeRunResponse) Reset() {
 	*x = ResumeRunResponse{}
-	mi := &file_moksha_v1_run_proto_msgTypes[16]
+	mi := &file_moksha_v1_run_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -953,7 +1217,7 @@ func (x *ResumeRunResponse) String() string {
 func (*ResumeRunResponse) ProtoMessage() {}
 
 func (x *ResumeRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[16]
+	mi := &file_moksha_v1_run_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -966,7 +1230,7 @@ func (x *ResumeRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeRunResponse.ProtoReflect.Descriptor instead.
 func (*ResumeRunResponse) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{16}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{20}
 }
 
 type ListRunsResponse struct {
@@ -978,7 +1242,7 @@ type ListRunsResponse struct {
 
 func (x *ListRunsResponse) Reset() {
 	*x = ListRunsResponse{}
-	mi := &file_moksha_v1_run_proto_msgTypes[17]
+	mi := &file_moksha_v1_run_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -990,7 +1254,7 @@ func (x *ListRunsResponse) String() string {
 func (*ListRunsResponse) ProtoMessage() {}
 
 func (x *ListRunsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[17]
+	mi := &file_moksha_v1_run_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1003,7 +1267,7 @@ func (x *ListRunsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRunsResponse.ProtoReflect.Descriptor instead.
 func (*ListRunsResponse) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{17}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ListRunsResponse) GetRuns() []*Run {
@@ -1022,7 +1286,7 @@ type GetEventLogRequest struct {
 
 func (x *GetEventLogRequest) Reset() {
 	*x = GetEventLogRequest{}
-	mi := &file_moksha_v1_run_proto_msgTypes[18]
+	mi := &file_moksha_v1_run_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1034,7 +1298,7 @@ func (x *GetEventLogRequest) String() string {
 func (*GetEventLogRequest) ProtoMessage() {}
 
 func (x *GetEventLogRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[18]
+	mi := &file_moksha_v1_run_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1047,7 +1311,7 @@ func (x *GetEventLogRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEventLogRequest.ProtoReflect.Descriptor instead.
 func (*GetEventLogRequest) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{18}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *GetEventLogRequest) GetRunId() string {
@@ -1068,7 +1332,7 @@ type GetEventLogResponse struct {
 
 func (x *GetEventLogResponse) Reset() {
 	*x = GetEventLogResponse{}
-	mi := &file_moksha_v1_run_proto_msgTypes[19]
+	mi := &file_moksha_v1_run_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1080,7 +1344,7 @@ func (x *GetEventLogResponse) String() string {
 func (*GetEventLogResponse) ProtoMessage() {}
 
 func (x *GetEventLogResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[19]
+	mi := &file_moksha_v1_run_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1093,7 +1357,7 @@ func (x *GetEventLogResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEventLogResponse.ProtoReflect.Descriptor instead.
 func (*GetEventLogResponse) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{19}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *GetEventLogResponse) GetRun() *Run {
@@ -1122,7 +1386,7 @@ type LoggedEvent struct {
 
 func (x *LoggedEvent) Reset() {
 	*x = LoggedEvent{}
-	mi := &file_moksha_v1_run_proto_msgTypes[20]
+	mi := &file_moksha_v1_run_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1134,7 +1398,7 @@ func (x *LoggedEvent) String() string {
 func (*LoggedEvent) ProtoMessage() {}
 
 func (x *LoggedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[20]
+	mi := &file_moksha_v1_run_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1147,7 +1411,7 @@ func (x *LoggedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoggedEvent.ProtoReflect.Descriptor instead.
 func (*LoggedEvent) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{20}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *LoggedEvent) GetSeq() int64 {
@@ -1187,7 +1451,7 @@ type GetHistoryRequest struct {
 
 func (x *GetHistoryRequest) Reset() {
 	*x = GetHistoryRequest{}
-	mi := &file_moksha_v1_run_proto_msgTypes[21]
+	mi := &file_moksha_v1_run_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1199,7 +1463,7 @@ func (x *GetHistoryRequest) String() string {
 func (*GetHistoryRequest) ProtoMessage() {}
 
 func (x *GetHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[21]
+	mi := &file_moksha_v1_run_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1212,7 +1476,7 @@ func (x *GetHistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHistoryRequest.ProtoReflect.Descriptor instead.
 func (*GetHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{21}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *GetHistoryRequest) GetRunId() string {
@@ -1231,7 +1495,7 @@ type GetHistoryResponse struct {
 
 func (x *GetHistoryResponse) Reset() {
 	*x = GetHistoryResponse{}
-	mi := &file_moksha_v1_run_proto_msgTypes[22]
+	mi := &file_moksha_v1_run_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1243,7 +1507,7 @@ func (x *GetHistoryResponse) String() string {
 func (*GetHistoryResponse) ProtoMessage() {}
 
 func (x *GetHistoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[22]
+	mi := &file_moksha_v1_run_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1256,7 +1520,7 @@ func (x *GetHistoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHistoryResponse.ProtoReflect.Descriptor instead.
 func (*GetHistoryResponse) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{22}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *GetHistoryResponse) GetEntries() []*HistoryEntry {
@@ -1292,7 +1556,7 @@ type HistoryEntry struct {
 
 func (x *HistoryEntry) Reset() {
 	*x = HistoryEntry{}
-	mi := &file_moksha_v1_run_proto_msgTypes[23]
+	mi := &file_moksha_v1_run_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1304,7 +1568,7 @@ func (x *HistoryEntry) String() string {
 func (*HistoryEntry) ProtoMessage() {}
 
 func (x *HistoryEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[23]
+	mi := &file_moksha_v1_run_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1317,7 +1581,7 @@ func (x *HistoryEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HistoryEntry.ProtoReflect.Descriptor instead.
 func (*HistoryEntry) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{23}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *HistoryEntry) GetTime() *timestamppb.Timestamp {
@@ -1398,7 +1662,7 @@ type ListSchedulesRequest struct {
 
 func (x *ListSchedulesRequest) Reset() {
 	*x = ListSchedulesRequest{}
-	mi := &file_moksha_v1_run_proto_msgTypes[24]
+	mi := &file_moksha_v1_run_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1410,7 +1674,7 @@ func (x *ListSchedulesRequest) String() string {
 func (*ListSchedulesRequest) ProtoMessage() {}
 
 func (x *ListSchedulesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[24]
+	mi := &file_moksha_v1_run_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1423,7 +1687,7 @@ func (x *ListSchedulesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSchedulesRequest.ProtoReflect.Descriptor instead.
 func (*ListSchedulesRequest) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{24}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{28}
 }
 
 type ListSchedulesResponse struct {
@@ -1436,7 +1700,7 @@ type ListSchedulesResponse struct {
 
 func (x *ListSchedulesResponse) Reset() {
 	*x = ListSchedulesResponse{}
-	mi := &file_moksha_v1_run_proto_msgTypes[25]
+	mi := &file_moksha_v1_run_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1448,7 +1712,7 @@ func (x *ListSchedulesResponse) String() string {
 func (*ListSchedulesResponse) ProtoMessage() {}
 
 func (x *ListSchedulesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[25]
+	mi := &file_moksha_v1_run_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1461,7 +1725,7 @@ func (x *ListSchedulesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSchedulesResponse.ProtoReflect.Descriptor instead.
 func (*ListSchedulesResponse) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{25}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *ListSchedulesResponse) GetSchedules() []*Schedule {
@@ -1494,7 +1758,7 @@ type Subscription struct {
 
 func (x *Subscription) Reset() {
 	*x = Subscription{}
-	mi := &file_moksha_v1_run_proto_msgTypes[26]
+	mi := &file_moksha_v1_run_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1506,7 +1770,7 @@ func (x *Subscription) String() string {
 func (*Subscription) ProtoMessage() {}
 
 func (x *Subscription) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[26]
+	mi := &file_moksha_v1_run_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1519,7 +1783,7 @@ func (x *Subscription) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Subscription.ProtoReflect.Descriptor instead.
 func (*Subscription) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{26}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *Subscription) GetPipeline() string {
@@ -1593,7 +1857,7 @@ type Schedule struct {
 
 func (x *Schedule) Reset() {
 	*x = Schedule{}
-	mi := &file_moksha_v1_run_proto_msgTypes[27]
+	mi := &file_moksha_v1_run_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1605,7 +1869,7 @@ func (x *Schedule) String() string {
 func (*Schedule) ProtoMessage() {}
 
 func (x *Schedule) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[27]
+	mi := &file_moksha_v1_run_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1618,7 +1882,7 @@ func (x *Schedule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Schedule.ProtoReflect.Descriptor instead.
 func (*Schedule) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{27}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *Schedule) GetPipeline() string {
@@ -1697,7 +1961,7 @@ type SignalRunRequest struct {
 
 func (x *SignalRunRequest) Reset() {
 	*x = SignalRunRequest{}
-	mi := &file_moksha_v1_run_proto_msgTypes[28]
+	mi := &file_moksha_v1_run_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1709,7 +1973,7 @@ func (x *SignalRunRequest) String() string {
 func (*SignalRunRequest) ProtoMessage() {}
 
 func (x *SignalRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[28]
+	mi := &file_moksha_v1_run_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1722,7 +1986,7 @@ func (x *SignalRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignalRunRequest.ProtoReflect.Descriptor instead.
 func (*SignalRunRequest) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{28}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *SignalRunRequest) GetRunId() string {
@@ -1755,7 +2019,7 @@ type SignalRunResponse struct {
 
 func (x *SignalRunResponse) Reset() {
 	*x = SignalRunResponse{}
-	mi := &file_moksha_v1_run_proto_msgTypes[29]
+	mi := &file_moksha_v1_run_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1767,7 +2031,7 @@ func (x *SignalRunResponse) String() string {
 func (*SignalRunResponse) ProtoMessage() {}
 
 func (x *SignalRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[29]
+	mi := &file_moksha_v1_run_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1780,7 +2044,7 @@ func (x *SignalRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignalRunResponse.ProtoReflect.Descriptor instead.
 func (*SignalRunResponse) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{29}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *SignalRunResponse) GetSignalId() string {
@@ -1811,7 +2075,7 @@ type StartRunRequest struct {
 
 func (x *StartRunRequest) Reset() {
 	*x = StartRunRequest{}
-	mi := &file_moksha_v1_run_proto_msgTypes[30]
+	mi := &file_moksha_v1_run_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1823,7 +2087,7 @@ func (x *StartRunRequest) String() string {
 func (*StartRunRequest) ProtoMessage() {}
 
 func (x *StartRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[30]
+	mi := &file_moksha_v1_run_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1836,7 +2100,7 @@ func (x *StartRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartRunRequest.ProtoReflect.Descriptor instead.
 func (*StartRunRequest) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{30}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *StartRunRequest) GetTenant() string {
@@ -1890,7 +2154,7 @@ type StartRunResponse struct {
 
 func (x *StartRunResponse) Reset() {
 	*x = StartRunResponse{}
-	mi := &file_moksha_v1_run_proto_msgTypes[31]
+	mi := &file_moksha_v1_run_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1902,7 +2166,7 @@ func (x *StartRunResponse) String() string {
 func (*StartRunResponse) ProtoMessage() {}
 
 func (x *StartRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[31]
+	mi := &file_moksha_v1_run_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1915,7 +2179,7 @@ func (x *StartRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartRunResponse.ProtoReflect.Descriptor instead.
 func (*StartRunResponse) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{31}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *StartRunResponse) GetRunId() string {
@@ -1934,7 +2198,7 @@ type GetRunRequest struct {
 
 func (x *GetRunRequest) Reset() {
 	*x = GetRunRequest{}
-	mi := &file_moksha_v1_run_proto_msgTypes[32]
+	mi := &file_moksha_v1_run_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1946,7 +2210,7 @@ func (x *GetRunRequest) String() string {
 func (*GetRunRequest) ProtoMessage() {}
 
 func (x *GetRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[32]
+	mi := &file_moksha_v1_run_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1959,7 +2223,7 @@ func (x *GetRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunRequest.ProtoReflect.Descriptor instead.
 func (*GetRunRequest) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{32}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *GetRunRequest) GetRunId() string {
@@ -1978,7 +2242,7 @@ type GetRunResponse struct {
 
 func (x *GetRunResponse) Reset() {
 	*x = GetRunResponse{}
-	mi := &file_moksha_v1_run_proto_msgTypes[33]
+	mi := &file_moksha_v1_run_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1990,7 +2254,7 @@ func (x *GetRunResponse) String() string {
 func (*GetRunResponse) ProtoMessage() {}
 
 func (x *GetRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[33]
+	mi := &file_moksha_v1_run_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2003,7 +2267,7 @@ func (x *GetRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunResponse.ProtoReflect.Descriptor instead.
 func (*GetRunResponse) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{33}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *GetRunResponse) GetRun() *Run {
@@ -2046,7 +2310,7 @@ type Run struct {
 
 func (x *Run) Reset() {
 	*x = Run{}
-	mi := &file_moksha_v1_run_proto_msgTypes[34]
+	mi := &file_moksha_v1_run_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2058,7 +2322,7 @@ func (x *Run) String() string {
 func (*Run) ProtoMessage() {}
 
 func (x *Run) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[34]
+	mi := &file_moksha_v1_run_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2071,7 +2335,7 @@ func (x *Run) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Run.ProtoReflect.Descriptor instead.
 func (*Run) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{34}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *Run) GetId() string {
@@ -2215,7 +2479,7 @@ type Waiting struct {
 
 func (x *Waiting) Reset() {
 	*x = Waiting{}
-	mi := &file_moksha_v1_run_proto_msgTypes[35]
+	mi := &file_moksha_v1_run_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2227,7 +2491,7 @@ func (x *Waiting) String() string {
 func (*Waiting) ProtoMessage() {}
 
 func (x *Waiting) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[35]
+	mi := &file_moksha_v1_run_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2240,7 +2504,7 @@ func (x *Waiting) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Waiting.ProtoReflect.Descriptor instead.
 func (*Waiting) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{35}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *Waiting) GetReason() string {
@@ -2327,7 +2591,7 @@ type StepCounts struct {
 
 func (x *StepCounts) Reset() {
 	*x = StepCounts{}
-	mi := &file_moksha_v1_run_proto_msgTypes[36]
+	mi := &file_moksha_v1_run_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2339,7 +2603,7 @@ func (x *StepCounts) String() string {
 func (*StepCounts) ProtoMessage() {}
 
 func (x *StepCounts) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[36]
+	mi := &file_moksha_v1_run_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2352,7 +2616,7 @@ func (x *StepCounts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepCounts.ProtoReflect.Descriptor instead.
 func (*StepCounts) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{36}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *StepCounts) GetTotal() int32 {
@@ -2425,7 +2689,7 @@ type Step struct {
 
 func (x *Step) Reset() {
 	*x = Step{}
-	mi := &file_moksha_v1_run_proto_msgTypes[37]
+	mi := &file_moksha_v1_run_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2437,7 +2701,7 @@ func (x *Step) String() string {
 func (*Step) ProtoMessage() {}
 
 func (x *Step) ProtoReflect() protoreflect.Message {
-	mi := &file_moksha_v1_run_proto_msgTypes[37]
+	mi := &file_moksha_v1_run_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2450,7 +2714,7 @@ func (x *Step) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Step.ProtoReflect.Descriptor instead.
 func (*Step) Descriptor() ([]byte, []int) {
-	return file_moksha_v1_run_proto_rawDescGZIP(), []int{37}
+	return file_moksha_v1_run_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *Step) GetSeq() int32 {
@@ -2562,7 +2826,27 @@ var File_moksha_v1_run_proto protoreflect.FileDescriptor
 
 const file_moksha_v1_run_proto_rawDesc = "" +
 	"\n" +
-	"\x13moksha/v1/run.proto\x12\tmoksha.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x11\n" +
+	"\x13moksha/v1/run.proto\x12\tmoksha.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"t\n" +
+	"\x0fPlanRunsRequest\x12\x16\n" +
+	"\x06tenant\x18\x01 \x01(\tR\x06tenant\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1f\n" +
+	"\vparams_json\x18\x03 \x03(\tR\n" +
+	"paramsJson\x12\x14\n" +
+	"\x05reuse\x18\x04 \x01(\tR\x05reuse\"<\n" +
+	"\x10PlanRunsResponse\x12(\n" +
+	"\x05plans\x18\x01 \x03(\v2\x12.moksha.v1.RunPlanR\x05plans\"\xec\x01\n" +
+	"\aRunPlan\x12\x1f\n" +
+	"\vparams_json\x18\x01 \x01(\tR\n" +
+	"paramsJson\x12$\n" +
+	"\x0eearlier_run_id\x18\x02 \x01(\tR\fearlierRunId\x12%\n" +
+	"\x0eearlier_status\x18\x03 \x01(\tR\rearlierStatus\x12H\n" +
+	"\x12earlier_created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x10earlierCreatedAt\x12)\n" +
+	"\x05steps\x18\x05 \x03(\v2\x13.moksha.v1.StepPlanR\x05steps\"X\n" +
+	"\bStepPlan\x12\x10\n" +
+	"\x03seq\x18\x01 \x01(\x05R\x03seq\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
+	"\x05reuse\x18\x03 \x01(\bR\x05reuse\x12\x10\n" +
+	"\x03why\x18\x04 \x01(\tR\x03why\"\x11\n" +
 	"\x0fListCodeRequest\"h\n" +
 	"\x10ListCodeResponse\x12%\n" +
 	"\x05steps\x18\x01 \x03(\v2\x0f.moksha.v1.CodeR\x05steps\x12-\n" +
@@ -2754,7 +3038,7 @@ const file_moksha_v1_run_proto_rawDesc = "" +
 	"resultJson\x12\x14\n" +
 	"\x05after\x18\r \x03(\x05R\x05after\x12\x18\n" +
 	"\adataset\x18\x0e \x01(\tR\adataset\x12\x10\n" +
-	"\x03why\x18\x0f \x01(\tR\x03why2\xc9\a\n" +
+	"\x03why\x18\x0f \x01(\tR\x03why2\x8e\b\n" +
 	"\n" +
 	"RunService\x12C\n" +
 	"\bStartRun\x12\x1a.moksha.v1.StartRunRequest\x1a\x1b.moksha.v1.StartRunResponse\x12=\n" +
@@ -2770,7 +3054,8 @@ const file_moksha_v1_run_proto_rawDesc = "" +
 	"\rListPipelines\x12\x1f.moksha.v1.ListPipelinesRequest\x1a .moksha.v1.ListPipelinesResponse\x12L\n" +
 	"\vListWorkers\x12\x1d.moksha.v1.ListWorkersRequest\x1a\x1e.moksha.v1.ListWorkersResponse\x12F\n" +
 	"\tListPools\x12\x1b.moksha.v1.ListPoolsRequest\x1a\x1c.moksha.v1.ListPoolsResponse\x12C\n" +
-	"\bListCode\x12\x1a.moksha.v1.ListCodeRequest\x1a\x1b.moksha.v1.ListCodeResponseB=Z;github.com/alper/moksha/internal/api/gen/moksha/v1;mokshav1b\x06proto3"
+	"\bListCode\x12\x1a.moksha.v1.ListCodeRequest\x1a\x1b.moksha.v1.ListCodeResponse\x12C\n" +
+	"\bPlanRuns\x12\x1a.moksha.v1.PlanRunsRequest\x1a\x1b.moksha.v1.PlanRunsResponseB=Z;github.com/alper/moksha/internal/api/gen/moksha/v1;mokshav1b\x06proto3"
 
 var (
 	file_moksha_v1_run_proto_rawDescOnce sync.Once
@@ -2784,110 +3069,119 @@ func file_moksha_v1_run_proto_rawDescGZIP() []byte {
 	return file_moksha_v1_run_proto_rawDescData
 }
 
-var file_moksha_v1_run_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
+var file_moksha_v1_run_proto_msgTypes = make([]protoimpl.MessageInfo, 42)
 var file_moksha_v1_run_proto_goTypes = []any{
-	(*ListCodeRequest)(nil),       // 0: moksha.v1.ListCodeRequest
-	(*ListCodeResponse)(nil),      // 1: moksha.v1.ListCodeResponse
-	(*Code)(nil),                  // 2: moksha.v1.Code
-	(*ListPoolsRequest)(nil),      // 3: moksha.v1.ListPoolsRequest
-	(*ListPoolsResponse)(nil),     // 4: moksha.v1.ListPoolsResponse
-	(*Pool)(nil),                  // 5: moksha.v1.Pool
-	(*ListWorkersRequest)(nil),    // 6: moksha.v1.ListWorkersRequest
-	(*ListWorkersResponse)(nil),   // 7: moksha.v1.ListWorkersResponse
-	(*Worker)(nil),                // 8: moksha.v1.Worker
-	(*ListPipelinesRequest)(nil),  // 9: moksha.v1.ListPipelinesRequest
-	(*ListPipelinesResponse)(nil), // 10: moksha.v1.ListPipelinesResponse
-	(*Pipeline)(nil),              // 11: moksha.v1.Pipeline
-	(*ListRunsRequest)(nil),       // 12: moksha.v1.ListRunsRequest
-	(*CancelRunRequest)(nil),      // 13: moksha.v1.CancelRunRequest
-	(*CancelRunResponse)(nil),     // 14: moksha.v1.CancelRunResponse
-	(*ResumeRunRequest)(nil),      // 15: moksha.v1.ResumeRunRequest
-	(*ResumeRunResponse)(nil),     // 16: moksha.v1.ResumeRunResponse
-	(*ListRunsResponse)(nil),      // 17: moksha.v1.ListRunsResponse
-	(*GetEventLogRequest)(nil),    // 18: moksha.v1.GetEventLogRequest
-	(*GetEventLogResponse)(nil),   // 19: moksha.v1.GetEventLogResponse
-	(*LoggedEvent)(nil),           // 20: moksha.v1.LoggedEvent
-	(*GetHistoryRequest)(nil),     // 21: moksha.v1.GetHistoryRequest
-	(*GetHistoryResponse)(nil),    // 22: moksha.v1.GetHistoryResponse
-	(*HistoryEntry)(nil),          // 23: moksha.v1.HistoryEntry
-	(*ListSchedulesRequest)(nil),  // 24: moksha.v1.ListSchedulesRequest
-	(*ListSchedulesResponse)(nil), // 25: moksha.v1.ListSchedulesResponse
-	(*Subscription)(nil),          // 26: moksha.v1.Subscription
-	(*Schedule)(nil),              // 27: moksha.v1.Schedule
-	(*SignalRunRequest)(nil),      // 28: moksha.v1.SignalRunRequest
-	(*SignalRunResponse)(nil),     // 29: moksha.v1.SignalRunResponse
-	(*StartRunRequest)(nil),       // 30: moksha.v1.StartRunRequest
-	(*StartRunResponse)(nil),      // 31: moksha.v1.StartRunResponse
-	(*GetRunRequest)(nil),         // 32: moksha.v1.GetRunRequest
-	(*GetRunResponse)(nil),        // 33: moksha.v1.GetRunResponse
-	(*Run)(nil),                   // 34: moksha.v1.Run
-	(*Waiting)(nil),               // 35: moksha.v1.Waiting
-	(*StepCounts)(nil),            // 36: moksha.v1.StepCounts
-	(*Step)(nil),                  // 37: moksha.v1.Step
-	(*timestamppb.Timestamp)(nil), // 38: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),   // 39: google.protobuf.Duration
+	(*PlanRunsRequest)(nil),       // 0: moksha.v1.PlanRunsRequest
+	(*PlanRunsResponse)(nil),      // 1: moksha.v1.PlanRunsResponse
+	(*RunPlan)(nil),               // 2: moksha.v1.RunPlan
+	(*StepPlan)(nil),              // 3: moksha.v1.StepPlan
+	(*ListCodeRequest)(nil),       // 4: moksha.v1.ListCodeRequest
+	(*ListCodeResponse)(nil),      // 5: moksha.v1.ListCodeResponse
+	(*Code)(nil),                  // 6: moksha.v1.Code
+	(*ListPoolsRequest)(nil),      // 7: moksha.v1.ListPoolsRequest
+	(*ListPoolsResponse)(nil),     // 8: moksha.v1.ListPoolsResponse
+	(*Pool)(nil),                  // 9: moksha.v1.Pool
+	(*ListWorkersRequest)(nil),    // 10: moksha.v1.ListWorkersRequest
+	(*ListWorkersResponse)(nil),   // 11: moksha.v1.ListWorkersResponse
+	(*Worker)(nil),                // 12: moksha.v1.Worker
+	(*ListPipelinesRequest)(nil),  // 13: moksha.v1.ListPipelinesRequest
+	(*ListPipelinesResponse)(nil), // 14: moksha.v1.ListPipelinesResponse
+	(*Pipeline)(nil),              // 15: moksha.v1.Pipeline
+	(*ListRunsRequest)(nil),       // 16: moksha.v1.ListRunsRequest
+	(*CancelRunRequest)(nil),      // 17: moksha.v1.CancelRunRequest
+	(*CancelRunResponse)(nil),     // 18: moksha.v1.CancelRunResponse
+	(*ResumeRunRequest)(nil),      // 19: moksha.v1.ResumeRunRequest
+	(*ResumeRunResponse)(nil),     // 20: moksha.v1.ResumeRunResponse
+	(*ListRunsResponse)(nil),      // 21: moksha.v1.ListRunsResponse
+	(*GetEventLogRequest)(nil),    // 22: moksha.v1.GetEventLogRequest
+	(*GetEventLogResponse)(nil),   // 23: moksha.v1.GetEventLogResponse
+	(*LoggedEvent)(nil),           // 24: moksha.v1.LoggedEvent
+	(*GetHistoryRequest)(nil),     // 25: moksha.v1.GetHistoryRequest
+	(*GetHistoryResponse)(nil),    // 26: moksha.v1.GetHistoryResponse
+	(*HistoryEntry)(nil),          // 27: moksha.v1.HistoryEntry
+	(*ListSchedulesRequest)(nil),  // 28: moksha.v1.ListSchedulesRequest
+	(*ListSchedulesResponse)(nil), // 29: moksha.v1.ListSchedulesResponse
+	(*Subscription)(nil),          // 30: moksha.v1.Subscription
+	(*Schedule)(nil),              // 31: moksha.v1.Schedule
+	(*SignalRunRequest)(nil),      // 32: moksha.v1.SignalRunRequest
+	(*SignalRunResponse)(nil),     // 33: moksha.v1.SignalRunResponse
+	(*StartRunRequest)(nil),       // 34: moksha.v1.StartRunRequest
+	(*StartRunResponse)(nil),      // 35: moksha.v1.StartRunResponse
+	(*GetRunRequest)(nil),         // 36: moksha.v1.GetRunRequest
+	(*GetRunResponse)(nil),        // 37: moksha.v1.GetRunResponse
+	(*Run)(nil),                   // 38: moksha.v1.Run
+	(*Waiting)(nil),               // 39: moksha.v1.Waiting
+	(*StepCounts)(nil),            // 40: moksha.v1.StepCounts
+	(*Step)(nil),                  // 41: moksha.v1.Step
+	(*timestamppb.Timestamp)(nil), // 42: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),   // 43: google.protobuf.Duration
 }
 var file_moksha_v1_run_proto_depIdxs = []int32{
-	2,  // 0: moksha.v1.ListCodeResponse.steps:type_name -> moksha.v1.Code
-	2,  // 1: moksha.v1.ListCodeResponse.pipelines:type_name -> moksha.v1.Code
-	38, // 2: moksha.v1.Code.registered_at:type_name -> google.protobuf.Timestamp
-	5,  // 3: moksha.v1.ListPoolsResponse.pools:type_name -> moksha.v1.Pool
-	38, // 4: moksha.v1.Pool.decided_at:type_name -> google.protobuf.Timestamp
-	8,  // 5: moksha.v1.ListWorkersResponse.workers:type_name -> moksha.v1.Worker
-	38, // 6: moksha.v1.Worker.last_seen:type_name -> google.protobuf.Timestamp
-	11, // 7: moksha.v1.ListPipelinesResponse.pipelines:type_name -> moksha.v1.Pipeline
-	34, // 8: moksha.v1.ListRunsResponse.runs:type_name -> moksha.v1.Run
-	34, // 9: moksha.v1.GetEventLogResponse.run:type_name -> moksha.v1.Run
-	20, // 10: moksha.v1.GetEventLogResponse.event_log:type_name -> moksha.v1.LoggedEvent
-	38, // 11: moksha.v1.LoggedEvent.time:type_name -> google.protobuf.Timestamp
-	23, // 12: moksha.v1.GetHistoryResponse.entries:type_name -> moksha.v1.HistoryEntry
-	38, // 13: moksha.v1.HistoryEntry.time:type_name -> google.protobuf.Timestamp
-	27, // 14: moksha.v1.ListSchedulesResponse.schedules:type_name -> moksha.v1.Schedule
-	26, // 15: moksha.v1.ListSchedulesResponse.subscriptions:type_name -> moksha.v1.Subscription
-	39, // 16: moksha.v1.Subscription.debounce:type_name -> google.protobuf.Duration
-	39, // 17: moksha.v1.Subscription.max_wait:type_name -> google.protobuf.Duration
-	38, // 18: moksha.v1.Schedule.cursor:type_name -> google.protobuf.Timestamp
-	38, // 19: moksha.v1.Schedule.next_run:type_name -> google.protobuf.Timestamp
-	34, // 20: moksha.v1.GetRunResponse.run:type_name -> moksha.v1.Run
-	38, // 21: moksha.v1.Run.created_at:type_name -> google.protobuf.Timestamp
-	38, // 22: moksha.v1.Run.finished_at:type_name -> google.protobuf.Timestamp
-	37, // 23: moksha.v1.Run.steps:type_name -> moksha.v1.Step
-	36, // 24: moksha.v1.Run.step_counts:type_name -> moksha.v1.StepCounts
-	35, // 25: moksha.v1.Run.waiting:type_name -> moksha.v1.Waiting
-	38, // 26: moksha.v1.Waiting.since:type_name -> google.protobuf.Timestamp
-	38, // 27: moksha.v1.Step.scheduled_at:type_name -> google.protobuf.Timestamp
-	38, // 28: moksha.v1.Step.finished_at:type_name -> google.protobuf.Timestamp
-	30, // 29: moksha.v1.RunService.StartRun:input_type -> moksha.v1.StartRunRequest
-	32, // 30: moksha.v1.RunService.GetRun:input_type -> moksha.v1.GetRunRequest
-	28, // 31: moksha.v1.RunService.SignalRun:input_type -> moksha.v1.SignalRunRequest
-	13, // 32: moksha.v1.RunService.CancelRun:input_type -> moksha.v1.CancelRunRequest
-	15, // 33: moksha.v1.RunService.ResumeRun:input_type -> moksha.v1.ResumeRunRequest
-	12, // 34: moksha.v1.RunService.ListRuns:input_type -> moksha.v1.ListRunsRequest
-	18, // 35: moksha.v1.RunService.GetEventLog:input_type -> moksha.v1.GetEventLogRequest
-	21, // 36: moksha.v1.RunService.GetHistory:input_type -> moksha.v1.GetHistoryRequest
-	24, // 37: moksha.v1.RunService.ListSchedules:input_type -> moksha.v1.ListSchedulesRequest
-	9,  // 38: moksha.v1.RunService.ListPipelines:input_type -> moksha.v1.ListPipelinesRequest
-	6,  // 39: moksha.v1.RunService.ListWorkers:input_type -> moksha.v1.ListWorkersRequest
-	3,  // 40: moksha.v1.RunService.ListPools:input_type -> moksha.v1.ListPoolsRequest
-	0,  // 41: moksha.v1.RunService.ListCode:input_type -> moksha.v1.ListCodeRequest
-	31, // 42: moksha.v1.RunService.StartRun:output_type -> moksha.v1.StartRunResponse
-	33, // 43: moksha.v1.RunService.GetRun:output_type -> moksha.v1.GetRunResponse
-	29, // 44: moksha.v1.RunService.SignalRun:output_type -> moksha.v1.SignalRunResponse
-	14, // 45: moksha.v1.RunService.CancelRun:output_type -> moksha.v1.CancelRunResponse
-	16, // 46: moksha.v1.RunService.ResumeRun:output_type -> moksha.v1.ResumeRunResponse
-	17, // 47: moksha.v1.RunService.ListRuns:output_type -> moksha.v1.ListRunsResponse
-	19, // 48: moksha.v1.RunService.GetEventLog:output_type -> moksha.v1.GetEventLogResponse
-	22, // 49: moksha.v1.RunService.GetHistory:output_type -> moksha.v1.GetHistoryResponse
-	25, // 50: moksha.v1.RunService.ListSchedules:output_type -> moksha.v1.ListSchedulesResponse
-	10, // 51: moksha.v1.RunService.ListPipelines:output_type -> moksha.v1.ListPipelinesResponse
-	7,  // 52: moksha.v1.RunService.ListWorkers:output_type -> moksha.v1.ListWorkersResponse
-	4,  // 53: moksha.v1.RunService.ListPools:output_type -> moksha.v1.ListPoolsResponse
-	1,  // 54: moksha.v1.RunService.ListCode:output_type -> moksha.v1.ListCodeResponse
-	42, // [42:55] is the sub-list for method output_type
-	29, // [29:42] is the sub-list for method input_type
-	29, // [29:29] is the sub-list for extension type_name
-	29, // [29:29] is the sub-list for extension extendee
-	0,  // [0:29] is the sub-list for field type_name
+	2,  // 0: moksha.v1.PlanRunsResponse.plans:type_name -> moksha.v1.RunPlan
+	42, // 1: moksha.v1.RunPlan.earlier_created_at:type_name -> google.protobuf.Timestamp
+	3,  // 2: moksha.v1.RunPlan.steps:type_name -> moksha.v1.StepPlan
+	6,  // 3: moksha.v1.ListCodeResponse.steps:type_name -> moksha.v1.Code
+	6,  // 4: moksha.v1.ListCodeResponse.pipelines:type_name -> moksha.v1.Code
+	42, // 5: moksha.v1.Code.registered_at:type_name -> google.protobuf.Timestamp
+	9,  // 6: moksha.v1.ListPoolsResponse.pools:type_name -> moksha.v1.Pool
+	42, // 7: moksha.v1.Pool.decided_at:type_name -> google.protobuf.Timestamp
+	12, // 8: moksha.v1.ListWorkersResponse.workers:type_name -> moksha.v1.Worker
+	42, // 9: moksha.v1.Worker.last_seen:type_name -> google.protobuf.Timestamp
+	15, // 10: moksha.v1.ListPipelinesResponse.pipelines:type_name -> moksha.v1.Pipeline
+	38, // 11: moksha.v1.ListRunsResponse.runs:type_name -> moksha.v1.Run
+	38, // 12: moksha.v1.GetEventLogResponse.run:type_name -> moksha.v1.Run
+	24, // 13: moksha.v1.GetEventLogResponse.event_log:type_name -> moksha.v1.LoggedEvent
+	42, // 14: moksha.v1.LoggedEvent.time:type_name -> google.protobuf.Timestamp
+	27, // 15: moksha.v1.GetHistoryResponse.entries:type_name -> moksha.v1.HistoryEntry
+	42, // 16: moksha.v1.HistoryEntry.time:type_name -> google.protobuf.Timestamp
+	31, // 17: moksha.v1.ListSchedulesResponse.schedules:type_name -> moksha.v1.Schedule
+	30, // 18: moksha.v1.ListSchedulesResponse.subscriptions:type_name -> moksha.v1.Subscription
+	43, // 19: moksha.v1.Subscription.debounce:type_name -> google.protobuf.Duration
+	43, // 20: moksha.v1.Subscription.max_wait:type_name -> google.protobuf.Duration
+	42, // 21: moksha.v1.Schedule.cursor:type_name -> google.protobuf.Timestamp
+	42, // 22: moksha.v1.Schedule.next_run:type_name -> google.protobuf.Timestamp
+	38, // 23: moksha.v1.GetRunResponse.run:type_name -> moksha.v1.Run
+	42, // 24: moksha.v1.Run.created_at:type_name -> google.protobuf.Timestamp
+	42, // 25: moksha.v1.Run.finished_at:type_name -> google.protobuf.Timestamp
+	41, // 26: moksha.v1.Run.steps:type_name -> moksha.v1.Step
+	40, // 27: moksha.v1.Run.step_counts:type_name -> moksha.v1.StepCounts
+	39, // 28: moksha.v1.Run.waiting:type_name -> moksha.v1.Waiting
+	42, // 29: moksha.v1.Waiting.since:type_name -> google.protobuf.Timestamp
+	42, // 30: moksha.v1.Step.scheduled_at:type_name -> google.protobuf.Timestamp
+	42, // 31: moksha.v1.Step.finished_at:type_name -> google.protobuf.Timestamp
+	34, // 32: moksha.v1.RunService.StartRun:input_type -> moksha.v1.StartRunRequest
+	36, // 33: moksha.v1.RunService.GetRun:input_type -> moksha.v1.GetRunRequest
+	32, // 34: moksha.v1.RunService.SignalRun:input_type -> moksha.v1.SignalRunRequest
+	17, // 35: moksha.v1.RunService.CancelRun:input_type -> moksha.v1.CancelRunRequest
+	19, // 36: moksha.v1.RunService.ResumeRun:input_type -> moksha.v1.ResumeRunRequest
+	16, // 37: moksha.v1.RunService.ListRuns:input_type -> moksha.v1.ListRunsRequest
+	22, // 38: moksha.v1.RunService.GetEventLog:input_type -> moksha.v1.GetEventLogRequest
+	25, // 39: moksha.v1.RunService.GetHistory:input_type -> moksha.v1.GetHistoryRequest
+	28, // 40: moksha.v1.RunService.ListSchedules:input_type -> moksha.v1.ListSchedulesRequest
+	13, // 41: moksha.v1.RunService.ListPipelines:input_type -> moksha.v1.ListPipelinesRequest
+	10, // 42: moksha.v1.RunService.ListWorkers:input_type -> moksha.v1.ListWorkersRequest
+	7,  // 43: moksha.v1.RunService.ListPools:input_type -> moksha.v1.ListPoolsRequest
+	4,  // 44: moksha.v1.RunService.ListCode:input_type -> moksha.v1.ListCodeRequest
+	0,  // 45: moksha.v1.RunService.PlanRuns:input_type -> moksha.v1.PlanRunsRequest
+	35, // 46: moksha.v1.RunService.StartRun:output_type -> moksha.v1.StartRunResponse
+	37, // 47: moksha.v1.RunService.GetRun:output_type -> moksha.v1.GetRunResponse
+	33, // 48: moksha.v1.RunService.SignalRun:output_type -> moksha.v1.SignalRunResponse
+	18, // 49: moksha.v1.RunService.CancelRun:output_type -> moksha.v1.CancelRunResponse
+	20, // 50: moksha.v1.RunService.ResumeRun:output_type -> moksha.v1.ResumeRunResponse
+	21, // 51: moksha.v1.RunService.ListRuns:output_type -> moksha.v1.ListRunsResponse
+	23, // 52: moksha.v1.RunService.GetEventLog:output_type -> moksha.v1.GetEventLogResponse
+	26, // 53: moksha.v1.RunService.GetHistory:output_type -> moksha.v1.GetHistoryResponse
+	29, // 54: moksha.v1.RunService.ListSchedules:output_type -> moksha.v1.ListSchedulesResponse
+	14, // 55: moksha.v1.RunService.ListPipelines:output_type -> moksha.v1.ListPipelinesResponse
+	11, // 56: moksha.v1.RunService.ListWorkers:output_type -> moksha.v1.ListWorkersResponse
+	8,  // 57: moksha.v1.RunService.ListPools:output_type -> moksha.v1.ListPoolsResponse
+	5,  // 58: moksha.v1.RunService.ListCode:output_type -> moksha.v1.ListCodeResponse
+	1,  // 59: moksha.v1.RunService.PlanRuns:output_type -> moksha.v1.PlanRunsResponse
+	46, // [46:60] is the sub-list for method output_type
+	32, // [32:46] is the sub-list for method input_type
+	32, // [32:32] is the sub-list for extension type_name
+	32, // [32:32] is the sub-list for extension extendee
+	0,  // [0:32] is the sub-list for field type_name
 }
 
 func init() { file_moksha_v1_run_proto_init() }
@@ -2901,7 +3195,7 @@ func file_moksha_v1_run_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_moksha_v1_run_proto_rawDesc), len(file_moksha_v1_run_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   38,
+			NumMessages:   42,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

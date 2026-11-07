@@ -12,7 +12,139 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file moksha/v1/run.proto.
  */
 export const file_moksha_v1_run: GenFile = /*@__PURE__*/
-  fileDesc("ChNtb2tzaGEvdjEvcnVuLnByb3RvEgltb2tzaGEudjEiEQoPTGlzdENvZGVSZXF1ZXN0IlYKEExpc3RDb2RlUmVzcG9uc2USHgoFc3RlcHMYASADKAsyDy5tb2tzaGEudjEuQ29kZRIiCglwaXBlbGluZXMYAiADKAsyDy5tb2tzaGEudjEuQ29kZSJvCgRDb2RlEgwKBG5hbWUYASABKAkSFAoMY29kZV92ZXJzaW9uGAIgASgJEhAKCGJ1aWxkX2lkGAMgASgJEjEKDXJlZ2lzdGVyZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIhIKEExpc3RQb29sc1JlcXVlc3QiMwoRTGlzdFBvb2xzUmVzcG9uc2USHgoFcG9vbHMYASADKAsyDy5tb2tzaGEudjEuUG9vbCLGAQoEUG9vbBIMCgRuYW1lGAEgASgJEg4KBnF1ZXVlcxgCIAMoCRILCgNtaW4YAyABKAUSCwoDbWF4GAQgASgFEg8KB3dvcmtlcnMYBSADKAkSEAoIc3RhcnRpbmcYBiABKAUSEAoIZGVjaXNpb24YByABKAkSLgoKZGVjaWRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDwoHZGVzaXJlZBgJIAEoBRIQCghleHRlcm5hbBgKIAEoCCIUChJMaXN0V29ya2Vyc1JlcXVlc3QiOQoTTGlzdFdvcmtlcnNSZXNwb25zZRIiCgd3b3JrZXJzGAEgAygLMhEubW9rc2hhLnYxLldvcmtlciKWAQoGV29ya2VyEgoKAmlkGAEgASgJEhAKCGJ1aWxkX2lkGAIgASgJEg4KBnF1ZXVlcxgDIAMoCRINCgVraW5kcxgEIAMoCRItCglsYXN0X3NlZW4YBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg8KB3BvbGxpbmcYBiABKAgSDwoHcnVubmluZxgHIAEoBSIWChRMaXN0UGlwZWxpbmVzUmVxdWVzdCI/ChVMaXN0UGlwZWxpbmVzUmVzcG9uc2USJgoJcGlwZWxpbmVzGAEgAygLMhMubW9rc2hhLnYxLlBpcGVsaW5lIjwKCFBpcGVsaW5lEgwKBG5hbWUYASABKAkSDQoFdGl0bGUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkiigEKD0xpc3RSdW5zUmVxdWVzdBIOCgZ0ZW5hbnQYASABKAkSDAoEbmFtZRgCIAEoCRIQCghzdGF0dXNlcxgDIAMoCRINCgVsaW1pdBgEIAEoBRIRCglwYXJlbnRfaWQYBSABKAkSEQoJYmVmb3JlX2lkGAYgASgJEhIKCndpdGhfc3RlcHMYByABKAgiLgoQQ2FuY2VsUnVuUmVxdWVzdBIOCgZydW5faWQYASABKAkSCgoCYnkYAiABKAkiEwoRQ2FuY2VsUnVuUmVzcG9uc2UiIgoQUmVzdW1lUnVuUmVxdWVzdBIOCgZydW5faWQYASABKAkiEwoRUmVzdW1lUnVuUmVzcG9uc2UiMAoQTGlzdFJ1bnNSZXNwb25zZRIcCgRydW5zGAEgAygLMg4ubW9rc2hhLnYxLlJ1biIkChJHZXRFdmVudExvZ1JlcXVlc3QSDgoGcnVuX2lkGAEgASgJIl0KE0dldEV2ZW50TG9nUmVzcG9uc2USGwoDcnVuGAEgASgLMg4ubW9rc2hhLnYxLlJ1bhIpCglldmVudF9sb2cYAiADKAsyFi5tb2tzaGEudjEuTG9nZ2VkRXZlbnQiaAoLTG9nZ2VkRXZlbnQSCwoDc2VxGAEgASgDEgwKBHR5cGUYAiABKAkSKAoEdGltZRgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFAoMcGF5bG9hZF9qc29uGAQgASgJIiMKEUdldEhpc3RvcnlSZXF1ZXN0Eg4KBnJ1bl9pZBgBIAEoCSI+ChJHZXRIaXN0b3J5UmVzcG9uc2USKAoHZW50cmllcxgBIAMoCzIXLm1va3NoYS52MS5IaXN0b3J5RW50cnkizAEKDEhpc3RvcnlFbnRyeRIoCgR0aW1lGAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIMCgRraW5kGAIgASgJEgsKA3NlcRgDIAEoBRIMCgRzdGVwGAQgASgJEgwKBHRleHQYBSABKAkSDgoGZGV0YWlsGAYgASgJEg4KBnJ1bl9pZBgHIAEoCRIRCglldmVudF9zZXEYCCABKAMSEgoKZXZlbnRfdHlwZRgJIAEoCRIUCgxwYXlsb2FkX2pzb24YCiABKAkiFgoUTGlzdFNjaGVkdWxlc1JlcXVlc3QibwoVTGlzdFNjaGVkdWxlc1Jlc3BvbnNlEiYKCXNjaGVkdWxlcxgBIAMoCzITLm1va3NoYS52MS5TY2hlZHVsZRIuCg1zdWJzY3JpcHRpb25zGAIgAygLMhcubW9rc2hhLnYxLlN1YnNjcmlwdGlvbiLCAQoMU3Vic2NyaXB0aW9uEhAKCHBpcGVsaW5lGAEgASgJEhAKCGRhdGFzZXRzGAIgAygJEisKCGRlYm91bmNlGAMgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEisKCG1heF93YWl0GAQgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEhEKCW1heF9iYXRjaBgFIAEoBRIQCghidWlsZF9pZBgGIAEoCRIPCgd3YWl0aW5nGAcgASgFIugBCghTY2hlZHVsZRIQCghwaXBlbGluZRgBIAEoCRIMCgRjcm9uGAIgASgJEhAKCHRpbWV6b25lGAMgASgJEhAKCGludGVydmFsGAQgASgJEhAKCGNhdGNoX3VwGAUgASgJEhAKCGJ1aWxkX2lkGAYgASgJEioKBmN1cnNvchgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLAoIbmV4dF9ydW4YCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhoKEmxhdGVzdF9wYXJhbXNfanNvbhgJIAEoCSJGChBTaWduYWxSdW5SZXF1ZXN0Eg4KBnJ1bl9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEhQKDHBheWxvYWRfanNvbhgDIAEoCSImChFTaWduYWxSdW5SZXNwb25zZRIRCglzaWduYWxfaWQYASABKAkicwoPU3RhcnRSdW5SZXF1ZXN0Eg4KBnRlbmFudBgBIAEoCRIMCgRuYW1lGAIgASgJEg0KBXF1ZXVlGAMgASgJEhMKC3BhcmFtc19qc29uGAQgASgJEg8KB3RyaWdnZXIYBSABKAkSDQoFcmV1c2UYBiABKAkiIgoQU3RhcnRSdW5SZXNwb25zZRIOCgZydW5faWQYASABKAkiHwoNR2V0UnVuUmVxdWVzdBIOCgZydW5faWQYASABKAkiLQoOR2V0UnVuUmVzcG9uc2USGwoDcnVuGAEgASgLMg4ubW9rc2hhLnYxLlJ1biKWAwoDUnVuEgoKAmlkGAEgASgJEg4KBnRlbmFudBgCIAEoCRIMCgRuYW1lGAMgASgJEg4KBnN0YXR1cxgEIAEoCRIOCgZyZWFzb24YBSABKAkSDwoHbWVzc2FnZRgGIAEoCRITCgtwYXJhbXNfanNvbhgHIAEoCRITCgtyZXN1bHRfanNvbhgIIAEoCRIuCgpjcmVhdGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgtmaW5pc2hlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASHgoFc3RlcHMYCyADKAsyDy5tb2tzaGEudjEuU3RlcBIRCglwYXJlbnRfaWQYDCABKAkSFAoMY29udGludWVkX2FzGA0gASgJEg8KB3RyaWdnZXIYDiABKAkSKgoLc3RlcF9jb3VudHMYDyABKAsyFS5tb2tzaGEudjEuU3RlcENvdW50cxIjCgd3YWl0aW5nGBAgASgLMhIubW9rc2hhLnYxLldhaXRpbmcivAEKB1dhaXRpbmcSDgoGcmVhc29uGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSDAoEa2luZBgDIAEoCRIMCgRuYW1lGAQgASgJEgsKA3NlcRgFIAEoBRINCgVxdWV1ZRgGIAEoCRIpCgVzaW5jZRgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDwoHd29ya2VycxgIIAEoBRIOCgZidWlsZHMYCSADKAkSDAoEcG9vbBgKIAEoCSJhCgpTdGVwQ291bnRzEg0KBXRvdGFsGAEgASgFEhEKCWNvbXBsZXRlZBgCIAEoBRIOCgZyZXVzZWQYAyABKAUSDgoGZmFpbGVkGAQgASgFEhEKCWNhbmNlbGxlZBgFIAEoBSLDAgoEU3RlcBILCgNzZXEYASABKAUSDAoEbmFtZRgCIAEoCRIOCgZzdGF0dXMYAyABKAkSEgoKcnVuX3JlYXNvbhgEIAEoCRIOCgZyZXVzZWQYBSABKAgSEAoIYXR0ZW1wdHMYBiABKAUSFAoMZGF0YV92ZXJzaW9uGAcgASgJEg4KBnJlYXNvbhgIIAEoCRIPCgdtZXNzYWdlGAkgASgJEjAKDHNjaGVkdWxlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoLZmluaXNoZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhMKC3Jlc3VsdF9qc29uGAwgASgJEg0KBWFmdGVyGA0gAygFEg8KB2RhdGFzZXQYDiABKAkSCwoDd2h5GA8gASgJMskHCgpSdW5TZXJ2aWNlEkMKCFN0YXJ0UnVuEhoubW9rc2hhLnYxLlN0YXJ0UnVuUmVxdWVzdBobLm1va3NoYS52MS5TdGFydFJ1blJlc3BvbnNlEj0KBkdldFJ1bhIYLm1va3NoYS52MS5HZXRSdW5SZXF1ZXN0GhkubW9rc2hhLnYxLkdldFJ1blJlc3BvbnNlEkYKCVNpZ25hbFJ1bhIbLm1va3NoYS52MS5TaWduYWxSdW5SZXF1ZXN0GhwubW9rc2hhLnYxLlNpZ25hbFJ1blJlc3BvbnNlEkYKCUNhbmNlbFJ1bhIbLm1va3NoYS52MS5DYW5jZWxSdW5SZXF1ZXN0GhwubW9rc2hhLnYxLkNhbmNlbFJ1blJlc3BvbnNlEkYKCVJlc3VtZVJ1bhIbLm1va3NoYS52MS5SZXN1bWVSdW5SZXF1ZXN0GhwubW9rc2hhLnYxLlJlc3VtZVJ1blJlc3BvbnNlEkMKCExpc3RSdW5zEhoubW9rc2hhLnYxLkxpc3RSdW5zUmVxdWVzdBobLm1va3NoYS52MS5MaXN0UnVuc1Jlc3BvbnNlEkwKC0dldEV2ZW50TG9nEh0ubW9rc2hhLnYxLkdldEV2ZW50TG9nUmVxdWVzdBoeLm1va3NoYS52MS5HZXRFdmVudExvZ1Jlc3BvbnNlEkkKCkdldEhpc3RvcnkSHC5tb2tzaGEudjEuR2V0SGlzdG9yeVJlcXVlc3QaHS5tb2tzaGEudjEuR2V0SGlzdG9yeVJlc3BvbnNlElIKDUxpc3RTY2hlZHVsZXMSHy5tb2tzaGEudjEuTGlzdFNjaGVkdWxlc1JlcXVlc3QaIC5tb2tzaGEudjEuTGlzdFNjaGVkdWxlc1Jlc3BvbnNlElIKDUxpc3RQaXBlbGluZXMSHy5tb2tzaGEudjEuTGlzdFBpcGVsaW5lc1JlcXVlc3QaIC5tb2tzaGEudjEuTGlzdFBpcGVsaW5lc1Jlc3BvbnNlEkwKC0xpc3RXb3JrZXJzEh0ubW9rc2hhLnYxLkxpc3RXb3JrZXJzUmVxdWVzdBoeLm1va3NoYS52MS5MaXN0V29ya2Vyc1Jlc3BvbnNlEkYKCUxpc3RQb29scxIbLm1va3NoYS52MS5MaXN0UG9vbHNSZXF1ZXN0GhwubW9rc2hhLnYxLkxpc3RQb29sc1Jlc3BvbnNlEkMKCExpc3RDb2RlEhoubW9rc2hhLnYxLkxpc3RDb2RlUmVxdWVzdBobLm1va3NoYS52MS5MaXN0Q29kZVJlc3BvbnNlQj1aO2dpdGh1Yi5jb20vYWxwZXIvbW9rc2hhL2ludGVybmFsL2FwaS9nZW4vbW9rc2hhL3YxO21va3NoYXYxYgZwcm90bzM", [file_google_protobuf_duration, file_google_protobuf_timestamp]);
+  fileDesc("ChNtb2tzaGEvdjEvcnVuLnByb3RvEgltb2tzaGEudjEiUwoPUGxhblJ1bnNSZXF1ZXN0Eg4KBnRlbmFudBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC3BhcmFtc19qc29uGAMgAygJEg0KBXJldXNlGAQgASgJIjUKEFBsYW5SdW5zUmVzcG9uc2USIQoFcGxhbnMYASADKAsyEi5tb2tzaGEudjEuUnVuUGxhbiKqAQoHUnVuUGxhbhITCgtwYXJhbXNfanNvbhgBIAEoCRIWCg5lYXJsaWVyX3J1bl9pZBgCIAEoCRIWCg5lYXJsaWVyX3N0YXR1cxgDIAEoCRI2ChJlYXJsaWVyX2NyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiIKBXN0ZXBzGAUgAygLMhMubW9rc2hhLnYxLlN0ZXBQbGFuIkEKCFN0ZXBQbGFuEgsKA3NlcRgBIAEoBRIMCgRuYW1lGAIgASgJEg0KBXJldXNlGAMgASgIEgsKA3doeRgEIAEoCSIRCg9MaXN0Q29kZVJlcXVlc3QiVgoQTGlzdENvZGVSZXNwb25zZRIeCgVzdGVwcxgBIAMoCzIPLm1va3NoYS52MS5Db2RlEiIKCXBpcGVsaW5lcxgCIAMoCzIPLm1va3NoYS52MS5Db2RlIm8KBENvZGUSDAoEbmFtZRgBIAEoCRIUCgxjb2RlX3ZlcnNpb24YAiABKAkSEAoIYnVpbGRfaWQYAyABKAkSMQoNcmVnaXN0ZXJlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiEgoQTGlzdFBvb2xzUmVxdWVzdCIzChFMaXN0UG9vbHNSZXNwb25zZRIeCgVwb29scxgBIAMoCzIPLm1va3NoYS52MS5Qb29sIsYBCgRQb29sEgwKBG5hbWUYASABKAkSDgoGcXVldWVzGAIgAygJEgsKA21pbhgDIAEoBRILCgNtYXgYBCABKAUSDwoHd29ya2VycxgFIAMoCRIQCghzdGFydGluZxgGIAEoBRIQCghkZWNpc2lvbhgHIAEoCRIuCgpkZWNpZGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIPCgdkZXNpcmVkGAkgASgFEhAKCGV4dGVybmFsGAogASgIIhQKEkxpc3RXb3JrZXJzUmVxdWVzdCI5ChNMaXN0V29ya2Vyc1Jlc3BvbnNlEiIKB3dvcmtlcnMYASADKAsyES5tb2tzaGEudjEuV29ya2VyIpYBCgZXb3JrZXISCgoCaWQYASABKAkSEAoIYnVpbGRfaWQYAiABKAkSDgoGcXVldWVzGAMgAygJEg0KBWtpbmRzGAQgAygJEi0KCWxhc3Rfc2VlbhgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDwoHcG9sbGluZxgGIAEoCBIPCgdydW5uaW5nGAcgASgFIhYKFExpc3RQaXBlbGluZXNSZXF1ZXN0Ij8KFUxpc3RQaXBlbGluZXNSZXNwb25zZRImCglwaXBlbGluZXMYASADKAsyEy5tb2tzaGEudjEuUGlwZWxpbmUiPAoIUGlwZWxpbmUSDAoEbmFtZRgBIAEoCRINCgV0aXRsZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCSKKAQoPTGlzdFJ1bnNSZXF1ZXN0Eg4KBnRlbmFudBgBIAEoCRIMCgRuYW1lGAIgASgJEhAKCHN0YXR1c2VzGAMgAygJEg0KBWxpbWl0GAQgASgFEhEKCXBhcmVudF9pZBgFIAEoCRIRCgliZWZvcmVfaWQYBiABKAkSEgoKd2l0aF9zdGVwcxgHIAEoCCIuChBDYW5jZWxSdW5SZXF1ZXN0Eg4KBnJ1bl9pZBgBIAEoCRIKCgJieRgCIAEoCSITChFDYW5jZWxSdW5SZXNwb25zZSIiChBSZXN1bWVSdW5SZXF1ZXN0Eg4KBnJ1bl9pZBgBIAEoCSITChFSZXN1bWVSdW5SZXNwb25zZSIwChBMaXN0UnVuc1Jlc3BvbnNlEhwKBHJ1bnMYASADKAsyDi5tb2tzaGEudjEuUnVuIiQKEkdldEV2ZW50TG9nUmVxdWVzdBIOCgZydW5faWQYASABKAkiXQoTR2V0RXZlbnRMb2dSZXNwb25zZRIbCgNydW4YASABKAsyDi5tb2tzaGEudjEuUnVuEikKCWV2ZW50X2xvZxgCIAMoCzIWLm1va3NoYS52MS5Mb2dnZWRFdmVudCJoCgtMb2dnZWRFdmVudBILCgNzZXEYASABKAMSDAoEdHlwZRgCIAEoCRIoCgR0aW1lGAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIUCgxwYXlsb2FkX2pzb24YBCABKAkiIwoRR2V0SGlzdG9yeVJlcXVlc3QSDgoGcnVuX2lkGAEgASgJIj4KEkdldEhpc3RvcnlSZXNwb25zZRIoCgdlbnRyaWVzGAEgAygLMhcubW9rc2hhLnYxLkhpc3RvcnlFbnRyeSLMAQoMSGlzdG9yeUVudHJ5EigKBHRpbWUYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgwKBGtpbmQYAiABKAkSCwoDc2VxGAMgASgFEgwKBHN0ZXAYBCABKAkSDAoEdGV4dBgFIAEoCRIOCgZkZXRhaWwYBiABKAkSDgoGcnVuX2lkGAcgASgJEhEKCWV2ZW50X3NlcRgIIAEoAxISCgpldmVudF90eXBlGAkgASgJEhQKDHBheWxvYWRfanNvbhgKIAEoCSIWChRMaXN0U2NoZWR1bGVzUmVxdWVzdCJvChVMaXN0U2NoZWR1bGVzUmVzcG9uc2USJgoJc2NoZWR1bGVzGAEgAygLMhMubW9rc2hhLnYxLlNjaGVkdWxlEi4KDXN1YnNjcmlwdGlvbnMYAiADKAsyFy5tb2tzaGEudjEuU3Vic2NyaXB0aW9uIsIBCgxTdWJzY3JpcHRpb24SEAoIcGlwZWxpbmUYASABKAkSEAoIZGF0YXNldHMYAiADKAkSKwoIZGVib3VuY2UYAyABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SKwoIbWF4X3dhaXQYBCABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SEQoJbWF4X2JhdGNoGAUgASgFEhAKCGJ1aWxkX2lkGAYgASgJEg8KB3dhaXRpbmcYByABKAUi6AEKCFNjaGVkdWxlEhAKCHBpcGVsaW5lGAEgASgJEgwKBGNyb24YAiABKAkSEAoIdGltZXpvbmUYAyABKAkSEAoIaW50ZXJ2YWwYBCABKAkSEAoIY2F0Y2hfdXAYBSABKAkSEAoIYnVpbGRfaWQYBiABKAkSKgoGY3Vyc29yGAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIsCghuZXh0X3J1bhgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGgoSbGF0ZXN0X3BhcmFtc19qc29uGAkgASgJIkYKEFNpZ25hbFJ1blJlcXVlc3QSDgoGcnVuX2lkGAEgASgJEgwKBG5hbWUYAiABKAkSFAoMcGF5bG9hZF9qc29uGAMgASgJIiYKEVNpZ25hbFJ1blJlc3BvbnNlEhEKCXNpZ25hbF9pZBgBIAEoCSJzCg9TdGFydFJ1blJlcXVlc3QSDgoGdGVuYW50GAEgASgJEgwKBG5hbWUYAiABKAkSDQoFcXVldWUYAyABKAkSEwoLcGFyYW1zX2pzb24YBCABKAkSDwoHdHJpZ2dlchgFIAEoCRINCgVyZXVzZRgGIAEoCSIiChBTdGFydFJ1blJlc3BvbnNlEg4KBnJ1bl9pZBgBIAEoCSIfCg1HZXRSdW5SZXF1ZXN0Eg4KBnJ1bl9pZBgBIAEoCSItCg5HZXRSdW5SZXNwb25zZRIbCgNydW4YASABKAsyDi5tb2tzaGEudjEuUnVuIpYDCgNSdW4SCgoCaWQYASABKAkSDgoGdGVuYW50GAIgASgJEgwKBG5hbWUYAyABKAkSDgoGc3RhdHVzGAQgASgJEg4KBnJlYXNvbhgFIAEoCRIPCgdtZXNzYWdlGAYgASgJEhMKC3BhcmFtc19qc29uGAcgASgJEhMKC3Jlc3VsdF9qc29uGAggASgJEi4KCmNyZWF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2ZpbmlzaGVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIeCgVzdGVwcxgLIAMoCzIPLm1va3NoYS52MS5TdGVwEhEKCXBhcmVudF9pZBgMIAEoCRIUCgxjb250aW51ZWRfYXMYDSABKAkSDwoHdHJpZ2dlchgOIAEoCRIqCgtzdGVwX2NvdW50cxgPIAEoCzIVLm1va3NoYS52MS5TdGVwQ291bnRzEiMKB3dhaXRpbmcYECABKAsyEi5tb2tzaGEudjEuV2FpdGluZyK8AQoHV2FpdGluZxIOCgZyZWFzb24YASABKAkSDwoHbWVzc2FnZRgCIAEoCRIMCgRraW5kGAMgASgJEgwKBG5hbWUYBCABKAkSCwoDc2VxGAUgASgFEg0KBXF1ZXVlGAYgASgJEikKBXNpbmNlGAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIPCgd3b3JrZXJzGAggASgFEg4KBmJ1aWxkcxgJIAMoCRIMCgRwb29sGAogASgJImEKClN0ZXBDb3VudHMSDQoFdG90YWwYASABKAUSEQoJY29tcGxldGVkGAIgASgFEg4KBnJldXNlZBgDIAEoBRIOCgZmYWlsZWQYBCABKAUSEQoJY2FuY2VsbGVkGAUgASgFIsMCCgRTdGVwEgsKA3NlcRgBIAEoBRIMCgRuYW1lGAIgASgJEg4KBnN0YXR1cxgDIAEoCRISCgpydW5fcmVhc29uGAQgASgJEg4KBnJldXNlZBgFIAEoCBIQCghhdHRlbXB0cxgGIAEoBRIUCgxkYXRhX3ZlcnNpb24YByABKAkSDgoGcmVhc29uGAggASgJEg8KB21lc3NhZ2UYCSABKAkSMAoMc2NoZWR1bGVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgtmaW5pc2hlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEwoLcmVzdWx0X2pzb24YDCABKAkSDQoFYWZ0ZXIYDSADKAUSDwoHZGF0YXNldBgOIAEoCRILCgN3aHkYDyABKAkyjggKClJ1blNlcnZpY2USQwoIU3RhcnRSdW4SGi5tb2tzaGEudjEuU3RhcnRSdW5SZXF1ZXN0GhsubW9rc2hhLnYxLlN0YXJ0UnVuUmVzcG9uc2USPQoGR2V0UnVuEhgubW9rc2hhLnYxLkdldFJ1blJlcXVlc3QaGS5tb2tzaGEudjEuR2V0UnVuUmVzcG9uc2USRgoJU2lnbmFsUnVuEhsubW9rc2hhLnYxLlNpZ25hbFJ1blJlcXVlc3QaHC5tb2tzaGEudjEuU2lnbmFsUnVuUmVzcG9uc2USRgoJQ2FuY2VsUnVuEhsubW9rc2hhLnYxLkNhbmNlbFJ1blJlcXVlc3QaHC5tb2tzaGEudjEuQ2FuY2VsUnVuUmVzcG9uc2USRgoJUmVzdW1lUnVuEhsubW9rc2hhLnYxLlJlc3VtZVJ1blJlcXVlc3QaHC5tb2tzaGEudjEuUmVzdW1lUnVuUmVzcG9uc2USQwoITGlzdFJ1bnMSGi5tb2tzaGEudjEuTGlzdFJ1bnNSZXF1ZXN0GhsubW9rc2hhLnYxLkxpc3RSdW5zUmVzcG9uc2USTAoLR2V0RXZlbnRMb2cSHS5tb2tzaGEudjEuR2V0RXZlbnRMb2dSZXF1ZXN0Gh4ubW9rc2hhLnYxLkdldEV2ZW50TG9nUmVzcG9uc2USSQoKR2V0SGlzdG9yeRIcLm1va3NoYS52MS5HZXRIaXN0b3J5UmVxdWVzdBodLm1va3NoYS52MS5HZXRIaXN0b3J5UmVzcG9uc2USUgoNTGlzdFNjaGVkdWxlcxIfLm1va3NoYS52MS5MaXN0U2NoZWR1bGVzUmVxdWVzdBogLm1va3NoYS52MS5MaXN0U2NoZWR1bGVzUmVzcG9uc2USUgoNTGlzdFBpcGVsaW5lcxIfLm1va3NoYS52MS5MaXN0UGlwZWxpbmVzUmVxdWVzdBogLm1va3NoYS52MS5MaXN0UGlwZWxpbmVzUmVzcG9uc2USTAoLTGlzdFdvcmtlcnMSHS5tb2tzaGEudjEuTGlzdFdvcmtlcnNSZXF1ZXN0Gh4ubW9rc2hhLnYxLkxpc3RXb3JrZXJzUmVzcG9uc2USRgoJTGlzdFBvb2xzEhsubW9rc2hhLnYxLkxpc3RQb29sc1JlcXVlc3QaHC5tb2tzaGEudjEuTGlzdFBvb2xzUmVzcG9uc2USQwoITGlzdENvZGUSGi5tb2tzaGEudjEuTGlzdENvZGVSZXF1ZXN0GhsubW9rc2hhLnYxLkxpc3RDb2RlUmVzcG9uc2USQwoIUGxhblJ1bnMSGi5tb2tzaGEudjEuUGxhblJ1bnNSZXF1ZXN0GhsubW9rc2hhLnYxLlBsYW5SdW5zUmVzcG9uc2VCPVo7Z2l0aHViLmNvbS9hbHBlci9tb2tzaGEvaW50ZXJuYWwvYXBpL2dlbi9tb2tzaGEvdjE7bW9rc2hhdjFiBnByb3RvMw", [file_google_protobuf_duration, file_google_protobuf_timestamp]);
+
+/**
+ * @generated from message moksha.v1.PlanRunsRequest
+ */
+export type PlanRunsRequest = Message<"moksha.v1.PlanRunsRequest"> & {
+  /**
+   * @generated from field: string tenant = 1;
+   */
+  tenant: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * One JSON object per run.
+   *
+   * @generated from field: repeated string params_json = 3;
+   */
+  paramsJson: string[];
+
+  /**
+   * As in StartRunRequest: "auto" (or empty) or "none".
+   *
+   * @generated from field: string reuse = 4;
+   */
+  reuse: string;
+};
+
+/**
+ * Describes the message moksha.v1.PlanRunsRequest.
+ * Use `create(PlanRunsRequestSchema)` to create a new message.
+ */
+export const PlanRunsRequestSchema: GenMessage<PlanRunsRequest> = /*@__PURE__*/
+  messageDesc(file_moksha_v1_run, 0);
+
+/**
+ * @generated from message moksha.v1.PlanRunsResponse
+ */
+export type PlanRunsResponse = Message<"moksha.v1.PlanRunsResponse"> & {
+  /**
+   * One per params_json, in order.
+   *
+   * @generated from field: repeated moksha.v1.RunPlan plans = 1;
+   */
+  plans: RunPlan[];
+};
+
+/**
+ * Describes the message moksha.v1.PlanRunsResponse.
+ * Use `create(PlanRunsResponseSchema)` to create a new message.
+ */
+export const PlanRunsResponseSchema: GenMessage<PlanRunsResponse> = /*@__PURE__*/
+  messageDesc(file_moksha_v1_run, 1);
+
+/**
+ * @generated from message moksha.v1.RunPlan
+ */
+export type RunPlan = Message<"moksha.v1.RunPlan"> & {
+  /**
+   * @generated from field: string params_json = 1;
+   */
+  paramsJson: string;
+
+  /**
+   * The latest earlier run with these inputs (a completed one if there is
+   * one); empty: none, so every step runs.
+   *
+   * @generated from field: string earlier_run_id = 2;
+   */
+  earlierRunId: string;
+
+  /**
+   * @generated from field: string earlier_status = 3;
+   */
+  earlierStatus: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp earlier_created_at = 4;
+   */
+  earlierCreatedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: repeated moksha.v1.StepPlan steps = 5;
+   */
+  steps: StepPlan[];
+};
+
+/**
+ * Describes the message moksha.v1.RunPlan.
+ * Use `create(RunPlanSchema)` to create a new message.
+ */
+export const RunPlanSchema: GenMessage<RunPlan> = /*@__PURE__*/
+  messageDesc(file_moksha_v1_run, 2);
+
+/**
+ * @generated from message moksha.v1.StepPlan
+ */
+export type StepPlan = Message<"moksha.v1.StepPlan"> & {
+  /**
+   * @generated from field: int32 seq = 1;
+   */
+  seq: number;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * It would be reused; why then says on what condition, if any.
+   *
+   * @generated from field: bool reuse = 3;
+   */
+  reuse: boolean;
+
+  /**
+   * In words: why it runs again ("its code changed (v1 → v2)", "it has no
+   * reuse="), or the condition of its reuse.
+   *
+   * @generated from field: string why = 4;
+   */
+  why: string;
+};
+
+/**
+ * Describes the message moksha.v1.StepPlan.
+ * Use `create(StepPlanSchema)` to create a new message.
+ */
+export const StepPlanSchema: GenMessage<StepPlan> = /*@__PURE__*/
+  messageDesc(file_moksha_v1_run, 3);
 
 /**
  * @generated from message moksha.v1.ListCodeRequest
@@ -25,7 +157,7 @@ export type ListCodeRequest = Message<"moksha.v1.ListCodeRequest"> & {
  * Use `create(ListCodeRequestSchema)` to create a new message.
  */
 export const ListCodeRequestSchema: GenMessage<ListCodeRequest> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 0);
+  messageDesc(file_moksha_v1_run, 4);
 
 /**
  * @generated from message moksha.v1.ListCodeResponse
@@ -49,7 +181,7 @@ export type ListCodeResponse = Message<"moksha.v1.ListCodeResponse"> & {
  * Use `create(ListCodeResponseSchema)` to create a new message.
  */
 export const ListCodeResponseSchema: GenMessage<ListCodeResponse> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 1);
+  messageDesc(file_moksha_v1_run, 5);
 
 /**
  * @generated from message moksha.v1.Code
@@ -81,7 +213,7 @@ export type Code = Message<"moksha.v1.Code"> & {
  * Use `create(CodeSchema)` to create a new message.
  */
 export const CodeSchema: GenMessage<Code> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 2);
+  messageDesc(file_moksha_v1_run, 6);
 
 /**
  * @generated from message moksha.v1.ListPoolsRequest
@@ -94,7 +226,7 @@ export type ListPoolsRequest = Message<"moksha.v1.ListPoolsRequest"> & {
  * Use `create(ListPoolsRequestSchema)` to create a new message.
  */
 export const ListPoolsRequestSchema: GenMessage<ListPoolsRequest> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 3);
+  messageDesc(file_moksha_v1_run, 7);
 
 /**
  * @generated from message moksha.v1.ListPoolsResponse
@@ -111,7 +243,7 @@ export type ListPoolsResponse = Message<"moksha.v1.ListPoolsResponse"> & {
  * Use `create(ListPoolsResponseSchema)` to create a new message.
  */
 export const ListPoolsResponseSchema: GenMessage<ListPoolsResponse> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 4);
+  messageDesc(file_moksha_v1_run, 8);
 
 /**
  * @generated from message moksha.v1.Pool
@@ -184,7 +316,7 @@ export type Pool = Message<"moksha.v1.Pool"> & {
  * Use `create(PoolSchema)` to create a new message.
  */
 export const PoolSchema: GenMessage<Pool> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 5);
+  messageDesc(file_moksha_v1_run, 9);
 
 /**
  * @generated from message moksha.v1.ListWorkersRequest
@@ -197,7 +329,7 @@ export type ListWorkersRequest = Message<"moksha.v1.ListWorkersRequest"> & {
  * Use `create(ListWorkersRequestSchema)` to create a new message.
  */
 export const ListWorkersRequestSchema: GenMessage<ListWorkersRequest> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 6);
+  messageDesc(file_moksha_v1_run, 10);
 
 /**
  * @generated from message moksha.v1.ListWorkersResponse
@@ -214,7 +346,7 @@ export type ListWorkersResponse = Message<"moksha.v1.ListWorkersResponse"> & {
  * Use `create(ListWorkersResponseSchema)` to create a new message.
  */
 export const ListWorkersResponseSchema: GenMessage<ListWorkersResponse> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 7);
+  messageDesc(file_moksha_v1_run, 11);
 
 /**
  * @generated from message moksha.v1.Worker
@@ -271,7 +403,7 @@ export type Worker = Message<"moksha.v1.Worker"> & {
  * Use `create(WorkerSchema)` to create a new message.
  */
 export const WorkerSchema: GenMessage<Worker> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 8);
+  messageDesc(file_moksha_v1_run, 12);
 
 /**
  * @generated from message moksha.v1.ListPipelinesRequest
@@ -284,7 +416,7 @@ export type ListPipelinesRequest = Message<"moksha.v1.ListPipelinesRequest"> & {
  * Use `create(ListPipelinesRequestSchema)` to create a new message.
  */
 export const ListPipelinesRequestSchema: GenMessage<ListPipelinesRequest> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 9);
+  messageDesc(file_moksha_v1_run, 13);
 
 /**
  * @generated from message moksha.v1.ListPipelinesResponse
@@ -301,7 +433,7 @@ export type ListPipelinesResponse = Message<"moksha.v1.ListPipelinesResponse"> &
  * Use `create(ListPipelinesResponseSchema)` to create a new message.
  */
 export const ListPipelinesResponseSchema: GenMessage<ListPipelinesResponse> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 10);
+  messageDesc(file_moksha_v1_run, 14);
 
 /**
  * @generated from message moksha.v1.Pipeline
@@ -332,7 +464,7 @@ export type Pipeline = Message<"moksha.v1.Pipeline"> & {
  * Use `create(PipelineSchema)` to create a new message.
  */
 export const PipelineSchema: GenMessage<Pipeline> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 11);
+  messageDesc(file_moksha_v1_run, 15);
 
 /**
  * @generated from message moksha.v1.ListRunsRequest
@@ -390,7 +522,7 @@ export type ListRunsRequest = Message<"moksha.v1.ListRunsRequest"> & {
  * Use `create(ListRunsRequestSchema)` to create a new message.
  */
 export const ListRunsRequestSchema: GenMessage<ListRunsRequest> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 12);
+  messageDesc(file_moksha_v1_run, 16);
 
 /**
  * @generated from message moksha.v1.CancelRunRequest
@@ -414,7 +546,7 @@ export type CancelRunRequest = Message<"moksha.v1.CancelRunRequest"> & {
  * Use `create(CancelRunRequestSchema)` to create a new message.
  */
 export const CancelRunRequestSchema: GenMessage<CancelRunRequest> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 13);
+  messageDesc(file_moksha_v1_run, 17);
 
 /**
  * @generated from message moksha.v1.CancelRunResponse
@@ -427,7 +559,7 @@ export type CancelRunResponse = Message<"moksha.v1.CancelRunResponse"> & {
  * Use `create(CancelRunResponseSchema)` to create a new message.
  */
 export const CancelRunResponseSchema: GenMessage<CancelRunResponse> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 14);
+  messageDesc(file_moksha_v1_run, 18);
 
 /**
  * @generated from message moksha.v1.ResumeRunRequest
@@ -444,7 +576,7 @@ export type ResumeRunRequest = Message<"moksha.v1.ResumeRunRequest"> & {
  * Use `create(ResumeRunRequestSchema)` to create a new message.
  */
 export const ResumeRunRequestSchema: GenMessage<ResumeRunRequest> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 15);
+  messageDesc(file_moksha_v1_run, 19);
 
 /**
  * @generated from message moksha.v1.ResumeRunResponse
@@ -457,7 +589,7 @@ export type ResumeRunResponse = Message<"moksha.v1.ResumeRunResponse"> & {
  * Use `create(ResumeRunResponseSchema)` to create a new message.
  */
 export const ResumeRunResponseSchema: GenMessage<ResumeRunResponse> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 16);
+  messageDesc(file_moksha_v1_run, 20);
 
 /**
  * @generated from message moksha.v1.ListRunsResponse
@@ -474,7 +606,7 @@ export type ListRunsResponse = Message<"moksha.v1.ListRunsResponse"> & {
  * Use `create(ListRunsResponseSchema)` to create a new message.
  */
 export const ListRunsResponseSchema: GenMessage<ListRunsResponse> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 17);
+  messageDesc(file_moksha_v1_run, 21);
 
 /**
  * @generated from message moksha.v1.GetEventLogRequest
@@ -491,7 +623,7 @@ export type GetEventLogRequest = Message<"moksha.v1.GetEventLogRequest"> & {
  * Use `create(GetEventLogRequestSchema)` to create a new message.
  */
 export const GetEventLogRequestSchema: GenMessage<GetEventLogRequest> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 18);
+  messageDesc(file_moksha_v1_run, 22);
 
 /**
  * @generated from message moksha.v1.GetEventLogResponse
@@ -515,7 +647,7 @@ export type GetEventLogResponse = Message<"moksha.v1.GetEventLogResponse"> & {
  * Use `create(GetEventLogResponseSchema)` to create a new message.
  */
 export const GetEventLogResponseSchema: GenMessage<GetEventLogResponse> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 19);
+  messageDesc(file_moksha_v1_run, 23);
 
 /**
  * @generated from message moksha.v1.LoggedEvent
@@ -547,7 +679,7 @@ export type LoggedEvent = Message<"moksha.v1.LoggedEvent"> & {
  * Use `create(LoggedEventSchema)` to create a new message.
  */
 export const LoggedEventSchema: GenMessage<LoggedEvent> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 20);
+  messageDesc(file_moksha_v1_run, 24);
 
 /**
  * @generated from message moksha.v1.GetHistoryRequest
@@ -564,7 +696,7 @@ export type GetHistoryRequest = Message<"moksha.v1.GetHistoryRequest"> & {
  * Use `create(GetHistoryRequestSchema)` to create a new message.
  */
 export const GetHistoryRequestSchema: GenMessage<GetHistoryRequest> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 21);
+  messageDesc(file_moksha_v1_run, 25);
 
 /**
  * @generated from message moksha.v1.GetHistoryResponse
@@ -581,7 +713,7 @@ export type GetHistoryResponse = Message<"moksha.v1.GetHistoryResponse"> & {
  * Use `create(GetHistoryResponseSchema)` to create a new message.
  */
 export const GetHistoryResponseSchema: GenMessage<GetHistoryResponse> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 22);
+  messageDesc(file_moksha_v1_run, 26);
 
 /**
  * HistoryEntry is one event of a run, told for people (internal/history).
@@ -658,7 +790,7 @@ export type HistoryEntry = Message<"moksha.v1.HistoryEntry"> & {
  * Use `create(HistoryEntrySchema)` to create a new message.
  */
 export const HistoryEntrySchema: GenMessage<HistoryEntry> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 23);
+  messageDesc(file_moksha_v1_run, 27);
 
 /**
  * @generated from message moksha.v1.ListSchedulesRequest
@@ -671,7 +803,7 @@ export type ListSchedulesRequest = Message<"moksha.v1.ListSchedulesRequest"> & {
  * Use `create(ListSchedulesRequestSchema)` to create a new message.
  */
 export const ListSchedulesRequestSchema: GenMessage<ListSchedulesRequest> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 24);
+  messageDesc(file_moksha_v1_run, 28);
 
 /**
  * @generated from message moksha.v1.ListSchedulesResponse
@@ -693,7 +825,7 @@ export type ListSchedulesResponse = Message<"moksha.v1.ListSchedulesResponse"> &
  * Use `create(ListSchedulesResponseSchema)` to create a new message.
  */
 export const ListSchedulesResponseSchema: GenMessage<ListSchedulesResponse> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 25);
+  messageDesc(file_moksha_v1_run, 29);
 
 /**
  * @generated from message moksha.v1.Subscription
@@ -742,7 +874,7 @@ export type Subscription = Message<"moksha.v1.Subscription"> & {
  * Use `create(SubscriptionSchema)` to create a new message.
  */
 export const SubscriptionSchema: GenMessage<Subscription> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 26);
+  messageDesc(file_moksha_v1_run, 30);
 
 /**
  * @generated from message moksha.v1.Schedule
@@ -808,7 +940,7 @@ export type Schedule = Message<"moksha.v1.Schedule"> & {
  * Use `create(ScheduleSchema)` to create a new message.
  */
 export const ScheduleSchema: GenMessage<Schedule> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 27);
+  messageDesc(file_moksha_v1_run, 31);
 
 /**
  * @generated from message moksha.v1.SignalRunRequest
@@ -839,7 +971,7 @@ export type SignalRunRequest = Message<"moksha.v1.SignalRunRequest"> & {
  * Use `create(SignalRunRequestSchema)` to create a new message.
  */
 export const SignalRunRequestSchema: GenMessage<SignalRunRequest> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 28);
+  messageDesc(file_moksha_v1_run, 32);
 
 /**
  * @generated from message moksha.v1.SignalRunResponse
@@ -856,7 +988,7 @@ export type SignalRunResponse = Message<"moksha.v1.SignalRunResponse"> & {
  * Use `create(SignalRunResponseSchema)` to create a new message.
  */
 export const SignalRunResponseSchema: GenMessage<SignalRunResponse> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 29);
+  messageDesc(file_moksha_v1_run, 33);
 
 /**
  * @generated from message moksha.v1.StartRunRequest
@@ -910,7 +1042,7 @@ export type StartRunRequest = Message<"moksha.v1.StartRunRequest"> & {
  * Use `create(StartRunRequestSchema)` to create a new message.
  */
 export const StartRunRequestSchema: GenMessage<StartRunRequest> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 30);
+  messageDesc(file_moksha_v1_run, 34);
 
 /**
  * @generated from message moksha.v1.StartRunResponse
@@ -927,7 +1059,7 @@ export type StartRunResponse = Message<"moksha.v1.StartRunResponse"> & {
  * Use `create(StartRunResponseSchema)` to create a new message.
  */
 export const StartRunResponseSchema: GenMessage<StartRunResponse> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 31);
+  messageDesc(file_moksha_v1_run, 35);
 
 /**
  * @generated from message moksha.v1.GetRunRequest
@@ -944,7 +1076,7 @@ export type GetRunRequest = Message<"moksha.v1.GetRunRequest"> & {
  * Use `create(GetRunRequestSchema)` to create a new message.
  */
 export const GetRunRequestSchema: GenMessage<GetRunRequest> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 32);
+  messageDesc(file_moksha_v1_run, 36);
 
 /**
  * @generated from message moksha.v1.GetRunResponse
@@ -961,7 +1093,7 @@ export type GetRunResponse = Message<"moksha.v1.GetRunResponse"> & {
  * Use `create(GetRunResponseSchema)` to create a new message.
  */
 export const GetRunResponseSchema: GenMessage<GetRunResponse> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 33);
+  messageDesc(file_moksha_v1_run, 37);
 
 /**
  * @generated from message moksha.v1.Run
@@ -1068,7 +1200,7 @@ export type Run = Message<"moksha.v1.Run"> & {
  * Use `create(RunSchema)` to create a new message.
  */
 export const RunSchema: GenMessage<Run> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 34);
+  messageDesc(file_moksha_v1_run, 38);
 
 /**
  * Waiting is a run's queued work and why no worker runs it yet.
@@ -1149,7 +1281,7 @@ export type Waiting = Message<"moksha.v1.Waiting"> & {
  * Use `create(WaitingSchema)` to create a new message.
  */
 export const WaitingSchema: GenMessage<Waiting> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 35);
+  messageDesc(file_moksha_v1_run, 39);
 
 /**
  * @generated from message moksha.v1.StepCounts
@@ -1188,7 +1320,7 @@ export type StepCounts = Message<"moksha.v1.StepCounts"> & {
  * Use `create(StepCountsSchema)` to create a new message.
  */
 export const StepCountsSchema: GenMessage<StepCounts> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 36);
+  messageDesc(file_moksha_v1_run, 40);
 
 /**
  * @generated from message moksha.v1.Step
@@ -1296,7 +1428,7 @@ export type Step = Message<"moksha.v1.Step"> & {
  * Use `create(StepSchema)` to create a new message.
  */
 export const StepSchema: GenMessage<Step> = /*@__PURE__*/
-  messageDesc(file_moksha_v1_run, 37);
+  messageDesc(file_moksha_v1_run, 41);
 
 /**
  * RunService is what people and tools call: start runs and follow them.
@@ -1447,6 +1579,19 @@ export const RunService: GenService<{
     methodKind: "unary";
     input: typeof ListCodeRequestSchema;
     output: typeof ListCodeResponseSchema;
+  },
+  /**
+   * PlanRuns says, for runs that would start (moksha replay --dry-run),
+   * what the latest earlier run with the same inputs did and which of its
+   * steps would run again. It starts nothing and runs no code, so which
+   * steps a new run calls isn't known: those of the earlier run stand in.
+   *
+   * @generated from rpc moksha.v1.RunService.PlanRuns
+   */
+  planRuns: {
+    methodKind: "unary";
+    input: typeof PlanRunsRequestSchema;
+    output: typeof PlanRunsResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_moksha_v1_run, 0);

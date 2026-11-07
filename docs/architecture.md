@@ -384,6 +384,12 @@ Inside one run a completed step is never run again, with or without it.
   reuse what it made; its child runs and continuations reuse nothing
   either, and it doesn't wait for another run's step with the same
   fingerprint (single-flight).
+- **Before a backfill**, `moksha replay --dry-run` (`PlanRuns`) says,
+  from the latest earlier run with each set of inputs, which steps would
+  be reused and which would run again (no reuse, code changed since,
+  didn't complete). The server runs no pipeline code, so that is as far
+  as it can see: which steps a new run calls, and whether a step after
+  one that runs again gets new inputs, is known only when it runs.
 - A step with an output reuses a data version; one without reuses the data version it
   built in its implicit dataset (a dataframe it returned, see below) or else
   the result of a step that ran (not one that was itself reused, so a TTL counts from the

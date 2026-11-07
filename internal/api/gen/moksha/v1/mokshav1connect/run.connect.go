@@ -61,6 +61,8 @@ const (
 	RunServiceListPoolsProcedure = "/moksha.v1.RunService/ListPools"
 	// RunServiceListCodeProcedure is the fully-qualified name of the RunService's ListCode RPC.
 	RunServiceListCodeProcedure = "/moksha.v1.RunService/ListCode"
+	// RunServicePlanRunsProcedure is the fully-qualified name of the RunService's PlanRuns RPC.
+	RunServicePlanRunsProcedure = "/moksha.v1.RunService/PlanRuns"
 )
 
 // RunServiceClient is a client for the moksha.v1.RunService service.
@@ -104,6 +106,11 @@ type RunServiceClient interface {
 	// version and each pipeline, from the newest build that defines it.
 	// moksha deploy --dry-run compares a project's build with it.
 	ListCode(context.Context, *connect.Request[v1.ListCodeRequest]) (*connect.Response[v1.ListCodeResponse], error)
+	// PlanRuns says, for runs that would start (moksha replay --dry-run),
+	// what the latest earlier run with the same inputs did and which of its
+	// steps would run again. It starts nothing and runs no code, so which
+	// steps a new run calls isn't known: those of the earlier run stand in.
+	PlanRuns(context.Context, *connect.Request[v1.PlanRunsRequest]) (*connect.Response[v1.PlanRunsResponse], error)
 }
 
 // NewRunServiceClient constructs a client for the moksha.v1.RunService service. By default, it uses
@@ -195,6 +202,12 @@ func NewRunServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(runServiceMethods.ByName("ListCode")),
 			connect.WithClientOptions(opts...),
 		),
+		planRuns: connect.NewClient[v1.PlanRunsRequest, v1.PlanRunsResponse](
+			httpClient,
+			baseURL+RunServicePlanRunsProcedure,
+			connect.WithSchema(runServiceMethods.ByName("PlanRuns")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -213,6 +226,7 @@ type runServiceClient struct {
 	listWorkers   *connect.Client[v1.ListWorkersRequest, v1.ListWorkersResponse]
 	listPools     *connect.Client[v1.ListPoolsRequest, v1.ListPoolsResponse]
 	listCode      *connect.Client[v1.ListCodeRequest, v1.ListCodeResponse]
+	planRuns      *connect.Client[v1.PlanRunsRequest, v1.PlanRunsResponse]
 }
 
 // StartRun calls moksha.v1.RunService.StartRun.
@@ -280,6 +294,11 @@ func (c *runServiceClient) ListCode(ctx context.Context, req *connect.Request[v1
 	return c.listCode.CallUnary(ctx, req)
 }
 
+// PlanRuns calls moksha.v1.RunService.PlanRuns.
+func (c *runServiceClient) PlanRuns(ctx context.Context, req *connect.Request[v1.PlanRunsRequest]) (*connect.Response[v1.PlanRunsResponse], error) {
+	return c.planRuns.CallUnary(ctx, req)
+}
+
 // RunServiceHandler is an implementation of the moksha.v1.RunService service.
 type RunServiceHandler interface {
 	// StartRun starts a run and queues its first replay. A run no
@@ -321,6 +340,11 @@ type RunServiceHandler interface {
 	// version and each pipeline, from the newest build that defines it.
 	// moksha deploy --dry-run compares a project's build with it.
 	ListCode(context.Context, *connect.Request[v1.ListCodeRequest]) (*connect.Response[v1.ListCodeResponse], error)
+	// PlanRuns says, for runs that would start (moksha replay --dry-run),
+	// what the latest earlier run with the same inputs did and which of its
+	// steps would run again. It starts nothing and runs no code, so which
+	// steps a new run calls isn't known: those of the earlier run stand in.
+	PlanRuns(context.Context, *connect.Request[v1.PlanRunsRequest]) (*connect.Response[v1.PlanRunsResponse], error)
 }
 
 // NewRunServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -408,6 +432,12 @@ func NewRunServiceHandler(svc RunServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(runServiceMethods.ByName("ListCode")),
 		connect.WithHandlerOptions(opts...),
 	)
+	runServicePlanRunsHandler := connect.NewUnaryHandler(
+		RunServicePlanRunsProcedure,
+		svc.PlanRuns,
+		connect.WithSchema(runServiceMethods.ByName("PlanRuns")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/moksha.v1.RunService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case RunServiceStartRunProcedure:
@@ -436,6 +466,8 @@ func NewRunServiceHandler(svc RunServiceHandler, opts ...connect.HandlerOption) 
 			runServiceListPoolsHandler.ServeHTTP(w, r)
 		case RunServiceListCodeProcedure:
 			runServiceListCodeHandler.ServeHTTP(w, r)
+		case RunServicePlanRunsProcedure:
+			runServicePlanRunsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -495,4 +527,8 @@ func (UnimplementedRunServiceHandler) ListPools(context.Context, *connect.Reques
 
 func (UnimplementedRunServiceHandler) ListCode(context.Context, *connect.Request[v1.ListCodeRequest]) (*connect.Response[v1.ListCodeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("moksha.v1.RunService.ListCode is not implemented"))
+}
+
+func (UnimplementedRunServiceHandler) PlanRuns(context.Context, *connect.Request[v1.PlanRunsRequest]) (*connect.Response[v1.PlanRunsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("moksha.v1.RunService.PlanRuns is not implemented"))
 }
