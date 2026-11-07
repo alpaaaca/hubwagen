@@ -132,6 +132,7 @@ func NewClient(server string) *Client {
 type RunRequest struct {
 	Tenant, Name, Queue string
 	Params              map[string]any
+	Reuse               string // "auto" (or empty) or "none"
 }
 
 // Start starts one run and returns its ID.
@@ -141,7 +142,7 @@ func (c *Client) Start(ctx context.Context, r RunRequest) (string, error) {
 		return "", err
 	}
 	res, err := c.runs.StartRun(ctx, connect.NewRequest(&mokshav1.StartRunRequest{
-		Tenant: r.Tenant, Name: r.Name, Queue: r.Queue, ParamsJson: string(params), Trigger: "the CLI"}))
+		Tenant: r.Tenant, Name: r.Name, Queue: r.Queue, ParamsJson: string(params), Trigger: "the CLI", Reuse: r.Reuse}))
 	if err != nil {
 		return "", err
 	}

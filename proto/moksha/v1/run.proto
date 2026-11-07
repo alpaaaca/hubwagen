@@ -256,6 +256,10 @@ message StartRunRequest {
   string params_json = 4;
   // Default: "manual".
   string trigger = 5;
+  // "auto" or empty (default): steps with reuse= are reused from earlier
+  // runs. "none": every step runs; what they make is recorded, so later
+  // runs can reuse it. Its child runs and continuations do the same.
+  string reuse = 6;
 }
 
 message StartRunResponse {

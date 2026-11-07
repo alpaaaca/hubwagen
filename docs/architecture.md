@@ -377,6 +377,13 @@ Inside one run a completed step is never run again, with or without it.
 - `memo=` is the old name: `memo=True` is `reuse=True`, `memo="ttl:1h"`
   is `reuse="1h"`. It still works for a release, with a warning, and lint
   flags it (MK007).
+- **A run can reuse nothing**: `moksha start` and `replay` with
+  `--reuse=none` (`StartRun.reuse`) run every step of the run, those with
+  `reuse=` too, after a source changed in a way the fingerprint can't see. Its
+  steps still record their fingerprints and results, so the runs after it
+  reuse what it made; its child runs and continuations reuse nothing
+  either, and it doesn't wait for another run's step with the same
+  fingerprint (single-flight).
 - A step with an output reuses a data version; one without reuses the data version it
   built in its implicit dataset (a dataframe it returned, see below) or else
   the result of a step that ran (not one that was itself reused, so a TTL counts from the

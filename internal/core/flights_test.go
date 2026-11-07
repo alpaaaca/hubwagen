@@ -15,7 +15,7 @@ import (
 // build b1, which knows extract at v1.
 func (h *harness) memoRun(tenant string, cmd Command) string {
 	h.t.Helper()
-	res, err := h.core.StartRun(h.ctx, StartRunRequest{Tenant: tenant, Name: "x"})
+	res, err := h.core.StartRun(h.ctx, StartRunRequest{Tenant: tenant, Name: "x", Reuse: h.reuse})
 	require.NoError(h.t, err)
 	t := h.poll(TaskRun)
 	require.Equal(h.t, res.RunID, t.RunID)
@@ -211,4 +211,20 @@ func TestWaiterWhoseOwnerIsGoneRunsAfterRestart(t *testing.T) {
 	h.restart(withBucket(b, nil))
 	next := h.poll(TaskStep)
 	assert.Equal(t, second, next.RunID)
+}
+
+// A run that reuses nothing doesn't wait for another run's step with the
+// same fingerprint: it runs its own, and gets its own result.
+func TestARunThatReusesNothingDoesntWaitForAFlight(t *testing.T) {
+	h, b := newFlightHarness(t)
+	first := h.memoRun("t", memoExtract())
+	h.reuse = state.ReuseNone
+	second := h.memoRun("t", memoExtract())
+
+	a1, a2 := h.poll(TaskStep), h.poll(TaskStep)
+	assert.Equal(t, []string{first, second}, []string{a1.RunID, a2.RunID}, "both run")
+	h.succeedWithOutput(b, a1)
+	h.succeedWithOutput(b, a2)
+	assert.False(t, h.waitStep(second, state.StepCompleted).Reused)
+	assert.False(t, h.waitStep(first, state.StepCompleted).Reused)
 }

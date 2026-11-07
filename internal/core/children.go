@@ -35,7 +35,7 @@ func (c *Core) startChild(h *runState, cmd Command) {
 		queue = h.rec.Queue
 	}
 	res, err := c.startRun(StartRunRequest{
-		Tenant: h.rec.Tenant, Name: cmd.Name, Queue: queue, Trigger: "run " + h.rec.ID, Params: params,
+		Tenant: h.rec.Tenant, Name: cmd.Name, Queue: queue, Trigger: "run " + h.rec.ID, Params: params, Reuse: h.rec.Reuse,
 		parent: &parentLink{id: h.rec.ID, seq: cmd.Seq, waits: cmd.Wait},
 	})
 	if err != nil {
@@ -94,7 +94,8 @@ func (c *Core) continueAsNew(h *runState, params map[string]any) {
 		parent = &parentLink{id: r.ParentID, seq: r.ParentSeq, waits: r.ParentWaits}
 	}
 	res, err := c.startRun(StartRunRequest{
-		Tenant: r.Tenant, Name: r.Name, Queue: r.Queue, Trigger: "continue " + r.ID, Params: params, parent: parent})
+		Tenant: r.Tenant, Name: r.Name, Queue: r.Queue, Trigger: "continue " + r.ID, Params: params, Reuse: r.Reuse,
+		parent: parent})
 	if err != nil { // the run's own name: only fails if the request is broken
 		c.finishRun(h, state.RunFailed, "continue_failed", err.Error(), nil)
 		return

@@ -41,7 +41,8 @@ func (s *RunServer) StartRun(ctx context.Context, req *connect.Request[mokshav1.
 	if err != nil {
 		return nil, err
 	}
-	res, err := s.core.StartRun(ctx, core.StartRunRequest{Tenant: m.Tenant, Name: m.Name, Queue: m.Queue, Trigger: m.Trigger, Params: params})
+	res, err := s.core.StartRun(ctx, core.StartRunRequest{Tenant: m.Tenant, Name: m.Name, Queue: m.Queue, Trigger: m.Trigger,
+		Params: params, Reuse: m.Reuse})
 	if err != nil {
 		return nil, connectError(err)
 	}

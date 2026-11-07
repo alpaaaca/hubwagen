@@ -229,6 +229,10 @@ func canonicalJSON(raw json.RawMessage) (json.RawMessage, error) {
 	return json.Marshal(v) // maps marshal with sorted keys
 }
 
+// reasonReuseNone is the run reason of a step with reuse= in a run started
+// with reuse none.
+const reasonReuseNone = "run reuses nothing"
+
 // errUnreadable: a run with the fingerprint exists, but what it built can't
 // be read any more, so it isn't reused.
 var errUnreadable = errors.New("can't be read")
@@ -279,6 +283,10 @@ func (c *Core) memoize(l *stepState, inputs []state.DataVersion) *memoMatch {
 	})
 	l.rec.Fingerprint = fpi.hash()
 	l.rec.FPInputs = marshalPayload(state.EventStepScheduled, fpi)
+	if h.rec.Reuse == state.ReuseNone { // fingerprinted all the same: later runs can reuse what it makes
+		l.rec.RunReason = reasonReuseNone
+		return nil
+	}
 
 	var since time.Time
 	if l.memo.ttl > 0 {

@@ -110,6 +110,10 @@ type StartRunRequest struct {
 	Queue   string // default DefaultQueue
 	Trigger string // default "manual"
 	Params  map[string]any
+	// Reuse: "" or "auto" (steps with reuse= are reused), or "none":
+	// every step runs, and still records its fingerprint and result for
+	// later runs. Child runs and continue_as_new take their run's.
+	Reuse string
 }
 
 type StartRunResult struct {
@@ -139,10 +143,17 @@ func (c *Core) startRun(req StartRunRequest) (StartRunResult, error) {
 	if req.Trigger == "" {
 		req.Trigger = "manual"
 	}
+	switch req.Reuse {
+	case "", "auto":
+		req.Reuse = ""
+	case state.ReuseNone:
+	default:
+		return StartRunResult{}, fmt.Errorf("%w: reuse %q: want auto or none", ErrInvalid, req.Reuse)
+	}
 	h := &runState{
 		rec: state.Run{
 			ID: c.cfg.NewID(), Tenant: req.Tenant, Name: req.Name, Queue: req.Queue, Trigger: req.Trigger,
-			Params: req.Params, Status: state.RunRunning, CreatedAt: c.now(),
+			Params: req.Params, Status: state.RunRunning, CreatedAt: c.now(), Reuse: req.Reuse,
 		},
 		steps:   map[int]*stepState{},
 		timers:  map[int]*runTimer{},
@@ -156,7 +167,7 @@ func (c *Core) startRun(req StartRunRequest) (StartRunResult, error) {
 	c.runs[h.rec.ID] = h
 	c.dirtyRun(h)
 	c.emitH(state.EventRunStarted, h, "", runStartedPayload{
-		Name: req.Name, Queue: req.Queue, Trigger: req.Trigger, Params: req.Params, Parent: h.rec.ParentID})
+		Name: req.Name, Queue: req.Queue, Trigger: req.Trigger, Params: req.Params, Parent: h.rec.ParentID, Reuse: req.Reuse})
 	c.queueRunTask(h)
 	return StartRunResult{RunID: h.rec.ID}, nil
 }

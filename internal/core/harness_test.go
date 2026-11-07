@@ -27,6 +27,8 @@ type harness struct {
 	results map[string]string
 	// expectRunErr: the test makes core.Run fail on purpose.
 	expectRunErr bool
+	// reuse is the Reuse of the runs startRun and memoRun start.
+	reuse string
 }
 
 type option func(*Config)

@@ -26,13 +26,19 @@ type flight struct {
 func flightKey(l *stepState) string { return l.run.rec.Tenant + "\x00" + l.rec.Fingerprint }
 
 // runOrWait runs a step that missed the memo lookup, unless its fingerprint
-// is already running.
+// is already running. A step of a run that reuses nothing doesn't wait for
+// another run's: it runs (and owns the flight if there is none, so steps
+// that may reuse can wait for it).
 func (c *Core) runOrWait(l *stepState) {
 	if l.rec.Fingerprint == "" {
 		c.startAttempt(l)
 		return
 	}
 	if f := c.flights[flightKey(l)]; f != nil {
+		if l.run.rec.Reuse == state.ReuseNone {
+			c.startAttempt(l)
+			return
+		}
 		c.waitOn(l, f)
 		return
 	}

@@ -23,6 +23,7 @@ var (
 	runTenant string
 	runQueue  string
 	runParams []string
+	runReuse  string
 	startWait bool
 )
 
@@ -31,6 +32,7 @@ func addRunFlags(c *cobra.Command) {
 	c.Flags().StringVar(&runTenant, "tenant", "default", "tenant the run belongs to")
 	c.Flags().StringVar(&runQueue, "queue", "", "queue its pipeline code runs from (default: default)")
 	c.Flags().StringArrayVar(&runParams, "param", nil, "an input as name=value (repeatable); values are JSON if they parse, else strings")
+	c.Flags().StringVar(&runReuse, "reuse", "auto", "auto: steps with reuse= are reused from earlier runs; none: every step runs (later runs can reuse what it makes)")
 }
 
 var startCmd = &cobra.Command{
@@ -55,7 +57,7 @@ what each step did, and exits non-zero unless it completed.
 		ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		c := runcli.NewClient(apiServer)
-		id, err := c.Start(ctx, runcli.RunRequest{Tenant: runTenant, Name: args[0], Queue: runQueue, Params: sets[0]})
+		id, err := c.Start(ctx, runcli.RunRequest{Tenant: runTenant, Name: args[0], Queue: runQueue, Params: sets[0], Reuse: runReuse})
 		if err != nil {
 			return serverError(err)
 		}
@@ -73,10 +75,13 @@ var replayCmd = &cobra.Command{
 	Long: `Replay starts one run of a pipeline per set of inputs, waits for all of them,
 and reports per step how many were reused and how many ran, and why. A
 --param value a..b is a range: dates (daily) or integers, inclusive; several
-ranges multiply. Memoized steps whose code, inputs and arguments are
-unchanged are reused, so replays and backfills only run what changed.
+ranges multiply. Steps with reuse= whose code, inputs and arguments are
+unchanged are reused, so replays and backfills only run what changed;
+--reuse=none runs every step anyway (to recompute after a source changed
+in a way moksha can't see).
 
   moksha replay daily_revenue --param day=2026-03-01..2026-03-31
+  moksha replay daily_revenue --param day=2026-03-01..2026-03-31 --reuse=none
 
 Exits non-zero unless every run completed. Ctrl-C stops waiting; the runs
 keep running.`,
@@ -92,7 +97,7 @@ keep running.`,
 		c := runcli.NewClient(apiServer)
 		var ids []string
 		for _, params := range sets {
-			id, err := c.Start(ctx, runcli.RunRequest{Tenant: runTenant, Name: args[0], Queue: runQueue, Params: params})
+			id, err := c.Start(ctx, runcli.RunRequest{Tenant: runTenant, Name: args[0], Queue: runQueue, Params: params, Reuse: runReuse})
 			if err != nil {
 				return serverError(err)
 			}

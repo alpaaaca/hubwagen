@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -187,14 +188,14 @@ func replay(eventLog []state.Event) ([]core.Command, *core.RunOutcome) {
 	return cmds, &core.RunOutcome{Status: state.RunCompleted}
 }
 
-func (s *server) replayRange(t *testing.T, days string) string {
+func (s *server) replayRange(t *testing.T, days string, reuse ...string) string {
 	t.Helper()
 	sets, err := ExpandParams([]string{"day=" + days})
 	require.NoError(t, err)
 	c := NewClient(s.url)
 	var ids []string
 	for _, p := range sets {
-		id, err := c.Start(ctx, RunRequest{Tenant: "t", Name: "daily_orders", Params: p})
+		id, err := c.Start(ctx, RunRequest{Tenant: "t", Name: "daily_orders", Params: p, Reuse: strings.Join(reuse, "")})
 		require.NoError(t, err)
 		ids = append(ids, id)
 	}
@@ -220,6 +221,16 @@ func TestReplayOverADateRange(t *testing.T) {
   report    4 ran
 4 completed
 `, s.replayRange(t, "2026-03-01..2026-03-04"))
+
+	// --reuse=none: everything runs, and says why.
+	assert.Equal(t, `2 runs
+  extract   2 ran (its run was started with --reuse=none)
+  report    2 ran
+2 completed
+`, s.replayRange(t, "2026-03-01..2026-03-02", "none"))
+	_, err := NewClient(s.url).Start(ctx, RunRequest{Tenant: "t", Name: "daily_orders", Reuse: "never"})
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	assert.ErrorContains(t, err, `reuse "never": want auto or none`)
 
 	// extract's code changed.
 	require.NoError(t, s.core.RegisterBuild(ctx, core.BuildRequest{ID: "b2", Steps: map[string]string{"extract": "v2", "report": "v1"}}))

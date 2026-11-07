@@ -356,6 +356,8 @@ func WhyItRan(r string) string {
 		return "its code version is unknown, so it can't be compared"
 	case r == "arguments are not JSON":
 		return "its arguments can't be compared"
+	case r == "run reuses nothing":
+		return "its run was started with --reuse=none"
 	case r == "earlier data version invalidated":
 		return "its earlier output was marked invalid"
 	case strings.HasPrefix(r, "expired"):

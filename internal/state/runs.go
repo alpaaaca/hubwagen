@@ -87,7 +87,13 @@ type Run struct {
 	ParentSeq   int
 	ParentWaits bool
 	ContinuedAs string // status continued: the run that carries on
+	// Reuse: "" (steps with reuse= are reused) or ReuseNone (every step
+	// runs, and records its result for later runs).
+	Reuse string
 }
+
+// ReuseNone is a run's Reuse when it reuses nothing.
+const ReuseNone = "none"
 
 type RunTask struct {
 	ID           string
@@ -162,15 +168,15 @@ func (t *Tx) PutRun(v Run) error {
 	}
 	return t.exec(`
 		INSERT INTO runs (id, tenant, name, queue, trigger, params_json, commands, build_id, status,
-			reason, message, result_json, created_at, finished_at, parent_id, parent_seq, parent_waits, continued_as)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			reason, message, result_json, created_at, finished_at, parent_id, parent_seq, parent_waits, continued_as, reuse)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (id) DO UPDATE SET
 			commands = excluded.commands, build_id = excluded.build_id, status = excluded.status,
 			reason = excluded.reason, message = excluded.message, result_json = excluded.result_json,
 			finished_at = excluded.finished_at, continued_as = excluded.continued_as`,
 		v.ID, v.Tenant, v.Name, v.Queue, v.Trigger, params, v.Commands, v.BuildID, v.Status,
 		v.Reason, v.Message, string(v.Result), formatTime(v.CreatedAt), formatTimePtr(v.FinishedAt),
-		v.ParentID, v.ParentSeq, v.ParentWaits, v.ContinuedAs)
+		v.ParentID, v.ParentSeq, v.ParentWaits, v.ContinuedAs, v.Reuse)
 }
 
 func (t *Tx) PutRunTask(v RunTask) error {
@@ -451,7 +457,7 @@ func (s *Store) ListTimers(ctx context.Context, runID string) ([]Timer, error) {
 }
 
 const runColumns = `id, tenant, name, queue, trigger, params_json, commands, build_id, status,
-	reason, message, result_json, created_at, finished_at, parent_id, parent_seq, parent_waits, continued_as`
+	reason, message, result_json, created_at, finished_at, parent_id, parent_seq, parent_waits, continued_as, reuse`
 
 func scanRun(sc interface{ Scan(...any) error }) (Run, error) {
 	var (
@@ -462,7 +468,7 @@ func scanRun(sc interface{ Scan(...any) error }) (Run, error) {
 	)
 	if err = sc.Scan(&v.ID, &v.Tenant, &v.Name, &v.Queue, &v.Trigger, &params, &v.Commands, &v.BuildID,
 		&v.Status, &v.Reason, &v.Message, &result, &created, &finished,
-		&v.ParentID, &v.ParentSeq, &v.ParentWaits, &v.ContinuedAs); err != nil {
+		&v.ParentID, &v.ParentSeq, &v.ParentWaits, &v.ContinuedAs, &v.Reuse); err != nil {
 		return v, err
 	}
 	v.Result = rawOrNil(result)
