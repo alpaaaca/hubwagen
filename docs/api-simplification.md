@@ -1,6 +1,7 @@
 # Simplifying the authoring API
 
-Design note; steps 1 and 2 are built (see Steps), the rest is not.
+Design note; steps 1, 2 and the first part of 3 (`reuse=`) are built
+(see Steps), the rest is not.
 Decided (2026-11-07): reuse across runs stays opt-in, as `reuse=`
 ([section 4](#4-reuse-opt-in-as-reuse-with-moksha-pointing-out-where-it-helps)).
 Proposes how the Python SDK can drop most of the
@@ -251,7 +252,7 @@ PR-sized, in order:
    reserved); hashing still reads the written file afterwards, not while
    writing; a frame must be returned on its own, not inside a value.
 3. **Reuse, opt-in** (decided in section 4), three PRs:
-   1. **`reuse=`**: the SDK takes `reuse=True` / `reuse="1h"` and sends
+   1. ✅ **`reuse=`**: the SDK takes `reuse=True` / `reuse="1h"` and sends
       the same policy as today (`fingerprint`, `ttl:…`), so the core and
       the wire don't change; `memo=` warns once per step with what to
       write, and the linter flags it. The example project, the SDK

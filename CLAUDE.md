@@ -30,7 +30,7 @@ Read before larger changes:
 - [docs/v2-migration.md](docs/v2-migration.md) — what happened to each v1 package
 - [docs/failover.md](docs/failover.md) — design: nodes, leader election and state handoff (not built)
 - [docs/worker-pools.md](docs/worker-pools.md) — design: the leader starts and scales the workers its queued work needs (not built)
-- [docs/api-simplification.md](docs/api-simplification.md) — design: steps return values and dataframes; reuse stays opt-in as `reuse=` (steps 1–2 built)
+- [docs/api-simplification.md](docs/api-simplification.md) — design: steps return values and dataframes; reuse stays opt-in as `reuse=` (steps 1–2 and `reuse=` built)
 - [docs/spikes/](docs/spikes/) — spike findings (S1: Python replay, S2: code versions)
 - [sdk/python/README.md](sdk/python/README.md) — writing pipelines and steps, the worker
 - [docs/config.md](docs/config.md) — instance configuration (`moksha.yaml`)

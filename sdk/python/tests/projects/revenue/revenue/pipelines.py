@@ -3,8 +3,8 @@
     moksha dev
     moksha replay daily --param day=2026-10-01..2026-10-07
 
-extract_orders reads a source that can change, so it is not memoized: it
-runs every time. daily_revenue and revenue_report are memoized: when the
+extract_orders reads a source that can change, so it has no reuse=: it
+runs every time. daily_revenue and revenue_report say reuse=True: when the
 orders for a day come out identical (same content hash), they are reused,
 and when their own code changes, they run again.
 
@@ -45,7 +45,7 @@ def extract_orders(day: str) -> dict:
     return {"rows": len(rows)}
 
 
-@mk.step(memo=True, output=mk.Dataset("mart.daily_revenue", partition="day"))
+@mk.step(reuse=True, output=mk.Dataset("mart.daily_revenue", partition="day"))
 def daily_revenue(orders: mk.DataVersion, day: str) -> dict:
     """Revenue per region."""
     totals: dict[str, Decimal] = {}
@@ -70,7 +70,7 @@ def daily_revenue(orders: mk.DataVersion, day: str) -> dict:
     return {"regions": len(totals), "total": str(total)}
 
 
-@mk.step(memo=True, output=mk.Dataset("reports.revenue", partition="day"))
+@mk.step(reuse=True, output=mk.Dataset("reports.revenue", partition="day"))
 def revenue_report(revenue: mk.DataVersion, day: str) -> str:
     """A short text report."""
     with revenue.path("revenue.csv").open() as f:

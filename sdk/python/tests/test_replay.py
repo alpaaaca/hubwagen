@@ -25,12 +25,12 @@ def add(a: int, b: int) -> int:
     return a + b
 
 
-@mk.step(memo=True, output=mk.Dataset("raw.orders", partition="day"), timeout=60, retry=mk.Retry(limit=2, initial=5))
+@mk.step(reuse=True, output=mk.Dataset("raw.orders", partition="day"), timeout=60, retry=mk.Retry(limit=2, initial=5))
 def extract(day: dt.date) -> int:
     return 1
 
 
-@mk.step(memo="ttl:1h", output=mk.Dataset("mart.revenue"))
+@mk.step(reuse="1h", output=mk.Dataset("mart.revenue"))
 def build(orders: mk.DataVersion, factor: float = 1.0) -> int:
     return 2
 
@@ -60,7 +60,7 @@ def test_blocks_at_the_first_call_without_a_result():
     assert r.outcome == {"status": "STATUS_COMPLETED", "resultJson": "13"}
 
 
-def test_step_command_carries_policy_output_and_memo():
+def test_step_command_carries_policy_output_and_reuse():
     def h(ctx):
         return ctx.step(extract, dt.date(2026, 10, 24))
 
@@ -219,20 +219,43 @@ def test_params_are_decoded():
     assert json.loads(r.outcome["resultJson"]) == {"$date": "2026-10-24"}
 
 
-def test_memo_without_output():
-    @mk.step(memo=True)
+def test_reuse_without_output():
+    @mk.step(reuse=True)
     def rate(day: str) -> float:
         return 1.08
 
     r = run(lambda ctx: ctx.step(rate, "2026-10-24"), [])
     step = r.commands[0]["step"]
-    assert step["memo"] == "fingerprint"
+    assert step["memo"] == "fingerprint", "on the wire, reuse= is still the memo policy"
     assert "output" not in step
 
 
+def test_reuse_ages():
+    def policy(**kw):
+        return mk.step(lambda: 1, name="age", **kw).__moksha_step__.memo
+
+    assert policy(reuse="1h30m") == "ttl:1h30m"
+    assert policy(reuse=dt.timedelta(minutes=90)) == "ttl:5400s"
+    assert policy() == "", "not reused unless it says so"
+    for bad in ("ttl:1h", "1d", "0s", "soon", 3):
+        with pytest.raises(ValueError, match="reuse="):
+            policy(reuse=bad)
+
+
+def test_memo_is_the_old_name_of_reuse():
+    with pytest.warns(FutureWarning, match=r"step old: memo= is now reuse=; write reuse=True"):
+        @mk.step(memo=True)
+        def old(): ...
+    assert old.__moksha_step__.memo == "fingerprint"
+    with pytest.warns(FutureWarning, match=r"write reuse='1h'"):
+        assert mk.step(lambda: 1, name="ttl", memo="ttl:1h").__moksha_step__.memo == "ttl:1h"
+    with pytest.raises(ValueError, match="both given"):
+        mk.step(lambda: 1, name="both", memo=True, reuse=True)
+    with pytest.raises(ValueError, match="memo= is now reuse="):
+        mk.step(lambda: 1, name="y", memo="always")
+
+
 def test_decorator_checks():
-    with pytest.raises(ValueError, match="memo="):
-        mk.step(lambda: 1, name="y", memo="always", output=mk.Dataset("d"))
     with pytest.raises(ValueError, match="not one of its arguments"):
         mk.step(lambda x: 1, name="z", output=mk.Dataset("d", partition="day"))
     r = run(lambda ctx: ctx.step(print), [])

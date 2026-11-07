@@ -15,9 +15,11 @@ before anything runs, by reading the source (nothing is imported):
     MK004  I/O, network, subprocesses or environment variables
     MK005  `except:` or `except BaseException`: swallows the replay's Blocked
     MK006  a step called directly instead of through ctx.step
+    MK007  @step(memo=...): the old name of reuse=
 
 Only code inside functions decorated with moksha's @pipeline (or @pipeline) is checked
-(nested functions included, helpers it calls not). Silence a line with
+(nested functions included, helpers it calls not), and MK007 on steps'
+decorators. Silence a line with
 `# noqa: MK004` (or a bare `# noqa`). Exits 1 if anything is found.
 """
 
@@ -71,8 +73,28 @@ def lint_source(source: str, path: str = "<string>") -> list[Finding]:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and \
                 any(_decorated(d, names, "pipeline") for d in node.decorator_list):
             findings += _PipelineChecker(path, names, steps, node.name).check(node)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            findings += _old_memo(path, names, node)
     lines = source.splitlines()
     return sorted({f for f in findings if not _silenced(f, lines)}, key=lambda f: (f.line, f.col, f.code))
+
+
+def _old_memo(path: str, names: dict[str, str], fn: ast.FunctionDef | ast.AsyncFunctionDef) -> list[Finding]:
+    """MK007: memo= on a step's decorator, with what to write instead."""
+    out = []
+    for d in fn.decorator_list:
+        if not (isinstance(d, ast.Call) and _decorated(d, names, "step")):
+            continue
+        for kw in d.keywords:
+            if kw.arg != "memo":
+                continue
+            instead = "reuse=True"
+            if isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str) and kw.value.value.startswith("ttl:"):
+                instead = f"reuse={kw.value.value.removeprefix('ttl:')!r}"
+            elif isinstance(kw.value, ast.Constant) and kw.value.value in (False, "", "never"):
+                instead = "nothing (a step isn't reused unless it says reuse=)"
+            out.append(Finding(path, kw.lineno, kw.col_offset, "MK007", f"step {fn.name}: memo= is now reuse=; write {instead}"))
+    return out
 
 
 def _silenced(f: Finding, lines: list[str]) -> bool:

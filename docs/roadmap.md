@@ -419,9 +419,11 @@ annotation that moksha points out. Design and decisions:
    the content hash covers the result.
 2. ✅ **Codecs**: pandas, Polars and Arrow in and out of steps, loaded by
    annotation.
-3. **`reuse=`** (decided: opt-in, not reuse by default): `reuse=True` /
-   `reuse="1h"` in the SDK, the same policy on the wire; `memo=` warns
-   and lint flags it; the example project and docs say `reuse=`.
+3. ✅ **`reuse=`** (decided: opt-in, not reuse by default): `reuse=True` /
+   `reuse="1h"` (or a `timedelta`) in the SDK, the same policy on the
+   wire; `memo=` warns (`FutureWarning`, at the decorator's line, with
+   what to write) and lint flags it (MK007); the example project and docs
+   say `reuse=`.
 4. ✅ **`--reuse=none` and `replay --dry-run`**: recompute a run on
    purpose; see beforehand which steps of the latest earlier runs the
    current code would run again. ✅ `--reuse=none` (`StartRun.reuse`,
@@ -430,7 +432,8 @@ annotation that moksha points out. Design and decisions:
    per set of inputs, the latest earlier run with them (a completed one
    if any) and its steps: reused, reused unless a step before it returns
    something new, or run again because it has no `reuse=`, its code
-   changed since (the newest registered build), or it didn't complete;
+   changed since (its project's deployed build, else the newest
+   registered one), or it didn't complete;
    nothing starts and no code runs.
 5. **The reuse hint**: every step fingerprinted; the replay report and
    the web UI say when a step without `reuse=` returned the same result
