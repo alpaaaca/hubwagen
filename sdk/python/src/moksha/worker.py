@@ -88,7 +88,10 @@ def datasets() -> dict[str, _model.Keep | None]:
 
 
 def build_id() -> str:
-    """A build is identified by its runs' and steps' code versions."""
+    """A build is identified by its runs' and steps' code versions, and by
+    what each step's decorator says (reuse=, output, timeout, retry,
+    queue), which its code version leaves out: changing reuse= is a new
+    build, so moksha dev and a deployed server run it."""
     h = hashlib.sha256()
     for ds, keep in sorted(datasets().items()):
         h.update(f"dataset {ds} {keep!r}\n".encode())
@@ -96,7 +99,8 @@ def build_id() -> str:
         d = _model.PIPELINES[name]
         h.update(f"run {name} {d.code_version()} {d.schedule!r} {d.subscribe!r} {d.title!r} {d.description!r}\n".encode())
     for name in sorted(_model.STEPS):
-        h.update(f"step {name} {_model.STEPS[name].code_version()}\n".encode())
+        d = _model.STEPS[name]
+        h.update(f"step {name} {d.code_version()} {d.memo!r} {d.output!r} {d.timeout!r} {d.retry!r} {d.queue!r}\n".encode())
     return "b-" + h.hexdigest()[:12]
 
 

@@ -223,6 +223,11 @@ function Step({ step: l, start, span, now, selected, onSelect }: { step: Step; s
       <td className="dim">
         {l.why}
         {l.attempts > 1 && <div>{l.attempts} attempts</div>}
+        {l.sameResultRuns > 0 && (
+          <div className="reuse-hint small" title="If it reads nothing but its code, inputs and arguments, @mk.step(reuse=True) would reuse it">
+            same result as {l.sameResultRuns} earlier run{l.sameResultRuns === 1 ? "" : "s"} with the same code and inputs: it may want <code>reuse=True</code>
+          </div>
+        )}
       </td>
       <td>
         <Values json={l.resultJson} />

@@ -348,7 +348,7 @@ func Trigger(t string) string {
 // (the step isn't reused at all).
 func WhyItRan(r string) string {
 	switch {
-	case r == "", r == "not memoized":
+	case r == "", r == "not memoized", r == "reuse=False":
 		return ""
 	case strings.HasPrefix(r, "no previous run"):
 		return "it hasn't run with these inputs before"

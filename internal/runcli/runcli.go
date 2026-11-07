@@ -21,6 +21,7 @@ import (
 
 	mokshav1 "github.com/alper/moksha/internal/api/gen/moksha/v1"
 	"github.com/alper/moksha/internal/api/gen/moksha/v1/mokshav1connect"
+	"github.com/alper/moksha/internal/core"
 	"github.com/alper/moksha/internal/history"
 )
 
@@ -268,6 +269,10 @@ func Report(runs []*mokshav1.Run) string {
 		reused int
 		ran    map[string]int // reason → count
 		other  map[string]int // status (reason) → count, for steps that didn't complete
+		// The reuse hint: runs in which it ran without reuse=, and those of
+		// them in which it got the same result as other runs of its
+		// fingerprint.
+		noReuse, same int
 	}
 	var order []string
 	byStep := map[string]*counts{}
@@ -293,6 +298,12 @@ func Report(runs []*mokshav1.Run) string {
 				c.reused++
 			case l.Status == "completed":
 				c.ran[history.WhyItRan(l.RunReason)]++
+				if l.RunReason == core.ReasonNoReuse {
+					c.noReuse++
+					if l.SameResultRuns > 0 {
+						c.same++
+					}
+				}
 			default:
 				key := l.Status
 				if l.Reason != "" {
@@ -332,6 +343,12 @@ func Report(runs []*mokshav1.Run) string {
 	fmt.Fprintln(&b, strings.Join(ends, ", "))
 	for _, p := range problems {
 		fmt.Fprintln(&b, "  "+p)
+	}
+	for _, name := range order {
+		if c := byStep[name]; c.same > 0 {
+			fmt.Fprintf(&b, "Hint: %s has no reuse=, and in %d of %d runs it got the same result as earlier runs with the same code, "+
+				"inputs and arguments. If it reads nothing but those, @mk.step(reuse=True) would reuse it.\n", name, c.same, c.noReuse)
+		}
 	}
 	return b.String()
 }

@@ -67,6 +67,8 @@ func (c *Core) PlanRun(ctx context.Context, tenant, name string, params map[stri
 			return plan, err
 		}
 		switch {
+		case memo.off:
+			p.Why = "it says reuse=False"
 		case !memo.on:
 			p.Why = "it has no reuse="
 		case reuse == state.ReuseNone:

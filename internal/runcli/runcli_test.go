@@ -221,6 +221,7 @@ func TestReplayOverADateRange(t *testing.T) {
   extract   3 reused, 1 ran (it hasn't run with these inputs before)
   report    4 ran
 4 completed
+Hint: report has no reuse=, and in 3 of 4 runs it got the same result as earlier runs with the same code, inputs and arguments. If it reads nothing but those, @mk.step(reuse=True) would reuse it.
 `, s.replayRange(t, "2026-03-01..2026-03-04"))
 
 	// --reuse=none: everything runs, and says why.
@@ -228,6 +229,7 @@ func TestReplayOverADateRange(t *testing.T) {
   extract   2 ran (its run was started with --reuse=none)
   report    2 ran
 2 completed
+Hint: report has no reuse=, and in 2 of 2 runs it got the same result as earlier runs with the same code, inputs and arguments. If it reads nothing but those, @mk.step(reuse=True) would reuse it.
 `, s.replayRange(t, "2026-03-01..2026-03-02", "none"))
 	_, err := NewClient(s.url).Start(ctx, RunRequest{Tenant: "t", Name: "daily_orders", Reuse: "never"})
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
@@ -240,6 +242,7 @@ func TestReplayOverADateRange(t *testing.T) {
   extract   2 ran (its code changed (v1 → v2))
   report    2 ran
 2 completed
+Hint: report has no reuse=, and in 2 of 2 runs it got the same result as earlier runs with the same code, inputs and arguments. If it reads nothing but those, @mk.step(reuse=True) would reuse it.
 `, s.replayRange(t, "2026-03-01..2026-03-02"))
 }
 

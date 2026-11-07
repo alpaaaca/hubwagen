@@ -46,7 +46,7 @@ function fakeServer() {
     finishedAt: at(2),
     reason: "StepFailed",
     steps: [
-      create(StepSchema, { seq: 1, name: "extract", status: "completed", scheduledAt: at(0), finishedAt: at(1) }),
+      create(StepSchema, { seq: 1, name: "extract", status: "completed", runReason: "not memoized", sameResultRuns: 2, scheduledAt: at(0), finishedAt: at(1) }),
       create(StepSchema, { seq: 2, name: "build", status: "failed", reason: "ValueError", message: "no orders", scheduledAt: at(1), finishedAt: at(2), after: [1] }),
     ],
   });
@@ -310,6 +310,13 @@ test("a failed run opens on the failed step's log", async () => {
   expect(calls.getLogs[0]).toMatchObject({ seq: 2 });
   await userEvent.selectOptions(screen.getByLabelText("logs of"), "all steps");
   expect(await within(logs).findByText("reading 0 orders")).toBeInTheDocument();
+});
+
+test("a step without reuse= that keeps getting the same result says it may want it", async () => {
+  show("#/runs/01M6EEEEEEEEEEEEEEEEEEEEEE");
+  const hint = await screen.findByText(/same result as 2 earlier runs with the same code and inputs/);
+  expect(hint).toHaveTextContent("it may want reuse=True");
+  expect(screen.getAllByText(/may want/)).toHaveLength(1);
 });
 
 test("a stuck run can be resumed", async () => {

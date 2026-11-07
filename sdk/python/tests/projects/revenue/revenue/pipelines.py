@@ -3,7 +3,7 @@
     moksha dev
     moksha replay daily --param day=2026-10-01..2026-10-07
 
-extract_orders reads a source that can change, so it has no reuse=: it
+extract_orders reads a source that can change, so it says reuse=False: it
 runs every time. daily_revenue and revenue_report say reuse=True: when the
 orders for a day come out identical (same content hash), they are reused,
 and when their own code changes, they run again.
@@ -23,7 +23,9 @@ SOURCE = Path(__file__).resolve().parent.parent / "data" / "orders.csv"
 log = logging.getLogger(__name__)
 
 
-@mk.step(output=mk.Dataset("raw.orders", partition="day"))
+# reuse=False: it reads data/orders.csv, which the fingerprint doesn't
+# cover, so it must run every time (and moksha won't suggest reuse=).
+@mk.step(reuse=False, output=mk.Dataset("raw.orders", partition="day"))
 def extract_orders(day: str) -> dict:
     """The day's orders from the source system (here: a CSV file)."""
     log.info("reading %s", SOURCE.name)

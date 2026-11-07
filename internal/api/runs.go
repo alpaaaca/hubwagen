@@ -291,6 +291,15 @@ func (s *RunServer) GetRun(ctx context.Context, req *connect.Request[mokshav1.Ge
 		}
 		slices.Sort(m.After)
 		m.Dataset = output.Dataset
+		if l.Status == state.StepCompleted && !f.Reused && l.RunReason == core.ReasonNoReuse {
+			rep, err := s.store.StepRepeats(ctx, h.Tenant, l, f.DataVersion)
+			if err != nil {
+				return nil, connectError(err)
+			}
+			if rep.Others > 0 && rep.Same == rep.Others {
+				m.SameResultRuns = int32(rep.Others)
+			}
+		}
 		if l.FinishedAt != nil {
 			m.FinishedAt = timestamppb.New(*l.FinishedAt)
 		}

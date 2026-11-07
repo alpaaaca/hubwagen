@@ -320,7 +320,7 @@ func TestRegisterBuild(t *testing.T) {
 
 func TestMemoParsingAndValidation(t *testing.T) {
 	for in, want := range map[string]memoPolicy{
-		"": {}, "never": {}, "fingerprint": {on: true}, "ttl:90m": {on: true, ttl: 90 * time.Minute},
+		"": {}, "never": {off: true}, "fingerprint": {on: true}, "ttl:90m": {on: true, ttl: 90 * time.Minute},
 	} {
 		got, err := parseMemo(in)
 		require.NoError(t, err, in)
@@ -346,4 +346,62 @@ func TestCanonicalJSON(t *testing.T) {
 	assert.Nil(t, got)
 	_, err = canonicalJSON(json.RawMessage(`{`))
 	assert.Error(t, err)
+}
+
+// Steps without reuse= are fingerprinted too, never looked up, and
+// StepRepeats tells whether they keep getting the same result: the reuse
+// hint.
+func TestStepsWithoutReuseAreFingerprintedForTheHint(t *testing.T) {
+	b := newBucket(t)
+	h := newHarness(t, withBucket(b, nil))
+	plain := Command{Kind: CommandStep, Name: "rate", Args: json.RawMessage(`{"day":"2026-10-24"}`)} // no output, no reuse=
+	table := output("load", "raw", "")                                                               // an output, no reuse=
+	steps := []step{{cmd: plain}, {cmd: table}}
+	h.build("b1", map[string]string{"rate": "v1", "load": "v1"})
+	repeats := func(runID string) map[string]state.Repeats {
+		t.Helper()
+		ls, err := h.store.ListSteps(h.ctx, runID)
+		require.NoError(t, err)
+		out := map[string]state.Repeats{}
+		for _, l := range ls {
+			require.NotEmpty(t, l.Fingerprint, "every step has a fingerprint")
+			dv := ""
+			if l.Name == "load" {
+				v, err := h.store.StepDataVersion(h.ctx, runID, l.Seq)
+				require.NoError(t, err)
+				dv = v.ID
+			}
+			r, err := h.store.StepRepeats(h.ctx, "t", l, dv)
+			require.NoError(t, err)
+			out[l.Name] = r
+		}
+		return out
+	}
+
+	first, _ := h.runPipeline(b, "b1", steps, map[string]string{"load": "a"})
+	assert.Equal(t, map[string]state.Repeats{"rate": {}, "load": {}}, repeats(first), "nothing to compare with yet")
+	id, ran := h.runPipeline(b, "b1", steps, map[string]string{"load": "a"})
+	assert.Equal(t, []string{"rate", "load"}, ran, "without reuse= nothing is reused, fingerprint or not")
+	assert.Equal(t, map[string]string{"rate": ReasonNoReuse, "load": ReasonNoReuse}, h.reasons(id))
+	assert.Equal(t, map[string]state.Repeats{"rate": {Others: 1, Same: 1}, "load": {Others: 1, Same: 1}}, repeats(id))
+
+	h.results = map[string]string{"rate": `1.09`}
+	id, _ = h.runPipeline(b, "b1", steps, map[string]string{"load": "b"})
+	assert.Equal(t, map[string]state.Repeats{"rate": {Others: 2, Same: 0}, "load": {Others: 2, Same: 0}}, repeats(id), "a new result: no hint")
+}
+
+// reuse=False (memo never): not reused on purpose, so its run reason says
+// so and the reuse hint leaves it alone; the fingerprint is still there.
+func TestReuseFalseIsNotReusedOnPurpose(t *testing.T) {
+	b := newBucket(t)
+	h := newHarness(t, withBucket(b, nil))
+	live := output("extract", "raw", "")
+	live.Memo = "never"
+	h.build("b1", map[string]string{"extract": "v1"})
+	h.runPipeline(b, "b1", []step{{cmd: live}}, nil)
+	id, ran := h.runPipeline(b, "b1", []step{{cmd: live}}, nil)
+	assert.Equal(t, []string{"extract"}, ran)
+	assert.Equal(t, map[string]string{"extract": ReasonReuseOff}, h.reasons(id))
+	assert.NotEmpty(t, h.step(id).Fingerprint)
+	assert.Equal(t, "", history.WhyItRan(ReasonReuseOff), "nothing to explain: it said so")
 }

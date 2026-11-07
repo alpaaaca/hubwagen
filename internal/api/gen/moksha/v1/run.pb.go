@@ -2682,9 +2682,14 @@ type Step struct {
 	Dataset string `protobuf:"bytes,14,opt,name=dataset,proto3" json:"dataset,omitempty"`
 	// Why it ran or was reused, in plain words ("its code changed (v1 →
 	// v2)"); empty when there is nothing to say.
-	Why           string `protobuf:"bytes,15,opt,name=why,proto3" json:"why,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Why string `protobuf:"bytes,15,opt,name=why,proto3" json:"why,omitempty"`
+	// The reuse hint: for a completed step without reuse= that ran, how many
+	// other runs ran it with the same fingerprint (code, inputs, arguments),
+	// when every one of them got the same result as this one; 0 otherwise.
+	// Such a step may want reuse=True, if it reads nothing but those.
+	SameResultRuns int32 `protobuf:"varint,16,opt,name=same_result_runs,json=sameResultRuns,proto3" json:"same_result_runs,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Step) Reset() {
@@ -2820,6 +2825,13 @@ func (x *Step) GetWhy() string {
 		return x.Why
 	}
 	return ""
+}
+
+func (x *Step) GetSameResultRuns() int32 {
+	if x != nil {
+		return x.SameResultRuns
+	}
+	return 0
 }
 
 var File_moksha_v1_run_proto protoreflect.FileDescriptor
@@ -3018,7 +3030,7 @@ const file_moksha_v1_run_proto_rawDesc = "" +
 	"\tcompleted\x18\x02 \x01(\x05R\tcompleted\x12\x16\n" +
 	"\x06reused\x18\x03 \x01(\x05R\x06reused\x12\x16\n" +
 	"\x06failed\x18\x04 \x01(\x05R\x06failed\x12\x1c\n" +
-	"\tcancelled\x18\x05 \x01(\x05R\tcancelled\"\xcb\x03\n" +
+	"\tcancelled\x18\x05 \x01(\x05R\tcancelled\"\xf5\x03\n" +
 	"\x04Step\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x05R\x03seq\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
@@ -3038,7 +3050,8 @@ const file_moksha_v1_run_proto_rawDesc = "" +
 	"resultJson\x12\x14\n" +
 	"\x05after\x18\r \x03(\x05R\x05after\x12\x18\n" +
 	"\adataset\x18\x0e \x01(\tR\adataset\x12\x10\n" +
-	"\x03why\x18\x0f \x01(\tR\x03why2\x8e\b\n" +
+	"\x03why\x18\x0f \x01(\tR\x03why\x12(\n" +
+	"\x10same_result_runs\x18\x10 \x01(\x05R\x0esameResultRuns2\x8e\b\n" +
 	"\n" +
 	"RunService\x12C\n" +
 	"\bStartRun\x12\x1a.moksha.v1.StartRunRequest\x1a\x1b.moksha.v1.StartRunResponse\x12=\n" +
