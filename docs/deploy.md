@@ -53,7 +53,7 @@ To try a pull request's images: label it `build`, then
 rebuilding. Pull requests from forks are never built (they can't push).
 
 The Helm chart's default `image.tag` is its `appVersion` (the published
-chart's is the release's; in a checkout, `0.2.0`), which exists once that
+chart's is the release's; in a checkout, `0.2.1`), which exists once that
 release is published; until then use a `pr-…`
 image or run the workflow by hand. The server image cross-compiles (`--platform=$BUILDPLATFORM`),
 so arm64 needs no emulation; the worker image's arm64 build runs `pip`
@@ -127,7 +127,7 @@ projects:
 ```
 
 ```bash
-helm install moksha oci://ghcr.io/alpaaaca/charts/moksha --version 0.2.0 \
+helm install moksha oci://ghcr.io/alpaaaca/charts/moksha --version 0.2.1 \
   -n moksha --create-namespace -f values.yaml
 # or from a checkout: helm install moksha deploy/helm/moksha …
 kubectl -n moksha port-forward svc/moksha 7070

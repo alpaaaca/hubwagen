@@ -392,14 +392,14 @@ order; each is one PR (projects steps 4–6):
    `internal/launch/deployments.go`, tested against `launch/kubefake`);
    ✅ the chart (server, ConfigMap and RBAC only; tried on a kind
    cluster), and the server's `pools:` are `launcher: external` only.
-4. **moksha-demo**: one project (no `server/` and `elsewhere/` split):
+4. ✅ **moksha-demo**: one project (no `server/` and `elsewhere/` split):
    `moksha dev` first, then a Kubernetes section (a kind cluster,
    `helm install`, `moksha deploy`, pods scaling from zero for a
    backfill).
    The release pushes the chart to `oci://ghcr.io/alpaaaca/charts/moksha`,
-   so the demo needs no checkout of moksha. The demo's change
-   (alpaaaca/moksha-demo, branch `one-project`) is for v0.2.0 and merges
-   once it is released.
+   so the demo needs no checkout of moksha. ✅ The demo is one project
+   (alpaaaca/moksha-demo#2), tried from the v0.2.0 release with
+   `moksha dev` and on kind.
 
 ✅ **Rollouts take no new work to the old version**, added to this
 milestone: a worker of a project's replaced build gets no run task of its

@@ -63,7 +63,7 @@ Download the archive for your machine from the
 `moksha` on your `PATH`:
 
 ```bash
-curl -fsSL https://github.com/alpaaaca/moksha/releases/download/v0.2.0/moksha_0.2.0_darwin_arm64.tar.gz | tar -xz moksha
+curl -fsSL https://github.com/alpaaaca/moksha/releases/download/v0.2.1/moksha_0.2.1_darwin_arm64.tar.gz | tar -xz moksha
 sudo mv moksha /usr/local/bin/
 moksha version
 ```
@@ -82,7 +82,7 @@ With `moksha` on your `PATH` and Python 3.12+:
 ```bash
 git clone https://github.com/alpaaaca/moksha-demo && cd moksha-demo
 python3 -m venv .venv && . .venv/bin/activate
-pip install "git+https://github.com/alpaaaca/moksha@v0.2.0#subdirectory=sdk/python"
+pip install "git+https://github.com/alpaaaca/moksha@v0.2.1#subdirectory=sdk/python"
 moksha dev                                  # the server, web UI on http://127.0.0.1:7070/; it deploys the project
 ```
 
