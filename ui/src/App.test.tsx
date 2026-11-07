@@ -54,7 +54,7 @@ function fakeServer() {
     paramsJson: '{"day":"2026-10-25"}',
     waiting: {
       reason: "no_worker", kind: "run", name: "daily", queue: "default", since: t0,
-      message: "no worker is connected to run the pipeline's code. Start one with `python -m moksha.worker <modules>` (or `moksha workers --config moksha.yaml`)",
+      message: "no worker is connected to run the pipeline's code. Deploy its project: `moksha dev` in its directory, or `moksha deploy`",
     },
   });
   const runLogs: Record<string, { seq: number; step: string; attempt: number; line: { time: Timestamp; stream: string; level?: string; text: string } }[]> = {
@@ -322,8 +322,8 @@ test("a stuck run can be resumed", async () => {
 test("a run that waits says why, and which workers are connected", async () => {
   const { calls } = show("#/runs/01M6WWWWWWWWWWWWWWWWWWWWWW");
   const why = await screen.findByText(/^Waiting:/);
-  expect(why).toHaveTextContent("Waiting: no worker is connected to run the pipeline's code. Start one with python -m moksha.worker <modules>");
-  expect(why.querySelector("code")).toHaveTextContent("python -m moksha.worker <modules>");
+  expect(why).toHaveTextContent("Waiting: no worker is connected to run the pipeline's code. Deploy its project: moksha dev in its directory, or moksha deploy");
+  expect(why.querySelector("code")).toHaveTextContent("moksha dev");
   expect(await screen.findByText("No workers connected.")).toBeInTheDocument();
   const pools = await screen.findAllByText(/^Pool/);
   expect(pools[0]).toHaveTextContent("Pool py (default): 1 of 0–3 workers, 1 starting · started py-1: 1 run waits on default");

@@ -339,8 +339,10 @@ func (s *Scaler) external(ctx context.Context, p Pool, st *poolState, seen []cor
 		}
 	}
 	slices.Sort(ids)
-	return core.PoolStatus{Name: p.Name, Queues: p.Queues, Min: p.Min, Max: p.Max, Workers: ids, Desired: desired,
-		External: true, Decision: st.decision, DecidedAt: st.decidedAt}
+	// Starting: what it wants and isn't polling yet (pods being scheduled,
+	// pulling their image), so a run waiting on it says a worker starts.
+	return core.PoolStatus{Name: p.Name, Queues: p.Queues, Min: p.Min, Max: p.Max, Workers: ids, Starting: max(desired-len(ids), 0),
+		Desired: desired, External: true, Decision: st.decision, DecidedAt: st.decidedAt}
 }
 
 func overlaps(a, b []string) bool {
