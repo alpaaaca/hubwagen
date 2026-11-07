@@ -7,14 +7,14 @@ library.
 ```python
 import moksha as mk
 
-@mk.step(memo=True, output=mk.Dataset("raw.orders", partition="day"))
+@mk.step(reuse=True, output=mk.Dataset("raw.orders", partition="day"))
 def extract(day: str) -> dict:
     out = mk.output()                      # this attempt's staging directory
     (out.path / "orders.csv").write_text(fetch_orders(day))
     out.meta["max_ts"] = f"{day}T23:59:00Z"
     return {"rows": 1}
 
-@mk.step(memo=True, output=mk.Dataset("mart.revenue", partition="day"))
+@mk.step(reuse=True, output=mk.Dataset("mart.revenue", partition="day"))
 def revenue(orders: mk.DataVersion, day: str) -> dict: ...
 
 @mk.pipeline
@@ -45,8 +45,8 @@ The words:
   computation), run on a worker and retried by policy.
 - What a step writes is a **data version**: a new version of a
   **dataset**, saved and never changed afterwards.
-- A memoized step that comes again with the same code, inputs and
-  arguments is **reused**: what it produced before stands in, and it
+- A step marked `reuse=True` that comes again in a later run with the
+  same code, inputs and arguments is **reused**: what it produced before stands in, and it
   doesn't run again.
 
 ## Pipelines
@@ -68,7 +68,7 @@ pipeline code must make the same calls in the same order every time:
   steps.
 - `python -m moksha.lint` checks pipeline code for all of this before it
   runs (the clock, randomness, set iteration, I/O, `except:`, steps called
-  directly), from the source, for the modules in `pyproject.toml` or the
+  directly, and `memo=`, the old name of `reuse=`), from the source, for the modules in `pyproject.toml` or the
   paths given. `# noqa: MK003` silences one line.
 - **Don't swallow `moksha.Blocked`.** It is a `BaseException`, so
   `except Exception:` is safe; a bare `except:` is not.
@@ -184,9 +184,11 @@ on it becomes stuck rather than taking the wrong path.
 
 ## Steps
 
-`@mk.step(...)` options: `memo=True` or `memo="ttl:1h"` (reuse what an
-earlier run produced when code, inputs and arguments are unchanged: its
-data version, or for a step without an output, its result),
+`@mk.step(...)` options: `reuse=True` (reuse what an earlier run
+produced when code, inputs and arguments are unchanged: its data version,
+or for a step without an output, its result; only for steps that read
+nothing but those) or `reuse="1h"` (results up to that age; a
+`timedelta` works too),
 `output=mk.Dataset(name, partition="arg", keep=mk.Keep(versions=3, age=timedelta(days=30)))`
 (`keep`: retention; per partition the latest and those kept by either rule
 stay, the rest expire; without it every version stays), `version=` (pin the
@@ -196,11 +198,16 @@ travel as inputs (lineage, and content hashes in the fingerprint), not
 inside the arguments. Raise `moksha.NonRetryable` for failures retrying
 won't fix.
 
+Without `reuse=` a step runs in every run; within one run a completed
+step is never run again either way. `memo=` is the old name of `reuse=`
+(`memo=True` is `reuse=True`, `memo="ttl:1h"` is `reuse="1h"`): it still
+works, with a warning, and `python -m moksha.lint` flags it (MK007).
+
 Arguments and results are JSON; `date` and `datetime` round-trip.
 
 ### Code versions
 
-A memoized step is reused only while its code version is unchanged. The
+A step with `reuse=` is reused only while its code version is unchanged. The
 version covers the code the step can run: its own body and every function,
 class and module-level constant of your project it reaches, in any module
 (comments, docstrings, formatting and the `@mk.step(...)` line don't
@@ -234,10 +241,10 @@ annotation:
 import pandas as pd
 import polars as pl
 
-@mk.step(memo=True)
+@mk.step(reuse=True)
 def orders(day: str) -> pl.DataFrame: ...
 
-@mk.step(memo=True)
+@mk.step(reuse=True)
 def totals(orders: pl.LazyFrame) -> pl.DataFrame:     # scans the Parquet
     return orders.group_by("region").agg(pl.col("amount").sum()).collect()
 

@@ -22,7 +22,7 @@ import moksha as mk
 @mk.step(output=mk.Dataset("raw.orders", partition="day"))
 def extract_orders(day: str) -> dict: ...            # writes files to mk.output().path
 
-@mk.step(memo=True, output=mk.Dataset("mart.daily_revenue", partition="day"))
+@mk.step(reuse=True, output=mk.Dataset("mart.daily_revenue", partition="day"))
 def daily_revenue(orders: mk.DataVersion, day: str) -> dict: ...
 
 @mk.pipeline
