@@ -226,6 +226,9 @@ func (c *Core) waitReason(t Task, workers []Worker) Waiting {
 		if !slices.Contains(wk.Queues, t.Queue) || !slices.Contains(wk.Kinds, t.Kind) {
 			continue
 		}
+		if c.rolledOver(wk.BuildID, t) {
+			continue // a replaced version's: not there for new work, so the new version's pool counts it as demand
+		}
 		w.Workers++
 		if !slices.Contains(w.Builds, wk.BuildID) {
 			w.Builds = append(w.Builds, wk.BuildID)

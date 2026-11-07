@@ -1,6 +1,7 @@
 package core
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -139,4 +140,69 @@ func TestDeploySecretReferences(t *testing.T) {
 	req.Env, req.Secrets = nil, map[string]string{"DB_URL": "../x"}
 	_, err = h.core.Deploy(h.ctx, req)
 	assert.ErrorIs(t, err, ErrInvalid)
+}
+
+// A replaced version's workers finish what they run and take no new work:
+// no run task of the project's pipelines, no step the new build scheduled.
+// Steps the old build scheduled stay open to either, so none is stranded.
+func TestAReplacedVersionsWorkersTakeNoNewWork(t *testing.T) {
+	h := newHarness(t)
+	poll := func(build string) (Task, bool) {
+		t.Helper()
+		task, ok, err := h.core.Poll(h.ctx, PollRequest{WorkerID: "w-" + build, BuildID: build, Queues: []string{DefaultQueue}})
+		require.NoError(t, err)
+		return task, ok
+	}
+	replay := func(task Task, build string) {
+		t.Helper()
+		require.NoError(t, h.core.CompleteRunTask(h.ctx, RunTaskResult{TaskID: task.ID, BuildID: build,
+			Commands: seqs(Command{Kind: CommandStep, Name: "load", Args: json.RawMessage(`{}`)})}))
+	}
+	start := func() string {
+		t.Helper()
+		res, err := h.core.StartRun(h.ctx, StartRunRequest{Tenant: "t", Name: "weekly"})
+		require.NoError(t, err)
+		return res.RunID
+	}
+	_, err := h.core.Deploy(h.ctx, deployReq("revenue", "b1", "weekly"))
+	require.NoError(t, err)
+	old := start()
+	task, ok := poll("b1")
+	require.True(t, ok)
+	replay(task, "b1") // old's step "load", scheduled by b1
+
+	_, err = h.core.Deploy(h.ctx, deployReq("revenue", "b2", "weekly"))
+	require.NoError(t, err)
+	fresh := start()
+	task, ok = poll("b1")
+	require.True(t, ok)
+	assert.Equal(t, TaskStep, task.Kind, "it finishes the step its build scheduled")
+	assert.Equal(t, old, task.RunID)
+	_, ok = poll("b1")
+	assert.False(t, ok, "but takes no run task of the new version's")
+	ws, err := h.core.Waiting(h.ctx, []string{fresh})
+	require.NoError(t, err)
+	assert.Equal(t, WaitNoWorker, ws[fresh].Reason, "b1's worker isn't there for it: demand for the new version's pool")
+	demand, err := h.core.Demand(h.ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, demand[DefaultQueue].RunTasks)
+
+	task, ok = poll("b2")
+	require.True(t, ok)
+	assert.Equal(t, TaskRun, task.Kind)
+	assert.Equal(t, fresh, task.RunID)
+	replay(task, "b2")
+	_, ok = poll("b1")
+	assert.False(t, ok, "nor a step the new build scheduled")
+	task, ok = poll("b2")
+	require.True(t, ok)
+	assert.Equal(t, fresh, task.RunID)
+
+	// Deploying b1 again makes it current: its workers take new work again.
+	_, err = h.core.Deploy(h.ctx, deployReq("revenue", "b1", "weekly"))
+	require.NoError(t, err)
+	again := start()
+	task, ok = poll("b1")
+	require.True(t, ok)
+	assert.Equal(t, again, task.RunID)
 }

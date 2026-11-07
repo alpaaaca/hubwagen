@@ -401,6 +401,13 @@ order; each is one PR (projects steps 4–6):
    (alpaaaca/moksha-demo, branch `one-project`) is for v0.2.0 and merges
    once it is released.
 
+✅ **Rollouts take no new work to the old version**, added to this
+milestone: a worker of a project's replaced build gets no run task of its
+pipelines and no step the new build scheduled, while it drains; the steps
+its build scheduled before stay open to it and to the new workers, and
+the new version's pool counts the work as demand
+([projects.md](projects.md), step 7 of the design).
+
 Done when: the demo runs from the release binary with `moksha dev`, and
 on a kind cluster with `helm install` and `moksha deploy`, with no
 `workers:` anywhere and the same project file for both.
