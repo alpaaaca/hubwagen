@@ -399,4 +399,9 @@ message Step {
   // Why it ran or was reused, in plain words ("its code changed (v1 →
   // v2)"); empty when there is nothing to say.
   string why = 15;
+  // The reuse hint: for a completed step without reuse= that ran, how many
+  // other runs ran it with the same fingerprint (code, inputs, arguments),
+  // when every one of them got the same result as this one; 0 otherwise.
+  // Such a step may want reuse=True, if it reads nothing but those.
+  int32 same_result_runs = 16;
 }

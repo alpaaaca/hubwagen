@@ -20,8 +20,11 @@ dataset subscriptions; `moksha start`/`replay` start them and report
 reuse; the SDK has a linter and testing tools. The bucket is a local
 directory or `s3://` (`bucket:` in moksha.yaml); only the server opens it,
 and workers on other machines move data through URLs it hands out. The v1 engine (compiled YAML pipelines) was
-removed in M3c; it is in git history up to commit 33ca1ba. **Next:** M6
-(projects everywhere: the demo as one project next), then the rest of M5 (the catalog in the web UI); reuse as `reuse=` (opt-in, decided; docs/api-simplification.md step 3).
+removed in M3c; it is in git history up to commit 33ca1ba. **Next:**
+authentication (tokens for workers and users), the SDK on PyPI, then the
+web UI's projects (M6) and catalog (the rest of M5). Reuse is opt-in as
+`reuse=`, with `--reuse=none`, `replay --dry-run` and the reuse hint
+(docs/api-simplification.md step 3, built).
 
 Read before larger changes:
 
@@ -30,7 +33,7 @@ Read before larger changes:
 - [docs/v2-migration.md](docs/v2-migration.md) — what happened to each v1 package
 - [docs/failover.md](docs/failover.md) — design: nodes, leader election and state handoff (not built)
 - [docs/worker-pools.md](docs/worker-pools.md) — design: the leader starts and scales the workers its queued work needs (not built)
-- [docs/api-simplification.md](docs/api-simplification.md) — design: steps return values and dataframes; reuse stays opt-in as `reuse=` (steps 1–2 and `reuse=` built)
+- [docs/api-simplification.md](docs/api-simplification.md) — design: steps return values and dataframes; reuse stays opt-in as `reuse=` (steps 1–3 built: reuse=, --reuse=none, replay --dry-run, the reuse hint)
 - [docs/spikes/](docs/spikes/) — spike findings (S1: Python replay, S2: code versions)
 - [sdk/python/README.md](sdk/python/README.md) — writing pipelines and steps, the worker
 - [docs/config.md](docs/config.md) — instance configuration (`moksha.yaml`)

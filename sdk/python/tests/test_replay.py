@@ -237,6 +237,7 @@ def test_reuse_ages():
     assert policy(reuse="1h30m") == "ttl:1h30m"
     assert policy(reuse=dt.timedelta(minutes=90)) == "ttl:5400s"
     assert policy() == "", "not reused unless it says so"
+    assert policy(reuse=False) == "never", "not reused, on purpose: no reuse hint"
     for bad in ("ttl:1h", "1d", "0s", "soon", 3):
         with pytest.raises(ValueError, match="reuse="):
             policy(reuse=bad)

@@ -1,7 +1,6 @@
 # Simplifying the authoring API
 
-Design note; steps 1, 2 and the first part of 3 (`reuse=`) are built
-(see Steps), the rest is not.
+Design note; steps 1–3 are built (see Steps), 4 and 5 are not.
 Decided (2026-11-07): reuse across runs stays opt-in, as `reuse=`
 ([section 4](#4-reuse-opt-in-as-reuse-with-moksha-pointing-out-where-it-helps)).
 Proposes how the Python SDK can drop most of the
@@ -264,11 +263,14 @@ PR-sized, in order:
       parameters, which of its steps the current code would run again,
       without starting runs (the server runs no pipeline code to know
       more).
-   3. **The hint**: every step gets a fingerprint (the same
+   3. ✅ **The hint**: every step gets a fingerprint (the same
       `fingerprintInputs`, so not a format change); a step without
-      `reuse=` is still never looked up. The replay report and the
-      pipeline's page in the web UI say when such a step returned the
-      same content for a fingerprint it had before.
+      `reuse=` is still never looked up, and doesn't wait for another
+      run's (single-flight). The replay report and a run's page in the
+      web UI say when such a step got the same result as every other run
+      of its fingerprint (`Step.same_result_runs`). `reuse=False` (memo
+      `never` on the wire) says a step isn't reused on purpose: no hint,
+      so a step that reads a file isn't told to take `reuse=True`.
 4. **References.** `mk.table`, version tokens, the adapter existence check,
    starting with Iceberg or Delta.
 5. **Object-store checksums**, with the `s3://` / `gs://` buckets.

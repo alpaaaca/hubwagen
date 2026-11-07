@@ -62,3 +62,32 @@ func (s *Store) currentCodeVersion(ctx context.Context, step string) (string, er
 	}
 	return v, err
 }
+
+// Repeats is what other runs of a step's fingerprint did: Others ran it
+// (not reused), and Same of those got the same result as this one.
+type Repeats struct{ Others, Same int }
+
+// StepRepeats counts, for a completed step of a tenant's run that ran,
+// the other runs that ran it with the same fingerprint and how many got
+// the same result: a data version with the same content hash when it made
+// one (dataVersion), else the same result JSON. The reuse hint: a step
+// without reuse= that keeps getting the same result may want it.
+func (s *Store) StepRepeats(ctx context.Context, tenant string, step Step, dataVersion string) (Repeats, error) {
+	var r Repeats
+	if step.Fingerprint == "" {
+		return r, nil
+	}
+	if dataVersion != "" {
+		err := s.r.QueryRowContext(ctx, `
+			SELECT COUNT(*), COALESCE(SUM(o.content_hash = d.content_hash AND d.content_hash <> ''), 0)
+			FROM data_versions d JOIN data_versions o ON o.fingerprint = d.fingerprint AND o.tenant = d.tenant AND o.id <> d.id
+			WHERE d.id = ? AND d.tenant = ? AND o.state IN ('committed', 'expired', 'invalid')`, dataVersion, tenant).Scan(&r.Others, &r.Same)
+		return r, err
+	}
+	err := s.r.QueryRowContext(ctx, `
+		SELECT COUNT(*), COALESCE(SUM(result_json = ?), 0) FROM steps
+		WHERE fingerprint = ? AND reused = 0 AND status = 'completed' AND NOT (run_id = ? AND seq = ?)
+		AND run_id IN (SELECT id FROM runs WHERE tenant = ?)`,
+		string(step.Result), step.Fingerprint, step.RunID, step.Seq, tenant).Scan(&r.Others, &r.Same)
+	return r, err
+}

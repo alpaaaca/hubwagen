@@ -26,16 +26,16 @@ type flight struct {
 func flightKey(l *stepState) string { return l.run.rec.Tenant + "\x00" + l.rec.Fingerprint }
 
 // runOrWait runs a step that missed the memo lookup, unless its fingerprint
-// is already running. A step of a run that reuses nothing doesn't wait for
-// another run's: it runs (and owns the flight if there is none, so steps
-// that may reuse can wait for it).
+// is already running. A step without reuse=, or of a run that reuses
+// nothing, doesn't wait for another run's: it runs (and owns the flight if
+// there is none, so steps that may reuse can wait for it).
 func (c *Core) runOrWait(l *stepState) {
 	if l.rec.Fingerprint == "" {
 		c.startAttempt(l)
 		return
 	}
 	if f := c.flights[flightKey(l)]; f != nil {
-		if l.run.rec.Reuse == state.ReuseNone {
+		if !l.memo.on || l.run.rec.Reuse == state.ReuseNone {
 			c.startAttempt(l)
 			return
 		}
@@ -115,7 +115,9 @@ func (c *Core) reuseStep(l *stepState, m memoMatch) {
 
 // restoreFlights rebuilds flights from restored steps: every unfinished step
 // with a fingerprint owns one (the first per fingerprint), waiting steps
-// rejoin it, and a waiting step whose owner is gone runs itself.
+// rejoin it, and a waiting step whose owner is gone runs itself. Restored
+// steps don't know their reuse=, so one without it may own a flight too;
+// only steps with reuse= wait (runOrWait), and they may take its result.
 func (c *Core) restoreFlights(steps []*stepState) {
 	var waiting []*stepState
 	for _, l := range steps {

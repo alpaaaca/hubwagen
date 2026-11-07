@@ -324,11 +324,14 @@ _DURATION = re.compile(r"(\d+(\.\d+)?(ns|us|µs|ms|s|m|h))+")
 
 
 def _reuse(reuse: bool | str | _dt.timedelta | None) -> str:
-    """reuse= as the wire's memo policy."""
+    """reuse= as the wire's memo policy: None (not given) is "", False
+    (not reused, on purpose: no reuse hint) is "never"."""
     if reuse is True:
         return "fingerprint"
-    if reuse is False or reuse is None:
+    if reuse is None:
         return ""
+    if reuse is False:
+        return "never"
     if isinstance(reuse, _dt.timedelta) and reuse > _dt.timedelta(0):
         s = reuse.total_seconds()
         return f"ttl:{int(s) if s == int(s) else s}s"
@@ -349,7 +352,7 @@ def _memo(memo: bool | str) -> tuple[str, str]:
     raise ValueError(f"memo={memo!r}: memo= is now reuse=: True, False or an age such as '1h'")
 
 
-def step(fn: Callable | None = None, *, name: str | None = None, reuse: bool | str | _dt.timedelta = False,
+def step(fn: Callable | None = None, *, name: str | None = None, reuse: bool | str | _dt.timedelta | None = None,
          output: Dataset | None = None, version: str | None = None, deps: tuple[str, ...] | list[str] = (),
          timeout: float | _dt.timedelta | None = None, retry: Retry | int | None = None, queue: str | None = None,
          memo: bool | str | None = None):
@@ -364,11 +367,14 @@ def step(fn: Callable | None = None, *, name: str | None = None, reuse: bool | s
     only to steps that read nothing but their inputs and arguments; a step
     that reads a file, a database or the clock runs every time without it.
     reuse="1h" (or a timedelta) reuses results up to that age. Within one
-    run a completed step is never run again either way. memo= is the old
-    name, deprecated. The function stays callable as is, for tests."""
+    run a completed step is never run again either way. Without reuse=,
+    moksha points out a step that keeps getting the same result (the reuse
+    hint); reuse=False says it isn't reused on purpose, which silences
+    that. memo= is the old name, deprecated. The function stays callable
+    as is, for tests."""
     instead = None
     if memo is not None:
-        if reuse is not False:
+        if reuse is not None:
             raise ValueError("step: reuse= and memo= both given; memo= is the old name of reuse=")
         policy, instead = _memo(memo)
     else:

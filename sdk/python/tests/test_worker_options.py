@@ -42,6 +42,27 @@ def test_build_json_is_what_a_worker_registers():
     assert {"schedules", "subscriptions", "datasets", "pipelineInfo"} <= set(reg)
 
 
+def test_a_steps_decorator_is_part_of_the_build(monkeypatch):
+    # The code version leaves out the @mk.step(...) line, but a new reuse=
+    # (or timeout, retry, queue, output) must be a new build to take effect.
+    import moksha as mk
+    from moksha import _model
+
+    def build(**kw):
+        monkeypatch.setattr(_model, "STEPS", {})
+        monkeypatch.setattr(_model, "PIPELINES", {})
+
+        def load(x: int) -> int:
+            return x
+
+        mk.step(load, name="decorated_load", **kw)
+        return worker.build_id()
+
+    assert build() == build(), "the same code and settings: the same build"
+    ids = {build(), build(reuse=True), build(reuse=False), build(reuse="1h"), build(timeout=30), build(queue="gpu")}
+    assert len(ids) == 6
+
+
 def test_a_worker_stops_on_sigterm_while_it_waits_for_the_server(tmp_path):
     # A pod stopped before the server answers: the worker must stop then too,
     # not once it has registered (as PID 1 it would ignore the signal).

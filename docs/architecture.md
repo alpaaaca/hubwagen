@@ -367,7 +367,11 @@ annotation costs a rerun, never correctness (decided in
 [api-simplification.md](api-simplification.md#4-reuse-opt-in-as-reuse-with-moksha-pointing-out-where-it-helps)).
 Inside one run a completed step is never run again, with or without it.
 
-- `@step` (default): never reused; runs every time.
+- `@step` (default): never reused; runs every time. moksha points out
+  such a step when it keeps getting the same result (the reuse hint,
+  below).
+- `@step(reuse=False)`: the same, said on purpose (it reads a file, a
+  database or the clock): no reuse hint. On the wire, memo `never`.
 - `@step(reuse=True)`: the author promises the output depends only on the
   step's code, input data versions and parameters. Use it for transforms over
   data versions, and for reads that a parameter pins down (a closed day's orders,
@@ -400,9 +404,22 @@ Inside one run a completed step is never run again, with or without it.
   `{{ input(...) }}` itself, so it knows all inputs. lint (later, with SQL steps) flags
   table references that bypass `input()`, since those are hidden inputs.
 
-`moksha replay` will name steps that ran only because they have no
-`reuse=`, with a hint, so users learn where `reuse=True` would help
-([api-simplification.md](api-simplification.md#steps), step 3).
+**The reuse hint** shows users where `reuse=True` would help. Every step
+gets a fingerprint, with `reuse=` or without; a step without it is never
+looked up, so it still runs every time. When such a step ran and every
+other run with its fingerprint got the same result (the same content
+hash, or the same result value), `Step.same_result_runs` says how many,
+and the replay report and the run's page in the web UI say so:
+
+```
+Hint: daily_revenue has no reuse=, and in 3 of 3 runs it got the same result as
+earlier runs with the same code, inputs and arguments. If it reads nothing but
+those, @mk.step(reuse=True) would reuse it.
+```
+
+It is only a hint: a step that reads a file may return the same until the
+file changes, which is why such a step says `reuse=False`, and gets none. A step turned to `reuse=True` is reused from its earlier
+runs right away, since they carry its fingerprint.
 
 ### Hidden inputs
 

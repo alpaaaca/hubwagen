@@ -199,7 +199,10 @@ inside the arguments. Raise `moksha.NonRetryable` for failures retrying
 won't fix.
 
 Without `reuse=` a step runs in every run; within one run a completed
-step is never run again either way. `memo=` is the old name of `reuse=`
+step is never run again either way. When it keeps getting the same
+result for the same code, inputs and arguments, `moksha replay` and the
+web UI suggest `reuse=True`; `reuse=False` says a step isn't reused on
+purpose (it reads a file, a database, the clock), and silences that. `memo=` is the old name of `reuse=`
 (`memo=True` is `reuse=True`, `memo="ttl:1h"` is `reuse="1h"`): it still
 works, with a warning, and `python -m moksha.lint` flags it (MK007).
 

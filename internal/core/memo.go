@@ -170,13 +170,18 @@ func mapsEqual(a, b map[string]string) bool {
 type memoPolicy struct {
 	on  bool
 	ttl time.Duration // 0 = any age
+	// off: never, said so (reuse=False): such a step gets no reuse hint.
+	off bool
 }
 
-// parseMemo reads "" or "never", "fingerprint", "ttl:<duration>".
+// parseMemo reads "" (no reuse=), "never" (reuse=False), "fingerprint",
+// "ttl:<duration>".
 func parseMemo(s string) (memoPolicy, error) {
 	switch {
-	case s == "" || s == "never":
+	case s == "":
 		return memoPolicy{}, nil
+	case s == "never":
+		return memoPolicy{off: true}, nil
 	case s == "fingerprint":
 		return memoPolicy{on: true}, nil
 	case strings.HasPrefix(s, "ttl:"):
@@ -229,6 +234,22 @@ func canonicalJSON(raw json.RawMessage) (json.RawMessage, error) {
 	return json.Marshal(v) // maps marshal with sorted keys
 }
 
+// ReasonNoReuse is the run reason of a step without reuse= (memo policy
+// ""); the text predates reuse= and is kept, since it is stored with
+// steps. Such a step gets the reuse hint. ReasonReuseOff: reuse=False
+// (memo policy never), not reused on purpose, so no hint.
+const (
+	ReasonNoReuse  = "not memoized"
+	ReasonReuseOff = "reuse=False"
+)
+
+func (p memoPolicy) noReuseReason() string {
+	if p.off {
+		return ReasonReuseOff
+	}
+	return ReasonNoReuse
+}
+
 // reasonReuseNone is the run reason of a step with reuse= in a run started
 // with reuse none.
 const reasonReuseNone = "run reuses nothing"
@@ -248,20 +269,26 @@ type memoMatch struct {
 
 // memoize computes l's fingerprint and looks for something to reuse. It sets
 // the step's fingerprint and, when the step has to run, its RunReason.
+// Every step gets a fingerprint, with reuse= or not, so moksha can point out
+// steps that keep returning the same result (the reuse hint), and a step
+// turned to reuse= can reuse its earlier runs; only steps with reuse= look
+// anything up.
 func (c *Core) memoize(l *stepState, inputs []state.DataVersion) *memoMatch {
 	h := l.run
-	if !l.memo.on {
-		l.rec.RunReason = "not memoized"
-		return nil
+	why := func(reason string) {
+		l.rec.RunReason = reason
+		if !l.memo.on {
+			l.rec.RunReason = l.memo.noReuseReason()
+		}
 	}
 	version, ok := c.builds[h.rec.BuildID][l.rec.Name]
 	if !ok {
-		l.rec.RunReason = "unknown code version"
+		why("unknown code version")
 		return nil
 	}
 	args, err := canonicalJSON(l.rec.Args)
 	if err != nil {
-		l.rec.RunReason = "arguments are not JSON"
+		why("arguments are not JSON")
 		return nil
 	}
 	fpi := fingerprintInputs{Step: l.rec.Name, CodeVersion: version, Args: args}
@@ -283,6 +310,10 @@ func (c *Core) memoize(l *stepState, inputs []state.DataVersion) *memoMatch {
 	})
 	l.rec.Fingerprint = fpi.hash()
 	l.rec.FPInputs = marshalPayload(state.EventStepScheduled, fpi)
+	if !l.memo.on {
+		l.rec.RunReason = l.memo.noReuseReason()
+		return nil
+	}
 	if h.rec.Reuse == state.ReuseNone { // fingerprinted all the same: later runs can reuse what it makes
 		l.rec.RunReason = reasonReuseNone
 		return nil

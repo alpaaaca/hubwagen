@@ -435,9 +435,12 @@ annotation that moksha points out. Design and decisions:
    changed since (its project's deployed build, else the newest
    registered one), or it didn't complete;
    nothing starts and no code runs.
-5. **The reuse hint**: every step fingerprinted; the replay report and
-   the web UI say when a step without `reuse=` returned the same result
-   for the same fingerprint.
+5. ✅ **The reuse hint**: every step fingerprinted (a step without
+   `reuse=` is never looked up and never waits on another run's); the
+   replay report and a run's page in the web UI say when such a step got
+   the same result as every other run of its fingerprint
+   (`Step.same_result_runs`); `reuse=False` says no on purpose and gets
+   no hint.
 6. **References** (`mk.table`, version tokens, the existence check) and
    **object-store checksums**: api-simplification steps 4–5.
 

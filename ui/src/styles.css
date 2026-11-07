@@ -152,6 +152,7 @@ a.history-cell:hover { outline: 2px solid var(--accent); }
 /* Hints: a "?" that explains a word. */
 .hint { display: inline-block; width: 14px; height: 14px; line-height: 14px; margin-left: 2px; border-radius: 50%; border: 1px solid var(--line, #ccc); color: var(--dim); font-size: 10px; font-weight: normal; text-align: center; cursor: help; vertical-align: middle; }
 .hint:focus { outline: 2px solid var(--accent); }
+.reuse-hint { color: var(--accent); margin-top: 2px; }
 
 /* A run's history: one sentence per event. */
 .history-lines { list-style: none; padding: 0; margin: 0; font-size: 14px; }
